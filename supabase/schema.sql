@@ -207,12 +207,14 @@ CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_pings_table ON pings(table_number);
 CREATE INDEX IF NOT EXISTS idx_pings_status ON pings(status);
 
--- Enable Supabase Realtime CDC on all tables
-ALTER PUBLICATION supabase_realtime ADD TABLE tables;
-ALTER PUBLICATION supabase_realtime ADD TABLE table_seats;
-ALTER PUBLICATION supabase_realtime ADD TABLE orders;
-ALTER PUBLICATION supabase_realtime ADD TABLE order_items;
-ALTER PUBLICATION supabase_realtime ADD TABLE kds_tickets;
-ALTER PUBLICATION supabase_realtime ADD TABLE payments;
-ALTER PUBLICATION supabase_realtime ADD TABLE pings;
-ALTER PUBLICATION supabase_realtime ADD TABLE menu_86;
+-- Enable Supabase Realtime CDC on all tables safely
+DO $$
+BEGIN
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE tables, table_seats, orders, order_items, kds_tickets, payments, pings, menu_86;
+  EXCEPTION 
+    WHEN duplicate_object THEN NULL;
+    WHEN others THEN NULL;
+  END;
+END $$;
+

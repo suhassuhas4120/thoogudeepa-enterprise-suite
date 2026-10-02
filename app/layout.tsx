@@ -1,7 +1,8 @@
-﻿import type { Metadata } from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
 import { QueryProvider } from '../providers/QueryProvider';
 import { CustomerProvider } from '../context/CustomerContext';
+import { BridgeSyncProvider } from '../providers/BridgeSyncProvider';
 
 export const metadata: Metadata = {
   title: 'Customer Experience Framework | React 19 + Next.js',
@@ -17,7 +18,12 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <QueryProvider>
-          <CustomerProvider>{children}</CustomerProvider>
+          <CustomerProvider>
+            {/* BridgeSyncProvider activates Supabase Realtime CDC for the shared bridge */}
+            <BridgeSyncProvider>
+              {children}
+            </BridgeSyncProvider>
+          </CustomerProvider>
         </QueryProvider>
       </body>
     </html>

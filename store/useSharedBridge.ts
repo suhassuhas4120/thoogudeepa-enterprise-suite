@@ -232,6 +232,47 @@ export const getCanonicalDishKey = (name: string): string => {
     .trim();
 };
 
+/* ── API Fire-and-Forget Helper ─────────────────────────────────── */
+/**
+ * bridgePost: Calls a Next.js API route in the background (fire-and-forget).
+ * Pattern:
+ *   1. Caller already did optimistic Zustand update.
+ *   2. bridgePost fires the API call.
+ *   3. On failure: calls onRollback() to restore pre-action snapshot.
+ *
+ * Why fire-and-forget (not await)?
+ *   - Bridge actions are called from UI event handlers.
+ *   - We NEVER want the UI to wait for a network round-trip.
+ *   - Zustand update is instant (optimistic); DB write happens async.
+ *
+ * Only runs in browser (SSR-safe: typeof window check).
+ */
+function bridgePost(
+  url: string,
+  body: Record<string, unknown>,
+  onRollback?: () => void
+): void {
+  if (typeof window === 'undefined') return; // SSR guard
+
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+    .then((res) => {
+      if (!res.ok) {
+        res.json().catch(() => null).then((err) => {
+          console.error(`[Bridge] API ${url} failed (${res.status}):`, err);
+          onRollback?.();
+        });
+      }
+    })
+    .catch((err) => {
+      console.error(`[Bridge] API ${url} network error:`, err);
+      onRollback?.();
+    });
+}
+
 /* ── Store Implementation ───────────────────────────────────────── */
 export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   tables: freshTables,
@@ -278,6 +319,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       dismissed: false,
     };
 
+    // ── Snapshot for rollback ────────────────────────────────────
+    const prevState = {
+      kdsTickets: get().kdsTickets,
+      kitchenNotifications: get().kitchenNotifications,
+      tables: get().tables,
+    };
+
+    // ── 1. Optimistic Zustand update (instant UI) ────────────────
     set((state) => ({
       kdsTickets: [...state.kdsTickets, ticket],
       kitchenNotifications: [...state.kitchenNotifications, notif],
@@ -302,6 +351,33 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           : t
       ),
     }));
+
+    // ── 2. Persist to Supabase via API (fire-and-forget) ────────
+    bridgePost(
+      '/api/orders/create',
+      {
+        tableNumber,
+        seatNumber: 1,            // default seat; customer screen sets proper seat
+        guestName,
+        guestCount: guestCount || 1,
+        source: 'CUSTOMER',
+        items: items.map((i) => ({
+          name: i.item.name,
+          quantity: i.quantity,
+          price: i.item.price,
+          unitPrice: i.item.price,
+          prepMode: i.item.prepMode || 'Regular',
+          selectedOption: i.selectedOption || null,
+          addOns: i.addOns || [],
+          notes: '',
+        })),
+      },
+      () => {
+        // Rollback on API failure
+        console.error('[Bridge] customerPlacesOrder rollback');
+        useSharedBridge.setState(prevState);
+      }
+    );
   },
 
   /* ─── Customer Pings Waiter ──────────────────────────────────── */
@@ -322,12 +398,32 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       status: 'PENDING',
       guestName,
     };
+
+    // Snapshot for rollback
+    const prevPings = get().pings;
+
+    // 1. Optimistic update
     set((state) => ({ pings: [...state.pings, ping] }));
+
+    // 2. Persist to Supabase
+    bridgePost(
+      '/api/pings/create',
+      { tableNumber, seatNumber: 1, type, guestName, message: msg || '' },
+      () => {
+        console.error('[Bridge] customerPingsWaiter rollback');
+        useSharedBridge.setState({ pings: prevPings });
+      }
+    );
   },
 
   /* ─── Kitchen Bumps Item Stage ───────────────────────────────── */
   kitchenBumpItemStage: (ticketId, itemId) => {
     const stageOrder: OrderStage[] = ['PLACED', 'PREP', 'PLATED', 'SERVED'];
+
+    // Snapshot for rollback
+    const prevTickets = get().kdsTickets;
+    const prevTables = get().tables;
+
     set((state) => {
       const newTickets = state.kdsTickets.map((t) => {
         if (t.id !== ticketId) return t;
@@ -363,6 +459,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
+
+    // Persist to Supabase
+    bridgePost(
+      '/api/kds/bump-item',
+      { ticketId, itemId },
+      () => {
+        console.error('[Bridge] kitchenBumpItemStage rollback');
+        useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables });
+      }
+    );
   },
 
   /* ─── Kitchen Sets Specific Item Stage ───────────────────────── */
@@ -449,6 +555,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   /* ─── Kitchen Bumps Entire Table ─────────────────────────────── */
   kitchenBumpTable: (ticketId) => {
+    const prevTickets = get().kdsTickets;
+
     set((state) => ({
       kdsTickets: state.kdsTickets.map((t) => {
         if (t.id !== ticketId) return t;
@@ -459,6 +567,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         };
       }),
     }));
+
+    bridgePost(
+      '/api/kds/bump-table',
+      { ticketId, status: 'READY' },
+      () => {
+        console.error('[Bridge] kitchenBumpTable rollback');
+        useSharedBridge.setState({ kdsTickets: prevTickets });
+      }
+    );
   },
 
   /* ─── Kitchen Clear Completed ─────────────────────────────────── */
@@ -470,15 +587,31 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   /* ─── Kitchen Toggle 86 ──────────────────────────────────────── */
   kitchenToggle86: (itemId) => {
+    const prevInventory = get().inventory86;
+    const currentItem = prevInventory.find((i) => i.id === itemId);
+
     set((state) => ({
       inventory86: state.inventory86.map((item) =>
         item.id === itemId ? { ...item, is86: !item.is86 } : item
       ),
     }));
+
+    bridgePost(
+      '/api/kds/toggle-86',
+      { itemId, is86: !currentItem?.is86 },
+      () => {
+        console.error('[Bridge] kitchenToggle86 rollback');
+        useSharedBridge.setState({ inventory86: prevInventory });
+      }
+    );
   },
 
   /* ─── Kitchen Update Prep Delay ──────────────────────────────── */
   kitchenUpdatePrepDelay: (itemId, deltaMinutes) => {
+    const prevInventory = get().inventory86;
+    const currentItem = prevInventory.find((i) => i.id === itemId);
+    const newDelay = Math.max(0, (currentItem?.prepDelayMinutes ?? 0) + deltaMinutes);
+
     set((state) => ({
       inventory86: state.inventory86.map((item) =>
         item.id === itemId
@@ -486,6 +619,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           : item
       ),
     }));
+
+    bridgePost(
+      '/api/kds/toggle-86',
+      { itemId, is86: currentItem?.is86 ?? false, prepDelayMinutes: newDelay },
+      () => {
+        console.error('[Bridge] kitchenUpdatePrepDelay rollback');
+        useSharedBridge.setState({ inventory86: prevInventory });
+      }
+    );
   },
 
   /* ─── Kitchen Dismiss Notification ───────────────────────────── */
@@ -538,6 +680,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     };
 
     const kotTotal = items.reduce((s, i) => s + i.item.price * i.quantity, 0);
+
+    // Snapshot for rollback
+    const prevState = {
+      kdsTickets: get().kdsTickets,
+      kitchenNotifications: get().kitchenNotifications,
+      tables: get().tables,
+    };
+
+    // 1. Optimistic update
     set((state) => ({
       kdsTickets: [...state.kdsTickets, ticket],
       kitchenNotifications: [...state.kitchenNotifications, notif],
@@ -556,10 +707,38 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           : t
       ),
     }));
+
+    // 2. Persist to Supabase
+    bridgePost(
+      '/api/orders/create',
+      {
+        tableNumber,
+        seatNumber: 1,
+        guestName: captainName,
+        guestCount: 1,
+        source: 'WAITER',
+        items: items.map((i) => ({
+          name: i.item.name,
+          quantity: i.quantity,
+          price: i.item.price,
+          unitPrice: i.item.price,
+          prepMode: i.item.prepMode || 'Regular',
+          selectedOption: i.selectedOption || null,
+          addOns: [],
+          notes: '',
+        })),
+      },
+      () => {
+        console.error('[Bridge] waiterFiresKOT rollback');
+        useSharedBridge.setState(prevState);
+      }
+    );
   },
 
   /* ─── Waiter Seats Guests ────────────────────────────────────── */
   waiterSeatsGuests: (tableNumber, guestCount, captainName) => {
+    const prevTables = get().tables;
+
     set((state) => ({
       tables: state.tables.map((t) =>
         t.number === tableNumber
@@ -567,6 +746,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           : t
       ),
     }));
+
+    bridgePost(
+      '/api/tables/seat',
+      { tableNumber, guestCount, captainName },
+      () => {
+        console.error('[Bridge] waiterSeatsGuests rollback');
+        useSharedBridge.setState({ tables: prevTables });
+      }
+    );
   },
 
   /* ─── Waiter Merges Two Tables ───────────────────────────────── */
@@ -606,7 +794,20 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   /* ─── Waiter Resolves Ping ───────────────────────────────────── */
   waiterResolvePing: (pingId) => {
+    const prevPings = get().pings;
+
+    // 1. Optimistic: remove ping immediately from UI
     set((state) => ({ pings: state.pings.filter((p) => p.id !== pingId) }));
+
+    // 2. Persist to Supabase
+    bridgePost(
+      '/api/pings/resolve',
+      { pingId },
+      () => {
+        console.error('[Bridge] waiterResolvePing rollback');
+        useSharedBridge.setState({ pings: prevPings });
+      }
+    );
   },
 
   /* ─── Waiter Records Payment ─────────────────────────────────── */
@@ -631,6 +832,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   /* ─── Waiter Vacates Table ───────────────────────────────────── */
   waiterVacatesTable: (tableNumber) => {
+    // Snapshot for rollback (vacate is destructive — save full state)
+    const prevTables = get().tables;
+    const prevTickets = get().kdsTickets;
+
     set((state) => {
       const targetTbl = state.tables.find((t) => t.number === tableNumber);
       const partner = targetTbl?.mergedWith;
@@ -658,6 +863,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         ),
       };
     });
+
+    // Persist to Supabase
+    bridgePost(
+      '/api/tables/vacate',
+      { tableNumber },
+      () => {
+        console.error('[Bridge] waiterVacatesTable rollback');
+        useSharedBridge.setState({ tables: prevTables, kdsTickets: prevTickets });
+      }
+    );
   },
 
   /* ─── Waiter Marks Kitchen Item Served ───────────────────────── */

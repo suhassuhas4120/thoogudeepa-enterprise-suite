@@ -12,6 +12,7 @@ export async function POST(req: NextRequest) {
     const guestCount = parseInt(body.guestCount || '1', 10);
     const items = body.items || [];
     const deviceToken = body.deviceToken || null;
+    const source: 'CUSTOMER' | 'WAITER' = body.source === 'WAITER' ? 'WAITER' : 'CUSTOMER';
 
     if (!tableNumber) {
       return NextResponse.json({ error: 'tableNumber is required' }, { status: 400 });
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       total,
       total_amount: total,
       status: 'UNPAID',
-      source: 'CUSTOMER',
+      source,
       device_token: deviceToken,
     });
 
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
       seat_number: seatNumber,
       server_name: guestName,
       status: 'NEW',
-      source: 'CUSTOMER',
+      source,
       items: lineItems,
     });
 

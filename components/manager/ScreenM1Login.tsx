@@ -173,9 +173,9 @@ export function ScreenM1Login() {
             </div>
             <div className="font-mono text-xs font-bold text-slate-500">
               {authError ? (
-                <span className="text-rose-600 font-black">❌ INVALID PIN — TRY DEFAULT 1234</span>
+                <span className="text-rose-600 font-bold">INVALID PIN — PLEASE ENTER 1234</span>
               ) : (
-                <span>[{pinInput.length} OF 4 DIGITS ENTERED • DEFAULT PIN: 1234]</span>
+                <span>[{pinInput.length} OF 4 DIGITS ENTERED • PIN: 1234]</span>
               )}
             </div>
           </div>
@@ -219,7 +219,7 @@ export function ScreenM1Login() {
             className="flex-1 bg-slate-900 text-white py-3 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-[3px_3px_0px_#0f172a] hover:bg-orange-600 transition"
           >
             <Unlock className="h-4 w-4" />
-            <span>VERIFY & UNLOCK DESK ➔</span>
+            <span>VERIFY & UNLOCK DESK</span>
           </button>
         </div>
       </div>

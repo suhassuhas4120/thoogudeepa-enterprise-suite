@@ -206,7 +206,7 @@ export function ScreenM2LiveOverview() {
               onClick={() => setCurrentScreen(4)}
               className="flex-1 bg-slate-900 text-white py-2 px-3 rounded-lg text-xs font-mono font-bold hover:bg-orange-600 transition text-center"
             >
-              OPEN BILLING POS ➔
+              OPEN BILLING POS
             </button>
             <button
               onClick={() => setCurrentScreen(16)}

@@ -99,7 +99,7 @@ export function ScreenM6WaitingQueue() {
                       onClick={() => handleSeat(tk)}
                       className="bg-slate-900 text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-emerald-600 transition"
                     >
-                      SEAT ➔
+                      SEAT
                     </button>
                   </>
                 )}

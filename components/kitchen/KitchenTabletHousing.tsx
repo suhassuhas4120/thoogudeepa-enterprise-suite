@@ -1,7 +1,7 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
-import { Wifi, Flame } from 'lucide-react';
+import { Wifi, Flame, AlertCircle } from 'lucide-react';
 import { useKitchenStore } from '../../store/useKitchenStore';
 import { STATION_LABELS } from '../../types/kitchen';
 
@@ -66,7 +66,10 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
         {/* Waiter Alert Notification Toast */}
         {waiterAlertNotice && (
           <div className="bg-slate-900 text-white text-xs font-bold px-4 py-2 flex items-center justify-between z-30 border-b border-slate-700">
-            <span>⚡ {waiterAlertNotice}</span>
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+              <span>{waiterAlertNotice}</span>
+            </div>
             <button
               onClick={dismissWaiterAlert}
               className="text-[10px] text-slate-400 hover:text-white underline ml-2"

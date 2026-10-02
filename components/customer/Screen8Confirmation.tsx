@@ -123,7 +123,7 @@ export const Screen8Confirmation: React.FC = () => {
             </button>
           ) : (
             <div className="mt-2 rounded-xl bg-emerald-100 p-2 text-center text-xs font-black text-emerald-800">
-              ✓ Thank you for your feedback!
+              Thank you for your feedback!
             </div>
           )}
         </div>

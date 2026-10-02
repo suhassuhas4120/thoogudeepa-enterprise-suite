@@ -6,7 +6,7 @@ import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
-import { ArrowRight, Check, Sparkles, Ban } from 'lucide-react';
+import { ArrowRight, Check, UtensilsCrossed, Ban } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Screen3ItemDetail: React.FC = () => {
@@ -54,7 +54,11 @@ export const Screen3ItemDetail: React.FC = () => {
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#FFFCF7]">
         {/* Dish Showcase Card */}
         <div className="relative flex h-52 w-full flex-col items-center justify-center rounded-[28px] overflow-hidden border border-[#E8D5C3] bg-[#F3DFCC]/60 p-4 shadow-sm text-center">
-          <span className="text-6xl">{isSoldOut ? '🚫' : '🍲'}</span>
+          {isSoldOut ? (
+            <Ban className="h-16 w-16 text-stone-400" />
+          ) : (
+            <UtensilsCrossed className="h-16 w-16 text-[#8A4228]" />
+          )}
           <span className="mt-2 font-mono text-xs font-black uppercase tracking-wider text-[#8A4228]">
             {item.prepMode || 'Traditional Military Dum'}
           </span>

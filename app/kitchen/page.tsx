@@ -29,7 +29,7 @@ export default function KitchenKDSPage() {
     activeStation,
   } = useKitchenStore();
 
-  // ✅ FIXED: Route guard — always start at login on hard refresh
+  // Ensure station starts at login on reload
   useEffect(() => {
     setCurrentScreen(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps

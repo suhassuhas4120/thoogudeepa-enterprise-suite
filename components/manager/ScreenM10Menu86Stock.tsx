@@ -70,7 +70,7 @@ export function ScreenM10Menu86Stock() {
                     : 'bg-rose-600 text-white hover:bg-rose-700'
                 }`}
               >
-                {it.is86 ? '✓ RESTORE DISH (IN STOCK)' : '✕ 86 DISH (SOLD OUT)'}
+                {it.is86 ? 'RESTORE DISH (IN STOCK)' : '86 DISH (SOLD OUT)'}
               </button>
 
               <div className="flex items-center justify-between text-xs text-slate-500 pt-1">

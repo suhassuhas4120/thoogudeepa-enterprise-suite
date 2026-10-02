@@ -77,15 +77,15 @@ export default function CustomerJourneyPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200 rounded-md px-1.5 py-0.5">
-                PURE-UPI SEAT-QR ARCHITECTURE • REACT 19 • NEXT.JS
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5">
+                Table Ordering
               </span>
-              <span className="font-mono text-[10px] font-bold text-slate-400">
-                THOOGUDEEPA DONNE BIRYANI MANE
+              <span className="font-mono text-[10px] text-slate-500 font-semibold">
+                Thoogudeepa Donne Biryani Mane
               </span>
             </div>
-            <h1 className="text-sm font-black tracking-tight text-slate-900 mt-0.5">
-              CUSTOMER ORDERING APP (SEAT-ANCHORED TAB)
+            <h1 className="text-sm font-bold tracking-tight text-slate-900 mt-0.5">
+              Customer Ordering Portal
             </h1>
           </div>
         </div>

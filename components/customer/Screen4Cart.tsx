@@ -51,7 +51,7 @@ export const Screen4Cart: React.FC = () => {
               className="flex items-center gap-2 rounded-2xl bg-[#8A4228] px-3.5 py-2.5 text-xs font-black text-[#FFFCF7] shadow-md"
             >
               <CheckCircle2 className="h-4 w-4 text-[#F3DFCC]" />
-              <span>⚡ {notice}</span>
+              <span>{notice}</span>
             </motion.div>
           )}
         </AnimatePresence>
@@ -157,7 +157,7 @@ export const Screen4Cart: React.FC = () => {
                         onClick={() => handleSeparateOrder(ci.cartItemId, ci.menuItem.name)}
                         className="font-bold text-[#D08A52] hover:underline"
                       >
-                        ⚡ Order Separately
+                        Order Separately
                       </button>
                       <button
                         onClick={() => removeCartItem(ci.cartItemId)}

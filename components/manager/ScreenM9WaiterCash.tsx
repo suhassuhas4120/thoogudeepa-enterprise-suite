@@ -77,7 +77,7 @@ export function ScreenM9WaiterCash() {
                         }}
                         className="w-full mt-2 bg-slate-900 text-white py-1 rounded text-xs font-bold hover:bg-emerald-600 transition text-center"
                       >
-                        RECONCILE &amp; DEPOSIT TO TILL ➔
+                        RECONCILE &amp; DEPOSIT TO TILL
                       </button>
                     )}
                   </div>
@@ -129,7 +129,7 @@ export function ScreenM9WaiterCash() {
             onClick={() => alert(`Physical Cash Count ₹${totalCalculated} locked into Master Shift Audit!`)}
             className="w-full mt-4 bg-slate-900 text-white py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-emerald-600 transition shadow-[3px_3px_0px_#0f172a]"
           >
-            CONFIRM &amp; LOCK TILL BALANCE ➔
+            CONFIRM &amp; LOCK TILL BALANCE
           </button>
         </div>
       </div>

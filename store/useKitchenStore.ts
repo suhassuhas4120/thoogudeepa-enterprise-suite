@@ -32,7 +32,7 @@ export const useKitchenStore = create<KitchenStoreState>((set) => ({
   activeStation: 'MASTER_DISPATCH',
   selectedTableNumber: '',
   soundAlertsEnabled: true,
-  // ✅ No demo tickets — real orders come from bridge only
+  // Real orders are populated through the shared bridge
   tickets: [],
   waiterAlertNotice: null,
 

@@ -72,7 +72,7 @@ export default function WaiterTabletCockpitPage() {
           </div>
           <div>
             <div className="font-mono text-[9px] font-black uppercase tracking-wider text-orange-400">
-              10" FLOOR CAPTAIN COMMAND COCKPIT
+              Captain Tablet Station
             </div>
             <h1 className="text-sm font-black tracking-tight uppercase text-white">
               Thoogudeepa Donne Biryani Mane
@@ -199,7 +199,7 @@ export default function WaiterTabletCockpitPage() {
               <div className="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
                 <div>
                   <div className="font-mono text-xs font-bold text-orange-400">
-                    TABLE COCKPIT INSPECTION
+                    Table Details
                   </div>
                   <h2 className="text-xl font-black text-white mt-0.5">
                     TABLE {selectedTable.number}
@@ -267,7 +267,7 @@ export default function WaiterTabletCockpitPage() {
                   className="w-full py-3 bg-rose-600 hover:bg-rose-700 text-white rounded-xl font-mono text-xs font-black uppercase tracking-wider shadow-md transition flex items-center justify-center gap-2"
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span>VACATE & SANITIZE TABLE {selectedTable.number} (RESET TO VACANT)</span>
+                  <span>VACATE TABLE {selectedTable.number}</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-2">

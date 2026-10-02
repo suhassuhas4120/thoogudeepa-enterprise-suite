@@ -97,15 +97,15 @@ export default function QRDeckPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-1.5 py-0.5">
-                34 TABLES • 133 PHYSICAL SEAT SCANNERS
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-amber-800 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5">
+                Table QR Codes
               </span>
-              <span className="font-mono text-[10px] font-bold text-slate-400">
-                THOOGUDEEPA DONNE BIRYANI MANE
+              <span className="font-mono text-[10px] text-slate-500 font-semibold">
+                Thoogudeepa Donne Biryani Mane
               </span>
             </div>
-            <h1 className="text-sm font-black tracking-tight text-slate-900 mt-0.5">
-              QR CODE DECK & PRINTABLE TABLE CARD GENERATOR
+            <h1 className="text-sm font-bold tracking-tight text-slate-900 mt-0.5">
+              Table QR Directory and Cards
             </h1>
           </div>
         </div>

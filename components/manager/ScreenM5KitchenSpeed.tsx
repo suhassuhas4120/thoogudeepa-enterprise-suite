@@ -100,7 +100,7 @@ export function ScreenM5KitchenSpeed() {
                     onClick={() => kitchenBumpTable(tk.id)}
                     className="bg-slate-900 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-orange-600 transition"
                   >
-                    BUMP TO READY ➔
+                    BUMP TO READY
                   </button>
                 </div>
               </div>

@@ -493,7 +493,7 @@ export function ScreenM4BillingPOS() {
                   onClick={handleSettle}
                   className="w-full bg-slate-900 text-white py-2.5 px-3 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-600 transition shadow-[3px_3px_0px_#0f172a]"
                 >
-                  <span>COLLECT ₹{grandTotal} &amp; SETTLE BILL ➔</span>
+                  <span>COLLECT ₹{grandTotal} &amp; SETTLE BILL</span>
                 </button>
                 <div className="grid grid-cols-2 gap-2">
                   <button

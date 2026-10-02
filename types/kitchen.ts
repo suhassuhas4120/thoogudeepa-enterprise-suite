@@ -1,4 +1,4 @@
-﻿import { OrderStage } from './customer';
+import { OrderStage } from './customer';
 
 export type KitchenScreenId = 1 | 2 | 3;
 
@@ -15,7 +15,7 @@ export const STATION_LABELS: Record<KitchenStation, string> = {
   MASTER_DISPATCH: 'Master Dispatch',
 };
 
-// ✅ SINGLE UNIVERSAL PIN — no per-station passwords
+// Master PIN for kitchen authentication
 export const KITCHEN_MASTER_PIN = '1234';
 
 export const ALL_STATIONS: KitchenStation[] = [
@@ -53,7 +53,7 @@ export function getStationForItem(itemName: string): KitchenStation {
   return 'MASTER_DISPATCH';
 }
 
-// ✅ Category list for Screen 2 filter
+// Category list for filter
 export type MenuCategory =
   | 'ALL CATEGORIES'
   | 'DUM BIRYANI'

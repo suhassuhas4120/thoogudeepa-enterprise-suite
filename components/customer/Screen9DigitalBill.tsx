@@ -133,7 +133,7 @@ export const Screen9DigitalBill: React.FC = () => {
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[#E8D5C3] bg-[#FFFCF7] py-3 text-xs font-black text-[#5B5049] hover:bg-[#F3DFCC]/40 transition shadow-xs"
           >
             <Download className="h-4 w-4 text-[#8A4228]" />
-            <span>{downloadMsg ? '✓ PDF Invoice Downloaded!' : 'Download PDF Bill'}</span>
+            <span>{downloadMsg ? 'PDF Invoice Downloaded!' : 'Download PDF Bill'}</span>
           </motion.button>
 
           <motion.button
@@ -142,7 +142,7 @@ export const Screen9DigitalBill: React.FC = () => {
             className="flex w-full items-center justify-center gap-2 rounded-2xl border border-emerald-300 bg-emerald-50 py-3 text-xs font-black text-emerald-800 hover:bg-emerald-100 transition shadow-xs"
           >
             <Share2 className="h-4 w-4 text-emerald-700" />
-            <span>{shareMsg ? '✓ Bill Sent via WhatsApp!' : 'Share Bill via WhatsApp'}</span>
+            <span>{shareMsg ? 'Bill Sent via WhatsApp!' : 'Share Bill via WhatsApp'}</span>
           </motion.button>
         </div>
       </div>

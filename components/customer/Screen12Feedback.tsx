@@ -115,7 +115,6 @@ export const Screen12Feedback: React.FC = () => {
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
-                      {active ? '✓ ' : '+ '}
                       {chip}
                     </button>
                   );
@@ -154,7 +153,7 @@ export const Screen12Feedback: React.FC = () => {
               onClick={() => navigateTo(2)}
               className="mt-2 px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-xs font-black shadow-md hover:bg-emerald-700"
             >
-              Order More Items ➔
+              Order More Items
             </button>
           </motion.div>
         )}

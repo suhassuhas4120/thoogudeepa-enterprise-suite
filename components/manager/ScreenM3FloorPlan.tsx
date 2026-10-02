@@ -178,7 +178,7 @@ export function ScreenM3FloorPlan() {
             onClick={() => setCurrentScreen(4)}
             className="w-full bg-slate-900 text-white py-2.5 px-4 rounded-xl font-mono text-xs font-black uppercase flex items-center justify-center gap-2 hover:bg-orange-600 transition shadow-[2px_2px_0px_#0f172a]"
           >
-            <span>OPEN BILLING / POS ➔</span>
+            <span>OPEN BILLING / POS</span>
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button

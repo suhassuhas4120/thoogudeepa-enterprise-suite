@@ -65,7 +65,7 @@ export function ScreenM14AttendanceTips() {
               onClick={() => alert('Tip payouts approved and logged to staff accounts!')}
               className="w-full mt-2 bg-slate-900 text-white py-2 rounded-lg text-xs font-bold hover:bg-emerald-600 transition"
             >
-              APPROVE &amp; DISBURSE TIP PAYOUTS ➔
+              APPROVE &amp; DISBURSE TIP PAYOUTS
             </button>
           </div>
         </div>

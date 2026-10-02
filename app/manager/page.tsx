@@ -235,7 +235,7 @@ export default function ManagerPortalPage() {
                     }}
                     className="bg-white text-slate-900 px-3 py-1 rounded text-xs font-bold hover:bg-stone-100 transition"
                   >
-                    OPEN STAGE ➔
+                    OPEN STAGE
                   </button>
                 </div>
                 <div className="p-4 bg-stone-50">

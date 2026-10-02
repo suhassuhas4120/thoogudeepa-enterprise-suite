@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { useKitchenStore } from '../../store/useKitchenStore';
 import { KitchenTabletHousing } from './KitchenTabletHousing';
 import { KITCHEN_MASTER_PIN } from '../../types/kitchen';
-import { ChefHat, ShieldCheck, AlertCircle } from 'lucide-react';
+import { ChefHat, ShieldCheck, AlertCircle, UtensilsCrossed } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const ScreenK1Login: React.FC = () => {
@@ -31,7 +31,7 @@ export const ScreenK1Login: React.FC = () => {
       setError('');
       setCurrentScreen(2);
     } else {
-      setError('❌ WRONG PIN — Please enter the correct kitchen PIN');
+      setError('Invalid PIN. Please enter the correct kitchen PIN');
       setEnteredPin('');
     }
   };
@@ -51,7 +51,7 @@ export const ScreenK1Login: React.FC = () => {
         <div className="w-full md:w-[440px] bg-white rounded-3xl border-2 border-slate-900 p-8 shadow-[4px_4px_0px_#0f172a] flex flex-col items-center justify-between text-center min-h-[440px]">
           <div className="flex flex-col items-center my-auto">
             <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl border-2 border-slate-900 bg-gradient-to-br from-amber-50 to-orange-100 shadow-[3px_3px_0px_#0f172a] mb-5">
-              <span className="text-5xl">🥘</span>
+              <UtensilsCrossed className="h-12 w-12 text-amber-700" />
               <div className="absolute -bottom-2 -right-2 rounded-full border border-slate-900 bg-orange-600 p-1.5 text-white shadow-xs">
                 <ChefHat className="h-4 w-4" />
               </div>
@@ -64,7 +64,7 @@ export const ScreenK1Login: React.FC = () => {
               KITCHEN LOGIN
             </p>
             <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[10.5px] font-mono font-bold text-orange-800">
-              🔑 DEMO PIN: <strong>1234</strong>
+              PIN: <strong>1234</strong>
             </div>
           </div>
 

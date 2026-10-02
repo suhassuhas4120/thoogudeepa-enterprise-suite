@@ -6,7 +6,7 @@ import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { OrderStage } from '../../types/customer';
-import { Check, Clock, ChefHat, Plus, ArrowRight, Wifi } from 'lucide-react';
+import { Check, Clock, ChefHat, Plus, ArrowRight, Wifi, ClipboardList, Flame, UtensilsCrossed, CheckCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useOrderTrackingQuery } from '../../hooks/useOrderTrackingQuery';
 
@@ -33,11 +33,11 @@ export const Screen5LiveTracking: React.FC = () => {
   const currentStage: OrderStage =
     allMyItems.length > 0 ? (overallStage as OrderStage) : orderStage;
 
-  const stages: { key: OrderStage; label: string; icon: string; desc: string }[] = [
-    { key: 'PLACED', label: 'ORDER PLACED',   icon: '📝', desc: 'Your order has been received by the kitchen.' },
-    { key: 'PREP',   label: 'PREPARING',      icon: '🔥', desc: 'Chefs are cooking your food right now.' },
-    { key: 'PLATED', label: 'READY TO SERVE', icon: '🍽️', desc: 'Food is plated and ready at the pass.' },
-    { key: 'SERVED', label: 'SERVED',         icon: '✨', desc: 'Your food has been delivered. Enjoy!' },
+  const stages: { key: OrderStage; label: string; icon: React.ReactNode; desc: string }[] = [
+    { key: 'PLACED', label: 'ORDER PLACED',   icon: <ClipboardList className="h-3.5 w-3.5" />, desc: 'Your order has been received by the kitchen.' },
+    { key: 'PREP',   label: 'PREPARING',      icon: <Flame className="h-3.5 w-3.5" />, desc: 'Chefs are cooking your food right now.' },
+    { key: 'PLATED', label: 'READY TO SERVE', icon: <UtensilsCrossed className="h-3.5 w-3.5" />, desc: 'Food is plated and ready at the pass.' },
+    { key: 'SERVED', label: 'SERVED',         icon: <CheckCheck className="h-3.5 w-3.5" />, desc: 'Your food has been delivered. Enjoy!' },
   ];
 
   const stageKeyToIdx: Record<OrderStage, number> = {
@@ -49,7 +49,7 @@ export const Screen5LiveTracking: React.FC = () => {
     PLACED: { label: 'ORDER PLACED', color: 'bg-stone-100 text-slate-700 border-slate-200', pulse: false },
     PREP:   { label: 'PREPARING',    color: 'bg-amber-50 text-amber-800 border-amber-200',  pulse: true  },
     PLATED: { label: 'READY TO RUN', color: 'bg-blue-50 text-blue-800 border-blue-200',     pulse: true  },
-    SERVED: { label: 'SERVED ✓',     color: 'bg-emerald-50 text-emerald-800 border-emerald-200', pulse: false },
+    SERVED: { label: 'SERVED',       color: 'bg-emerald-50 text-emerald-800 border-emerald-200', pulse: false },
   };
 
   return (
@@ -118,7 +118,7 @@ export const Screen5LiveTracking: React.FC = () => {
                         : 'border-2 border-slate-200 bg-white text-slate-400'
                     }`}
                   >
-                    {isPast ? <Check className="h-4 w-4 stroke-[3]" /> : <span>{st.icon}</span>}
+                    {isPast ? <Check className="h-4 w-4 stroke-[3]" /> : st.icon}
                   </motion.div>
                   <span
                     className={`text-[9px] font-mono tracking-tight font-extrabold text-center leading-tight ${

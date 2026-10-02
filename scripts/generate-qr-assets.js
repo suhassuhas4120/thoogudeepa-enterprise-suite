@@ -115,4 +115,4 @@ ALL_TABLES.forEach((tbl) => {
   fs.writeFileSync(path.join(outDir, `Table_${tbl.number}.html`), html);
 });
 
-console.log(`✅ Successfully generated 34 table cards in public/printable-cards/`);
+console.log(`Successfully generated 34 table cards in public/printable-cards/`);

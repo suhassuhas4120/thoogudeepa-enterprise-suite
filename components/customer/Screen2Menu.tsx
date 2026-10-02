@@ -155,7 +155,7 @@ export const Screen2Menu: React.FC = () => {
               exit={{ opacity: 0 }}
               className="mx-4 mt-2 rounded-2xl bg-[#8A4228] px-3 py-2 text-center text-xs font-black text-[#FFFCF7] shadow-sm"
             >
-              ✓ {toastNotice}
+              {toastNotice}
             </motion.div>
           )}
         </AnimatePresence>
@@ -183,7 +183,11 @@ export const Screen2Menu: React.FC = () => {
               >
                 {/* Dish Graphic / Image */}
                 <div className="relative flex h-28 w-full flex-col items-center justify-center rounded-[20px] overflow-hidden border border-[#E8D5C3] bg-[#F3DFCC]/50">
-                  <span className="text-3xl">{is86 ? '🚫' : '🍲'}</span>
+                  {is86 ? (
+                    <Ban className="h-8 w-8 text-stone-400" />
+                  ) : (
+                    <UtensilsCrossed className="h-8 w-8 text-[#8A4228]" />
+                  )}
                   <span className="mt-1 font-mono text-[9px] font-black text-[#8A4228] line-clamp-1 px-2 text-center">
                     {item.prepMode || 'Authentic Handi'}
                   </span>

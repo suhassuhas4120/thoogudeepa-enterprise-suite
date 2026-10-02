@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
-import { Wifi, ArrowRight, Crown, CheckCircle2, Sparkles, MapPin, RefreshCw, AlertCircle } from 'lucide-react';
+import { Wifi, ArrowRight, Crown, CheckCircle2, Globe, MapPin, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { supabase } from '../../lib/supabase';
 
@@ -166,7 +166,7 @@ export const Screen1Welcome: React.FC = () => {
               onClick={handleProceed}
               className="flex w-full items-center justify-center gap-2 rounded-[20px] border border-[#8A4228] bg-[#8A4228] py-3.5 px-4 text-[11px] font-black tracking-[0.12em] text-[#FFFCF7] shadow-sm transition hover:bg-[#71351F]"
             >
-              <span>🌐</span>
+              <Globe className="h-4 w-4 text-[#FFFCF7]" />
               <span className="capitalize">
                 {activeOrderFound ? 'Resume Ongoing Order' : 'Continue With Mobile Data'}
               </span>

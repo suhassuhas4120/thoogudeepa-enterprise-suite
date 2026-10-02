@@ -536,7 +536,9 @@ export const ScreenK2Overview: React.FC = () => {
                         <div className="flex items-center gap-1 font-mono text-xs font-black text-slate-900">
                           <span>{tbl.tableNumber}</span>
                           {tbl.isVip && (
-                            <span className="text-amber-500 font-bold">★</span>
+                            <span className="text-amber-700 font-bold text-[9px] bg-amber-50 border border-amber-300 px-1 rounded">
+                              VIP
+                            </span>
                           )}
                         </div>
                         <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1">
@@ -606,7 +608,7 @@ export const ScreenK2Overview: React.FC = () => {
                       }}
                       className="w-full mt-3 py-1.5 bg-slate-900 hover:bg-orange-600 text-white font-mono text-[10px] font-black rounded uppercase tracking-wider transition text-center shadow-xs"
                     >
-                      MANAGE {tbl.tableNumber} ➔
+                      MANAGE {tbl.tableNumber} &rarr;
                     </button>
                   </div>
                 ))}

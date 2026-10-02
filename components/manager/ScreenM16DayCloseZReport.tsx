@@ -146,7 +146,7 @@ export function ScreenM16DayCloseZReport() {
                 className="w-full bg-slate-900 text-white py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-orange-600 transition flex items-center justify-center gap-2 shadow-[3px_3px_0px_#0f172a]"
               >
                 <Lock className="h-4 w-4" />
-                <span>LOCK NIGHT SHIFT &amp; CLOSE REGISTER ➔</span>
+                <span>LOCK NIGHT SHIFT &amp; CLOSE REGISTER</span>
               </button>
             )}
           </div>

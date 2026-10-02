@@ -95,7 +95,7 @@ export const ScreenK3Detail: React.FC = () => {
     Object.keys(pendingChanges).length > 0 ||
     Object.keys(pendingDelays).length > 0;
 
-  // ✅ Only 3 stages — SERVED removed
+  // Active stages: PLACED, PREP, PLATED
   const stageOrder: OrderStage[] = ['PLACED', 'PREP', 'PLATED'];
   const stageLabels: Record<string, string> = {
     PLACED: '1.REC',
@@ -121,7 +121,7 @@ export const ScreenK3Detail: React.FC = () => {
           {/* LEFT 55% */}
           <div className="w-[55%] border-r border-slate-200 p-5 overflow-y-auto bg-stone-50/50 flex flex-col justify-between">
             <div className="space-y-4">
-              {/* ✅ Back arrow + table info header — replaces old top bar */}
+              {/* Back navigation header */}
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setCurrentScreen(2)}
@@ -161,8 +161,8 @@ export const ScreenK3Detail: React.FC = () => {
                       <div className="text-[10px] font-mono text-slate-500 mt-0.5">
                         Source:{' '}
                         {currentTicket?.source === 'CUSTOMER'
-                          ? '📱 Customer App'
-                          : '📟 Waiter Tablet'}
+                          ? 'Customer App'
+                          : 'Waiter Tablet'}
                       </div>
                     </div>
                     <div className="text-right">
@@ -213,7 +213,7 @@ export const ScreenK3Detail: React.FC = () => {
                           </span>
                         </div>
 
-                        {/* ✅ Only 3-stage stepper (grid-cols-3) */}
+                        {/* 3-stage stepper */}
                         <div className="grid grid-cols-3 gap-1.5 font-mono text-[10px] font-black">
                           {stageOrder.map((stg) => {
                             const isActive = it.stage === stg;
@@ -256,7 +256,7 @@ export const ScreenK3Detail: React.FC = () => {
                   onClick={() => kitchenBumpTable(currentTicket?.id || '')}
                   className="flex-1 rounded-xl bg-emerald-600 py-3 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition"
                 >
-                  MARK ALL DISHES PLATED &amp; READY ✓
+                  MARK ALL DISHES PLATED &amp; READY
                 </button>
               </div>
             )}
@@ -334,7 +334,7 @@ export const ScreenK3Detail: React.FC = () => {
                   className="flex items-center gap-2 rounded-xl bg-emerald-50 border border-emerald-300 p-3 text-emerald-800 text-xs font-black"
                 >
                   <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  ✓ MENU INVENTORY UPDATED — SYNCED TO ALL SECTIONS
+                  MENU INVENTORY UPDATED — SYNCED TO ALL SECTIONS
                 </motion.div>
               )}
             </AnimatePresence>
@@ -429,9 +429,7 @@ export const ScreenK3Detail: React.FC = () => {
             </AnimatePresence>
 
             <div className="p-3 rounded-xl bg-orange-50/60 border border-orange-200/80 text-[11px] text-orange-950 font-medium shrink-0">
-              ⚡ <strong>Thoogudeepa Inventory Notice:</strong> Marking items 86
-              reflects instantaneously across all floor POS and live customer
-              ordering pages.
+              <strong>Notice:</strong> Marking items 86 reflects instantaneously across all floor POS and live customer ordering pages.
             </div>
           </div>
         </div>

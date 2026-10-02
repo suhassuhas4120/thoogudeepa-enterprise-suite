@@ -162,7 +162,7 @@ export const Screen7PaymentGateway: React.FC = () => {
             onClick={() => setPaymentMethod('UPI')}
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[#8A4228] bg-[#8A4228] py-3 px-4 text-xs font-black text-[#FFFCF7] shadow-sm hover:bg-[#71351F] transition"
           >
-            <span>📱</span>
+            <Smartphone className="h-4 w-4" />
             <span>Launch Installed UPI App (₹{grandTotal})</span>
           </a>
         </div>

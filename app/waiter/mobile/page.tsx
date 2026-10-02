@@ -185,7 +185,7 @@ export default function WaiterMobilePage() {
                       target="_blank"
                       className="text-orange-950 font-black underline"
                     >
-                      Diner View ➔
+                      Diner View
                     </Link>
                   </div>
                 </div>

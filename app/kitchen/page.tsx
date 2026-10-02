@@ -80,14 +80,14 @@ export default function KitchenKDSPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-black uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200 rounded-md px-1.5 py-0.5">
-                KITCHEN KDS TABLET FRAMEWORK • REACT 19 • NEXT.JS
+                KITCHEN DISPLAY SYSTEM
               </span>
               <span className="font-mono text-[10px] font-bold text-slate-400">
                 THOOGUDEEPA DONNE BIRYANI MANE
               </span>
             </div>
             <h1 className="text-sm font-black tracking-tight text-slate-900 mt-0.5">
-              KITCHEN DISPLAY SYSTEM (3 TABLET SCREENS) •{' '}
+              ORDERS & PASS CONTROL •{' '}
               <span className="text-orange-600">
                 {STATION_LABELS[activeStation]}
               </span>

@@ -65,7 +65,7 @@ export const Screen5LiveTracking: React.FC = () => {
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-        {/* ── Live Sync Indicator ────────────────────────────────────── */}
+        
         <div className="flex items-center justify-between">
           <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 font-mono">
             TABLE {tableId} · SEAT {seatNumber} · LIVE
@@ -86,7 +86,7 @@ export const Screen5LiveTracking: React.FC = () => {
           </span>
         </div>
 
-        {/* ── 4-Stage Progress Bar ──────────────────────────────────── */}
+        
         <div className="rounded-3xl border border-slate-200/90 bg-white p-4 shadow-sm">
           <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 font-mono mb-4">
             Overall Order Stage
@@ -138,7 +138,7 @@ export const Screen5LiveTracking: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Item-by-Item Status ──────────────────────────────────── */}
+        
         <div className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm space-y-3">
           <div className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 font-mono">
             Item-by-Item Status
@@ -197,7 +197,7 @@ export const Screen5LiveTracking: React.FC = () => {
           </div>
         </div>
 
-        {/* ── Add More Items ───────────────────────────────────────── */}
+        
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setCurrentScreen(2)}

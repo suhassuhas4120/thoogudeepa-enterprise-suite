@@ -26,7 +26,6 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
 
   return (
     <div className="flex flex-col items-center w-full max-w-[1080px] shrink-0">
-      {/* Blueprint Screen Indicator */}
       <div className="mb-2.5 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3.5 py-1 text-xs font-bold tracking-wider text-slate-700 shadow-sm backdrop-blur">
         <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
         <span className="font-mono text-[11px] text-orange-600 font-extrabold">
@@ -36,7 +35,6 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
         <span className="text-slate-800 font-semibold">{screenTitle}</span>
       </div>
 
-      {/* Industrial Landscape Tablet Bezel */}
       <div
         className={`relative flex flex-col w-full h-[700px] bg-slate-900 border-[10px] border-slate-800 rounded-[28px] shadow-2xl overflow-hidden ${className}`}
       >
@@ -46,7 +44,6 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
           <div className="h-1 w-4 rounded-full bg-slate-700" />
         </div>
 
-        {/* KDS Tablet Status Header — no profile, no chef name */}
         <header className="h-12 bg-white border-b border-slate-200 px-5 flex items-center justify-between text-xs font-bold select-none shrink-0 z-30">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-orange-700 font-black font-mono">

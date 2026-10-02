@@ -1,24 +1,9 @@
-/**
- * useSharedBridge.ts
- * ──────────────────────────────────────────────────────────────────────
- * The SINGLE source of truth for cross-section real-time state.
- * Customer → Kitchen → Waiter all read and write from here.
- *
- * Flow:
- *  Customer places order → creates a KDS ticket + waiter table bill entry
- *  Customer pings waiter → creates a ping in waiter pings list
- *  Waiter fires KOT    → creates a KDS ticket in kitchen
- *  Kitchen bumps stage → waiter kitchenReadyItems updates
- *  Kitchen marks 86    → customer menu item grays out (is86 flag)
- *  Waiter vacates table → clears table in shared tables
- */
-
 import { create } from 'zustand';
 import { INITIAL_MENU_ITEMS } from '../data/menuItems';
 import { MenuItem } from '../types/customer';
 import { OrderStage } from '../types/customer';
 
-/* ── Shared Types ──────────────────────────────────────────────── */
+
 export interface SharedKDSItem {
   id: string;
   name: string;
@@ -81,7 +66,7 @@ export interface SharedShiftStats {
   avgTurnaroundMinutes: number;
 }
 
-/* ── Initial Data ───────────────────────────────────────────────── */
+
 const freshTables: SharedTable[] = [
   // Express / Couple Hall (4 tables, 2-seater)
   { id: 'tbl-01', number: 'T-01', section: 'Express / Couple Hall', capacity: 2, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
@@ -140,7 +125,7 @@ let ticketCounter = 1;
 const makeTicketId = () => `KDS-${String(100 + ticketCounter++).padStart(3, '0')}`;
 const nowTime = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
-/* ── Store Interface ────────────────────────────────────────────── */
+
 interface SharedBridgeState {
   // Shared cross-section state
   tables: SharedTable[];
@@ -159,8 +144,7 @@ interface SharedBridgeState {
     dismissed: boolean;
   }>;
 
-  // ── Customer actions ────────────────────────────────────────────
-  /** Customer places order → adds KDS ticket + sets table as OCCUPIED */
+  /** Customer places order */
   customerPlacesOrder: (
     tableNumber: string,
     guestName: string,
@@ -171,16 +155,14 @@ interface SharedBridgeState {
   /** Customer pings waiter */
   customerPingsWaiter: (tableNumber: string, type: string, guestName: string, msg?: string) => void;
 
-  // ── Kitchen actions ─────────────────────────────────────────────
-  /** Kitchen bumps an item stage — when ALL items of a ticket are PLATED, 
-   *  creates a kitchenReadyItem visible in waiter feed */
+  /** Kitchen bumps an item stage */
   kitchenBumpItemStage: (ticketId: string, itemId: string) => void;
   kitchenSetItemStage: (ticketId: string, itemId: string, stage: OrderStage) => void;
   kitchenSetBulkItemStage: (itemName: string, stage: OrderStage) => void;
   kitchenBumpTable: (ticketId: string) => void;
   kitchenClearCompleted: () => void;
 
-  /** Kitchen toggles 86 (out of stock) — affects customer menu immediately */
+  /** Kitchen toggles 86 (out of stock) */
   kitchenToggle86: (itemId: string) => void;
   kitchenUpdatePrepDelay: (itemId: string, deltaMinutes: number) => void;
 
@@ -191,8 +173,7 @@ interface SharedBridgeState {
   /** Kitchen calls floor waiter to pass */
   callFloorWaiter: (tableNumber: string, reason?: string) => void;
 
-  // ── Waiter actions ──────────────────────────────────────────────
-  /** Waiter fires KOT → adds KDS ticket to kitchen */
+  /** Waiter fires KOT */
   waiterFiresKOT: (
     tableNumber: string,
     captainName: string,
@@ -221,7 +202,6 @@ interface SharedBridgeState {
   resetToFreshDemoState: () => void;
 }
 
-/* ── Canonical dish key: strips seat/table tags, normalizes for bulk grouping */
 export const getCanonicalDishKey = (name: string): string => {
   return name
     .replace(/\[Seat \d+\]/gi, '')
@@ -232,27 +212,12 @@ export const getCanonicalDishKey = (name: string): string => {
     .trim();
 };
 
-/* ── API Fire-and-Forget Helper ─────────────────────────────────── */
-/**
- * bridgePost: Calls a Next.js API route in the background (fire-and-forget).
- * Pattern:
- *   1. Caller already did optimistic Zustand update.
- *   2. bridgePost fires the API call.
- *   3. On failure: calls onRollback() to restore pre-action snapshot.
- *
- * Why fire-and-forget (not await)?
- *   - Bridge actions are called from UI event handlers.
- *   - We NEVER want the UI to wait for a network round-trip.
- *   - Zustand update is instant (optimistic); DB write happens async.
- *
- * Only runs in browser (SSR-safe: typeof window check).
- */
 function bridgePost(
   url: string,
   body: Record<string, unknown>,
   onRollback?: () => void
 ): void {
-  if (typeof window === 'undefined') return; // SSR guard
+  if (typeof window === 'undefined') return;
 
   fetch(url, {
     method: 'POST',
@@ -273,7 +238,7 @@ function bridgePost(
     });
 }
 
-/* ── Store Implementation ───────────────────────────────────────── */
+
 export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   tables: freshTables,
   kdsTickets: [],
@@ -287,7 +252,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
   kitchenNotifications: [],
 
-  /* ─── Customer Places Order ──────────────────────────────────── */
+  
   customerPlacesOrder: (tableNumber, guestName, guestCount, items) => {
     const ticket: SharedKDSTicket = {
       id: makeTicketId(),
@@ -319,14 +284,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       dismissed: false,
     };
 
-    // ── Snapshot for rollback ────────────────────────────────────
     const prevState = {
       kdsTickets: get().kdsTickets,
       kitchenNotifications: get().kitchenNotifications,
       tables: get().tables,
     };
 
-    // ── 1. Optimistic Zustand update (instant UI) ────────────────
     set((state) => ({
       kdsTickets: [...state.kdsTickets, ticket],
       kitchenNotifications: [...state.kitchenNotifications, notif],
@@ -352,7 +315,6 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       ),
     }));
 
-    // ── 2. Persist to Supabase via API (fire-and-forget) ────────
     bridgePost(
       '/api/orders/create',
       {
@@ -380,7 +342,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Customer Pings Waiter ──────────────────────────────────── */
+  
   customerPingsWaiter: (tableNumber, type, guestName, msg) => {
     // Deduplication: prevent duplicate pending pings from same table for same reason
     const currentPings = get().pings;
@@ -416,7 +378,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Kitchen Bumps Item Stage ───────────────────────────────── */
+  
   kitchenBumpItemStage: (ticketId, itemId) => {
     const stageOrder: OrderStage[] = ['PLACED', 'PREP', 'PLATED', 'SERVED'];
 
@@ -471,7 +433,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Kitchen Sets Specific Item Stage ───────────────────────── */
+  
   kitchenSetItemStage: (ticketId, itemId, stage) => {
     set((state) => {
       const newTickets = state.kdsTickets.map((t) => {
@@ -508,7 +470,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
   },
 
-  /* ─── Kitchen Sets Bulk Item Stage (Cross-Table & Cross-Portal) ─── */
+  
   kitchenSetBulkItemStage: (itemName, stage) => {
     const targetKey = getCanonicalDishKey(itemName);
     set((state) => {
@@ -553,7 +515,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
   },
 
-  /* ─── Kitchen Bumps Entire Table ─────────────────────────────── */
+  
   kitchenBumpTable: (ticketId) => {
     const prevTickets = get().kdsTickets;
 
@@ -578,14 +540,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Kitchen Clear Completed ─────────────────────────────────── */
+  
   kitchenClearCompleted: () => {
     set((state) => ({
       kdsTickets: state.kdsTickets.filter((t) => t.status !== 'COMPLETED'),
     }));
   },
 
-  /* ─── Kitchen Toggle 86 ──────────────────────────────────────── */
+  
   kitchenToggle86: (itemId) => {
     const prevInventory = get().inventory86;
     const currentItem = prevInventory.find((i) => i.id === itemId);
@@ -606,7 +568,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Kitchen Update Prep Delay ──────────────────────────────── */
+  
   kitchenUpdatePrepDelay: (itemId, deltaMinutes) => {
     const prevInventory = get().inventory86;
     const currentItem = prevInventory.find((i) => i.id === itemId);
@@ -630,7 +592,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Kitchen Dismiss Notification ───────────────────────────── */
+  
   kitchenDismissNotification: (notifId) => {
     set((state) => ({
       kitchenNotifications: state.kitchenNotifications.map((n) =>
@@ -645,12 +607,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     }));
   },
 
-  /* ─── Kitchen Calls Floor Waiter ─────────────────────────────── */
+  
   callFloorWaiter: (tableNumber, reason = 'Dishes Ready for Pickup') => {
     get().customerPingsWaiter(tableNumber, 'FOOD', 'Kitchen Pass', reason);
   },
 
-  /* ─── Waiter Fires KOT ───────────────────────────────────────── */
+  
   waiterFiresKOT: (tableNumber, captainName, items) => {
     const ticket: SharedKDSTicket = {
       id: makeTicketId(),
@@ -735,7 +697,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Waiter Seats Guests ────────────────────────────────────── */
+  
   waiterSeatsGuests: (tableNumber, guestCount, captainName) => {
     const prevTables = get().tables;
 
@@ -757,7 +719,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Waiter Merges Two Tables ───────────────────────────────── */
+  
   waiterMergeTables: (targetTable, sourceTable) => {
     set((state) => {
       const target = state.tables.find((t) => t.number === targetTable);
@@ -792,7 +754,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
   },
 
-  /* ─── Waiter Resolves Ping ───────────────────────────────────── */
+  
   waiterResolvePing: (pingId) => {
     const prevPings = get().pings;
 
@@ -810,7 +772,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Waiter Records Payment ─────────────────────────────────── */
+  
   waiterRecordsPayment: (tableNumber, method, amount) => {
     set((state) => {
       const targetTbl = state.tables.find((t) => t.number === tableNumber);
@@ -830,7 +792,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
   },
 
-  /* ─── Waiter Vacates Table ───────────────────────────────────── */
+  
   waiterVacatesTable: (tableNumber) => {
     // Snapshot for rollback (vacate is destructive — save full state)
     const prevTables = get().tables;
@@ -875,7 +837,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  /* ─── Waiter Marks Kitchen Item Served ───────────────────────── */
+  
   waiterMarkKitchenItemServed: (ticketId, itemId) => {
     set((state) => ({
       kdsTickets: state.kdsTickets.map((t) => {
@@ -889,7 +851,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     }));
   },
 
-  /* ─── Reset to Fresh Demo State ──────────────────────────────── */
+  
   resetToFreshDemoState: () => {
     if (typeof window !== 'undefined') {
       try {
@@ -913,10 +875,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 }));
 
-/* ── Real-Time Cross-Tab & Multi-Device Synchronization ───────────── */
-if (typeof window !== 'undefined') {
 
-  // ── Helper: apply persisted state safely ─────────────────────────
+if (typeof window !== 'undefined') {
   const applyPersistedState = (parsed: Record<string, unknown>, suppressBroadcast = false) => {
     if (!parsed || !Array.isArray(parsed.tables)) return;
     const cur = useSharedBridge.getState();

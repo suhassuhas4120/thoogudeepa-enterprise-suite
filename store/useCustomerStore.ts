@@ -246,7 +246,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const tblTag = tableId.replace('-', '');
       const ticketId = `KDS-${tblTag}-${ts}-001`;
 
-      // Fire-and-forget to Supabase (async, non-blocking)
+      // Send order to Supabase
       import('../lib/db').then(({ placeOrderToSupabase }) => {
         placeOrderToSupabase({
           tableId,
@@ -364,8 +364,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   },
 
   pingWaiter: (type, customMsg = '') => {
-    // Get current state to capture tableNumber and guestName
-    const message = customMsg || `Request for ${type} transmitted to floor server`;
+    const message = customMsg || `Request for ${type} sent to floor captain`;
     set((state) => {
       // Push real ping to bridge → waiter sees it immediately
       const bridge = useSharedBridge.getState();

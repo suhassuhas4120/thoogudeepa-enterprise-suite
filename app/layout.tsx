@@ -5,8 +5,8 @@ import { CustomerProvider } from '../context/CustomerContext';
 import { BridgeSyncProvider } from '../providers/BridgeSyncProvider';
 
 export const metadata: Metadata = {
-  title: 'Customer Experience Framework | React 19 + Next.js',
-  description: '10-Screen Customer Journey Architecture for Modern Restaurant SaaS',
+  title: 'Thoogudeepa Donne Biryani Mane',
+  description: 'Authentic Donne Biryani - Dine-in, Takeaway & Table Ordering',
 };
 
 export default function RootLayout({

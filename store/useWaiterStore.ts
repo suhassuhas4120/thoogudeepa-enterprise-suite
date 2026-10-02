@@ -5,7 +5,6 @@ import {
 import { MenuItem, CartItem } from '../types/customer';
 import { useSharedBridge, SharedTable, SharedPing, SharedKDSTicket } from './useSharedBridge';
 
-/* ── Re-export shared types for backward compat ───────────────── */
 export type { SharedTable as FloorTable, SharedPing as WaiterCustomerPing };
 
 interface WaiterStoreState {
@@ -131,8 +130,6 @@ export const useWaiterStore = create<WaiterStoreState>((set, get) => ({
   dismissKitchenCall: () => set({ kitchenCallNotice: null }),
 }));
 
-/* ── Convenience hooks that components can use ──────────────────── */
-/** Tables (live, from shared bridge) */
 export const useTables = () => useSharedBridge((s) => s.tables);
 
 /** Pending pings (live, from shared bridge) */

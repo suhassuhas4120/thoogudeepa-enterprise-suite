@@ -101,7 +101,7 @@ export default function ManagerPortalPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-900 bg-stone-100 border border-slate-300 rounded-md px-1.5 py-0.5">
-                MANAGER COMMAND DESK • 16 SCREENS • REACT 19
+                MANAGER PORTAL • OPERATIONS
               </span>
               <span className="font-mono text-[10px] font-bold text-slate-400">
                 THOOGUDEEPA DONNE BIRYANI MANE

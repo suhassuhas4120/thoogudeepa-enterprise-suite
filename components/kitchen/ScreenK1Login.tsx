@@ -11,6 +11,7 @@ export const ScreenK1Login: React.FC = () => {
   const { setCurrentScreen, setActiveStation } = useKitchenStore();
   const [enteredPin, setEnteredPin] = useState<string>('');
   const [error, setError] = useState<string>('');
+  const [shake, setShake] = useState<boolean>(false);
 
   const handleKeyPress = (num: string) => {
     if (enteredPin.length < 4) {
@@ -31,7 +32,9 @@ export const ScreenK1Login: React.FC = () => {
       setError('');
       setCurrentScreen(2);
     } else {
-      setError('Invalid PIN. Please enter the correct kitchen PIN');
+      setError('Invalid PIN. Universal Master PIN is 1234');
+      setShake(true);
+      setTimeout(() => setShake(false), 500);
       setEnteredPin('');
     }
   };
@@ -75,14 +78,24 @@ export const ScreenK1Login: React.FC = () => {
         </div>
 
         {/* Right Card: PIN pad only */}
-        <div className="w-full md:w-80 bg-white rounded-3xl border-2 border-slate-900 p-6 shadow-[4px_4px_0px_#0f172a] flex flex-col justify-between min-h-[440px]">
+        <motion.div
+          animate={shake ? { x: [-12, 12, -10, 10, -5, 5, 0] } : { x: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full md:w-80 bg-white rounded-3xl border-2 border-slate-900 p-6 shadow-[4px_4px_0px_#0f172a] flex flex-col justify-between min-h-[440px]"
+        >
           <div>
             <div className="text-md font-bold font-mono uppercase tracking-wider pl-[45px] pb-[20px] text-slate-600 ">
               ENTER PIN TO LOGIN
             </div>
 
             {/* PIN Dots */}
-            <div className="h-11 rounded-xl bg-stone-100 border border-slate-200 flex items-center justify-center gap-3 mb-7">
+            <motion.div
+              animate={shake ? { x: [-8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
+              transition={{ duration: 0.35 }}
+              className={`h-11 rounded-xl bg-stone-100 border transition flex items-center justify-center gap-3 mb-7 ${
+                shake ? 'border-rose-500 bg-rose-50' : 'border-slate-200'
+              }`}
+            >
               {[0, 1, 2, 3].map((idx) => (
                 <div
                   key={idx}
@@ -91,10 +104,10 @@ export const ScreenK1Login: React.FC = () => {
                   }`}
                 />
               ))}
-            </div>
+            </motion.div>
 
             {error && (
-              <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-rose-50 border border-rose-300 p-2 text-[10px] font-bold text-rose-700">
+              <div className="mb-2 flex items-start gap-1.5 rounded-lg bg-rose-50 border border-rose-300 p-2 text-[10px] font-bold text-rose-700 animate-in fade-in">
                 <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 <span>{error}</span>
               </div>
@@ -144,7 +157,7 @@ export const ScreenK1Login: React.FC = () => {
             <ShieldCheck className="h-4 w-4 stroke-[2.5]" />
             <span>LOGIN</span>
           </motion.button>
-        </div>
+        </motion.div>
       </div>
     </KitchenTabletHousing>
   );

@@ -3,7 +3,15 @@
 -- PostgreSQL Schema for 34 Tables & 133 Seats
 -- ==============================================================================
 
--- 1. Tables (Physical Table Pods)
+-- Drop old empty mock tables to prevent column collision from earlier experiments
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS kds_tickets CASCADE;
+DROP TABLE IF EXISTS order_items CASCADE;
+DROP TABLE IF EXISTS orders CASCADE;
+DROP TABLE IF EXISTS table_seats CASCADE;
+DROP TABLE IF EXISTS pings CASCADE;
+
+-- 1. Tables (Physical Table Pods - 34 tables)
 CREATE TABLE IF NOT EXISTS tables (
   id TEXT PRIMARY KEY,
   number TEXT UNIQUE NOT NULL,
@@ -124,82 +132,6 @@ CREATE TABLE IF NOT EXISTS menu_86 (
   prep_delay_minutes INTEGER NOT NULL DEFAULT 0,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-
--- ==============================================================================
--- SAFE MIGRATIONS: Add missing columns to pre-existing tables
--- ==============================================================================
-DO $$
-BEGIN
-  -- orders columns
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'seat_number') THEN
-    ALTER TABLE orders ADD COLUMN seat_number INTEGER NOT NULL DEFAULT 1;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'total') THEN
-    ALTER TABLE orders ADD COLUMN total NUMERIC NOT NULL DEFAULT 0;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'total_amount') THEN
-    ALTER TABLE orders ADD COLUMN total_amount NUMERIC NOT NULL DEFAULT 0;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'source') THEN
-    ALTER TABLE orders ADD COLUMN source TEXT NOT NULL DEFAULT 'CUSTOMER';
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'device_token') THEN
-    ALTER TABLE orders ADD COLUMN device_token TEXT;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'payment_method') THEN
-    ALTER TABLE orders ADD COLUMN payment_method TEXT;
-  END IF;
-
-  -- order_items columns
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'seat_number') THEN
-    ALTER TABLE order_items ADD COLUMN seat_number INTEGER NOT NULL DEFAULT 1;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'table_number') THEN
-    ALTER TABLE order_items ADD COLUMN table_number TEXT;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'unit_price') THEN
-    ALTER TABLE order_items ADD COLUMN unit_price NUMERIC NOT NULL DEFAULT 0;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'selected_option') THEN
-    ALTER TABLE order_items ADD COLUMN selected_option TEXT;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'total_price') THEN
-    ALTER TABLE order_items ADD COLUMN total_price NUMERIC NOT NULL DEFAULT 0;
-  END IF;
-
-  -- kds_tickets columns
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'order_id') THEN
-    ALTER TABLE kds_tickets ADD COLUMN order_id TEXT REFERENCES orders(id) ON DELETE SET NULL;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'seat_number') THEN
-    ALTER TABLE kds_tickets ADD COLUMN seat_number INTEGER DEFAULT 1;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'source') THEN
-    ALTER TABLE kds_tickets ADD COLUMN source TEXT NOT NULL DEFAULT 'CUSTOMER';
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'items') THEN
-    ALTER TABLE kds_tickets ADD COLUMN items JSONB NOT NULL DEFAULT '[]'::jsonb;
-  END IF;
-
-  -- payments columns
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'seat_number') THEN
-    ALTER TABLE payments ADD COLUMN seat_number INTEGER NOT NULL DEFAULT 1;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'gateway_ref') THEN
-    ALTER TABLE payments ADD COLUMN gateway_ref TEXT;
-  END IF;
-
-  -- tables columns
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tables' AND column_name = 'kot_count') THEN
-    ALTER TABLE tables ADD COLUMN kot_count INTEGER NOT NULL DEFAULT 0;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tables' AND column_name = 'merged_with') THEN
-    ALTER TABLE tables ADD COLUMN merged_with TEXT;
-  END IF;
-  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tables' AND column_name = 'guest_count') THEN
-    ALTER TABLE tables ADD COLUMN guest_count INTEGER NOT NULL DEFAULT 0;
-  END IF;
-END $$;
 
 -- ==============================================================================
 -- INDEXES

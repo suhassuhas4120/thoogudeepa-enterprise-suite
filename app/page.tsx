@@ -14,6 +14,8 @@ import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGate
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
 import { Screen9DigitalBill } from '../components/customer/Screen9DigitalBill';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
+import { Screen11Loyalty } from '../components/customer/Screen11Loyalty';
+import { Screen12Feedback } from '../components/customer/Screen12Feedback';
 import {
   Smartphone,
   LayoutGrid,
@@ -32,6 +34,8 @@ import {
   Briefcase,
   QrCode,
   Tablet,
+  Award,
+  MessageSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -49,6 +53,8 @@ export default function CustomerJourneyPage() {
     { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
     { id: 9 as ScreenId, name: '9. Digital Tax Bill', icon: <FileText className="h-3.5 w-3.5 text-slate-700" />, comp: <Screen9DigitalBill /> },
     { id: 10 as ScreenId, name: '10. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
+    { id: 11 as ScreenId, name: '11. Loyalty Rewards', icon: <Award className="h-3.5 w-3.5 text-amber-600" />, comp: <Screen11Loyalty /> },
+    { id: 12 as ScreenId, name: '12. Feedback & Review', icon: <MessageSquare className="h-3.5 w-3.5 text-orange-600" />, comp: <Screen12Feedback /> },
   ];
 
   const renderActiveScreen = () => {
@@ -63,6 +69,8 @@ export default function CustomerJourneyPage() {
       case 8: return <Screen8Confirmation />;
       case 9: return <Screen9DigitalBill />;
       case 10: return <Screen10WaiterCall />;
+      case 11: return <Screen11Loyalty />;
+      case 12: return <Screen12Feedback />;
       default: return <Screen1Welcome />;
     }
   };
@@ -95,7 +103,7 @@ export default function CustomerJourneyPage() {
           <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs font-mono text-xs font-bold">
             <span className="rounded-xl bg-orange-600 text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (10)</span>
+              <span>CUSTOMER (12)</span>
             </span>
             <Link
               href="/kitchen"

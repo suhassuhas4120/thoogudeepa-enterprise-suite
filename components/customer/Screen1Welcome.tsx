@@ -33,25 +33,15 @@ export const Screen1Welcome: React.FC = () => {
 
     // 2. The 80% Action: Zero Data Loss / Session Recovery Check
     // If the diner closed the browser, locked screen, or switched networks,
-    // check if this table + seat has an active unpaid order in Supabase.
+    // verify if this table + seat has an active unpaid order via the API engine.
     async function checkExistingSeatSession() {
       try {
         setCheckingSession(true);
-        const { data: tickets, error } = await supabase
-          .from('kds_tickets')
-          .select('*, order_items(*)')
-          .eq('table_number', tbl)
-          .neq('status', 'COMPLETED')
-          .order('created_at', { ascending: false });
-
-        if (!error && tickets && tickets.length > 0) {
-          // Find any ticket with items matching this seat
-          const seatMatch = tickets.find((t) =>
-            t.server_name?.toLowerCase().includes(`seat ${seat}`) ||
-            t.order_items?.some((it: any) => it.name.includes(`[Seat ${seat}]`))
-          );
-          if (seatMatch) {
-            setActiveOrderFound(seatMatch);
+        const res = await fetch(`/api/session/verify?tableNumber=${tbl}&seatNumber=${seat}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.active && data.activeOrder) {
+            setActiveOrderFound(data.activeOrder);
           }
         }
       } catch (err) {

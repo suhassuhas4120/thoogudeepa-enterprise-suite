@@ -85,21 +85,23 @@ async function handleVerifySession(tableNumber: string, seatNumber: number, devi
           .select('*')
           .eq('order_id', orderData.id)
           .order('created_at', { ascending: true });
+        const orderObj = {
+          id: orderData.id,
+          guestName: orderData.guest_name,
+          subtotal: Number(orderData.subtotal),
+          tax: Number(orderData.tax),
+          total: Number(orderData.total || orderData.total_amount),
+          status: orderData.status,
+          items: items || [],
+          createdAt: orderData.created_at,
+        };
 
         return NextResponse.json({
           active: true,
           tableNumber,
           seatNumber,
-          order: {
-            id: orderData.id,
-            guestName: orderData.guest_name,
-            subtotal: Number(orderData.subtotal),
-            tax: Number(orderData.tax),
-            total: Number(orderData.total || orderData.total_amount),
-            status: orderData.status,
-            items: items || [],
-            createdAt: orderData.created_at,
-          },
+          order: orderObj,
+          activeOrder: orderObj,
         });
       }
     }
@@ -122,20 +124,23 @@ async function handleVerifySession(tableNumber: string, seatNumber: number, devi
           .select('*')
           .eq('order_id', tokenOrder.id);
 
+        const tokenOrderObj = {
+          id: tokenOrder.id,
+          guestName: tokenOrder.guest_name,
+          subtotal: Number(tokenOrder.subtotal),
+          tax: Number(tokenOrder.tax),
+          total: Number(tokenOrder.total || tokenOrder.total_amount),
+          status: tokenOrder.status,
+          items: items || [],
+          createdAt: tokenOrder.created_at,
+        };
+
         return NextResponse.json({
           active: true,
           tableNumber,
           seatNumber: tokenOrder.seat_number,
-          order: {
-            id: tokenOrder.id,
-            guestName: tokenOrder.guest_name,
-            subtotal: Number(tokenOrder.subtotal),
-            tax: Number(tokenOrder.tax),
-            total: Number(tokenOrder.total || tokenOrder.total_amount),
-            status: tokenOrder.status,
-            items: items || [],
-            createdAt: tokenOrder.created_at,
-          },
+          order: tokenOrderObj,
+          activeOrder: tokenOrderObj,
         });
       }
     }

@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
+import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { Crown, Sparkles, Gift, ArrowRight, ArrowLeft, CheckCircle2, Award, Zap, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,6 +24,13 @@ export const Screen11Loyalty: React.FC = () => {
       screenNumber={11}
       screenTitle="LOYALTY CLUB & REWARDS"
     >
+      <WireHeader
+        title="Loyalty & Rewards"
+        showBack={true}
+        onBack={() => navigateTo(9)}
+        showCallWaiter={true}
+        showCart={false}
+      />
       <div className="p-4 space-y-4 pb-28 text-slate-800">
         {/* VIP Gold Membership Card */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 p-5 text-white shadow-xl shadow-orange-500/20">
@@ -129,11 +137,11 @@ export const Screen11Loyalty: React.FC = () => {
       <StickyBottomBar>
         <div className="flex gap-2">
           <button
-            onClick={() => navigateTo(10)}
+            onClick={() => navigateTo(9)}
             className="flex-1 py-3 border border-slate-300 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Call Waiter</span>
+            <span>Back to Digital Bill (9)</span>
           </button>
           <button
             onClick={() => navigateTo(12)}

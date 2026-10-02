@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
+import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { Star, Heart, CheckCircle2, MessageSquare, UtensilsCrossed, ArrowLeft, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -55,6 +56,13 @@ export const Screen12Feedback: React.FC = () => {
       screenNumber={12}
       screenTitle="DINING FEEDBACK & DISH REVIEW"
     >
+      <WireHeader
+        title="Dining Feedback"
+        showBack={true}
+        onBack={() => navigateTo(11)}
+        showCallWaiter={true}
+        showCart={false}
+      />
       <div className="p-4 space-y-4 pb-28 text-slate-800">
         {!submitted ? (
           <>

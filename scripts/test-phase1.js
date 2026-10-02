@@ -55,7 +55,15 @@ async function runPhase1Tests() {
     assert(hasT01 && hasT34, 'Table boundary checks passed: T-01 and T-34 present');
   }
 
-  // Test 3: Menu 86 Catalog in Supabase
+  // Test 3: Table Seats Remote Verification (133 physical seat rows)
+  const { count: seatCount, error: seatErr } = await supabase
+    .from('table_seats')
+    .select('*', { count: 'exact', head: true });
+
+  assert(!seatErr, 'table_seats table exists in Supabase');
+  assert(seatCount === 133, `133 individual seats seeded in table_seats (Found: ${seatCount})`);
+
+  // Test 4: Menu 86 Catalog in Supabase
   const { data: menu86, error: mErr } = await supabase
     .from('menu_86')
     .select('*')
@@ -64,14 +72,30 @@ async function runPhase1Tests() {
   assert(!mErr, 'Connected to menu_86 without error');
   assert(menu86 && menu86.length === 10, `All 10 canonical menu items tracked in menu_86 (Found: ${menu86 ? menu86.length : 0})`);
 
-  // Test 4: useSharedBridge tables integrity
+  // Test 5: Verify Transactional Tables are Live
+  const { error: ordErr } = await supabase.from('orders').select('*', { head: true });
+  assert(!ordErr, 'orders table verified live');
+
+  const { error: itmErr } = await supabase.from('order_items').select('*', { head: true });
+  assert(!itmErr, 'order_items table verified live');
+
+  const { error: kdsErr } = await supabase.from('kds_tickets').select('*', { head: true });
+  assert(!kdsErr, 'kds_tickets table verified live');
+
+  const { error: payErr } = await supabase.from('payments').select('*', { head: true });
+  assert(!payErr, 'payments table verified live');
+
+  const { error: pingErr } = await supabase.from('pings').select('*', { head: true });
+  assert(!pingErr, 'pings table verified live');
+
+  // Test 6: useSharedBridge tables integrity
   const bridgePath = path.join(__dirname, '..', 'store', 'useSharedBridge.ts');
   const bridgeContent = fs.readFileSync(bridgePath, 'utf8');
   assert(bridgeContent.includes("number: 'T-01'"), "useSharedBridge initialized with 'T-01'");
   assert(bridgeContent.includes("number: 'T-34'"), "useSharedBridge initialized with 'T-34'");
   assert(!bridgeContent.includes("number: 'A-01'"), 'Legacy dummy table A-01 completely removed from bridge');
 
-  // Test 5: Fallback Table in Customer Portal
+  // Test 7: Fallback Table in Customer Portal
   const customerStorePath = path.join(__dirname, '..', 'store', 'useCustomerStore.ts');
   const customerStoreContent = fs.readFileSync(customerStorePath, 'utf8');
   assert(customerStoreContent.includes("tableNumber: 'T-01'"), "useCustomerStore default table is 'T-01'");
@@ -80,7 +104,7 @@ async function runPhase1Tests() {
   const welcomeScreenContent = fs.readFileSync(welcomeScreenPath, 'utf8');
   assert(welcomeScreenContent.includes("'T-01'"), "Screen1Welcome fallback table is 'T-01'");
 
-  // Test 6: Database Schema File Completeness
+  // Test 8: Database Schema File Completeness
   const schemaPath = path.join(__dirname, '..', 'supabase', 'schema.sql');
   const schemaContent = fs.readFileSync(schemaPath, 'utf8');
   assert(schemaContent.includes('order_id TEXT REFERENCES orders(id)'), 'kds_tickets has order_id foreign key');

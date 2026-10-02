@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS tables (
   number TEXT UNIQUE NOT NULL,
   section TEXT NOT NULL,
   capacity INTEGER NOT NULL,
-  status TEXT NOT NULL DEFAULT 'VACANT', -- VACANT | OCCUPIED | BILLING | CLEANING
+  status TEXT NOT NULL DEFAULT 'VACANT',
   guest_count INTEGER NOT NULL DEFAULT 0,
   current_bill NUMERIC NOT NULL DEFAULT 0,
   server_name TEXT NOT NULL DEFAULT 'Floor Captain',
@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS table_seats (
   id TEXT PRIMARY KEY,
   table_number TEXT NOT NULL REFERENCES tables(number) ON DELETE CASCADE,
   seat_number INTEGER NOT NULL,
-  status TEXT NOT NULL DEFAULT 'VACANT', -- VACANT | OCCUPIED | BILLING | PAID
+  status TEXT NOT NULL DEFAULT 'VACANT',
   active_order_id TEXT,
   device_token TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -45,8 +45,8 @@ CREATE TABLE IF NOT EXISTS orders (
   tax NUMERIC NOT NULL DEFAULT 0,
   total NUMERIC NOT NULL DEFAULT 0,
   total_amount NUMERIC NOT NULL DEFAULT 0,
-  status TEXT NOT NULL DEFAULT 'UNPAID', -- UNPAID | PAID | CANCELLED
-  source TEXT NOT NULL DEFAULT 'CUSTOMER', -- CUSTOMER | WAITER
+  status TEXT NOT NULL DEFAULT 'UNPAID',
+  source TEXT NOT NULL DEFAULT 'CUSTOMER',
   device_token TEXT,
   payment_method TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -64,7 +64,7 @@ CREATE TABLE IF NOT EXISTS order_items (
   price NUMERIC NOT NULL DEFAULT 0,
   unit_price NUMERIC NOT NULL DEFAULT 0,
   total_price NUMERIC NOT NULL DEFAULT 0,
-  stage TEXT NOT NULL DEFAULT 'PLACED', -- PLACED | PREP | PLATED | SERVED (also RECEIVED, PREPARING, READY)
+  stage TEXT NOT NULL DEFAULT 'PLACED',
   prep_mode TEXT NOT NULL DEFAULT 'Dum Pot',
   options TEXT,
   selected_option TEXT,
@@ -79,11 +79,11 @@ CREATE TABLE IF NOT EXISTS kds_tickets (
   id TEXT PRIMARY KEY,
   order_id TEXT REFERENCES orders(id) ON DELETE SET NULL,
   table_number TEXT NOT NULL,
-  seat_number INTEGER,
+  seat_number INTEGER DEFAULT 1,
   server_name TEXT NOT NULL DEFAULT 'System',
-  status TEXT NOT NULL DEFAULT 'NEW', -- NEW | PREP | READY | COMPLETED
+  status TEXT NOT NULL DEFAULT 'NEW',
   elapsed_minutes INTEGER NOT NULL DEFAULT 0,
-  source TEXT NOT NULL DEFAULT 'CUSTOMER', -- CUSTOMER | WAITER
+  source TEXT NOT NULL DEFAULT 'CUSTOMER',
   items JSONB NOT NULL DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -99,7 +99,7 @@ CREATE TABLE IF NOT EXISTS payments (
   payment_method TEXT NOT NULL DEFAULT 'UPI',
   gateway_ref TEXT,
   bank_utr TEXT UNIQUE,
-  status TEXT NOT NULL DEFAULT 'CONFIRMED', -- PENDING | CONFIRMED | FAILED
+  status TEXT NOT NULL DEFAULT 'CONFIRMED',
   confirmed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -108,16 +108,16 @@ CREATE TABLE IF NOT EXISTS pings (
   id TEXT PRIMARY KEY,
   table_number TEXT NOT NULL,
   seat_number INTEGER NOT NULL DEFAULT 1,
-  type TEXT NOT NULL, -- WATER | CLEAN | TISSUE | SALNA | BILL
+  type TEXT NOT NULL,
   guest_name TEXT NOT NULL DEFAULT 'Guest',
   message TEXT,
-  status TEXT NOT NULL DEFAULT 'PENDING', -- PENDING | ACCEPTED | RESOLVED
+  status TEXT NOT NULL DEFAULT 'PENDING',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- 8. Menu 86 (Live Kitchen Stock Out Sync)
 CREATE TABLE IF NOT EXISTS menu_86 (
-  id TEXT PRIMARY KEY, -- 'item-1', 'item-2', etc.
+  id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
   category TEXT NOT NULL,
   is_86 BOOLEAN NOT NULL DEFAULT FALSE,
@@ -125,75 +125,85 @@ CREATE TABLE IF NOT EXISTS menu_86 (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Safe migrations in case tables were previously created without newer columns
+-- ==============================================================================
+-- SAFE MIGRATIONS: Add missing columns to pre-existing tables
+-- ==============================================================================
 DO $$
 BEGIN
-  -- kds_tickets order_id
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'kds_tickets' AND column_name = 'order_id'
-  ) THEN
-    ALTER TABLE kds_tickets ADD COLUMN order_id TEXT REFERENCES orders(id) ON DELETE SET NULL;
+  -- orders columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'seat_number') THEN
+    ALTER TABLE orders ADD COLUMN seat_number INTEGER NOT NULL DEFAULT 1;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'total') THEN
+    ALTER TABLE orders ADD COLUMN total NUMERIC NOT NULL DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'total_amount') THEN
+    ALTER TABLE orders ADD COLUMN total_amount NUMERIC NOT NULL DEFAULT 0;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'source') THEN
+    ALTER TABLE orders ADD COLUMN source TEXT NOT NULL DEFAULT 'CUSTOMER';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'device_token') THEN
+    ALTER TABLE orders ADD COLUMN device_token TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'orders' AND column_name = 'payment_method') THEN
+    ALTER TABLE orders ADD COLUMN payment_method TEXT;
   END IF;
 
-  -- order_items unit_price
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'order_items' AND column_name = 'unit_price'
-  ) THEN
+  -- order_items columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'seat_number') THEN
+    ALTER TABLE order_items ADD COLUMN seat_number INTEGER NOT NULL DEFAULT 1;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'table_number') THEN
+    ALTER TABLE order_items ADD COLUMN table_number TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'unit_price') THEN
     ALTER TABLE order_items ADD COLUMN unit_price NUMERIC NOT NULL DEFAULT 0;
   END IF;
-
-  -- order_items selected_option
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'order_items' AND column_name = 'selected_option'
-  ) THEN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'selected_option') THEN
     ALTER TABLE order_items ADD COLUMN selected_option TEXT;
   END IF;
-
-  -- order_items total_price
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'order_items' AND column_name = 'total_price'
-  ) THEN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'order_items' AND column_name = 'total_price') THEN
     ALTER TABLE order_items ADD COLUMN total_price NUMERIC NOT NULL DEFAULT 0;
   END IF;
 
-  -- orders total_amount
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'orders' AND column_name = 'total_amount'
-  ) THEN
-    ALTER TABLE orders ADD COLUMN total_amount NUMERIC NOT NULL DEFAULT 0;
+  -- kds_tickets columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'order_id') THEN
+    ALTER TABLE kds_tickets ADD COLUMN order_id TEXT REFERENCES orders(id) ON DELETE SET NULL;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'seat_number') THEN
+    ALTER TABLE kds_tickets ADD COLUMN seat_number INTEGER DEFAULT 1;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'source') THEN
+    ALTER TABLE kds_tickets ADD COLUMN source TEXT NOT NULL DEFAULT 'CUSTOMER';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'kds_tickets' AND column_name = 'items') THEN
+    ALTER TABLE kds_tickets ADD COLUMN items JSONB NOT NULL DEFAULT '[]'::jsonb;
   END IF;
 
-  -- tables kot_count
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'tables' AND column_name = 'kot_count'
-  ) THEN
+  -- payments columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'seat_number') THEN
+    ALTER TABLE payments ADD COLUMN seat_number INTEGER NOT NULL DEFAULT 1;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'payments' AND column_name = 'gateway_ref') THEN
+    ALTER TABLE payments ADD COLUMN gateway_ref TEXT;
+  END IF;
+
+  -- tables columns
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tables' AND column_name = 'kot_count') THEN
     ALTER TABLE tables ADD COLUMN kot_count INTEGER NOT NULL DEFAULT 0;
   END IF;
-
-  -- tables merged_with
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'tables' AND column_name = 'merged_with'
-  ) THEN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tables' AND column_name = 'merged_with') THEN
     ALTER TABLE tables ADD COLUMN merged_with TEXT;
   END IF;
-
-  -- tables guest_count
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.columns 
-    WHERE table_name = 'tables' AND column_name = 'guest_count'
-  ) THEN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'tables' AND column_name = 'guest_count') THEN
     ALTER TABLE tables ADD COLUMN guest_count INTEGER NOT NULL DEFAULT 0;
   END IF;
 END $$;
 
--- Indexes for sub-10ms query execution
+-- ==============================================================================
+-- INDEXES
+-- ==============================================================================
 CREATE INDEX IF NOT EXISTS idx_tables_status ON tables(status);
 CREATE INDEX IF NOT EXISTS idx_table_seats_table ON table_seats(table_number);
 CREATE INDEX IF NOT EXISTS idx_table_seats_device ON table_seats(device_token);
@@ -207,7 +217,9 @@ CREATE INDEX IF NOT EXISTS idx_payments_order ON payments(order_id);
 CREATE INDEX IF NOT EXISTS idx_pings_table ON pings(table_number);
 CREATE INDEX IF NOT EXISTS idx_pings_status ON pings(status);
 
--- Enable Supabase Realtime CDC on all tables safely
+-- ==============================================================================
+-- REALTIME SUBSCRIPTIONS
+-- ==============================================================================
 DO $$
 BEGIN
   BEGIN
@@ -217,4 +229,3 @@ BEGIN
     WHEN others THEN NULL;
   END;
 END $$;
-

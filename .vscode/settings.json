@@ -1,0 +1,113 @@
+{
+  // Editor
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.tabSize": 2,
+  "editor.wordWrap": "on",
+  "editor.rulers": [100],
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.inlayHints.enabled": "on",
+  "editor.codeActionsOnSave": {
+    "source.fixAll.eslint": "explicit"
+  },
+
+  // File explorer
+  "explorer.fileNesting.enabled": true,
+  "explorer.fileNesting.patterns": {
+    "*.tsx": "${capture}.test.tsx, ${capture}.stories.tsx",
+    "*.ts": "${capture}.test.ts, ${capture}.d.ts",
+    "package.json": "package-lock.json, yarn.lock, pnpm-lock.yaml, .eslintrc*, .prettierrc*, tsconfig*, next.config*, tailwind.config*, postcss.config*",
+    ".env": ".env.*"
+  },
+  "files.exclude": {
+    "**/.next": true,
+    "**/node_modules": true,
+    "**/out": true
+  },
+
+  // Tailwind
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
+
+  // TypeScript
+  "typescript.preferences.importModuleSpecifier": "shortest",
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "typescript.inlayHints.parameterNames.enabled": "literals",
+  "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
+
+  // ESLint
+  "eslint.validate": [
+    "javascript",
+    "javascriptreact",
+    "typescript",
+    "typescriptreact"
+  ],
+
+  // GitLens
+  "gitlens.codeLens.enabled": true,
+  "gitlens.currentLine.enabled": true,
+  "gitlens.hovers.enabled": true,
+  "gitlens.blame.format": "${author}, ${ago}",
+
+  // Git Graph
+  "git-graph.repository.commits.showSignatureStatus": false,
+  "git-graph.date.format": "Relative",
+
+  // Git
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  "git.openRepositoryInParentFolders": "always",
+
+  // Error Lens
+  "errorLens.gutterIconsEnabled": true,
+  "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+
+  // Spell checker - ignore project-specific words
+  "cSpell.words": [
+    "Thoogudeepa",
+    "Donne",
+    "supabase",
+    "upstash",
+    "fastify",
+    "zustand",
+    "framer",
+    "lucide",
+    "bullmq",
+    "tailwindcss",
+    "nextjs",
+    "utr",
+    "upi",
+    "kds",
+    "waiter",
+    "vacate",
+    "biryani",
+    "mane"
+  ],
+
+  // Material Icons
+  "workbench.iconTheme": "material-icon-theme",
+  "material-icon-theme.folders.associations": {
+    "components": "components",
+    "store": "redux-store",
+    "hooks": "hook",
+    "types": "typescript",
+    "lib": "lib",
+    "supabase": "database",
+    "scripts": "scripts",
+    "public": "public"
+  },
+
+  // Terminal
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.fontSize": 13
+}

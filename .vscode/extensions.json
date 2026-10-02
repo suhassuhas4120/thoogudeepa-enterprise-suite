@@ -1,0 +1,30 @@
+{
+  "recommendations": [
+    // Git
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+    "donjayamanne.githistory",
+    "GitHub.vscode-pull-request-github",
+
+    // TypeScript / React / Next.js
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "dsznajder.es7-react-js-snippets",
+    "formulahendry.auto-rename-tag",
+    "steoates.autoimport",
+    "christian-kohler.path-intellisense",
+
+    // Styling
+    "bradlc.vscode-tailwindcss",
+    "csstools.postcss",
+    "naumovs.color-highlight",
+
+    // Developer Quality of Life
+    "usernamehw.errorlens",
+    "PKief.material-icon-theme",
+    "rangav.vscode-thunder-client",
+    "streetsidesoftware.code-spell-checker",
+    "gruntfuggly.todo-tree",
+    "aaron-bond.better-comments"
+  ]
+}

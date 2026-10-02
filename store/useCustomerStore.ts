@@ -94,7 +94,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   previousScreen: 1,
   viewMode: 'single',
   guestName: '',
-  tableNumber: 'A-04',
+  tableNumber: 'T-01',
   venueName: 'Thoogudeepa donne biryani mane',
   selectedDetailItem: INITIAL_MENU_ITEMS[0],
   cart: [],
@@ -239,7 +239,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         ? new URLSearchParams(window.location.search)
         : new URLSearchParams();
       const seatNumber = parseInt(params.get('seat') || '1', 10);
-      const tableId = (params.get('table') || state.tableNumber || 'A-01').toUpperCase();
+      const tableId = (params.get('table') || state.tableNumber || 'T-01').toUpperCase();
 
       // Build a stable ticket ID
       const ts = Date.now();

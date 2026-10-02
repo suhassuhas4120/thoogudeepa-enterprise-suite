@@ -83,14 +83,49 @@ export interface SharedShiftStats {
 
 /* ── Initial Data ───────────────────────────────────────────────── */
 const freshTables: SharedTable[] = [
-  { id: 't-1', number: 'A-01', section: 'SECTION A', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Ramesh', kotCount: 0 },
-  { id: 't-2', number: 'A-02', section: 'SECTION A', capacity: 2, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Ramesh', kotCount: 0 },
-  { id: 't-3', number: 'A-03', section: 'SECTION A', capacity: 6, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Ramesh', kotCount: 0 },
-  { id: 't-4', number: 'A-04', section: 'SECTION A', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Ramesh', kotCount: 0 },
-  { id: 't-5', number: 'B-01', section: 'SECTION B', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Suresh', kotCount: 0 },
-  { id: 't-6', number: 'B-02', section: 'SECTION B', capacity: 2, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Suresh', kotCount: 0 },
-  { id: 't-7', number: 'B-03', section: 'SECTION B', capacity: 6, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Suresh', kotCount: 0 },
-  { id: 't-8', number: 'C-01', section: 'SECTION C', capacity: 8, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Captain Vijay', kotCount: 0 },
+  // Express / Couple Hall (4 tables, 2-seater)
+  { id: 'tbl-01', number: 'T-01', section: 'Express / Couple Hall', capacity: 2, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-02', number: 'T-02', section: 'Express / Couple Hall', capacity: 2, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-03', number: 'T-03', section: 'Express / Couple Hall', capacity: 2, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-04', number: 'T-04', section: 'Express / Couple Hall', capacity: 2, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+
+  // Main Dining Hall (10 tables, 3-seater)
+  { id: 'tbl-05', number: 'T-05', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-06', number: 'T-06', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-07', number: 'T-07', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-08', number: 'T-08', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-09', number: 'T-09', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-10', number: 'T-10', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-11', number: 'T-11', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-12', number: 'T-12', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-13', number: 'T-13', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-14', number: 'T-14', section: 'Main Dining Hall', capacity: 3, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+
+  // Family Section (10 tables, 4-seater)
+  { id: 'tbl-15', number: 'T-15', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-16', number: 'T-16', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-17', number: 'T-17', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-18', number: 'T-18', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-19', number: 'T-19', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-20', number: 'T-20', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-21', number: 'T-21', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-22', number: 'T-22', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-23', number: 'T-23', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-24', number: 'T-24', section: 'Family Section', capacity: 4, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+
+  // Courtyard Garden (5 tables, 5-seater)
+  { id: 'tbl-25', number: 'T-25', section: 'Courtyard Garden', capacity: 5, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-26', number: 'T-26', section: 'Courtyard Garden', capacity: 5, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-27', number: 'T-27', section: 'Courtyard Garden', capacity: 5, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-28', number: 'T-28', section: 'Courtyard Garden', capacity: 5, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-29', number: 'T-29', section: 'Courtyard Garden', capacity: 5, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+
+  // Grand Feast Hall (5 tables, 6-seater)
+  { id: 'tbl-30', number: 'T-30', section: 'Grand Feast Hall', capacity: 6, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-31', number: 'T-31', section: 'Grand Feast Hall', capacity: 6, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-32', number: 'T-32', section: 'Grand Feast Hall', capacity: 6, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-33', number: 'T-33', section: 'Grand Feast Hall', capacity: 6, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
+  { id: 'tbl-34', number: 'T-34', section: 'Grand Feast Hall', capacity: 6, status: 'VACANT', guestCount: 0, seatedTime: '--', currentBill: 0, serverName: 'Floor Captain', kotCount: 0 },
 ];
 
 const freshInventory86: SharedMenuItem86[] = INITIAL_MENU_ITEMS.map((item) => ({

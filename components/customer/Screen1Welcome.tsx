@@ -22,11 +22,11 @@ export const Screen1Welcome: React.FC = () => {
   const [activeOrderFound, setActiveOrderFound] = useState<any | null>(null);
   const [checkingSession, setCheckingSession] = useState(false);
 
-  // 1. Read ?table=A-01&seat=1 from URL on mount
+  // 1. Read ?table=T-01&seat=1 from URL on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    const tbl = (params.get('table') || tableNumber || 'A-01').toUpperCase();
+    const tbl = (params.get('table') || tableNumber || 'T-01').toUpperCase();
     const seat = parseInt(params.get('seat') || '1', 10);
     setTableNumber(tbl);
     setSeatNumber(seat);

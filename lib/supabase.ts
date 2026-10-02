@@ -64,9 +64,11 @@ export interface DbOrderItem {
   name: string;
   quantity: number;
   price: number;
+  unit_price?: number;
   stage: 'RECEIVED' | 'PREPARING' | 'READY' | 'SERVED';
   prep_mode: string;
   options?: string;
+  selected_option?: string;
   add_ons?: string[];
   notes?: string;
   created_at: string;
@@ -75,6 +77,7 @@ export interface DbOrderItem {
 
 export interface DbKdsTicket {
   id: string;
+  order_id?: string;
   table_number: string;
   server_name: string;
   status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED';

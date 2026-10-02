@@ -112,3 +112,18 @@ INSERT INTO table_seats (id, table_number, seat_number, status) VALUES
   ('T-33-S1', 'T-33', 1, 'VACANT'), ('T-33-S2', 'T-33', 2, 'VACANT'), ('T-33-S3', 'T-33', 3, 'VACANT'), ('T-33-S4', 'T-33', 4, 'VACANT'), ('T-33-S5', 'T-33', 5, 'VACANT'), ('T-33-S6', 'T-33', 6, 'VACANT'),
   ('T-34-S1', 'T-34', 1, 'VACANT'), ('T-34-S2', 'T-34', 2, 'VACANT'), ('T-34-S3', 'T-34', 3, 'VACANT'), ('T-34-S4', 'T-34', 4, 'VACANT'), ('T-34-S5', 'T-34', 5, 'VACANT'), ('T-34-S6', 'T-34', 6, 'VACANT')
 ON CONFLICT (table_number, seat_number) DO UPDATE SET status = 'VACANT';
+
+-- 3. Initial Menu 86 Inventory Status (All active in-stock)
+INSERT INTO menu_86 (id, name, category, is_86, prep_delay_minutes) VALUES
+  ('item-1', 'Special Chicken Donne Biryani', 'Rice & Bowls', false, 0),
+  ('item-2', 'Thoogudeepa Mutton Donne Biryani', 'Rice & Bowls', false, 0),
+  ('item-3', 'Kshatriya Chicken Kebab (Crispy)', 'Starters', false, 0),
+  ('item-4', 'Mutton Nalli Roast (Bone Marrow)', 'Starters', false, 0),
+  ('item-5', 'Egg Donne Biryani (2 Eggs)', 'Rice & Bowls', false, 0),
+  ('item-6', 'Gunpowder Chicken Fry (Nati Style)', 'Starters', false, 0),
+  ('item-7', 'Mutton Pepper Dry (Bannur Style)', 'Starters', false, 0),
+  ('item-8', 'Chicken Liver Pepper Masala', 'Starters', false, 0),
+  ('item-9', 'Thoogudeepa Royal Salna (Unlimited Pot)', 'Sides', false, 0),
+  ('item-10', 'Cucumber Onion Raita', 'Sides', false, 0)
+ON CONFLICT (id) DO UPDATE SET is_86 = EXCLUDED.is_86;
+

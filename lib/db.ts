@@ -121,6 +121,7 @@ export async function placeSeatOrder(params: {
     // 3. Insert KDS ticket
     await supabase.from('kds_tickets').insert({
       id: ticketId,
+      order_id: orderId,
       table_number: params.tableNumber,
       server_name: params.guestName,
       status: 'NEW',

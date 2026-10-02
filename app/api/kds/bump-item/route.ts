@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
           ticketStatus = 'COMPLETED';
         } else if (allPlated) {
           ticketStatus = 'READY';
-        } else if (anyPrep) {
+        } else if (anyPrep || siblingItems.some((it) => it.stage === 'PLATED')) {
           ticketStatus = 'PREP';
         } else {
           ticketStatus = 'NEW';

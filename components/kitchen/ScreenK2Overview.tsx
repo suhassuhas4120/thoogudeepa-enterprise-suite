@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useKitchenStore } from '../../store/useKitchenStore';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { KitchenTabletHousing } from './KitchenTabletHousing';
@@ -151,6 +151,31 @@ export const ScreenK2Overview: React.FC = () => {
   const [itemStageOverride, setItemStageOverride] = useState<
     Record<string, 'RECEIVED' | 'PREPARING' | 'READY'>
   >({});
+
+  const prevTicketCountRef = useRef(bridgeTickets.length);
+
+  useEffect(() => {
+    if (bridgeTickets.length > prevTicketCountRef.current) {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5 note
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        }
+      } catch {}
+    }
+    prevTicketCountRef.current = bridgeTickets.length;
+  }, [bridgeTickets.length]);
 
   const activeBridgeTables: K2Table[] = useMemo(() => {
     return bridgeTickets
@@ -437,7 +462,7 @@ export const ScreenK2Overview: React.FC = () => {
         <div className="bg-stone-50 border-b-2 border-slate-900 p-3 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
-              SAME DISH LIST
+              BATCH PREPARATION SUMMARY
             </span>
           </div>
 
@@ -525,22 +550,37 @@ export const ScreenK2Overview: React.FC = () => {
               </div>
             ) : (
               <div className="grid grid-cols-3 gap-3">
-                {categoryFilteredTables.map((tbl, idx) => (
-                  <div
-                    key={`${tbl.id}-${idx}`}
-                    onClick={() => handleOpenTable(tbl.tableNumber)}
-                    className="bg-white border-2 border-slate-900 rounded-xl p-3 shadow-[3px_3px_0px_#0f172a] hover:shadow-[5px_5px_0px_#0f172a] cursor-pointer transition flex flex-col justify-between"
-                  >
-                    <div>
-                      <div className="flex items-center justify-between pb-1.5 border-b-2 border-slate-900 mb-2">
-                        <div className="flex items-center gap-1 font-mono text-xs font-black text-slate-900">
-                          <span>{tbl.tableNumber}</span>
-                          {tbl.isVip && (
-                            <span className="text-amber-700 font-bold text-[9px] bg-amber-50 border border-amber-300 px-1 rounded">
-                              VIP
-                            </span>
-                          )}
-                        </div>
+                {categoryFilteredTables.map((tbl, idx) => {
+                  const isDelayed = tbl.elapsedMinutes >= 15;
+                  return (
+                    <div
+                      key={`${tbl.id}-${idx}`}
+                      onClick={() => handleOpenTable(tbl.tableNumber)}
+                      className={`border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between ${
+                        isDelayed
+                          ? 'bg-rose-50/80 border-rose-600 shadow-[3px_3px_0px_#e11d48] hover:shadow-[5px_5px_0px_#e11d48]'
+                          : 'bg-white border-slate-900 shadow-[3px_3px_0px_#0f172a] hover:shadow-[5px_5px_0px_#0f172a]'
+                      }`}
+                    >
+                      <div>
+                        <div
+                          className={`flex items-center justify-between pb-1.5 border-b-2 mb-2 ${
+                            isDelayed ? 'border-rose-400' : 'border-slate-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-1 font-mono text-xs font-black text-slate-900">
+                            <span>{tbl.tableNumber}</span>
+                            {tbl.isVip && (
+                              <span className="text-amber-700 font-bold text-[9px] bg-amber-50 border border-amber-300 px-1 rounded">
+                                VIP
+                              </span>
+                            )}
+                            {isDelayed && (
+                              <span className="text-rose-700 font-bold text-[9px] bg-rose-100 border border-rose-300 px-1 rounded animate-pulse">
+                                RUSH
+                              </span>
+                            )}
+                          </div>
                         <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1">
                           <Clock className="h-3 w-3 text-orange-600" />
                           <span>
@@ -611,19 +651,20 @@ export const ScreenK2Overview: React.FC = () => {
                       MANAGE {tbl.tableNumber} &rarr;
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
+                );
+              })}
+            </div>
+          )}
           </div>
 
           <div className="w-[30%] bg-white p-3 overflow-y-auto flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-2 border-b-2 border-slate-900 mb-3">
                 <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
-                  TIME QUEUE
+                  ORDER SEQUENCE
                 </span>
                 <span className="font-mono text-[11px] text-slate-500 font-bold">
-                  TIMED ORDERS
+                  PASS QUEUE
                 </span>
               </div>
 

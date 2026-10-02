@@ -267,7 +267,7 @@ export const ScreenK3Detail: React.FC = () => {
             <div className="flex items-center justify-between pb-2 border-b border-slate-200">
               <div className="flex items-center gap-1.5 font-mono text-[10.5px] font-black uppercase text-slate-700">
                 <Sliders className="h-4 w-4 text-orange-600" />
-                <span>IN-STOCK / OUT-OF-STOCK &amp; PREP DELAY</span>
+                <span>ITEM AVAILABILITY &amp; PREPARATION DELAY</span>
               </div>
             </div>
 
@@ -429,7 +429,7 @@ export const ScreenK3Detail: React.FC = () => {
             </AnimatePresence>
 
             <div className="p-3 rounded-xl bg-orange-50/60 border border-orange-200/80 text-[11px] text-orange-950 font-medium shrink-0">
-              <strong>Notice:</strong> Marking items 86 reflects instantaneously across all floor POS and live customer ordering pages.
+              <strong>Notice:</strong> Items marked sold out will immediately be unavailable on customer menus and captain tablets.
             </div>
           </div>
         </div>

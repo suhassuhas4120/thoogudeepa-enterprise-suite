@@ -1,0 +1,97 @@
+{
+  "folders": [
+    {
+      "name": "Thoogudeepa Enterprise Suite",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "security.workspace.trust.enabled": false,
+    "workbench.startupEditor": "none",
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.tabSize": 2,
+    "editor.bracketPairColorization.enabled": true,
+    "editor.guides.bracketPairs": true,
+    "editor.stickyScroll.enabled": true,
+    "editor.rulers": [100],
+    "editor.minimap.enabled": true,
+    "editor.inlayHints.enabled": "on",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    },
+    "explorer.fileNesting.enabled": true,
+    "explorer.fileNesting.patterns": {
+      "package.json": "package-lock.json, yarn.lock, .eslintrc*, .prettierrc*, tsconfig*, next.config*, tailwind.config*, postcss.config*, .env*",
+      "*.tsx": "${capture}.test.tsx",
+      "*.ts": "${capture}.test.ts, ${capture}.d.ts",
+      ".env": ".env.*"
+    },
+    "files.exclude": {
+      "**/.next": true,
+      "**/node_modules": true,
+      "**/out": true
+    },
+    "tailwindCSS.includeLanguages": {
+      "typescript": "javascript",
+      "typescriptreact": "javascript"
+    },
+    "editor.quickSuggestions": { "strings": "on" },
+    "typescript.preferences.importModuleSpecifier": "shortest",
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "git.autofetch": true,
+    "git.confirmSync": false,
+    "gitlens.codeLens.enabled": true,
+    "gitlens.currentLine.enabled": true,
+    "gitlens.plusFeatures.enabled": false,
+    "errorLens.enabledDiagnosticLevels": ["error", "warning"],
+    "workbench.iconTheme": "material-icon-theme",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "cSpell.words": [
+      "Thoogudeepa", "Donne", "supabase", "upstash",
+      "fastify", "zustand", "framer", "lucide", "bullmq",
+      "tailwindcss", "nextjs", "utr", "upi", "kds",
+      "vacate", "biryani", "mane"
+    ]
+  },
+  "launch": {
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Next.js: dev server",
+        "type": "node",
+        "request": "launch",
+        "program": "${workspaceFolder}/node_modules/.bin/next",
+        "args": ["dev"],
+        "cwd": "${workspaceFolder}",
+        "console": "integratedTerminal",
+        "serverReadyAction": {
+          "pattern": "started server on .+, url: (https?://.+)",
+          "uriFormat": "%s",
+          "action": "openExternally"
+        }
+      }
+    ]
+  },
+  "extensions": {
+    "recommendations": [
+      "eamodio.gitlens",
+      "mhutchie.git-graph",
+      "donjayamanne.githistory",
+      "GitHub.vscode-pull-request-github",
+      "dbaeumer.vscode-eslint",
+      "esbenp.prettier-vscode",
+      "bradlc.vscode-tailwindcss",
+      "dsznajder.es7-react-js-snippets",
+      "formulahendry.auto-rename-tag",
+      "christian-kohler.path-intellisense",
+      "usernamehw.errorlens",
+      "PKief.material-icon-theme",
+      "rangav.vscode-thunder-client",
+      "streetsidesoftware.code-spell-checker",
+      "gruntfuggly.todo-tree",
+      "naumovs.color-highlight",
+      "aaron-bond.better-comments"
+    ]
+  }
+}

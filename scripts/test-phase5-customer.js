@@ -15,7 +15,7 @@
  *   9.  Post-test clean table reset (VACANT, 0 bill)
  */
 
-const BASE = 'http://localhost:3005';
+const BASE = process.env.TEST_BASE_URL || 'http://localhost:3001';
 const SUPABASE_URL = 'https://dwjjprzyyjmunhdxvkuo.supabase.co';
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   'sb_publishable_n2WMU-LLYOgykukVbxg5Zw_vHCa74DV';

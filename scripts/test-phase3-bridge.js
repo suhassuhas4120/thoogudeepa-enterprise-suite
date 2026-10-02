@@ -24,7 +24,7 @@
  *  18.  Verify tables T-20, T-21, T-22 all VACANT after test
  */
 
-const BASE = 'http://localhost:3005';
+const BASE = process.env.TEST_BASE_URL || 'http://localhost:3001';
 
 // ── Supabase direct check ────────────────────────────────────────────
 const SUPABASE_URL = 'https://dwjjprzyyjmunhdxvkuo.supabase.co';

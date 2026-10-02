@@ -4,7 +4,7 @@ const url = 'https://dwjjprzyyjmunhdxvkuo.supabase.co';
 const key = 'sb_publishable_n2WMU-LLYOgykukVbxg5Zw_vHCa74DV';
 const supabase = createClient(url, key);
 
-const BASE_URL = 'http://localhost:3005';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3001';
 
 let totalPassed = 0;
 let totalFailed = 0;

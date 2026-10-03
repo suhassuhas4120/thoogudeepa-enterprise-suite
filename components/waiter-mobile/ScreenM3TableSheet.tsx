@@ -12,9 +12,10 @@ import {
   Users,
   Armchair,
   Plus,
-  Receipt,
   FileText,
-  Clock,
+  Search,
+  UtensilsCrossed,
+  Split,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -55,26 +56,53 @@ export function ScreenM3TableSheet({
   } = useSharedBridge();
 
   const [confirmVacate, setConfirmVacate] = useState(false);
-  const [selectedSeat, setSelectedSeat] = useState<'ALL' | number>(initialSeat);
+  const [selectedSeat, setSelectedSeat] = useState<'ALL' | number | string>(initialSeat);
   const [showMergeModal, setShowMergeModal] = useState(false);
   const [mergeTab, setMergeTab] = useState<'TABLE' | 'SEATS'>('TABLE');
+  const [mergeSearch, setMergeSearch] = useState('');
   const [targetMergeTable, setTargetMergeTable] = useState('');
   const [selectedSeatsToMerge, setSelectedSeatsToMerge] = useState<number[]>([]);
   const [mergedSeatGroups, setMergedSeatGroups] = useState<Record<string, number[]>>({});
   const [notice, setNotice] = useState<string | null>(null);
 
   const table = tables.find((t) => t.number === tableNum);
-  const tickets = kdsTickets.filter((tk) => tk.tableNumber === tableNum);
-  const candidateTables = tables.filter((t) => t.number !== tableNum);
-
   if (!table) return null;
 
   const isMerged = Boolean(table.mergedWith);
-  const totalChairs = table.capacity || 4;
-  const occupiedChairsCount =
-    table.status === 'OCCUPIED' || table.status === 'BILLING'
-      ? Math.min(totalChairs, Math.max(1, table.guestCount || (table.activeItems && table.activeItems.length > 0 ? 2 : 1)))
-      : 0;
+  const partnerTable = isMerged ? tables.find((t) => t.number === table.mergedWith) : null;
+
+  // Candidate tables for merging (exclude self and currently merged partner)
+  const candidateTables = tables.filter(
+    (t) => t.number !== tableNum && (!table.mergedWith || t.number !== table.mergedWith)
+  );
+
+  // Tickets for table (including merged partner table if merged)
+  const tickets = kdsTickets.filter(
+    (tk) => tk.tableNumber === tableNum || (table.mergedWith && tk.tableNumber === table.mergedWith)
+  );
+
+  // Dynamic capacity & bill calculations
+  const totalChairs = (table.capacity || 4) + (partnerTable ? (partnerTable.capacity || 4) : 0);
+  const subtotal = Math.max(table.currentBill || 0, partnerTable?.currentBill || 0);
+  const occupiedChairsCount = Math.min(
+    totalChairs,
+    Math.max(
+      table.guestCount || 0,
+      partnerTable?.guestCount || 0,
+      table.status === 'OCCUPIED' || table.status === 'BILLING' ? 2 : 0
+    )
+  );
+
+  // Tax calculation
+  const cgst = subtotal * 0.025;
+  const sgst = subtotal * 0.025;
+  const totalTax = cgst + sgst;
+  const grandTotal = subtotal + totalTax;
+
+  // Individual Chair Share calculation
+  const perChairSubtotal = occupiedChairsCount > 0 ? Math.round(subtotal / occupiedChairsCount) : 0;
+  const perChairTax = perChairSubtotal * 0.05;
+  const perChairTotal = perChairSubtotal + perChairTax;
 
   // Check if any items are ready to serve
   const readyTickets = tickets.filter((tk) => tk.status === 'READY');
@@ -94,11 +122,12 @@ export function ScreenM3TableSheet({
     onVacated();
   };
 
+  // ── Table Merge Logic ──
   const handleConfirmTableMerge = () => {
     if (!targetMergeTable) return;
     waiterMergeTables(tableNum, targetMergeTable);
     setShowMergeModal(false);
-    setNotice(`Table ${tableNum} merged with ${targetMergeTable}`);
+    setNotice(`Table ${tableNum} successfully merged with ${targetMergeTable}`);
     setTimeout(() => setNotice(null), 2500);
   };
 
@@ -108,6 +137,7 @@ export function ScreenM3TableSheet({
     setTimeout(() => setNotice(null), 2500);
   };
 
+  // ── Seat Merge Logic ──
   const handleToggleSeatForMerge = (seatNum: number) => {
     setSelectedSeatsToMerge((prev) =>
       prev.includes(seatNum) ? prev.filter((s) => s !== seatNum) : [...prev, seatNum]
@@ -116,10 +146,12 @@ export function ScreenM3TableSheet({
 
   const handleApplySeatMerge = () => {
     if (selectedSeatsToMerge.length < 2) return;
-    const groupKey = `Group-${Date.now()}`;
-    setMergedSeatGroups((prev) => ({ ...prev, [groupKey]: selectedSeatsToMerge }));
+    const sorted = [...selectedSeatsToMerge].sort((a, b) => a - b);
+    const groupKey = `Chairs ${sorted.join(' & ')}`;
+    setMergedSeatGroups((prev) => ({ ...prev, [groupKey]: sorted }));
     setShowMergeModal(false);
-    setNotice(`Chairs ${selectedSeatsToMerge.join(' & ')} combined into single check`);
+    setSelectedSeat(groupKey);
+    setNotice(`${groupKey} combined into single check`);
     setSelectedSeatsToMerge([]);
     setTimeout(() => setNotice(null), 2500);
   };
@@ -130,21 +162,22 @@ export function ScreenM3TableSheet({
       delete next[groupKey];
       return next;
     });
-    setNotice('Chairs split into individual billing');
+    setSelectedSeat('ALL');
+    setNotice(`${groupKey} split into individual billing`);
     setTimeout(() => setNotice(null), 2000);
   };
 
-  // Tax calculation
-  const subtotal = table.currentBill || 0;
-  const cgst = subtotal * 0.025;
-  const sgst = subtotal * 0.025;
-  const totalTax = cgst + sgst;
-  const grandTotal = subtotal + totalTax;
-
-  // Individual Chair Share (Equal split per occupied chair)
-  const perChairSubtotal = occupiedChairsCount > 0 ? Math.round(subtotal / occupiedChairsCount) : 0;
-  const perChairTax = perChairSubtotal * 0.05;
-  const perChairTotal = perChairSubtotal + perChairTax;
+  // Check if current selected seat belongs to an active merged group
+  const activeGroup = typeof selectedSeat === 'string' && selectedSeat.startsWith('Chairs ')
+    ? { key: selectedSeat, seats: mergedSeatGroups[selectedSeat] || [] }
+    : typeof selectedSeat === 'number'
+    ? Object.entries(mergedSeatGroups).find(([_, seats]) => seats.includes(selectedSeat))
+      ? {
+          key: Object.entries(mergedSeatGroups).find(([_, seats]) => seats.includes(selectedSeat as number))![0],
+          seats: Object.entries(mergedSeatGroups).find(([_, seats]) => seats.includes(selectedSeat as number))![1],
+        }
+      : null
+    : null;
 
   return (
     <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl relative select-none">
@@ -154,7 +187,7 @@ export function ScreenM3TableSheet({
         <button
           type="button"
           onClick={onClose}
-          className="flex items-center gap-2 font-mono text-xs font-black text-stone-700 hover:text-[#9C3D1E] py-1 px-2 -ml-1 rounded-xl bg-stone-50 hover:bg-[#FFF8F5] border border-[#EAE5DF] transition"
+          className="flex items-center gap-2 font-mono text-xs font-black text-stone-700 hover:text-[#9C3D1E] py-1 px-2.5 -ml-1 rounded-xl bg-stone-50 hover:bg-[#FFF8F5] border border-[#EAE5DF] transition"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back to Floor</span>
@@ -200,6 +233,7 @@ export function ScreenM3TableSheet({
               </p>
               <h1 className="text-2xl font-black text-stone-900 tracking-tight mt-0.5">
                 {table.number}
+                {isMerged && <span className="text-stone-400 text-base font-bold ml-1.5">+ {table.mergedWith}</span>}
               </h1>
             </div>
             <div className="text-right">
@@ -225,10 +259,10 @@ export function ScreenM3TableSheet({
           <div className="flex items-center justify-between font-mono text-xs">
             <span className="font-black text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
               <Armchair className="h-4 w-4 text-[#9C3D1E]" />
-              <span>Select Chair to View / Order:</span>
+              <span>Chair Navigation:</span>
             </span>
             <span className="text-stone-400 font-bold text-[10.5px]">
-              Tap chair to isolate
+              Tap chair to focus
             </span>
           </div>
 
@@ -249,11 +283,42 @@ export function ScreenM3TableSheet({
               <span className="text-[10px] opacity-80">₹{grandTotal.toFixed(0)}</span>
             </button>
 
+            {/* Merged Group Cards (if any) */}
+            {Object.entries(mergedSeatGroups).map(([groupKey, groupSeats]) => {
+              const isSelected = selectedSeat === groupKey;
+              const groupAmt = perChairTotal * groupSeats.length;
+
+              return (
+                <button
+                  key={groupKey}
+                  type="button"
+                  onClick={() => setSelectedSeat(groupKey)}
+                  className={`p-3 rounded-2xl font-mono text-xs font-black border-2 transition shrink-0 flex flex-col items-center justify-between min-w-[96px] h-[86px] active:scale-95 ${
+                    isSelected
+                      ? 'bg-indigo-700 text-white border-indigo-700 shadow-md ring-2 ring-indigo-400'
+                      : 'bg-indigo-50 text-indigo-950 border-indigo-300 hover:bg-indigo-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-1">
+                    <Link2 className="h-4 w-4" />
+                    <span>Group</span>
+                  </div>
+                  <span className="text-[10.5px] font-bold">₹{groupAmt.toFixed(0)}</span>
+                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-indigo-200 text-indigo-900'
+                  }`}>
+                    Chairs {groupSeats.join('&')}
+                  </span>
+                </button>
+              );
+            })}
+
             {/* Individual Chairs 1..N */}
             {Array.from({ length: totalChairs }).map((_, idx) => {
               const seatNum = idx + 1;
               const isSeated = seatNum <= occupiedChairsCount;
               const isSelected = selectedSeat === seatNum;
+              const inGroup = Object.values(mergedSeatGroups).some((seats) => seats.includes(seatNum));
 
               return (
                 <button
@@ -263,6 +328,8 @@ export function ScreenM3TableSheet({
                   className={`p-3 rounded-2xl font-mono text-xs font-black border-2 transition shrink-0 flex flex-col items-center justify-between min-w-[86px] h-[86px] active:scale-95 ${
                     isSelected
                       ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-md ring-2 ring-[#9C3D1E]/40 scale-102'
+                      : inGroup
+                      ? 'bg-indigo-50 text-indigo-900 border-indigo-300'
                       : isSeated
                       ? 'bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100'
                       : 'bg-white text-stone-400 border-dashed border-stone-300 hover:bg-[#FAF8F5]'
@@ -278,11 +345,13 @@ export function ScreenM3TableSheet({
                   <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
                     isSelected
                       ? 'bg-white/20 text-white'
+                      : inGroup
+                      ? 'bg-indigo-200 text-indigo-900'
                       : isSeated
                       ? 'bg-amber-200 text-amber-900'
                       : 'bg-stone-100 text-stone-400'
                   }`}>
-                    {isSeated ? 'Seated' : 'Empty'}
+                    {inGroup ? 'Merged' : isSeated ? 'Seated' : 'Empty'}
                   </span>
                 </button>
               );
@@ -290,34 +359,87 @@ export function ScreenM3TableSheet({
           </div>
         </div>
 
-        {/* ── ISOLATED CHAIR PANEL OR TABLE CONSOLIDATED CHECK ── */}
+        {/* ── DETAILS PANEL: DYNAMICALLY ISOLATED BY SEAT / GROUP / TABLE ── */}
         <div className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs space-y-3 font-mono">
           <div className="flex items-center justify-between pb-2 border-b border-stone-100">
             <div className="flex items-center gap-2">
               <span className="font-black text-sm text-stone-900 uppercase">
-                {selectedSeat === 'ALL' ? 'Table Consolidated Check' : `Chair ${selectedSeat} Breakdown`}
+                {activeGroup
+                  ? `Combined Check: ${activeGroup.key}`
+                  : selectedSeat === 'ALL'
+                  ? 'Table Consolidated Check'
+                  : `Chair ${selectedSeat} Breakdown`}
               </span>
             </div>
             <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase ${
-              selectedSeat === 'ALL'
+              activeGroup
+                ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
+                : selectedSeat === 'ALL'
                 ? statusBadge(table.status)
-                : selectedSeat <= occupiedChairsCount
+                : Number(selectedSeat) <= occupiedChairsCount
                 ? 'bg-amber-100 text-amber-800 border-amber-300'
                 : 'bg-emerald-100 text-emerald-800 border-emerald-300'
             }`}>
-              {selectedSeat === 'ALL' ? table.status : selectedSeat <= occupiedChairsCount ? 'Seated' : 'Available'}
+              {activeGroup
+                ? 'Combined Seats'
+                : selectedSeat === 'ALL'
+                ? table.status
+                : Number(selectedSeat) <= occupiedChairsCount
+                ? 'Seated'
+                : 'Available'}
             </span>
           </div>
 
           {/* Details Breakdown */}
-          {selectedSeat === 'ALL' ? (
+          {activeGroup ? (
+            // Combined Seat Group View
+            <div className="space-y-3 py-1">
+              <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
+                <div className="flex justify-between text-indigo-900">
+                  <span>Combined Chairs:</span>
+                  <span className="font-black">Chairs {activeGroup.seats.join(' & ')}</span>
+                </div>
+                <div className="flex justify-between text-indigo-900">
+                  <span>Food Subtotal ({activeGroup.seats.length} Chairs):</span>
+                  <span className="font-bold">₹{(perChairSubtotal * activeGroup.seats.length).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-indigo-900">
+                  <span>GST (5% Combined):</span>
+                  <span>₹{(perChairTax * activeGroup.seats.length).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-indigo-950 font-black text-sm pt-1.5 border-t border-indigo-300">
+                  <span>Group Total Due:</span>
+                  <span className="text-[#9C3D1E]">₹{(perChairTotal * activeGroup.seats.length).toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={onGoToOrder}
+                  className="py-2.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add for Group</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSplitSeatGroup(activeGroup.key)}
+                  className="py-2.5 bg-white border border-indigo-300 text-indigo-800 rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs hover:bg-indigo-50 transition"
+                >
+                  <Split className="h-4 w-4" />
+                  <span>Split Seats</span>
+                </button>
+              </div>
+            </div>
+          ) : selectedSeat === 'ALL' ? (
             // All Table KOT Tickets & Items
             tickets.length > 0 ? (
               <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
                 {tickets.map((tk) => (
                   <div key={tk.id} className="p-2.5 bg-[#FAF8F5] border border-stone-200 rounded-xl space-y-1.5">
                     <div className="flex justify-between text-xs font-black text-[#9C3D1E]">
-                      <span>KOT #{tk.id.slice(-4)}</span>
+                      <span>Table {tk.tableNumber} • KOT #{tk.id.slice(-4)}</span>
                       <span className="text-stone-600 font-bold uppercase">{tk.status}</span>
                     </div>
                     {tk.items.map((it, i) => (
@@ -330,14 +452,20 @@ export function ScreenM3TableSheet({
                 ))}
               </div>
             ) : (
-              <div className="py-8 text-center text-stone-400 text-xs">
-                No orders placed on this table yet
+              /* Empty orders on table with proper icon and single line */
+              <div className="py-10 flex flex-col items-center justify-center text-center space-y-2">
+                <div className="h-10 w-10 rounded-2xl bg-[#FFF8F5] border border-[#9C3D1E]/20 flex items-center justify-center text-[#9C3D1E]">
+                  <UtensilsCrossed className="h-5 w-5" />
+                </div>
+                <p className="font-mono text-xs font-bold text-stone-600">
+                  No active orders placed on this table yet.
+                </p>
               </div>
             )
           ) : (
             // Dedicated Single Chair View
             <div className="space-y-3 py-1">
-              {selectedSeat <= occupiedChairsCount ? (
+              {Number(selectedSeat) <= occupiedChairsCount ? (
                 <>
                   <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 text-xs">
                     <div className="flex justify-between text-stone-700">
@@ -368,19 +496,20 @@ export function ScreenM3TableSheet({
                   </button>
                 </>
               ) : (
-                <div className="py-6 text-center space-y-2">
-                  <p className="text-stone-500 text-xs font-bold">
-                    Chair {selectedSeat} is currently vacant
-                  </p>
-                  <p className="text-stone-400 text-[10.5px]">
-                    Tap below to seat a guest and take orders for this chair.
+                /* Empty chair with proper icon and single line */
+                <div className="py-10 flex flex-col items-center justify-center text-center space-y-2.5">
+                  <div className="h-10 w-10 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400">
+                    <Armchair className="h-5 w-5" />
+                  </div>
+                  <p className="font-mono text-xs font-bold text-stone-600">
+                    Chair {selectedSeat} is currently unoccupied with no orders.
                   </p>
                   <button
                     type="button"
                     onClick={onGoToOrder}
-                    className="mt-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-mono text-xs font-black inline-flex items-center gap-1.5 shadow-xs transition"
+                    className="px-4 py-2 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-3.5 w-3.5" />
                     <span>Seat Guest on Chair {selectedSeat}</span>
                   </button>
                 </div>
@@ -391,10 +520,14 @@ export function ScreenM3TableSheet({
           {/* Subtotal & Due Row */}
           <div className="pt-2.5 border-t border-stone-200 flex justify-between items-center text-xs">
             <span className="text-stone-500">
-              Subtotal: ₹{(selectedSeat === 'ALL' ? subtotal : perChairSubtotal).toFixed(2)}
+              Subtotal: ₹{activeGroup
+                ? (perChairSubtotal * activeGroup.seats.length).toFixed(2)
+                : (selectedSeat === 'ALL' ? subtotal : perChairSubtotal).toFixed(2)}
             </span>
             <span className="font-black text-base text-[#9C3D1E]">
-              Total Due: ₹{(selectedSeat === 'ALL' ? grandTotal : perChairTotal).toFixed(2)}
+              Total Due: ₹{activeGroup
+                ? (perChairTotal * activeGroup.seats.length).toFixed(2)
+                : (selectedSeat === 'ALL' ? grandTotal : perChairTotal).toFixed(2)}
             </span>
           </div>
         </div>
@@ -478,7 +611,7 @@ export function ScreenM3TableSheet({
               className="py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
             >
               <Plus className="h-4 w-4" />
-              <span>{selectedSeat === 'ALL' ? 'Add Dishes' : `Add for Chair ${selectedSeat}`}</span>
+              <span>{selectedSeat === 'ALL' ? 'Add Dishes' : `Add for ${typeof selectedSeat === 'string' ? selectedSeat : `Chair ${selectedSeat}`}`}</span>
             </button>
 
             <button
@@ -529,7 +662,7 @@ export function ScreenM3TableSheet({
 
       </div>
 
-      {/* ── MODAL: TABLE MERGE & SEAT MERGE ── */}
+      {/* ── MODAL: TABLE MERGE & SEAT MERGE (DYNAMIC & FULLY FUNCTIONAL) ── */}
       <AnimatePresence>
         {showMergeModal && (
           <motion.div
@@ -581,28 +714,51 @@ export function ScreenM3TableSheet({
                 </button>
               </div>
 
-              {/* Mode 1: Table Merge */}
+              {/* Mode 1: Table Merge (Searchable and dynamic across all tables) */}
               {mergeTab === 'TABLE' && (
                 <div className="space-y-3 py-1">
                   <p className="text-xs text-stone-600 font-semibold">
                     Merge {table.number} with candidate table:
                   </p>
-                  <div className="grid grid-cols-3 gap-2 max-h-40 overflow-y-auto p-1">
-                    {candidateTables.slice(0, 15).map((ct) => (
-                      <button
-                        key={ct.id}
-                        type="button"
-                        onClick={() => setTargetMergeTable(ct.number)}
-                        className={`py-2 px-1.5 rounded-xl text-xs font-black border transition ${
-                          targetMergeTable === ct.number
-                            ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                            : 'bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100'
-                        }`}
-                      >
-                        {ct.number}
-                      </button>
-                    ))}
+
+                  <div className="relative">
+                    <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <input
+                      type="text"
+                      placeholder="Search table (e.g. T-02, T-05)..."
+                      value={mergeSearch}
+                      onChange={(e) => setMergeSearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-stone-200 rounded-xl text-xs font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-purple-600"
+                    />
                   </div>
+
+                  <div className="grid grid-cols-3 gap-2 max-h-48 overflow-y-auto p-1">
+                    {candidateTables
+                      .filter(
+                        (ct) =>
+                          !mergeSearch.trim() ||
+                          ct.number.toLowerCase().includes(mergeSearch.toLowerCase()) ||
+                          ct.section.toLowerCase().includes(mergeSearch.toLowerCase())
+                      )
+                      .map((ct) => (
+                        <button
+                          key={ct.id}
+                          type="button"
+                          onClick={() => setTargetMergeTable(ct.number)}
+                          className={`py-2 px-1.5 rounded-xl text-xs font-black border transition flex flex-col items-center justify-center ${
+                            targetMergeTable === ct.number
+                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                              : 'bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100'
+                          }`}
+                        >
+                          <span>{ct.number}</span>
+                          <span className={`text-[9px] font-mono mt-0.5 ${targetMergeTable === ct.number ? 'text-purple-200' : 'text-stone-400'}`}>
+                            {ct.capacity}p
+                          </span>
+                        </button>
+                      ))}
+                  </div>
+
                   <div className="pt-2 flex gap-2">
                     <button
                       type="button"
@@ -623,7 +779,7 @@ export function ScreenM3TableSheet({
                 </div>
               )}
 
-              {/* Mode 2: Seat Merge */}
+              {/* Mode 2: Seat Merge (Fully interactive chair selection & check combine) */}
               {mergeTab === 'SEATS' && (
                 <div className="space-y-3 py-1">
                   <p className="text-xs text-stone-600 font-semibold">
@@ -638,13 +794,14 @@ export function ScreenM3TableSheet({
                           key={seatNum}
                           type="button"
                           onClick={() => handleToggleSeatForMerge(seatNum)}
-                          className={`p-2.5 rounded-xl text-xs font-black border text-center transition ${
+                          className={`p-2.5 rounded-xl text-xs font-black border text-center transition flex flex-col items-center justify-center ${
                             isChecked
                               ? 'bg-indigo-600 text-white border-indigo-600 shadow-xs'
-                              : 'bg-stone-50 text-stone-800 border-stone-200'
+                              : 'bg-stone-50 text-stone-800 border-stone-200 hover:bg-stone-100'
                           }`}
                         >
-                          Chair {seatNum}
+                          <Armchair className="h-3.5 w-3.5 mb-1" />
+                          <span>Chair {seatNum}</span>
                         </button>
                       );
                     })}

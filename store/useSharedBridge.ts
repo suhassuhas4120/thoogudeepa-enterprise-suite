@@ -762,10 +762,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const current = state.tables.find((t) => t.number === tableNumber);
       if (!current || !current.mergedWith) return state;
       const partnerNum = current.mergedWith;
+      const partner = state.tables.find((t) => t.number === partnerNum);
 
-      // Estimate split bills or restore individual balances
-      const splitBill = Math.round(current.currentBill / 2);
-      const splitGuests = Math.max(1, Math.floor((current.guestCount || 2) / 2));
+      // Combine both bills to ensure no loss of charges upon unmerge
+      const combinedBill = (current.currentBill || 0) + (partner?.currentBill || 0);
+      const splitBill = Math.round(combinedBill / 2);
+      const combinedGuests = (current.guestCount || 0) + (partner?.guestCount || 0);
+      const splitGuests = Math.max(1, Math.floor(combinedGuests / 2));
 
       return {
         tables: state.tables.map((t) => {

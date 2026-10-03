@@ -5,7 +5,6 @@ import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { Wifi, ArrowRight, Crown, CheckCircle2, Globe, MapPin, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { supabase } from '../../lib/supabase';
 
 export const Screen1Welcome: React.FC = () => {
   const {

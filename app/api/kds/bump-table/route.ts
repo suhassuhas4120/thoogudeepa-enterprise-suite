@@ -34,7 +34,14 @@ export async function POST(req: NextRequest) {
     const currentStatus = ticket.status || 'NEW';
     const transition = TICKET_TRANSITION[currentStatus] || { ticket: 'PREP', item: 'PREP' };
     const nextStatus = targetStatus || transition.ticket;
-    const nextItemStage = transition.item;
+    const nextItemStage =
+      targetStatus === 'READY'
+        ? 'PLATED'
+        : targetStatus === 'COMPLETED'
+        ? 'SERVED'
+        : targetStatus === 'PREP'
+        ? 'PREP'
+        : transition.item;
 
     // 2. Update ticket status
     await supabase

@@ -662,14 +662,6 @@ export function ScreenM3TableSheet({
                 <p className="font-mono text-xs font-bold text-stone-600">
                   No active orders placed on this table yet.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => onGoToOrder(undefined)}
-                  className="px-4 py-2 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer mt-1"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  <span>+ Add Dishes to Table</span>
-                </button>
               </div>
             )
           ) : (
@@ -765,15 +757,6 @@ export function ScreenM3TableSheet({
                         <span className="text-[#9C3D1E]">₹{thisSeatTotal.toFixed(2)}</span>
                       </div>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onGoToOrder(thisSeatNum)}
-                      className="w-full py-2 bg-white hover:bg-[#FFF8F5] border border-[#9C3D1E]/40 text-[#9C3D1E] rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-2xs"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>+ Add More Dishes for Chair {thisSeatNum}</span>
-                    </button>
                   </div>
                 );
               }
@@ -802,15 +785,6 @@ export function ScreenM3TableSheet({
                         <span className="text-[#9C3D1E]">₹{perChairTotal.toFixed(2)}</span>
                       </div>
                     </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onGoToOrder(thisSeatNum)}
-                      className="w-full py-2.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
-                    >
-                      <Plus className="h-3.5 w-3.5" />
-                      <span>+ Add Specific Dishes for Chair {thisSeatNum}</span>
-                    </button>
                   </div>
                 );
               }
@@ -823,14 +797,6 @@ export function ScreenM3TableSheet({
                   <p className="font-mono text-xs font-bold text-stone-600">
                     Chair {thisSeatNum} has no orders placed yet.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => onGoToOrder(thisSeatNum)}
-                    className="px-4 py-2 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Seat Guest on Chair {thisSeatNum}</span>
-                  </button>
                 </div>
               );
             })()

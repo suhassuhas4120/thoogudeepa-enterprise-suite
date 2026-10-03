@@ -6,23 +6,20 @@ import {
   QrCode,
   Banknote,
   CheckCircle2,
-  Trash2,
   Receipt,
-  Download,
-  Share2,
   Printer,
-  Sparkles,
   Phone,
   ArrowRight,
-  ShieldCheck,
   Check,
-  Copy,
-  Clock,
-  MapPin,
   UtensilsCrossed,
+  ChevronDown,
+  ChevronUp,
+  User,
+  Armchair,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
+import { useWaiterStore } from '../../store/useWaiterStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 import QRCode from 'qrcode';
 
@@ -36,6 +33,7 @@ type PayMethod = 'UPI' | 'CASH';
 
 export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
   const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable } = useSharedBridge();
+  const { activeCaptain } = useWaiterStore();
   const table = tables.find((t) => t.number === tableNum);
 
   const [method, setMethod] = useState<PayMethod>('UPI');
@@ -46,6 +44,10 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [isUpiVerified, setIsUpiVerified] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showOrderSummary, setShowOrderSummary] = useState(false);
+
+  // Captain Name from store or table
+  const captainName = activeCaptain || table?.serverName || 'Floor Captain';
 
   // Tickets for table (including merged partner table if merged)
   const tickets = kdsTickets.filter(
@@ -117,7 +119,33 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
     return `INV-${cleanTbl}-${stamp}`;
   }, [tableNum]);
 
-  const change =
+  // Unique seat numbers allocated to this table / orders
+  const seatNumbers = useMemo(() => {
+    const seatsSet = new Set<number>();
+    allOrderedItems.forEach((it) => {
+      if (it.seatNumber) seatsSet.add(it.seatNumber);
+    });
+    if (seatsSet.size > 0) {
+      return Array.from(seatsSet).sort((a, b) => a - b);
+    }
+    const count = table?.guestCount || table?.capacity || 1;
+    return Array.from({ length: count }, (_, i) => i + 1);
+  }, [allOrderedItems, table]);
+
+  const seatNumbersLabel =
+    seatNumbers.length === 1
+      ? `Chair ${seatNumbers[0]}`
+      : `Chairs ${seatNumbers.join(', ')}`;
+
+  // Cash and change calculations
+  const effectiveCashTendered =
+    typeof cashTendered === 'number' && cashTendered >= grandTotal
+      ? cashTendered
+      : grandTotal;
+
+  const cashChange = effectiveCashTendered - grandTotal;
+
+  const changePreview =
     typeof cashTendered === 'number' && cashTendered >= grandTotal
       ? cashTendered - grandTotal
       : null;
@@ -147,8 +175,21 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
 
   if (!table) return null;
 
-  // ── SETTLED RECEIPT VIEW ──────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════════
+  // ── 1. POST-PAYMENT RECEIPT VIEW (AFTER PAY ONLY) ───────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════════
   if (settled) {
+    const formattedDate = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const formattedTime = new Date().toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
     return (
       <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl relative select-none">
         {/* Header */}
@@ -156,7 +197,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           <div className="flex items-center gap-2">
             <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
             <span className="font-mono text-xs font-black text-stone-900 uppercase">
-              Settlement Receipt
+              Settlement Bill Receipt
             </span>
           </div>
           <button
@@ -168,9 +209,10 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           </button>
         </header>
 
-        {/* Success Alert Banner */}
+        {/* Content Container */}
         <div className="p-4 flex-1 overflow-y-auto space-y-4">
-          <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-3xl text-center space-y-2 shadow-xs">
+          {/* Payment Success Alert Banner */}
+          <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-3xl text-center space-y-1.5 shadow-xs">
             <div className="h-12 w-12 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto shadow-sm">
               <CheckCircle2 className="h-7 w-7" />
             </div>
@@ -178,16 +220,16 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               Payment Recorded &amp; Settled!
             </h2>
             <p className="font-mono text-xs font-bold text-emerald-800">
-              ₹{grandTotal} collected via {method} for {tableNum}
+              ₹{grandTotal.toFixed(2)} collected via {method} for Table {tableNum}
             </p>
             {customerPhone && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 font-mono text-[11px] font-bold text-emerald-900 mt-1">
-                <span>📱 Digital bill sent to +91 {customerPhone}</span>
+                <span>📱 Digital bill dispatched to +91 {customerPhone}</span>
               </div>
             )}
           </div>
 
-          {/* Printable Thermal Receipt Card */}
+          {/* ── AUTHENTIC RESTAURANT BILL & TAX RECEIPT ── */}
           <div className="bg-white border-2 border-dashed border-[#DCD6CE] rounded-3xl p-5 font-mono shadow-xs space-y-3.5">
             {/* Restaurant Header */}
             <div className="text-center space-y-1 pb-3 border-b border-dashed border-stone-200">
@@ -200,51 +242,94 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               <p className="text-[9.5px] text-stone-400">
                 GSTIN: 29AABCT1332L1Z9 • FSSAI: 11223334000182
               </p>
-              <div className="pt-1.5 flex items-center justify-between text-[10px] text-stone-600 border-t border-stone-100 mt-2">
-                <span>TAX INVOICE: {invoiceNumber}</span>
-                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black border border-emerald-300">
-                  PAID
+
+              <div className="pt-2 flex items-center justify-between text-[10.5px] text-stone-700 border-t border-stone-100 mt-2">
+                <span className="font-black text-stone-900">TAX INVOICE: #{invoiceNumber}</span>
+                <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black border border-emerald-300 text-[10px]">
+                  PAID ({method})
                 </span>
               </div>
               <div className="flex items-center justify-between text-[10px] text-stone-500 pt-0.5">
-                <span>Table: {tableNum} ({table.section})</span>
-                <span>Server: {table.serverName || 'Captain'}</span>
+                <span>Date: {formattedDate}</span>
+                <span>Time: {formattedTime}</span>
               </div>
             </div>
 
-            {/* Itemized Table */}
+            {/* ── TABLE, CAPTAIN & SEAT DETAILS ── */}
+            <div className="p-3 bg-stone-50 border border-stone-200 rounded-2xl space-y-1 text-xs">
+              <div className="grid grid-cols-2 gap-2 text-[11px]">
+                <div>
+                  <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Table Number</span>
+                  <span className="font-black text-stone-900">
+                    {tableNum} ({table.section})
+                    {table.mergedWith && <span className="text-purple-700 ml-1">+{table.mergedWith}</span>}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Floor Captain</span>
+                  <span className="font-black text-[#9C3D1E] flex items-center justify-end gap-1">
+                    <User className="h-3 w-3" />
+                    <span>{captainName}</span>
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-[11px] pt-1.5 border-t border-stone-200">
+                <div>
+                  <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Assigned Seats</span>
+                  <span className="font-bold text-stone-800 flex items-center gap-1">
+                    <Armchair className="h-3 w-3 text-stone-500" />
+                    <span>{seatNumbersLabel}</span>
+                  </span>
+                </div>
+                <div className="text-right">
+                  <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Guest Count</span>
+                  <span className="font-bold text-stone-800">
+                    {table.guestCount || table.capacity || 1} Guests
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── ITEMIZED DISH BREAKDOWN WITH PRICES ── */}
             <div className="space-y-1.5 pb-3 border-b border-dashed border-stone-200 text-xs">
               <div className="flex justify-between font-black text-[10px] text-stone-400 uppercase tracking-wider pb-1">
-                <span>Item / Particulars</span>
-                <span>Amount</span>
+                <span>Item Particulars &amp; Chair</span>
+                <span>Amount (₹)</span>
               </div>
               {allOrderedItems.length > 0 ? (
                 allOrderedItems.map((item, idx) => (
-                  <div key={item.id || idx} className="flex justify-between text-stone-800 text-[11.5px]">
+                  <div key={item.id || idx} className="flex justify-between text-stone-800 text-[11.5px] py-0.5">
                     <div>
-                      <span className="font-bold">{item.quantity}× {item.name}</span>
-                      {item.seatNumber && (
-                        <span className="text-[9px] text-stone-400 ml-1.5">[Chair {item.seatNumber}]</span>
-                      )}
-                      {item.options && (
-                        <div className="text-[9.5px] text-stone-400">{item.options}</div>
-                      )}
+                      <div className="font-bold">
+                        <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
+                        <span>{item.name}</span>
+                        {item.seatNumber && (
+                          <span className="text-[9px] bg-stone-100 text-stone-700 px-1 py-0.5 rounded border border-stone-300 ml-1.5 font-bold">
+                            Chair {item.seatNumber}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[9.5px] text-stone-400 flex items-center gap-2">
+                        <span>@ ₹{item.price} each</span>
+                        {item.options && <span>• {item.options}</span>}
+                      </div>
                     </div>
-                    <span className="font-bold shrink-0 ml-2">₹{item.totalPrice}</span>
+                    <span className="font-bold shrink-0 ml-2">₹{item.totalPrice.toFixed(2)}</span>
                   </div>
                 ))
               ) : (
                 <div className="flex justify-between text-stone-800 text-[11.5px]">
                   <span className="font-bold">1× Dine-in Food Orders</span>
-                  <span className="font-bold">₹{subtotal}</span>
+                  <span className="font-bold">₹{subtotal.toFixed(2)}</span>
                 </div>
               )}
             </div>
 
-            {/* Taxes & Charges Breakdown */}
+            {/* ── TAXES & CHARGES BREAKDOWN ── */}
             <div className="space-y-1.5 pb-3 border-b border-stone-200 text-xs text-stone-600">
               <div className="flex justify-between">
-                <span>Items Subtotal:</span>
+                <span>Items Subtotal ({allOrderedItems.reduce((s, i) => s + i.quantity, 0) || 1} items):</span>
                 <span className="font-bold text-stone-900">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[11px] text-stone-500">
@@ -265,35 +350,74 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               </div>
             </div>
 
-            {/* Payment Mode Receipt Proof */}
-            <div className="p-2.5 bg-stone-50 border border-stone-200 rounded-xl space-y-1 text-[10.5px]">
-              <div className="flex justify-between text-stone-700">
-                <span>Payment Mode:</span>
-                <span className="font-black text-stone-900">{method}</span>
-              </div>
-              {method === 'CASH' && typeof cashTendered === 'number' && cashTendered >= grandTotal && (
-                <>
-                  <div className="flex justify-between text-stone-700">
-                    <span>Cash Tendered:</span>
-                    <span className="font-bold">₹{cashTendered}</span>
-                  </div>
-                  <div className="flex justify-between text-emerald-800 font-bold">
-                    <span>Change Returned:</span>
-                    <span>₹{cashTendered - grandTotal}</span>
-                  </div>
-                </>
-              )}
-              {customerPhone && (
-                <div className="flex justify-between text-stone-700">
-                  <span>Customer Mobile:</span>
-                  <span className="font-bold">+91 {customerPhone}</span>
+            {/* ── PROMINENT PAYMENT DETAILS & CHANGE CALCULATION ── */}
+            {method === 'CASH' ? (
+              <div className="p-3 bg-emerald-50 border-2 border-emerald-400 rounded-2xl space-y-1.5 font-mono text-xs">
+                <div className="flex items-center justify-between text-emerald-950 font-black uppercase tracking-wider text-[11px] pb-1 border-b border-emerald-200">
+                  <span className="flex items-center gap-1.5">
+                    <Banknote className="h-4 w-4 text-emerald-700" />
+                    <span>Cash Settlement Breakdown</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-emerald-200 text-emerald-900 text-[9.5px]">
+                    CASH
+                  </span>
                 </div>
-              )}
-              <div className="flex justify-between text-stone-500 pt-1 border-t border-stone-200 text-[9.5px]">
-                <span>Status:</span>
-                <span className="text-emerald-700 font-bold">SETTLED &amp; RECONCILED</span>
+
+                <div className="flex justify-between text-stone-700 pt-0.5">
+                  <span>Bill Total Amount:</span>
+                  <span className="font-bold text-stone-900">₹{grandTotal.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between text-stone-700">
+                  <span>Cash Received from Guest:</span>
+                  <span className="font-black text-stone-900">₹{effectiveCashTendered.toFixed(2)}</span>
+                </div>
+
+                <div className="pt-2 border-t-2 border-emerald-300 flex justify-between items-center">
+                  <div>
+                    <span className="font-black text-emerald-950 uppercase text-xs block">
+                      Change to be Given:
+                    </span>
+                    <span className="text-[10px] text-emerald-700 font-bold">
+                      {cashChange > 0 ? `Return ₹${cashChange.toFixed(2)} to guest` : 'Exact amount received'}
+                    </span>
+                  </div>
+                  <span className="font-black text-xl text-emerald-800">
+                    ₹{cashChange.toFixed(2)}
+                  </span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-2xl space-y-1.5 font-mono text-xs">
+                <div className="flex items-center justify-between text-indigo-950 font-black uppercase tracking-wider text-[11px] pb-1 border-b border-indigo-200">
+                  <span className="flex items-center gap-1.5">
+                    <QrCode className="h-4 w-4 text-indigo-700" />
+                    <span>UPI Payment Transfer</span>
+                  </span>
+                  <span className="px-2 py-0.5 rounded bg-indigo-200 text-indigo-900 text-[9.5px]">
+                    VERIFIED
+                  </span>
+                </div>
+                <div className="flex justify-between text-stone-700 pt-0.5">
+                  <span>Merchant VPA:</span>
+                  <span className="font-bold text-indigo-900">thoogudeepa@okicici</span>
+                </div>
+                <div className="flex justify-between text-stone-700">
+                  <span>NPCI Reference:</span>
+                  <span className="font-mono text-stone-900">#UPI-{invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between text-stone-700">
+                  <span>Amount Debited:</span>
+                  <span className="font-black text-stone-900">₹{grandTotal.toFixed(2)}</span>
+                </div>
+              </div>
+            )}
+
+            {customerPhone && (
+              <div className="px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl flex items-center justify-between text-[11px]">
+                <span className="text-stone-600">Digital Receipt Sent:</span>
+                <span className="font-bold text-stone-900">+91 {customerPhone}</span>
+              </div>
+            )}
 
             <div className="text-center text-[9.5px] text-stone-400 pt-1">
               Thank you for dining with Thoogudeepa! Visit Again!
@@ -304,7 +428,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           <div className="space-y-2.5 pt-2 pb-6 font-mono">
             <button
               type="button"
-              onClick={() => showToast('🖨️ Thermal receipt sent to counter printer')}
+              onClick={() => showToast('🖨️ Thermal tax invoice printed')}
               className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
               <Printer className="h-4 w-4 text-amber-400" />
@@ -340,7 +464,9 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
     );
   }
 
-  // ── ACTIVE SETTLEMENT VIEW ────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════════
+  // ── 2. PRE-PAYMENT SETTLEMENT VIEW (BEFORE PAY) ─────────────────────────────
+  // ══════════════════════════════════════════════════════════════════════════════
   return (
     <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl relative select-none">
       {/* Top Header */}
@@ -358,10 +484,10 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
         </span>
       </header>
 
-      {/* Main Form & Bill Content */}
+      {/* Main Content */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
-        {/* Table & Section Hero */}
-        <div className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs font-mono">
+        {/* Table & Captain Info Card */}
+        <div className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs font-mono space-y-3">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-[10px] text-[#9C3D1E] font-black uppercase tracking-widest">
@@ -370,7 +496,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               <h1 className="text-2xl font-black text-stone-900 tracking-tight mt-0.5">
                 {table.number}
                 {table.mergedWith && (
-                  <span className="text-stone-400 text-sm font-bold ml-1.5">+ {table.mergedWith}</span>
+                  <span className="text-purple-700 text-sm font-bold ml-1.5">+ {table.mergedWith}</span>
                 )}
               </h1>
             </div>
@@ -383,75 +509,84 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               </span>
             </div>
           </div>
+
+          <div className="pt-2.5 border-t border-stone-100 grid grid-cols-2 gap-2 text-xs text-stone-600">
+            <div className="flex items-center gap-1.5">
+              <User className="h-3.5 w-3.5 text-stone-400" />
+              <span>Captain: <strong className="text-stone-900">{captainName}</strong></span>
+            </div>
+            <div className="text-right flex items-center justify-end gap-1.5">
+              <Armchair className="h-3.5 w-3.5 text-stone-400" />
+              <span>Seats: <strong className="text-stone-900">{seatNumbersLabel}</strong></span>
+            </div>
+          </div>
         </div>
 
-        {/* ── AUTHENTIC RESTAURANT BILL & RECEIPT BREAKDOWN ── */}
-        <div className="bg-white border-2 border-dashed border-[#DCD6CE] rounded-3xl p-4 font-mono shadow-xs space-y-3">
-          {/* Bill Card Title */}
-          <div className="flex items-center justify-between pb-2 border-b border-dashed border-stone-200">
+        {/* ── COMPACT ORDER SUMMARY CARD (WITH COLLAPSIBLE INSPECT) ── */}
+        <div className="bg-white border border-[#EAE5DF] rounded-2xl p-4 font-mono shadow-xs space-y-2.5">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Receipt className="h-4 w-4 text-[#9C3D1E]" />
               <span className="font-black text-xs text-stone-900 uppercase tracking-wider">
-                Official Bill &amp; Tax Breakdown
+                Bill Summary
               </span>
             </div>
-            <span className="text-[9.5px] font-bold text-stone-500">
-              #{invoiceNumber}
+            <span className="text-xs font-bold text-stone-500">
+              {allOrderedItems.reduce((s, i) => s + i.quantity, 0)} Items
             </span>
           </div>
 
-          {/* Itemized Orders List */}
-          <div className="space-y-1.5 pb-2.5 border-b border-dashed border-stone-200 text-xs">
-            <div className="flex justify-between font-black text-[9.5px] text-stone-400 uppercase tracking-wider pb-1">
-              <span>Item Description</span>
-              <span>Amount</span>
-            </div>
-            {allOrderedItems.length > 0 ? (
-              allOrderedItems.map((item, idx) => (
-                <div key={item.id || idx} className="flex justify-between text-stone-800 text-[11px]">
-                  <div>
-                    <span className="font-bold">{item.quantity}× {item.name}</span>
-                    {item.seatNumber && (
-                      <span className="text-[9px] text-[#9C3D1E] ml-1.5 font-semibold">[Chair {item.seatNumber}]</span>
-                    )}
-                    {item.options && (
-                      <div className="text-[9px] text-stone-400">{item.options}</div>
-                    )}
-                  </div>
-                  <span className="font-bold shrink-0 ml-2">₹{item.totalPrice}</span>
-                </div>
-              ))
-            ) : (
-              <div className="flex justify-between text-stone-800 text-[11px]">
-                <span className="font-bold">1× Dine-in Food Orders</span>
-                <span className="font-bold">₹{subtotal}</span>
-              </div>
-            )}
-          </div>
-
-          {/* Taxes & GST Computations */}
-          <div className="space-y-1.5 text-xs text-stone-600">
+          <div className="space-y-1 text-xs text-stone-600 pt-1">
             <div className="flex justify-between">
-              <span>Item Subtotal ({allOrderedItems.reduce((s, i) => s + i.quantity, 0) || 1} items):</span>
+              <span>Subtotal:</span>
               <span className="font-bold text-stone-900">₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-[11px] text-stone-500">
-              <span>CGST (2.5%):</span>
-              <span>₹{cgst.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-[11px] text-stone-500">
-              <span>SGST (2.5%):</span>
-              <span>₹{sgst.toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between text-[11px] text-stone-500">
-              <span>Total GST (5%):</span>
+              <span>GST (2.5% CGST + 2.5% SGST):</span>
               <span>₹{totalTax.toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-sm font-black text-stone-900 pt-2 border-t border-stone-200">
-              <span>GRAND TOTAL DUE:</span>
+            <div className="flex justify-between text-sm font-black text-stone-900 pt-1.5 border-t border-stone-100">
+              <span>Total Amount:</span>
               <span className="text-[#9C3D1E] text-base">₹{grandTotal.toFixed(2)}</span>
             </div>
           </div>
+
+          {/* Collapsible toggle to inspect dishes */}
+          {allOrderedItems.length > 0 && (
+            <div className="pt-1 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={() => setShowOrderSummary(!showOrderSummary)}
+                className="w-full flex items-center justify-between text-[11px] font-bold text-stone-600 hover:text-[#9C3D1E] py-1 cursor-pointer transition"
+              >
+                <span>{showOrderSummary ? 'Hide Ordered Items' : `View Ordered Items (${allOrderedItems.length})`}</span>
+                {showOrderSummary ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+              </button>
+
+              <AnimatePresence>
+                {showOrderSummary && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    className="overflow-hidden space-y-1.5 pt-2 max-h-48 overflow-y-auto"
+                  >
+                    {allOrderedItems.map((item, idx) => (
+                      <div key={item.id || idx} className="flex justify-between text-[11px] text-stone-700 py-0.5">
+                        <div>
+                          <span>{item.quantity}× {item.name}</span>
+                          {item.seatNumber && (
+                            <span className="text-[9.5px] text-[#9C3D1E] ml-1.5 font-bold">[Chair {item.seatNumber}]</span>
+                          )}
+                        </div>
+                        <span className="font-bold shrink-0 ml-2">₹{item.totalPrice.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
         </div>
 
         {/* ── CUSTOMER MOBILE NUMBER INPUT (WITH FIXED +91 PREFIX) ── */}
@@ -646,8 +781,8 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               />
             </div>
 
-            {/* Change to Return Calculation */}
-            {change !== null && change >= 0 && (
+            {/* Change to Return Preview */}
+            {changePreview !== null && changePreview >= 0 && (
               <div className="flex items-center justify-between px-4 py-3 bg-emerald-50 border border-emerald-300 rounded-xl">
                 <div>
                   <span className="font-mono text-xs font-black text-emerald-800 uppercase block">
@@ -658,7 +793,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                   </span>
                 </div>
                 <span className="font-mono text-xl font-black text-emerald-700">
-                  ₹{change}
+                  ₹{changePreview}
                 </span>
               </div>
             )}

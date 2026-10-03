@@ -503,7 +503,7 @@ group('E2E Flow 19 — Manager Operations & End-of-Day Financial Audit', () => {
   ok('Manager enters Screen M2 (Live Overview)', useManagerStore.getState().currentScreen === 2);
 
   // Add a petty cash expense
-  mgr.addPettyExpense('Fresh Mint & Coriander leaves', 'SUPPLIES', 450, 'City Market Vendor');
+  mgr.addPettyExpense('Fresh Mint & Coriander leaves', 'Kitchen Supplies', 450, 'City Market Vendor');
   const expenses = useManagerStore.getState().pettyExpenses;
   ok('Petty expense added to ledger', expenses.some(e => e.amount === 450));
 

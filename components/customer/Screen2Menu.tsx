@@ -130,13 +130,13 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
     const captain = waiterName || 'Floor Captain';
     const customerStore = useCustomerStore.getState();
 
-    // 1. Seat guests if vacant
+    // 1. Seat guests if vacant (ensure capacity fits this chair)
     const targetTable = tables.find((t) => t.number === targetTableNum);
     if (targetTable && targetTable.status === 'VACANT') {
-      waiterSeatsGuests(targetTableNum, 1, captain);
+      waiterSeatsGuests(targetTableNum, seatNum ? Math.max(1, seatNum) : 1, captain);
     }
 
-    // 2. Fire KOT to Kitchen KDS
+    // 2. Fire KOT to Kitchen KDS tagged with chair/seat number
     waiterFiresKOT(
       targetTableNum,
       captain,
@@ -144,7 +144,8 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
         item: c.menuItem,
         selectedOption: c.selectedOption,
         quantity: c.quantity,
-      }))
+      })),
+      seatNum
     );
 
     // 3. Sync Customer Live Tracking & Bill for this table
@@ -161,6 +162,19 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
       ...newTracking,
     ]);
     customerStore.setOrderStage('PREP');
+
+    // Update customer live payment totals
+    const addedSubtotal = cart.reduce((s, c) => s + c.totalPrice, 0);
+    const prevPayment = customerStore.payment;
+    const newSubtotal = prevPayment.subtotal + addedSubtotal;
+    const newTax = Math.round(newSubtotal * 0.05);
+    customerStore.payment = {
+      ...prevPayment,
+      subtotal: newSubtotal,
+      tax: newTax,
+      totalAmount: newSubtotal + newTax + (prevPayment.tipAmount || 0),
+    };
+
     customerStore.setCurrentScreen(5); // Switches customer mobile device to Screen 5 Live Tracking!
 
     // 4. Clear cart items

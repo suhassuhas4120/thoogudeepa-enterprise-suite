@@ -13,6 +13,8 @@ export interface SharedKDSItem {
   options?: string;
   addOns?: string[];
   notes?: string;
+  seatNumber?: number;
+  price?: number;
 }
 
 export interface SharedKDSTicket {
@@ -24,6 +26,7 @@ export interface SharedKDSTicket {
   status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED';
   items: SharedKDSItem[];
   source: 'CUSTOMER' | 'WAITER'; // who originated the order
+  seatNumber?: number;
 }
 
 export interface SharedTable {
@@ -38,7 +41,15 @@ export interface SharedTable {
   serverName: string;
   kotCount: number;
   mergedWith?: string;
-  activeItems?: { name: string; quantity: number; status: string }[];
+  activeItems?: {
+    id?: string;
+    name: string;
+    quantity: number;
+    status: string;
+    seatNumber?: number;
+    price?: number;
+    options?: string;
+  }[];
 }
 
 export interface SharedPing {
@@ -122,6 +133,7 @@ const freshInventory86: SharedMenuItem86[] = INITIAL_MENU_ITEMS.map((item) => ({
 }));
 
 let ticketCounter = 1;
+let notifCounter = 1;
 const makeTicketId = () => `KDS-${String(100 + ticketCounter++).padStart(3, '0')}`;
 const nowTime = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
@@ -177,7 +189,8 @@ interface SharedBridgeState {
   waiterFiresKOT: (
     tableNumber: string,
     captainName: string,
-    items: Array<{ item: MenuItem; selectedOption: string; quantity: number }>
+    items: Array<{ item: MenuItem; selectedOption: string; quantity: number }>,
+    seatNumber?: number
   ) => void;
 
   /** Waiter seats guests at a table */
@@ -265,6 +278,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       elapsedMinutes: 0,
       status: 'NEW',
       source: 'CUSTOMER',
+      seatNumber: 1,
       items: items.map((i, idx) => ({
         id: `ki-c-${Date.now()}-${idx}`,
         name: i.item.name,
@@ -273,13 +287,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         prepMode: i.item.prepMode,
         options: i.selectedOption,
         addOns: i.addOns,
+        seatNumber: 1,
+        price: i.item.price,
       })),
     };
     const orderTotal = items.reduce((s, i) => s + i.item.price * i.quantity, 0);
 
     // Create kitchen notification for new order
     const notif = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${Date.now()}-${notifCounter++}`,
       ticketId: ticket.id,
       tableNumber,
       itemCount: items.reduce((s, i) => s + i.quantity, 0),
@@ -307,10 +323,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               kotCount: t.kotCount + 1,
               activeItems: [
                 ...(t.activeItems || []),
-                ...items.map((i) => ({
+                ...items.map((i, idx) => ({
+                  id: `ai-c-${Date.now()}-${idx}`,
                   name: i.item.name,
                   quantity: i.quantity,
                   status: 'Placed',
+                  seatNumber: 1,
+                  price: i.item.price,
+                  options: i.selectedOption,
                 })),
               ],
             }
@@ -415,9 +435,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...tbl,
           activeItems: ticket.items.map((it) => ({
+            id: it.id,
             name: it.name,
             quantity: it.quantity,
             status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
+            seatNumber: it.seatNumber,
+            price: it.price,
+            options: it.options,
           })),
         };
       });
@@ -462,9 +486,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...tbl,
           activeItems: ticket.items.map((it) => ({
+            id: it.id,
             name: it.name,
             quantity: it.quantity,
             status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
+            seatNumber: it.seatNumber,
+            price: it.price,
+            options: it.options,
           })),
         };
       });
@@ -507,9 +535,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...tbl,
           activeItems: ticket.items.map((it) => ({
+            id: it.id,
             name: it.name,
             quantity: it.quantity,
             status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
+            seatNumber: it.seatNumber,
+            price: it.price,
+            options: it.options,
           })),
         };
       });
@@ -616,7 +648,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   
-  waiterFiresKOT: (tableNumber, captainName, items) => {
+  waiterFiresKOT: (tableNumber, captainName, items, seatNumber) => {
     const ticket: SharedKDSTicket = {
       id: makeTicketId(),
       tableNumber,
@@ -625,6 +657,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       elapsedMinutes: 0,
       status: 'NEW',
       source: 'WAITER',
+      seatNumber,
       items: items.map((i, idx) => ({
         id: `ki-w-${Date.now()}-${idx}`,
         name: i.item.name,
@@ -632,11 +665,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         stage: 'PLACED',
         prepMode: i.item.prepMode,
         options: i.selectedOption,
+        price: i.item.price,
+        seatNumber,
       })),
     };
 
     const notif = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${Date.now()}-${notifCounter++}`,
       ticketId: ticket.id,
       tableNumber,
       itemCount: items.reduce((s, i) => s + i.quantity, 0),
@@ -662,11 +697,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           ? {
               ...t,
               status: 'OCCUPIED',
+              guestCount: Math.max(t.guestCount || 0, seatNumber ? seatNumber : 1),
+              seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
               currentBill: t.currentBill + kotTotal,
               kotCount: t.kotCount + 1,
               activeItems: [
                 ...(t.activeItems || []),
-                ...items.map((i) => ({ name: i.item.name, quantity: i.quantity, status: 'Placed' })),
+                ...items.map((i, idx) => ({
+                  id: `ai-w-${Date.now()}-${idx}`,
+                  name: i.item.name,
+                  quantity: i.quantity,
+                  status: 'Placed',
+                  seatNumber,
+                  price: i.item.price,
+                  options: i.selectedOption,
+                })),
               ],
             }
           : t
@@ -678,7 +723,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       '/api/orders/create',
       {
         tableNumber,
-        seatNumber: 1,
+        seatNumber: seatNumber || 1,
         guestName: captainName,
         guestCount: 1,
         source: 'WAITER',
@@ -690,7 +735,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           prepMode: i.item.prepMode || 'Regular',
           selectedOption: i.selectedOption || null,
           addOns: [],
-          notes: '',
+          notes: seatNumber ? `Seat ${seatNumber}` : '',
         })),
       },
       () => {
@@ -879,16 +924,38 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   waiterMarkKitchenItemServed: (ticketId, itemId) => {
-    set((state) => ({
-      kdsTickets: state.kdsTickets.map((t) => {
+    set((state) => {
+      let targetTableNumber: string | undefined;
+      let targetItemName: string | undefined;
+
+      const newTickets = state.kdsTickets.map((t) => {
         if (t.id !== ticketId) return t;
+        targetTableNumber = t.tableNumber;
+        const target = t.items.find((i) => i.id === itemId);
+        if (target) targetItemName = target.name;
         const newItems = t.items.map((it) =>
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
         return { ...t, items: newItems, status: allServed ? 'COMPLETED' : t.status };
-      }),
-    }));
+      });
+
+      const updatedTables = targetTableNumber
+        ? state.tables.map((tbl) => {
+            if (tbl.number !== targetTableNumber) return tbl;
+            return {
+              ...tbl,
+              activeItems: (tbl.activeItems || []).map((ai) =>
+                ai.id === itemId || (targetItemName && ai.name === targetItemName && ai.status !== 'Served')
+                  ? { ...ai, status: 'Served' }
+                  : ai
+              ),
+            };
+          })
+        : state.tables;
+
+      return { kdsTickets: newTickets, tables: updatedTables };
+    });
   },
 
   
@@ -899,6 +966,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       } catch {}
     }
     ticketCounter = 1;
+    notifCounter = 1;
     set({
       tables: freshTables,
       kdsTickets: [],

@@ -102,8 +102,7 @@ export default function WaiterMobilePage() {
         onBack={() => setView({ type: 'SHEET', tableNum: view.tableNum, initialSeat: view.seatNum })}
         onKOTFired={() => {
           showToast('✓ KOT fired to kitchen');
-          setView({ type: 'FLOOR' });
-          setMainTab('TABLES');
+          setView({ type: 'SHEET', tableNum: view.tableNum, initialSeat: view.seatNum });
         }}
       />
     );

@@ -413,24 +413,14 @@ export function ScreenM3TableSheet({
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => onGoToOrder()}
-                  className="py-2.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition"
-                >
-                  <Plus className="h-4 w-4" />
-                  <span>Add for Group</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSplitSeatGroup(activeGroup.key)}
-                  className="py-2.5 bg-white border border-indigo-300 text-indigo-800 rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs hover:bg-indigo-50 transition"
-                >
-                  <Split className="h-4 w-4" />
-                  <span>Split Seats</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => handleSplitSeatGroup(activeGroup.key)}
+                className="w-full py-2.5 bg-white border border-indigo-300 text-indigo-800 rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs hover:bg-indigo-50 transition"
+              >
+                <Split className="h-4 w-4" />
+                <span>Split Seats Back to Individual Billing</span>
+              </button>
             </div>
           ) : selectedSeat === 'ALL' ? (
             // All Table KOT Tickets & Items
@@ -485,15 +475,6 @@ export function ScreenM3TableSheet({
                       <span className="text-[#9C3D1E]">₹{perChairTotal.toFixed(2)}</span>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => onGoToOrder(Number(selectedSeat))}
-                    className="w-full py-2.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition"
-                  >
-                    <Plus className="h-4 w-4" />
-                    <span>Add Dishes for Chair {selectedSeat}</span>
-                  </button>
                 </>
               ) : (
                 /* Empty chair with proper icon and single line */

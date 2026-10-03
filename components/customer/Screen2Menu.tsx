@@ -1,29 +1,57 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useCustomer } from '../../context/CustomerContext';
+import { useCustomer, useCustomerStore } from '../../context/CustomerContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { ItemDrawer } from '../ui/ItemDrawer';
-import { MenuItem } from '../../types/customer';
-import { Search, Plus, Minus, ArrowRight, ShoppingCart, UtensilsCrossed, Ban, Clock } from 'lucide-react';
+import { MenuItem, IndividualItemTracking, OrderStage } from '../../types/customer';
+import {
+  Search,
+  Plus,
+  Minus,
+  ArrowRight,
+  ArrowLeft,
+  ShoppingCart,
+  UtensilsCrossed,
+  Ban,
+  Clock,
+  Flame,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const Screen2Menu: React.FC = () => {
+export interface Screen2MenuProps {
+  isWaiterMode?: boolean;
+  tableNum?: string;
+  seatNum?: number;
+  waiterName?: string;
+  onBack?: () => void;
+  onKOTFired?: () => void;
+}
+
+export const Screen2Menu: React.FC<Screen2MenuProps> = ({
+  isWaiterMode = false,
+  tableNum,
+  seatNum,
+  waiterName,
+  onBack,
+  onKOTFired,
+}) => {
   const {
     setCurrentScreen,
     menuItems,
     setSelectedDetailItem,
     addToCart,
     updateCartQuantity,
+    removeCartItem,
     cart,
     venueName,
     tableNumber,
   } = useCustomer();
 
-  const { inventory86 } = useSharedBridge();
+  const { inventory86, tables, waiterSeatsGuests, waiterFiresKOT } = useSharedBridge();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
@@ -57,7 +85,12 @@ export const Screen2Menu: React.FC = () => {
       return;
     }
     setSelectedDetailItem(item);
-    setCurrentScreen(3);
+    if (!isWaiterMode) {
+      setCurrentScreen(3);
+    } else {
+      setDrawerItem(item);
+      setDrawerOpen(true);
+    }
   };
 
   const handleOpenDrawer = (e: React.MouseEvent, item: MenuItem) => {
@@ -90,6 +123,282 @@ export const Screen2Menu: React.FC = () => {
     }
   };
 
+  // Waiter Fire KOT Handler (Live syncs Kitchen KDS + Customer Live Tracking & Bill)
+  const handleWaiterFireKOT = () => {
+    if (cart.length === 0) return;
+    const targetTableNum = tableNum || 'T-01';
+    const captain = waiterName || 'Floor Captain';
+    const customerStore = useCustomerStore.getState();
+
+    // 1. Seat guests if vacant
+    const targetTable = tables.find((t) => t.number === targetTableNum);
+    if (targetTable && targetTable.status === 'VACANT') {
+      waiterSeatsGuests(targetTableNum, 1, captain);
+    }
+
+    // 2. Fire KOT to Kitchen KDS
+    waiterFiresKOT(
+      targetTableNum,
+      captain,
+      cart.map((c) => ({
+        item: c.menuItem,
+        selectedOption: c.selectedOption,
+        quantity: c.quantity,
+      }))
+    );
+
+    // 3. Sync Customer Live Tracking & Bill for this table
+    customerStore.setTableNumber(targetTableNum);
+    const newTracking: IndividualItemTracking[] = cart.map((c) => ({
+      id: 'track-' + c.cartItemId,
+      name: `${c.menuItem.name} × ${c.quantity}`,
+      prepMode: c.prepMode,
+      status: 'In Kitchen Preparation',
+      stage: 'PREP' as OrderStage,
+    }));
+    customerStore.setItemTracking([
+      ...customerStore.itemTracking,
+      ...newTracking,
+    ]);
+    customerStore.setOrderStage('PREP');
+    customerStore.setCurrentScreen(5); // Switches customer mobile device to Screen 5 Live Tracking!
+
+    // 4. Clear cart items
+    cart.forEach((ci) => removeCartItem(ci.cartItemId));
+
+    onKOTFired?.();
+  };
+
+  // The Shared 2-Column Food Grid and Categories Content
+  const menuBodyContent = (
+    <div className="bg-[#FFFCF7] pb-2 flex-1 overflow-y-auto">
+      {/* Search Input */}
+      <div className="px-4 pt-3 pb-2">
+        <div className="relative flex items-center">
+          <Search className="absolute left-3 h-4 w-4 text-[#8A4228]" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search Items, Biryanis, Starters..."
+            className="w-full rounded-2xl border border-[#E8D5C3] bg-[#FFFCF7] pl-9 pr-3 py-2.5 text-xs font-semibold text-[#5B5049] placeholder:text-[#5B5049]/50 shadow-xs focus:border-[#8A4228] focus:outline-none"
+          />
+        </div>
+      </div>
+
+      {/* Categories Bar */}
+      <div className="border-b border-[#E8D5C3] bg-[#FFFCF7] px-4 py-2">
+        <div className="mb-1 text-[9.5px] font-black tracking-[0.24em] text-[#5B5049]/70 uppercase font-mono">
+          Explore Categories
+        </div>
+        <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+          {categories.map((cat) => {
+            const isActive = selectedCategory === cat;
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-black tracking-[0.08em] transition cursor-pointer ${
+                  isActive
+                    ? 'bg-[#8A4228] text-[#FFFCF7] shadow-sm'
+                    : 'bg-[#F3DFCC] text-[#5B5049] hover:bg-[#E8D5C3]'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Toast Notice */}
+      <AnimatePresence>
+        {toastNotice && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="mx-4 mt-2 rounded-2xl bg-[#8A4228] px-3 py-2 text-center text-xs font-black text-[#FFFCF7] shadow-sm"
+          >
+            {toastNotice}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* 2-Column Food Grid */}
+      <div className="grid grid-cols-2 gap-2.5 p-3">
+        {filteredItems.map((item) => {
+          const stockInfo = inventory86?.find((e) => e.id === item.id);
+          const is86 = !!stockInfo?.is86;
+          const prepDelay = stockInfo?.prepDelayMinutes || 0;
+          const quantityInCart = cart
+            .filter((ci) => ci.menuItem.id === item.id)
+            .reduce((sum, ci) => sum + ci.quantity, 0);
+
+          return (
+            <motion.div
+              key={item.id}
+              whileHover={{ y: is86 ? 0 : -2 }}
+              onClick={() => handleOpenDetail(item)}
+              className={`flex cursor-pointer flex-col justify-between rounded-[24px] border p-2.5 shadow-xs transition ${
+                is86
+                  ? 'border-[#E8D5C3] bg-[#FAF8F5] opacity-60'
+                  : 'border-[#E8D5C3] bg-[#FFFCF7] hover:border-[#8A4228] hover:shadow-md'
+              }`}
+            >
+              {/* Dish Graphic / Image */}
+              <div className="relative flex h-28 w-full flex-col items-center justify-center rounded-[20px] overflow-hidden border border-[#E8D5C3] bg-[#F3DFCC]/50">
+                {is86 ? (
+                  <Ban className="h-8 w-8 text-stone-400" />
+                ) : (
+                  <UtensilsCrossed className="h-8 w-8 text-[#8A4228]" />
+                )}
+                <span className="mt-1 font-mono text-[9px] font-black text-[#8A4228] line-clamp-1 px-2 text-center">
+                  {item.prepMode || 'Authentic Handi'}
+                </span>
+
+                {is86 && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-mono text-[10px] font-black uppercase tracking-wider text-rose-300">
+                    Sold Out
+                  </div>
+                )}
+
+                {prepDelay > 0 && !is86 && (
+                  <div className="absolute top-1 left-1 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[8.5px] font-bold text-white shadow-xs">
+                    <Clock className="h-2.5 w-2.5" />
+                    <span>+{prepDelay}m</span>
+                  </div>
+                )}
+
+                {item.badge && !is86 && (
+                  <div className="absolute top-1.5 right-1.5 rounded-full bg-[#8A4228] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[#FFFCF7] shadow-xs">
+                    {item.badge}
+                  </div>
+                )}
+              </div>
+
+              {/* Dish Info */}
+              <div className="mt-2 flex-1">
+                <h3 className="line-clamp-2 text-xs font-black text-[#5B5049] leading-snug">
+                  {item.name}
+                </h3>
+                <p className="mt-0.5 line-clamp-1 text-[10px] text-[#5B5049]/70 font-medium">
+                  {item.description}
+                </p>
+              </div>
+
+              {/* Price & Quantity Controls */}
+              <div className="mt-2.5 flex items-center justify-between gap-1 pt-1.5 border-t border-[#E8D5C3]/60">
+                <span className="font-mono text-xs font-extrabold text-[#8A4228]">
+                  ₹{item.price}
+                </span>
+
+                {is86 ? (
+                  <span className="flex items-center gap-1 text-[9px] font-bold text-rose-500 font-mono">
+                    <Ban className="h-3 w-3" />
+                    86&#39;d
+                  </span>
+                ) : quantityInCart > 0 ? (
+                  <div className="flex items-center gap-1 rounded-full border border-[#8A4228] bg-[#F3DFCC] p-0.5 shadow-xs">
+                    <button
+                      onClick={(e) => handleDecrement(e, item.id)}
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F] cursor-pointer"
+                    >
+                      <Minus className="h-2.5 w-2.5 stroke-[3]" />
+                    </button>
+                    <span className="px-1 text-xs font-black text-[#8A4228] font-mono">
+                      {quantityInCart}
+                    </span>
+                    <button
+                      onClick={(e) => handleIncrement(e, item)}
+                      className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F] cursor-pointer"
+                    >
+                      <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={(e) => handleOpenDrawer(e, item)}
+                    className="flex items-center gap-1 rounded-full border border-[#8A4228] bg-[#8A4228] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#FFFCF7] shadow-xs hover:bg-[#71351F] transition cursor-pointer"
+                  >
+                    <Plus className="h-3 w-3 stroke-[3]" />
+                    <span>Add</span>
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  // ── 1. WAITER DIRECT ORDERING MODE ──
+  if (isWaiterMode) {
+    return (
+      <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl relative select-none">
+        {/* Waiter Sticky Header */}
+        <header className="sticky top-0 z-40 bg-white/95 border-b border-[#EAE5DF] px-4 py-3 flex items-center justify-between shadow-2xs backdrop-blur-md">
+          <button
+            type="button"
+            onClick={onBack}
+            className="flex items-center gap-1.5 font-mono text-xs font-black text-stone-700 hover:text-[#9C3D1E] py-1 px-2.5 rounded-xl bg-stone-50 border border-[#EAE5DF] transition cursor-pointer"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Back to {tableNum || 'Table'}</span>
+          </button>
+          <div className="text-right">
+            <span className="font-mono text-[9px] font-black uppercase text-[#9C3D1E] bg-[#FFF8F5] border border-[#9C3D1E]/20 px-2 py-0.5 rounded-full inline-block">
+              {seatNum ? `Chair ${seatNum} Order` : 'Table Order'}
+            </span>
+            <p className="font-mono text-xs font-black text-stone-900 mt-0.5">
+              {tableNum || 'Table'} • {waiterName || 'Captain'}
+            </p>
+          </div>
+        </header>
+
+        {/* Exact Menu Grid */}
+        {menuBodyContent}
+
+        {/* Waiter Sticky Bottom Bar: Fire KOT with Live Sync */}
+        {totalCartCount > 0 && (
+          <div className="sticky bottom-0 z-40 p-3 bg-white/95 border-t border-[#EAE5DF] shadow-xl backdrop-blur-md">
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleWaiterFireKOT}
+              className="flex w-full items-center justify-between rounded-2xl bg-[#9C3D1E] hover:bg-[#853216] px-4 py-3.5 text-xs font-black uppercase tracking-wider text-white shadow-md transition cursor-pointer"
+            >
+              <div className="flex items-center gap-2">
+                <Flame className="h-4 w-4 text-amber-300" />
+                <span>Fire KOT to Kitchen</span>
+                <span className="rounded-full bg-white/20 px-2 py-0.5 text-[9.5px] font-black text-white font-mono">
+                  {totalCartCount} Items
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 font-mono text-sm font-black text-amber-200">
+                <span>₹{totalCartAmount}</span>
+                <ArrowRight className="h-4 w-4 stroke-[3]" />
+              </div>
+            </motion.button>
+          </div>
+        )}
+
+        {/* Quick Customize Drawer */}
+        <ItemDrawer
+          open={drawerOpen}
+          onOpenChange={setDrawerOpen}
+          item={drawerItem}
+          onAddToCart={(item, opt, addons, qty) => {
+            addToCart(item, opt, addons, qty);
+            setToastNotice(`Added ${item.name}!`);
+            setTimeout(() => setToastNotice(null), 1800);
+          }}
+        />
+      </main>
+    );
+  }
+
+  // ── 2. CUSTOMER PORTAL MODE (Default) ──
   return (
     <ScreenHousing screenNumber={2} screenTitle="MENU PAGE (DOUBLE COLUMN GRID)">
       {/* Header */}
@@ -106,166 +415,7 @@ export const Screen2Menu: React.FC = () => {
         showCart={false}
       />
 
-      <div className="bg-[#FFFCF7] pb-2 flex-1 overflow-y-auto">
-        {/* Search */}
-        <div className="px-4 pt-3 pb-2">
-          <div className="relative flex items-center">
-            <Search className="absolute left-3 h-4 w-4 text-[#8A4228]" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search Items, Biryanis, Starters..."
-              className="w-full rounded-2xl border border-[#E8D5C3] bg-[#FFFCF7] pl-9 pr-3 py-2.5 text-xs font-semibold text-[#5B5049] placeholder:text-[#5B5049]/50 shadow-xs focus:border-[#8A4228] focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Categories Bar */}
-        <div className="border-b border-[#E8D5C3] bg-[#FFFCF7] px-4 py-2">
-          <div className="mb-1 text-[9.5px] font-black tracking-[0.24em] text-[#5B5049]/70 uppercase font-mono">
-            Explore Categories
-          </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
-            {categories.map((cat) => {
-              const isActive = selectedCategory === cat;
-              return (
-                <button
-                  key={cat}
-                  onClick={() => setSelectedCategory(cat)}
-                  className={`whitespace-nowrap rounded-full px-3 py-1.5 text-[11px] font-black tracking-[0.08em] transition ${
-                    isActive
-                      ? 'bg-[#8A4228] text-[#FFFCF7] shadow-sm'
-                      : 'bg-[#F3DFCC] text-[#5B5049] hover:bg-[#E8D5C3]'
-                  }`}
-                >
-                  {cat}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Toast Notice */}
-        <AnimatePresence>
-          {toastNotice && (
-            <motion.div
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="mx-4 mt-2 rounded-2xl bg-[#8A4228] px-3 py-2 text-center text-xs font-black text-[#FFFCF7] shadow-sm"
-            >
-              {toastNotice}
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* 2-Column Food Grid */}
-        <div className="grid grid-cols-2 gap-2.5 p-3">
-          {filteredItems.map((item) => {
-            const stockInfo = inventory86?.find((e) => e.id === item.id);
-            const is86 = !!stockInfo?.is86;
-            const prepDelay = stockInfo?.prepDelayMinutes || 0;
-            const quantityInCart = cart
-              .filter((ci) => ci.menuItem.id === item.id)
-              .reduce((sum, ci) => sum + ci.quantity, 0);
-
-            return (
-              <motion.div
-                key={item.id}
-                whileHover={{ y: is86 ? 0 : -2 }}
-                onClick={() => handleOpenDetail(item)}
-                className={`flex cursor-pointer flex-col justify-between rounded-[24px] border p-2.5 shadow-xs transition ${
-                  is86
-                    ? 'border-[#E8D5C3] bg-[#FAF8F5] opacity-60'
-                    : 'border-[#E8D5C3] bg-[#FFFCF7] hover:border-[#8A4228] hover:shadow-md'
-                }`}
-              >
-                {/* Dish Graphic / Image */}
-                <div className="relative flex h-28 w-full flex-col items-center justify-center rounded-[20px] overflow-hidden border border-[#E8D5C3] bg-[#F3DFCC]/50">
-                  {is86 ? (
-                    <Ban className="h-8 w-8 text-stone-400" />
-                  ) : (
-                    <UtensilsCrossed className="h-8 w-8 text-[#8A4228]" />
-                  )}
-                  <span className="mt-1 font-mono text-[9px] font-black text-[#8A4228] line-clamp-1 px-2 text-center">
-                    {item.prepMode || 'Authentic Handi'}
-                  </span>
-
-                  {is86 && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-mono text-[10px] font-black uppercase tracking-wider text-rose-300">
-                      Sold Out
-                    </div>
-                  )}
-
-                  {prepDelay > 0 && !is86 && (
-                    <div className="absolute top-1 left-1 flex items-center gap-1 rounded-full bg-amber-500/90 px-2 py-0.5 text-[8.5px] font-bold text-white shadow-xs">
-                      <Clock className="h-2.5 w-2.5" />
-                      <span>+{prepDelay}m</span>
-                    </div>
-                  )}
-
-                  {item.badge && !is86 && (
-                    <div className="absolute top-1.5 right-1.5 rounded-full bg-[#8A4228] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[#FFFCF7] shadow-xs">
-                      {item.badge}
-                    </div>
-                  )}
-                </div>
-
-                {/* Dish Info */}
-                <div className="mt-2 flex-1">
-                  <h3 className="line-clamp-2 text-xs font-black text-[#5B5049] leading-snug">
-                    {item.name}
-                  </h3>
-                  <p className="mt-0.5 line-clamp-1 text-[10px] text-[#5B5049]/70 font-medium">
-                    {item.description}
-                  </p>
-                </div>
-
-                {/* Price & Quantity Controls */}
-                <div className="mt-2.5 flex items-center justify-between gap-1 pt-1.5 border-t border-[#E8D5C3]/60">
-                  <span className="font-mono text-xs font-extrabold text-[#8A4228]">
-                    ₹{item.price}
-                  </span>
-
-                  {is86 ? (
-                    <span className="flex items-center gap-1 text-[9px] font-bold text-rose-500 font-mono">
-                      <Ban className="h-3 w-3" />
-                      86&#39;d
-                    </span>
-                  ) : quantityInCart > 0 ? (
-                    <div className="flex items-center gap-1 rounded-full border border-[#8A4228] bg-[#F3DFCC] p-0.5 shadow-xs">
-                      <button
-                        onClick={(e) => handleDecrement(e, item.id)}
-                        className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F]"
-                      >
-                        <Minus className="h-2.5 w-2.5 stroke-[3]" />
-                      </button>
-                      <span className="px-1 text-xs font-black text-[#8A4228] font-mono">
-                        {quantityInCart}
-                      </span>
-                      <button
-                        onClick={(e) => handleIncrement(e, item)}
-                        className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F]"
-                      >
-                        <Plus className="h-2.5 w-2.5 stroke-[3]" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={(e) => handleOpenDrawer(e, item)}
-                      className="flex items-center gap-1 rounded-full border border-[#8A4228] bg-[#8A4228] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#FFFCF7] shadow-xs hover:bg-[#71351F] transition"
-                    >
-                      <Plus className="h-3 w-3 stroke-[3]" />
-                      <span>Add</span>
-                    </button>
-                  )}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+      {menuBodyContent}
 
       {/* Sticky Bottom Bar: Go to Cart */}
       <StickyBottomBar>

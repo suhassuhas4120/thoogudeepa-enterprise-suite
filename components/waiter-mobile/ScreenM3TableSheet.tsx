@@ -24,7 +24,7 @@ interface Props {
   tableNum: string;
   initialSeat?: 'ALL' | number;
   onClose: () => void;
-  onGoToOrder: () => void;
+  onGoToOrder: (seatNum?: number) => void;
   onGoToSettle: () => void;
   onVacated: () => void;
 }
@@ -416,7 +416,7 @@ export function ScreenM3TableSheet({
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
-                  onClick={onGoToOrder}
+                  onClick={() => onGoToOrder()}
                   className="py-2.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition"
                 >
                   <Plus className="h-4 w-4" />
@@ -488,7 +488,7 @@ export function ScreenM3TableSheet({
 
                   <button
                     type="button"
-                    onClick={onGoToOrder}
+                    onClick={() => onGoToOrder(Number(selectedSeat))}
                     className="w-full py-2.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 shadow-xs transition"
                   >
                     <Plus className="h-4 w-4" />
@@ -506,7 +506,7 @@ export function ScreenM3TableSheet({
                   </p>
                   <button
                     type="button"
-                    onClick={onGoToOrder}
+                    onClick={() => onGoToOrder(Number(selectedSeat))}
                     className="px-4 py-2 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black inline-flex items-center gap-1.5 shadow-xs transition cursor-pointer"
                   >
                     <Plus className="h-3.5 w-3.5" />
@@ -607,7 +607,7 @@ export function ScreenM3TableSheet({
           <div className="grid grid-cols-2 gap-2.5">
             <button
               type="button"
-              onClick={onGoToOrder}
+              onClick={() => onGoToOrder(typeof selectedSeat === 'number' ? selectedSeat : undefined)}
               className="py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
             >
               <Plus className="h-4 w-4" />

@@ -17,7 +17,7 @@ type MainTab = 'TABLES' | 'CALLS' | 'READY';
 type ActiveView =
   | { type: 'FLOOR' }
   | { type: 'SHEET'; tableNum: string; initialSeat?: 'ALL' | number }
-  | { type: 'ORDER'; tableNum: string }
+  | { type: 'ORDER'; tableNum: string; seatNum?: number }
   | { type: 'SETTLE'; tableNum: string };
 
 export default function WaiterMobilePage() {
@@ -82,7 +82,7 @@ export default function WaiterMobilePage() {
         tableNum={view.tableNum}
         initialSeat={view.initialSeat}
         onClose={() => setView({ type: 'FLOOR' })}
-        onGoToOrder={() => setView({ type: 'ORDER', tableNum: view.tableNum })}
+        onGoToOrder={(seatNum) => setView({ type: 'ORDER', tableNum: view.tableNum, seatNum })}
         onGoToSettle={() => setView({ type: 'SETTLE', tableNum: view.tableNum })}
         onVacated={() => {
           showToast(`${view.tableNum} reset for new guests`);
@@ -97,10 +97,11 @@ export default function WaiterMobilePage() {
     return (
       <ScreenM4OrderPad
         tableNum={view.tableNum}
+        seatNum={view.seatNum}
         waiterName={waiterName}
-        onBack={() => setView({ type: 'SHEET', tableNum: view.tableNum })}
+        onBack={() => setView({ type: 'SHEET', tableNum: view.tableNum, initialSeat: view.seatNum })}
         onKOTFired={() => {
-          showToast('KOT sent to kitchen');
+          showToast('✓ KOT fired to kitchen');
           setView({ type: 'FLOOR' });
           setMainTab('TABLES');
         }}

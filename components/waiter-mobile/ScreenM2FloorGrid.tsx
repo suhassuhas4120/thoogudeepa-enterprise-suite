@@ -18,7 +18,7 @@ import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 
 interface Props {
   waiterName: string;
-  onSelectTable: (tableNum: string) => void;
+  onSelectTable: (tableNum: string, chairNum?: number) => void;
   onGoToPings: () => void;
   onGoToReady: () => void;
 }
@@ -235,7 +235,7 @@ export function ScreenM2FloorGrid({ waiterName, onSelectTable, onGoToPings, onGo
         )}
       </div>
 
-      {/* 2-column responsive table grid with PROPORTIONAL CHAIR VISUALIZATION */}
+      {/* 2-column responsive table grid with LARGE PROMINENT CHAIRS */}
       <div className="flex-1 overflow-y-auto px-3.5 pb-6">
         <div className="grid grid-cols-2 gap-3">
           {filtered.map((tbl) => {
@@ -258,11 +258,11 @@ export function ScreenM2FloorGrid({ waiterName, onSelectTable, onGoToPings, onGo
             const badge = getTableBadge(tbl, isFull, occupiedChairs, totalChairs);
 
             return (
-              <motion.button
+              <motion.div
                 key={tbl.id}
-                whileTap={{ scale: 0.97 }}
+                whileTap={{ scale: 0.98 }}
                 onClick={() => onSelectTable(tbl.number)}
-                className={`p-3 rounded-2xl border-2 text-left transition shadow-xs flex flex-col justify-between min-h-[172px] relative ${getTableCardStyle(tbl, isFull)}`}
+                className={`p-3 rounded-2xl border-2 text-left transition shadow-xs flex flex-col justify-between min-h-[178px] relative cursor-pointer ${getTableCardStyle(tbl, isFull)}`}
               >
                 {/* Ping indicator dot */}
                 {hasPing && (
@@ -294,25 +294,31 @@ export function ScreenM2FloorGrid({ waiterName, onSelectTable, onGoToPings, onGo
                     </div>
                   </div>
 
-                  {/* Enhanced Proportional 4-Chair / Seat Matrix */}
-                  <div className="my-2.5 p-2 rounded-xl bg-white/80 border border-current/15 min-h-[62px] flex flex-col justify-between shadow-2xs">
+                  {/* Enhanced LARGE Prominent Chair Matrix (Tap individual chair to open chair view) */}
+                  <div className="my-2.5 p-2 rounded-xl bg-white/85 border border-current/15 min-h-[68px] flex flex-col justify-between shadow-2xs">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       {Array.from({ length: totalChairs }).map((_, idx) => {
+                        const seatNum = idx + 1;
                         const isOccupied = idx < occupiedChairs;
                         return (
-                          <div
+                          <button
                             key={idx}
-                            title={`Seat ${idx + 1}: ${isOccupied ? 'Occupied' : 'Available'}`}
-                            className={`h-6.5 w-6.5 rounded-lg flex items-center justify-center font-mono text-[9.5px] font-black transition-all ${
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onSelectTable(tbl.number, seatNum);
+                            }}
+                            title={`Chair ${seatNum}: ${isOccupied ? 'Occupied' : 'Available'} — Tap to view chair`}
+                            className={`h-8 w-8 rounded-xl flex items-center justify-center font-mono text-xs font-black transition-all active:scale-90 ${
                               isOccupied
                                 ? tbl.status === 'BILLING'
-                                  ? 'bg-purple-700 text-white shadow-2xs'
-                                  : 'bg-[#9C3D1E] text-white shadow-2xs'
-                                : 'border-2 border-dashed border-stone-300 bg-white text-stone-400'
+                                  ? 'bg-purple-700 text-white shadow-xs'
+                                  : 'bg-[#9C3D1E] text-white shadow-xs'
+                                : 'border-2 border-dashed border-stone-300 bg-white hover:border-stone-400 text-stone-500'
                             }`}
                           >
-                            {idx + 1}
-                          </div>
+                            {seatNum}
+                          </button>
                         );
                       })}
                     </div>
@@ -342,7 +348,7 @@ export function ScreenM2FloorGrid({ waiterName, onSelectTable, onGoToPings, onGo
                     <ChevronRight className="h-3 w-3 text-stone-400" />
                   </span>
                 </div>
-              </motion.button>
+              </motion.div>
             );
           })}
         </div>

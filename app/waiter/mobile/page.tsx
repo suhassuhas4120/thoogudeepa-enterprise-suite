@@ -16,7 +16,7 @@ import { ScreenM6Settlement } from '../../../components/waiter-mobile/ScreenM6Se
 type MainTab = 'TABLES' | 'CALLS' | 'READY';
 type ActiveView =
   | { type: 'FLOOR' }
-  | { type: 'SHEET'; tableNum: string }
+  | { type: 'SHEET'; tableNum: string; initialSeat?: 'ALL' | number }
   | { type: 'ORDER'; tableNum: string }
   | { type: 'SETTLE'; tableNum: string };
 
@@ -73,6 +73,23 @@ export default function WaiterMobilePage() {
   // ── Not logged in ─────────────────────────────────────────────────────────
   if (!loggedIn) {
     return <ScreenM1StaffLogin onLogin={handleLogin} />;
+  }
+
+  // ── TABLE DETAILS (Screen 3 - Full Screen Takeover) ───────────────────────
+  if (view.type === 'SHEET') {
+    return (
+      <ScreenM3TableSheet
+        tableNum={view.tableNum}
+        initialSeat={view.initialSeat}
+        onClose={() => setView({ type: 'FLOOR' })}
+        onGoToOrder={() => setView({ type: 'ORDER', tableNum: view.tableNum })}
+        onGoToSettle={() => setView({ type: 'SETTLE', tableNum: view.tableNum })}
+        onVacated={() => {
+          showToast(`${view.tableNum} reset for new guests`);
+          setView({ type: 'FLOOR' });
+        }}
+      />
+    );
   }
 
   // ── ORDER PAD (full screen takeover) ─────────────────────────────────────
@@ -228,7 +245,7 @@ export default function WaiterMobilePage() {
         {mainTab === 'TABLES' && (
           <ScreenM2FloorGrid
             waiterName={waiterName}
-            onSelectTable={(num) => setView({ type: 'SHEET', tableNum: num })}
+            onSelectTable={(num, chair) => setView({ type: 'SHEET', tableNum: num, initialSeat: chair })}
             onGoToPings={() => setMainTab('CALLS')}
             onGoToReady={() => setMainTab('READY')}
           />
@@ -237,31 +254,17 @@ export default function WaiterMobilePage() {
         {mainTab === 'CALLS' && (
           <ScreenM5Dispatch
             mode="CALLS"
-            onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num })}
+            onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num, initialSeat: 'ALL' })}
           />
         )}
 
         {mainTab === 'READY' && (
           <ScreenM5Dispatch
             mode="READY"
-            onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num })}
+            onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num, initialSeat: 'ALL' })}
           />
         )}
       </div>
-
-      {/* Table detail sheet (overlay, rendered above main content) */}
-      {view.type === 'SHEET' && (
-        <ScreenM3TableSheet
-          tableNum={view.tableNum}
-          onClose={() => setView({ type: 'FLOOR' })}
-          onGoToOrder={() => setView({ type: 'ORDER', tableNum: view.tableNum })}
-          onGoToSettle={() => setView({ type: 'SETTLE', tableNum: view.tableNum })}
-          onVacated={() => {
-            showToast(`${view.tableNum} reset for new guests`);
-            setView({ type: 'FLOOR' });
-          }}
-        />
-      )}
     </main>
   );
 }

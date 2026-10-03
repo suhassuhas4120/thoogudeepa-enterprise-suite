@@ -66,7 +66,7 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
         {showCart && (
           <motion.button
             whileTap={{ scale: 0.9 }}
-            className="relative flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
+            className="relative flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-[#9C3D1E] text-white shadow-sm transition hover:bg-[#7c3018]"
             onClick={() => navigateTo(4)}
             title="View Cart"
           >

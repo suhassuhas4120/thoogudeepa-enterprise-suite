@@ -26,7 +26,7 @@ export function ScreenM3FloorPlan() {
       {/* Left Main Tables Canvas */}
       <div className="md:col-span-8 flex flex-col gap-4">
         {/* Section Tabs */}
-        <div className="bg-white border-2 border-slate-900 rounded-xl p-4 shadow-[3px_3px_0px_#0f172a]">
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-black font-mono text-slate-900">FLOOR SECTIONS &amp; TABLES</h3>
@@ -39,8 +39,8 @@ export function ScreenM3FloorPlan() {
                   onClick={() => setActiveSection(sec)}
                   className={`px-3 py-1.5 rounded-lg border font-mono text-xs font-bold transition ${
                     activeSection === sec
-                      ? 'bg-slate-900 text-white border-slate-900'
-                      : 'bg-stone-50 text-slate-600 border-slate-200 hover:bg-stone-100'
+                      ? 'bg-[#9C3D1E] text-white border-[#9C3D1E]'
+                      : 'bg-[#FAF8F5] text-slate-600 border-slate-200 hover:bg-[#FAF8F5]'
                   }`}
                 >
                   {sec}
@@ -63,19 +63,19 @@ export function ScreenM3FloorPlan() {
                 className={`p-4 rounded-xl border-2 text-left font-mono transition relative ${
                   isSelected
                     ? 'border-orange-600 ring-2 ring-orange-500/30 shadow-[3px_3px_0px_#ea580c]'
-                    : 'border-slate-900 shadow-[3px_3px_0px_#0f172a]'
+                    : 'border-[#9C3D1E] shadow-xs'
                 } ${
                   isOcc
-                    ? 'bg-slate-900 text-white'
+                    ? 'bg-[#9C3D1E] text-white'
                     : isBill
                     ? 'bg-amber-50 text-amber-950 border-amber-600'
-                    : 'bg-white text-slate-900 hover:bg-stone-50'
+                    : 'bg-white text-slate-900 hover:bg-[#FAF8F5]'
                 }`}
               >
                 <div className="flex justify-between items-start">
                   <span className="text-sm font-black">{tbl.number}</span>
                   <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                    isOcc ? 'bg-slate-800 text-slate-200' : 'bg-slate-100 text-slate-600'
+                    isOcc ? 'bg-slate-800 text-slate-200' : 'bg-[#FAF8F5] text-slate-600'
                   }`}>
                     {tbl.capacity} Pax
                   </span>
@@ -99,7 +99,7 @@ export function ScreenM3FloorPlan() {
       </div>
 
       {/* Right Table Detail Sidebar */}
-      <div className="md:col-span-4 bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex flex-col justify-between">
+      <div className="md:col-span-4 bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-col justify-between">
         <div>
           <div className="flex items-center justify-between pb-3 border-b border-slate-200">
             <div>
@@ -110,7 +110,7 @@ export function ScreenM3FloorPlan() {
             </div>
             <span className={`px-2.5 py-1 rounded text-xs font-mono font-bold ${
               selectedTable?.status === 'OCCUPIED'
-                ? 'bg-slate-900 text-white'
+                ? 'bg-[#9C3D1E] text-white'
                 : selectedTable?.status === 'BILLING'
                 ? 'bg-amber-100 text-amber-800'
                 : 'bg-emerald-100 text-emerald-800'
@@ -146,7 +146,7 @@ export function ScreenM3FloorPlan() {
             {selectedTable?.activeItems && selectedTable.activeItems.length > 0 ? (
               <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                 {selectedTable.activeItems.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-2 rounded bg-stone-50 border border-slate-200 text-xs font-mono">
+                  <div key={idx} className="flex justify-between items-center p-2 rounded bg-[#FAF8F5] border border-slate-200 text-xs font-mono">
                     <span className="font-bold text-slate-800">
                       {item.quantity}x {item.name}
                     </span>
@@ -157,14 +157,14 @@ export function ScreenM3FloorPlan() {
                 ))}
               </div>
             ) : (
-              <div className="p-3 bg-stone-50 rounded border border-slate-200 text-center text-xs font-mono text-slate-400">
+              <div className="p-3 bg-[#FAF8F5] rounded border border-slate-200 text-center text-xs font-mono text-slate-400">
                 No active food items on this table
               </div>
             )}
           </div>
 
           {/* Current Bill Total */}
-          <div className="mt-4 p-3 bg-stone-100 rounded-lg border border-slate-300 flex justify-between items-center font-mono">
+          <div className="mt-4 p-3 bg-[#FAF8F5] rounded-lg border border-slate-300 flex justify-between items-center font-mono">
             <span className="text-xs font-bold text-slate-600">CURRENT RUNNING BILL:</span>
             <span className="text-lg font-black text-slate-900">
               ₹ {selectedTable?.currentBill.toLocaleString('en-IN')}.00
@@ -176,14 +176,14 @@ export function ScreenM3FloorPlan() {
         <div className="space-y-2 mt-6 pt-4 border-t border-slate-200">
           <button
             onClick={() => setCurrentScreen(4)}
-            className="w-full bg-slate-900 text-white py-2.5 px-4 rounded-xl font-mono text-xs font-black uppercase flex items-center justify-center gap-2 hover:bg-orange-600 transition shadow-[2px_2px_0px_#0f172a]"
+            className="w-full bg-[#9C3D1E] text-white py-2.5 px-4 rounded-xl font-mono text-xs font-black uppercase flex items-center justify-center gap-2 hover:bg-orange-600 transition shadow-xs"
           >
             <span>OPEN BILLING / POS</span>
           </button>
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => alert(`Thermal Running KOT Printed for Table ${selectedTable?.number}`)}
-              className="bg-stone-100 border border-slate-300 py-2 px-3 rounded-lg font-mono text-xs font-bold text-slate-700 hover:bg-stone-200 transition text-center"
+              className="bg-[#FAF8F5] border border-slate-300 py-2 px-3 rounded-lg font-mono text-xs font-bold text-slate-700 hover:bg-stone-200 transition text-center"
             >
               PRINT KOT
             </button>

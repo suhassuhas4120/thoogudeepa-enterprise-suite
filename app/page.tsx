@@ -76,23 +76,23 @@ export default function CustomerJourneyPage() {
   };
 
   return (
-    <main className="min-h-screen bg-stone-100 flex flex-col">
+    <main className="min-h-screen bg-[#FAF8F5] flex flex-col">
       {/* Top Console Header */}
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-sm shadow-orange-500/30">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-sm shadow-[#9C3D1E]/20">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#9C3D1E] bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5">
                 Table Ordering
               </span>
-              <span className="font-mono text-[10px] text-slate-500 font-semibold">
+              <span className="font-mono text-[10px] text-stone-500 font-semibold">
                 Thoogudeepa Donne Biryani Mane
               </span>
             </div>
-            <h1 className="text-sm font-bold tracking-tight text-slate-900 mt-0.5">
+            <h1 className="text-sm font-bold tracking-tight text-stone-900 mt-0.5">
               Customer Ordering Portal
             </h1>
           </div>
@@ -100,8 +100,8 @@ export default function CustomerJourneyPage() {
 
         {/* Multi-Portal Switcher */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs font-mono text-xs font-bold">
-            <span className="rounded-xl bg-orange-600 text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
+          <div className="flex items-center gap-1 rounded-2xl border border-[#EAE5DF] bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
+            <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Utensils className="h-3.5 w-3.5" />
               <span>CUSTOMER (12)</span>
             </span>
@@ -143,12 +143,12 @@ export default function CustomerJourneyPage() {
           </div>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
             <button
               onClick={() => setViewMode('single')}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 viewMode === 'single'
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-[#9C3D1E] text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -159,7 +159,7 @@ export default function CustomerJourneyPage() {
               onClick={() => setViewMode('all')}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 viewMode === 'all'
-                  ? 'bg-slate-900 text-white shadow-sm'
+                  ? 'bg-[#9C3D1E] text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >

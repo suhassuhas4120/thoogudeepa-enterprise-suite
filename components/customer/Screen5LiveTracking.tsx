@@ -46,7 +46,7 @@ export const Screen5LiveTracking: React.FC = () => {
   const currentIdx = stageKeyToIdx[currentStage] ?? 0;
 
   const itemStageConfig: Record<string, { label: string; color: string; pulse: boolean }> = {
-    PLACED: { label: 'ORDER PLACED', color: 'bg-stone-100 text-slate-700 border-slate-200', pulse: false },
+    PLACED: { label: 'ORDER PLACED', color: 'bg-[#FAF8F5] text-slate-700 border-slate-200', pulse: false },
     PREP:   { label: 'PREPARING',    color: 'bg-amber-50 text-amber-800 border-amber-200',  pulse: true  },
     PLATED: { label: 'READY TO RUN', color: 'bg-blue-50 text-blue-800 border-blue-200',     pulse: true  },
     SERVED: { label: 'SERVED',       color: 'bg-emerald-50 text-emerald-800 border-emerald-200', pulse: false },
@@ -94,7 +94,7 @@ export const Screen5LiveTracking: React.FC = () => {
 
           <div className="relative flex justify-between px-2 pt-2 pb-1">
             {/* Background Line */}
-            <div className="absolute top-6 left-6 right-6 h-1 bg-slate-100 -z-0" />
+            <div className="absolute top-6 left-6 right-6 h-1 bg-[#FAF8F5] -z-0" />
             {/* Active Progress Line */}
             <motion.div
               className="absolute top-6 left-6 h-1 bg-orange-500 -z-0"
@@ -133,7 +133,7 @@ export const Screen5LiveTracking: React.FC = () => {
           </div>
 
           {/* Current stage description */}
-          <div className="mt-3 text-center font-mono text-[10.5px] text-slate-600 font-medium bg-stone-50 rounded-xl py-2 px-3 border border-slate-100">
+          <div className="mt-3 text-center font-mono text-[10.5px] text-slate-600 font-medium bg-[#FAF8F5] rounded-xl py-2 px-3 border border-slate-100">
             {stages[currentIdx]?.desc}
           </div>
         </div>
@@ -160,7 +160,7 @@ export const Screen5LiveTracking: React.FC = () => {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="rounded-2xl border border-slate-100 bg-stone-50/60 p-3"
+                      className="rounded-2xl border border-slate-100 bg-[#FAF8F5]/60 p-3"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-black text-slate-900 truncate">
@@ -185,7 +185,7 @@ export const Screen5LiveTracking: React.FC = () => {
                   <span className="text-xs font-bold">Connecting to kitchen...</span>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-stone-50/50 rounded-2xl border border-dashed border-slate-200">
+                <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-[#FAF8F5]/50 rounded-2xl border border-dashed border-slate-200">
                   <Clock className="h-8 w-8 text-slate-300 mb-2 stroke-[1.5]" />
                   <p className="text-xs font-bold text-slate-700">Waiting for kitchen update</p>
                   <p className="text-[10.5px] text-slate-400 mt-0.5">
@@ -213,7 +213,7 @@ export const Screen5LiveTracking: React.FC = () => {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setCurrentScreen(6)}
-          className="flex w-full items-center justify-between rounded-2xl bg-slate-900 px-4 py-3.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-lg transition hover:bg-slate-800"
+          className="flex w-full items-center justify-between rounded-2xl bg-[#1C1917] px-4 py-3.5 text-xs font-extrabold uppercase tracking-wider text-white shadow-lg transition hover:bg-slate-800"
         >
           <span>Proceed to Payment</span>
           <ArrowRight className="h-4 w-4 stroke-[2.5]" />

@@ -120,7 +120,7 @@ export const Screen12Feedback: React.FC = () => {
                       className={`px-2.5 py-1 rounded-full text-xs font-bold transition ${
                         active
                           ? 'bg-orange-600 text-white shadow-xs'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          : 'bg-[#FAF8F5] text-slate-600 hover:bg-slate-200'
                       }`}
                     >
                       {chip}
@@ -187,7 +187,7 @@ export const Screen12Feedback: React.FC = () => {
           ) : (
             <button
               onClick={() => navigateTo(1)}
-              className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800"
+              className="flex-1 py-3 bg-[#9C3D1E] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800"
             >
               <span>Done (Back to Start)</span>
             </button>

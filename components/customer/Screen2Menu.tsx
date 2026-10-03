@@ -177,7 +177,7 @@ export const Screen2Menu: React.FC = () => {
                 onClick={() => handleOpenDetail(item)}
                 className={`flex cursor-pointer flex-col justify-between rounded-[24px] border p-2.5 shadow-xs transition ${
                   is86
-                    ? 'border-[#E8D5C3] bg-stone-100 opacity-60'
+                    ? 'border-[#E8D5C3] bg-[#FAF8F5] opacity-60'
                     : 'border-[#E8D5C3] bg-[#FFFCF7] hover:border-[#8A4228] hover:shadow-md'
                 }`}
               >

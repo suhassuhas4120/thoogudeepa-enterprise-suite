@@ -116,11 +116,13 @@ async function run() {
     ],
   });
   assert(orderRes.ok, `Order created for table ${testTable}`);
+  const ticketId = orderRes.json?.ticketId;
+  assert(!!ticketId, `Ticket ID returned from order create: ${ticketId}`);
 
-  const kdsTickets = await dbQuery('kds_tickets', { table_number: testTable });
-  assert(kdsTickets.length > 0, `Tablet inspects active KOT for ${testTable} (${kdsTickets.length} ticket)`);
-  const firstTicket = kdsTickets[0];
-  assert(firstTicket.status === 'NEW', `Initial ticket status is '${firstTicket.status}' (NEW)`);
+  const newTicket = await dbGetSingle('kds_tickets', { id: ticketId });
+  assert(!!newTicket, `Tablet inspects active KOT for ${testTable}`);
+  assert(newTicket?.status === 'NEW', `Initial ticket status is '${newTicket?.status}' (NEW)`);
+  const firstTicket = newTicket;
 
   // TEST 5: Kitchen Bump reflected in Tablet Pass
   console.log('\n── TEST 5: Kitchen Stage Transition in Tablet Feed ──');

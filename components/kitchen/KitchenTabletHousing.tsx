@@ -62,7 +62,7 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
 
         {/* Waiter Alert Notification Toast */}
         {waiterAlertNotice && (
-          <div className="bg-slate-900 text-white text-xs font-bold px-4 py-2 flex items-center justify-between z-30 border-b border-slate-700">
+          <div className="bg-amber-50 text-amber-900 text-xs font-bold px-4 py-2 flex items-center justify-between z-30 border-b border-slate-700">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <span>{waiterAlertNotice}</span>
@@ -77,7 +77,7 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
         )}
 
         {/* Canvas Interior */}
-        <div className="flex-1 bg-stone-50 text-slate-900 flex flex-col overflow-hidden relative">
+        <div className="flex-1 bg-[#FAF8F5] text-slate-900 flex flex-col overflow-hidden relative">
           {children}
         </div>
       </div>

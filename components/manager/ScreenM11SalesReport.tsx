@@ -34,7 +34,7 @@ export function ScreenM11SalesReport() {
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
       {/* Top Total */}
-      <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
           <span className="text-xs font-bold text-slate-500">[ANALYTICS DESK]</span>
           <h3 className="text-base font-black text-slate-900 mt-0.5">
@@ -49,7 +49,7 @@ export function ScreenM11SalesReport() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {/* Category Breakdown */}
-        <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[3px_3px_0px_#0f172a]">
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-xs">
           <h4 className="text-xs font-black text-slate-900 uppercase pb-3 border-b border-slate-200">
             Category-Wise Sales Distribution
           </h4>
@@ -60,9 +60,9 @@ export function ScreenM11SalesReport() {
                   <span className="text-slate-800">{cat.name}</span>
                   <span className="text-slate-900">₹ {cat.amount.toLocaleString('en-IN')} ({cat.share}%)</span>
                 </div>
-                <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-[#FAF8F5] rounded-full h-2 overflow-hidden">
                   <div
-                    className="bg-slate-900 h-full rounded-full"
+                    className="bg-[#9C3D1E] h-full rounded-full"
                     style={{ width: `${cat.share}%` }}
                   />
                 </div>
@@ -72,7 +72,7 @@ export function ScreenM11SalesReport() {
         </div>
 
         {/* Payment Channels */}
-        <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[3px_3px_0px_#0f172a]">
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-xs">
           <h4 className="text-xs font-black text-slate-900 uppercase pb-3 border-b border-slate-200">
             Payment Mode Settlement Split
           </h4>
@@ -83,7 +83,7 @@ export function ScreenM11SalesReport() {
                   <span className="text-slate-800">{ch.name}</span>
                   <span className="text-slate-900">₹ {ch.amount.toLocaleString('en-IN')} ({ch.percent}%)</span>
                 </div>
-                <div className="w-full bg-stone-100 rounded-full h-2 overflow-hidden">
+                <div className="w-full bg-[#FAF8F5] rounded-full h-2 overflow-hidden">
                   <div
                     className="bg-emerald-600 h-full rounded-full"
                     style={{ width: `${ch.percent}%` }}
@@ -96,7 +96,7 @@ export function ScreenM11SalesReport() {
       </div>
 
       {/* Top 5 Leaderboard */}
-      <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[3px_3px_0px_#0f172a]">
+      <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-xs">
         <h4 className="text-xs font-black text-slate-900 uppercase pb-3 border-b border-slate-200 flex items-center gap-2">
           <Trophy className="h-4 w-4 text-amber-500" />
           <span>TOP 5 BEST-SELLING DISHES (TODAY DINNER)</span>
@@ -113,7 +113,7 @@ export function ScreenM11SalesReport() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {topDishes.map((dish, i) => (
-                <tr key={dish.name} className="hover:bg-stone-50">
+                <tr key={dish.name} className="hover:bg-[#FAF8F5]">
                   <td className="py-2.5 font-black text-slate-900">#{i + 1}</td>
                   <td className="py-2.5 font-bold text-slate-800">{dish.name}</td>
                   <td className="py-2.5 text-center font-black text-slate-900">{dish.count} pots/plates</td>

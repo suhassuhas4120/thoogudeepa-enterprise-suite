@@ -88,7 +88,7 @@ export default function QRDeckPage() {
   };
 
   return (
-    <main className="min-h-screen bg-stone-100 flex flex-col font-sans">
+    <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans">
       {/* Console Header */}
       <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -112,7 +112,7 @@ export default function QRDeckPage() {
 
         {/* Global Multi-Portal Switcher */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs font-mono text-xs font-bold">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
             <Link
               href="/"
               className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-slate-600 hover:text-slate-900 transition"
@@ -175,8 +175,8 @@ export default function QRDeckPage() {
               onClick={() => setSelectedCategory(cat.id as any)}
               className={`px-3 py-1 rounded-lg font-mono text-xs font-bold transition whitespace-nowrap ${
                 selectedCategory === cat.id
-                  ? 'bg-slate-900 text-white shadow-xs'
-                  : 'bg-stone-100 text-slate-700 hover:bg-stone-200'
+                  ? 'bg-[#9C3D1E] text-white shadow-xs'
+                  : 'bg-[#FAF8F5] text-slate-700 hover:bg-stone-200'
               }`}
             >
               {cat.label}
@@ -199,11 +199,11 @@ export default function QRDeckPage() {
           {filteredTables.map((tbl) => (
             <div
               key={tbl.number}
-              className="bg-white rounded-2xl border-2 border-slate-900 p-4 shadow-[4px_4px_0px_#0f172a] flex flex-col justify-between"
+              className="bg-white rounded-2xl border border-[#EAE5DF] p-4 shadow-sm flex flex-col justify-between"
             >
               {/* Table Card Header */}
               <div>
-                <div className="flex items-center justify-between border-b-2 border-slate-900 pb-2 mb-3">
+                <div className="flex items-center justify-between border-b border-[#EAE5DF] pb-2 mb-3">
                   <div>
                     <span className="font-mono text-[10px] font-bold text-orange-600 uppercase tracking-widest">
                       [{tbl.section}]
@@ -222,7 +222,7 @@ export default function QRDeckPage() {
                   {Array.from({ length: tbl.capacity }, (_, i) => i + 1).map((seat) => (
                     <div
                       key={seat}
-                      className="border border-slate-300 rounded-xl p-2.5 bg-stone-50 flex flex-col items-center text-center shadow-2xs hover:bg-orange-50/50 transition group"
+                      className="border border-slate-300 rounded-xl p-2.5 bg-[#FAF8F5] flex flex-col items-center text-center shadow-2xs hover:bg-orange-50/50 transition group"
                     >
                       <span className="font-mono text-[10.5px] font-black text-slate-800 mb-1">
                         SEAT #{seat}
@@ -243,7 +243,7 @@ export default function QRDeckPage() {
                           href={getSeatUrl(tbl.number, seat)}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="w-full flex items-center justify-center gap-1 py-1 px-1.5 bg-slate-900 hover:bg-orange-600 text-white rounded font-mono text-[9px] font-black uppercase tracking-wider transition"
+                          className="w-full flex items-center justify-center gap-1 py-1 px-1.5 bg-[#9C3D1E] hover:bg-[#7c3018] text-white rounded font-mono text-[9px] font-black uppercase tracking-wider transition"
                         >
                           <span>TEST SEAT</span>
                           <ExternalLink className="h-2.5 w-2.5" />

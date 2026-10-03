@@ -9,7 +9,7 @@ export function ScreenM12OffersRules() {
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
-      <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex justify-between items-center">
+      <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex justify-between items-center">
         <div>
           <span className="text-xs font-bold text-slate-500">[DISCOUNTS &amp; PROMOS]</span>
           <h3 className="text-base font-black text-slate-900 mt-0.5">
@@ -25,13 +25,13 @@ export function ScreenM12OffersRules() {
             key={p.id}
             className={`p-4 rounded-xl border-2 transition flex flex-col justify-between ${
               p.isActive
-                ? 'bg-white border-slate-900 shadow-[3px_3px_0px_#0f172a]'
-                : 'bg-stone-50 border-slate-300 opacity-60'
+                ? 'bg-white border-[#EAE5DF] shadow-xs'
+                : 'bg-[#FAF8F5] border-slate-300 opacity-60'
             }`}
           >
             <div>
               <div className="flex justify-between items-start">
-                <span className="bg-slate-900 text-white text-[10px] font-black px-2 py-0.5 rounded">
+                <span className="bg-[#9C3D1E] text-white text-[10px] font-black px-2 py-0.5 rounded">
                   {p.code}
                 </span>
                 <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
@@ -56,7 +56,7 @@ export function ScreenM12OffersRules() {
                 className={`w-full py-1.5 rounded-lg text-xs font-bold transition ${
                   p.isActive
                     ? 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                    : 'bg-slate-900 text-white hover:bg-slate-800'
+                    : 'bg-[#9C3D1E] text-white hover:bg-[#7c3018]'
                 }`}
               >
                 {p.isActive ? 'PAUSE PROMOTION' : 'ENABLE PROMOTION'}
@@ -67,14 +67,14 @@ export function ScreenM12OffersRules() {
       </div>
 
       {/* Audit Log */}
-      <div className="bg-white border-2 border-slate-900 rounded-xl p-4 shadow-[3px_3px_0px_#0f172a] text-xs">
+      <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs text-xs">
         <h4 className="font-black text-slate-900 uppercase mb-2">Manager Goodwill Override Log (Today)</h4>
         <div className="space-y-1.5 text-slate-600">
-          <div className="flex justify-between p-2 bg-stone-50 rounded border border-slate-200">
+          <div className="flex justify-between p-2 bg-[#FAF8F5] rounded border border-slate-200">
             <span>Table A-03 • 20% Goodwill Off (Food Delay Apology)</span>
             <span className="font-bold text-slate-900">Auth by GM Manjunath • PIN Verified</span>
           </div>
-          <div className="flex justify-between p-2 bg-stone-50 rounded border border-slate-200">
+          <div className="flex justify-between p-2 bg-[#FAF8F5] rounded border border-slate-200">
             <span>Table B-02 • 10% Corporate Badge Discount</span>
             <span className="font-bold text-slate-900">Auth by Floor Lead Raghav</span>
           </div>

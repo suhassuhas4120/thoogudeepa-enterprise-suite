@@ -49,13 +49,13 @@ export const ScreenK1Login: React.FC = () => {
 
   return (
     <KitchenTabletHousing screenNumber={1} screenTitle="KDS KITCHEN LOGIN">
-      <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-8 gap-8 overflow-y-auto bg-stone-100/50">
+      <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-8 gap-8 overflow-y-auto bg-[#FAF8F5]/50">
         {/* Left Card: Logo + Venue name */}
-        <div className="w-full md:w-[440px] bg-white rounded-3xl border-2 border-slate-900 p-8 shadow-[4px_4px_0px_#0f172a] flex flex-col items-center justify-between text-center min-h-[440px]">
+        <div className="w-full md:w-[440px] bg-white rounded-3xl border border-[#EAE5DF] p-8 shadow-sm flex flex-col items-center justify-between text-center min-h-[440px]">
           <div className="flex flex-col items-center my-auto">
-            <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl border-2 border-slate-900 bg-gradient-to-br from-amber-50 to-orange-100 shadow-[3px_3px_0px_#0f172a] mb-5">
+            <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl border border-[#EAE5DF] bg-gradient-to-br from-amber-50 to-orange-100 shadow-xs mb-5">
               <UtensilsCrossed className="h-12 w-12 text-amber-700" />
-              <div className="absolute -bottom-2 -right-2 rounded-full border border-slate-900 bg-orange-600 p-1.5 text-white shadow-xs">
+              <div className="absolute -bottom-2 -right-2 rounded-full border border-[#EAE5DF] bg-orange-600 p-1.5 text-white shadow-xs">
                 <ChefHat className="h-4 w-4" />
               </div>
             </div>
@@ -81,7 +81,7 @@ export const ScreenK1Login: React.FC = () => {
         <motion.div
           animate={shake ? { x: [-12, 12, -10, 10, -5, 5, 0] } : { x: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full md:w-80 bg-white rounded-3xl border-2 border-slate-900 p-6 shadow-[4px_4px_0px_#0f172a] flex flex-col justify-between min-h-[440px]"
+          className="w-full md:w-80 bg-white rounded-3xl border border-[#EAE5DF] p-6 shadow-sm flex flex-col justify-between min-h-[440px]"
         >
           <div>
             <div className="text-md font-bold font-mono uppercase tracking-wider pl-[45px] pb-[20px] text-slate-600 ">
@@ -92,15 +92,15 @@ export const ScreenK1Login: React.FC = () => {
             <motion.div
               animate={shake ? { x: [-8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
               transition={{ duration: 0.35 }}
-              className={`h-11 rounded-xl bg-stone-100 border transition flex items-center justify-center gap-3 mb-7 ${
+              className={`h-11 rounded-xl bg-[#FAF8F5] border transition flex items-center justify-center gap-3 mb-7 ${
                 shake ? 'border-rose-500 bg-rose-50' : 'border-slate-200'
               }`}
             >
               {[0, 1, 2, 3].map((idx) => (
                 <div
                   key={idx}
-                  className={`h-3 w-3 rounded-full border-2 border-slate-800 transition ${
-                    enteredPin.length > idx ? 'bg-slate-900' : 'bg-transparent'
+                  className={`h-3 w-3 rounded-full border border-[#EAE5DF] transition ${
+                    enteredPin.length > idx ? 'bg-[#9C3D1E]' : 'bg-transparent'
                   }`}
                 />
               ))}
@@ -118,26 +118,26 @@ export const ScreenK1Login: React.FC = () => {
                 <button
                   key={num}
                   onClick={() => handleKeyPress(num)}
-                  className="h-10 rounded-lg border border-slate-200 bg-stone-50 hover:bg-stone-100 font-mono text-sm font-bold text-slate-800 transition active:scale-95"
+                  className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-[#FAF8F5] font-mono text-sm font-bold text-slate-800 transition active:scale-95"
                 >
                   {num}
                 </button>
               ))}
               <button
                 onClick={handleClear}
-                className="h-10 rounded-lg border border-slate-200 bg-stone-100 hover:bg-stone-200 font-mono text-[10px] font-bold text-slate-600 transition"
+                className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-stone-200 font-mono text-[10px] font-bold text-slate-600 transition"
               >
                 CLR
               </button>
               <button
                 onClick={() => handleKeyPress('0')}
-                className="h-10 rounded-lg border border-slate-200 bg-stone-50 hover:bg-stone-100 font-mono text-sm font-bold text-slate-800 transition active:scale-95"
+                className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-[#FAF8F5] font-mono text-sm font-bold text-slate-800 transition active:scale-95"
               >
                 0
               </button>
               <button
                 onClick={handleBackspace}
-                className="h-10 rounded-lg border border-slate-200 bg-stone-100 hover:bg-stone-200 font-mono text-[10px] font-bold text-slate-600 transition"
+                className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-stone-200 font-mono text-[10px] font-bold text-slate-600 transition"
               >
                 DEL
               </button>

@@ -83,7 +83,7 @@ export const Screen4Cart: React.FC = () => {
                   exit={{ opacity: 0, scale: 0.95 }}
                   className={`flex flex-col gap-2.5 rounded-[22px] border p-3.5 shadow-xs transition ${
                     isOrdered
-                      ? 'border-[#E8D5C3] bg-stone-50/80 opacity-80'
+                      ? 'border-[#E8D5C3] bg-[#FAF8F5]/80 opacity-80'
                       : 'border-[#E8D5C3] bg-[#FFFCF7]'
                   }`}
                 >

@@ -119,13 +119,13 @@ export const ScreenK3Detail: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex-1 flex overflow-hidden">
           {/* LEFT 55% */}
-          <div className="w-[55%] border-r border-slate-200 p-5 overflow-y-auto bg-stone-50/50 flex flex-col justify-between">
+          <div className="w-[55%] border-r border-slate-200 p-5 overflow-y-auto bg-[#FAF8F5]/50 flex flex-col justify-between">
             <div className="space-y-4">
               {/* Back navigation header */}
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setCurrentScreen(2)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border-2 border-slate-900 bg-white hover:bg-orange-50 transition shadow-[2px_2px_0px_#0f172a] shrink-0"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#EAE5DF] bg-white hover:bg-orange-50 transition shadow-xs shrink-0"
                   title="Back to All Tables"
                 >
                   <ArrowLeft className="h-4 w-4 stroke-[2.5] text-slate-900" />
@@ -206,7 +206,7 @@ export const ScreenK3Detail: React.FC = () => {
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : it.stage === 'PREP'
                                 ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-stone-50 text-slate-600 border-slate-200'
+                                : 'bg-[#FAF8F5] text-slate-600 border-slate-200'
                             }`}
                           >
                             {it.stage}
@@ -235,7 +235,7 @@ export const ScreenK3Detail: React.FC = () => {
                                     ? 'bg-orange-600 text-white border-orange-700 shadow-xs ring-1 ring-orange-500'
                                     : isPast
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                                    : 'bg-stone-50 text-slate-600 border-slate-300 hover:bg-orange-50'
+                                    : 'bg-[#FAF8F5] text-slate-600 border-slate-300 hover:bg-orange-50'
                                 }`}
                               >
                                 {stageLabels[stg]}
@@ -274,7 +274,7 @@ export const ScreenK3Detail: React.FC = () => {
             <div
               className={`flex items-center justify-between rounded-xl border p-3 transition ${
                 inventoryLocked
-                  ? 'border-slate-200 bg-stone-50'
+                  ? 'border-slate-200 bg-[#FAF8F5]'
                   : 'border-orange-300 bg-orange-50'
               }`}
             >
@@ -307,7 +307,7 @@ export const ScreenK3Detail: React.FC = () => {
                 }}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-mono text-[10.5px] font-black transition ${
                   inventoryLocked
-                    ? 'bg-slate-900 text-white hover:bg-black'
+                    ? 'bg-[#9C3D1E] text-white hover:bg-[#7c3018]'
                     : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                 }`}
               >
@@ -353,7 +353,7 @@ export const ScreenK3Detail: React.FC = () => {
                         ? 'border-rose-200 bg-rose-50/50'
                         : hasPending
                         ? 'border-orange-200 bg-orange-50/40'
-                        : 'border-slate-200 bg-stone-50/70'
+                        : 'border-slate-200 bg-[#FAF8F5]/70'
                     } ${inventoryLocked ? 'opacity-90' : ''}`}
                   >
                     <div className="flex-1 min-w-0">
@@ -376,7 +376,7 @@ export const ScreenK3Detail: React.FC = () => {
                         disabled={inventoryLocked}
                         className={`rounded-xl px-3 py-1.5 font-mono text-[10.5px] font-black uppercase transition ${
                           inventoryLocked
-                            ? 'opacity-40 cursor-not-allowed border border-slate-200 bg-stone-50 text-slate-500'
+                            ? 'opacity-40 cursor-not-allowed border border-slate-200 bg-[#FAF8F5] text-slate-500'
                             : effectiveIs86
                             ? 'bg-rose-600 text-white shadow-xs hover:bg-rose-700'
                             : 'border border-slate-300 bg-white text-emerald-700 hover:bg-emerald-50'
@@ -400,7 +400,7 @@ export const ScreenK3Detail: React.FC = () => {
                 >
                   <button
                     onClick={handleDiscard}
-                    className="flex-1 rounded-xl border border-slate-300 bg-stone-50 py-3 font-mono text-xs font-black text-slate-600 hover:bg-stone-100 transition"
+                    className="flex-1 rounded-xl border border-slate-300 bg-[#FAF8F5] py-3 font-mono text-xs font-black text-slate-600 hover:bg-[#FAF8F5] transition"
                   >
                     DISCARD
                   </button>

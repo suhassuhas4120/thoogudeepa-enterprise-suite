@@ -425,7 +425,7 @@ export const ScreenK2Overview: React.FC = () => {
       screenTitle="ALL TABLES & FEEDS (70/30 SPLIT)"
     >
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
-        <div className="bg-white border-b-2 border-slate-900 px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        <div className="bg-white border-b border-[#EAE5DF] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-1.5 overflow-x-auto">
             <span className="font-mono text-[11px] font-black uppercase text-slate-600 mr-1">
               CATEGORIES:
@@ -436,8 +436,8 @@ export const ScreenK2Overview: React.FC = () => {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-2.5 py-1 rounded border font-mono text-[10.5px] font-black transition whitespace-nowrap ${
                   selectedCategory === cat
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-stone-50 text-slate-700 border-slate-300 hover:bg-stone-200'
+                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E]'
+                    : 'bg-[#FAF8F5] text-slate-700 border-slate-300 hover:bg-stone-200'
                 }`}
               >
                 {cat}
@@ -446,7 +446,7 @@ export const ScreenK2Overview: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="font-mono text-[10px] font-bold text-slate-700 bg-stone-100 border border-slate-300 px-2 py-1 rounded">
+            <span className="font-mono text-[10px] font-bold text-slate-700 bg-[#FAF8F5] border border-slate-300 px-2 py-1 rounded">
               VISIBLE TABLES: {categoryFilteredTables.length}
             </span>
             <button
@@ -459,7 +459,7 @@ export const ScreenK2Overview: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-stone-50 border-b-2 border-slate-900 p-3 shrink-0">
+        <div className="bg-[#FAF8F5] border-b border-[#EAE5DF] p-3 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
               BATCH PREPARATION SUMMARY
@@ -480,7 +480,7 @@ export const ScreenK2Overview: React.FC = () => {
                 return (
                   <div
                     key={idx}
-                    className="bg-white border-2 border-slate-900 rounded-xl p-2.5 shadow-[2px_2px_0px_#0f172a] flex flex-col justify-between gap-1.5 shrink-0 w-[260px]"
+                    className="bg-white border border-[#EAE5DF] rounded-xl p-2.5 shadow-xs flex flex-col justify-between gap-1.5 shrink-0 w-[260px]"
                   >
                     <div className="flex items-center justify-between pb-1 border-b border-slate-200">
                       <span
@@ -489,7 +489,7 @@ export const ScreenK2Overview: React.FC = () => {
                       >
                         {b.name}
                       </span>
-                      <span className="font-mono text-[10px] font-black bg-slate-900 text-white px-1.5 py-0.5 rounded ml-1 shrink-0">
+                      <span className="font-mono text-[10px] font-black bg-[#9C3D1E] text-white px-1.5 py-0.5 rounded ml-1 shrink-0">
                         TOTAL: {b.total}
                       </span>
                     </div>
@@ -518,7 +518,7 @@ export const ScreenK2Overview: React.FC = () => {
                               className={`py-1.5 rounded text-center transition border ${
                                 isActive
                                   ? 'bg-orange-600 text-white border-orange-700 shadow-xs ring-1 ring-orange-500'
-                                  : 'bg-stone-50 text-slate-700 border-slate-300 hover:bg-orange-100 hover:text-orange-900'
+                                  : 'bg-[#FAF8F5] text-slate-700 border-slate-300 hover:bg-orange-100 hover:text-orange-900'
                               }`}
                             >
                               {STAGE_LABELS[sIdx]}
@@ -535,7 +535,7 @@ export const ScreenK2Overview: React.FC = () => {
         </div>
 
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-[70%] border-r-2 border-slate-900 p-3 overflow-y-auto bg-stone-100/60">
+          <div className="w-[70%] border-r-2 border-[#EAE5DF] p-3 overflow-y-auto bg-[#FAF8F5]/60">
             <div className="flex items-center justify-between mb-2.5">
               <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
                 ALL TABLES
@@ -559,13 +559,13 @@ export const ScreenK2Overview: React.FC = () => {
                       className={`border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between ${
                         isDelayed
                           ? 'bg-rose-50/80 border-rose-600 shadow-[3px_3px_0px_#e11d48] hover:shadow-[5px_5px_0px_#e11d48]'
-                          : 'bg-white border-slate-900 shadow-[3px_3px_0px_#0f172a] hover:shadow-[5px_5px_0px_#0f172a]'
+                          : 'bg-white border-[#EAE5DF] shadow-xs hover:shadow-sm'
                       }`}
                     >
                       <div>
                         <div
                           className={`flex items-center justify-between pb-1.5 border-b-2 mb-2 ${
-                            isDelayed ? 'border-rose-400' : 'border-slate-900'
+                            isDelayed ? 'border-rose-400' : 'border-[#EAE5DF]'
                           }`}
                         >
                           <div className="flex items-center gap-1 font-mono text-xs font-black text-slate-900">
@@ -599,7 +599,7 @@ export const ScreenK2Overview: React.FC = () => {
                         {tbl.items.map((it) => (
                           <div
                             key={it.id}
-                            className="bg-stone-50 border border-slate-300 rounded-lg p-2 space-y-1.5"
+                            className="bg-[#FAF8F5] border border-slate-300 rounded-lg p-2 space-y-1.5"
                           >
                             <div className="flex items-center justify-between text-xs font-mono font-black">
                               <span className="text-slate-900 truncate pr-1">
@@ -627,7 +627,7 @@ export const ScreenK2Overview: React.FC = () => {
                                     }}
                                     className={`py-1.5 rounded text-center transition border ${
                                       isActive
-                                        ? 'bg-slate-900 text-white border-slate-900 shadow-2xs'
+                                        ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-2xs'
                                         : 'bg-white text-slate-600 border-slate-300 hover:bg-stone-200'
                                     }`}
                                   >
@@ -646,7 +646,7 @@ export const ScreenK2Overview: React.FC = () => {
                         e.stopPropagation();
                         handleOpenTable(tbl.tableNumber);
                       }}
-                      className="w-full mt-3 py-1.5 bg-slate-900 hover:bg-orange-600 text-white font-mono text-[10px] font-black rounded uppercase tracking-wider transition text-center shadow-xs"
+                      className="w-full mt-3 py-1.5 bg-[#9C3D1E] hover:bg-[#7c3018] text-white font-mono text-[10px] font-black rounded uppercase tracking-wider transition text-center shadow-xs"
                     >
                       MANAGE {tbl.tableNumber} &rarr;
                     </button>
@@ -659,7 +659,7 @@ export const ScreenK2Overview: React.FC = () => {
 
           <div className="w-[30%] bg-white p-3 overflow-y-auto flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-2 border-b-2 border-slate-900 mb-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[#EAE5DF] mb-3">
                 <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
                   ORDER SEQUENCE
                 </span>
@@ -673,7 +673,7 @@ export const ScreenK2Overview: React.FC = () => {
                   <div
                     key={idx}
                     onClick={() => handleOpenTable(tq.table)}
-                    className="p-2.5 rounded-lg border-2 border-slate-900 bg-stone-50 hover:bg-orange-50/50 cursor-pointer transition shadow-[2px_2px_0px_#0f172a]"
+                    className="p-2.5 rounded-lg border border-[#EAE5DF] bg-[#FAF8F5] hover:bg-orange-50/50 cursor-pointer transition shadow-xs"
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-mono text-xs font-black text-slate-900">
@@ -698,7 +698,7 @@ export const ScreenK2Overview: React.FC = () => {
 
             <button
               onClick={handleCallWaiter}
-              className="w-full mt-4 py-2.5 rounded-xl border-2 border-slate-900 bg-stone-100 hover:bg-orange-50 font-mono text-xs font-black uppercase text-slate-900 flex items-center justify-center gap-1.5 shadow-[2px_2px_0px_#0f172a] transition"
+              className="w-full mt-4 py-2.5 rounded-xl border border-[#EAE5DF] bg-[#FAF8F5] hover:bg-orange-50 font-mono text-xs font-black uppercase text-slate-900 flex items-center justify-center gap-1.5 shadow-xs transition"
             >
               <Bell className="h-3.5 w-3.5 text-orange-600" />
               <span>CALL FLOOR RUNNER TO PASS</span>

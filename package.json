@@ -7,6 +7,17 @@
     "build": "next build",
     "start": "next start -p 3001",
     "type-check": "tsc --noEmit",
+    "test": "npx tsx scripts/run-all-tests.ts",
+    "test:customer": "npx tsx scripts/test-customer-workflow-matrix.ts",
+    "test:kitchen": "npx tsx scripts/test-kitchen-workflow-matrix.ts",
+    "test:waiter": "npx tsx scripts/test-waiter-workflow-matrix.ts",
+    "test:sync": "npx tsx scripts/test-customer-kitchen-sync-matrix.ts",
+    "test:e2e": "node scripts/test-e2e-lifecycle.js",
+    "test:rush": "node scripts/simulate-peak-rush.js",
+    "test:phase9": "npx tsx scripts/test-phase9-comprehensive.ts",
+    "test:phase10": "npx tsx scripts/test-phase10-comprehensive.ts",
+    "test:schema": "npx tsx scripts/test-db-schema-validation.ts",
+    "test:env": "npx tsx scripts/test-env-validation.ts",
     "generate-qrs": "node scripts/generate-qr-assets.js"
   },
   "dependencies": {

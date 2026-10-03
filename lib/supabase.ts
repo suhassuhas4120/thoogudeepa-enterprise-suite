@@ -4,7 +4,7 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dwjjprzyyjm
 const supabaseAnonKey =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-  '';
+  'sb_publishable_n2WMU-LLYOgykukVbxg5Zw_vHCa74DV';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   realtime: {

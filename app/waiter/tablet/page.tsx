@@ -21,11 +21,14 @@ import { TabletTableCockpit } from '../../../components/waiter-tablet/TabletTabl
 import { TabletPingsDrawer } from '../../../components/waiter-tablet/TabletPingsDrawer';
 import { TabletSettleModal } from '../../../components/waiter-tablet/TabletSettleModal';
 import { ScreenM4OrderPad } from '../../../components/waiter-mobile/ScreenM4OrderPad';
+import { ScreenT1CaptainLogin } from '../../../components/waiter-tablet/ScreenT1CaptainLogin';
+import { User, LogOut } from 'lucide-react';
 
 export default function WaiterTabletCockpitPage() {
   const { tables, pings, kdsTickets } = useSharedBridge();
-  const { activeCaptain, setActiveCaptain } = useWaiterStore();
+  const { activeCaptain, setActiveCaptain, setActiveSection } = useWaiterStore();
 
+  const [loggedIn, setLoggedIn] = useState(false);
   const [selectedTableNum, setSelectedTableNum] = useState<string>(tables[0]?.number ?? 'T-01');
   const [selectedSection, setSelectedSection] = useState<string>('ALL');
   const [pingsOpen, setPingsOpen] = useState(false);
@@ -33,6 +36,19 @@ export default function WaiterTabletCockpitPage() {
   const [orderOpen, setOrderOpen] = useState(false);
   const [confirmVacate, setConfirmVacate] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  const handleLogin = (name: string, section: string) => {
+    setActiveCaptain(name);
+    setActiveSection(section);
+    setSelectedSection(section);
+    setLoggedIn(true);
+    showToast(`✓ Welcome Captain ${name}`);
+  };
+
+  const handleLogout = () => {
+    setActiveCaptain('');
+    setLoggedIn(false);
+  };
 
   const activePings = pings.filter((p) => p.status === 'PENDING');
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
@@ -74,6 +90,11 @@ export default function WaiterTabletCockpitPage() {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   };
+
+  // ── Not logged in ─────────────────────────────────────────────────────────
+  if (!loggedIn) {
+    return <ScreenT1CaptainLogin onLogin={handleLogin} />;
+  }
 
   // ── Full-screen order pad overlay ────────────────────────────────────────
   if (orderOpen) {
@@ -167,6 +188,24 @@ export default function WaiterTabletCockpitPage() {
                 {activePings.length}
               </span>
             )}
+          </button>
+
+          {/* Active Captain profile badge */}
+          <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl text-stone-800">
+            <User className="h-3.5 w-3.5 text-[#9C3D1E]" />
+            <span>Captain: <strong className="text-stone-900">{activeCaptain || 'Floor Captain'}</strong></span>
+            <span className="text-amber-300">•</span>
+            <span className="text-[10px] text-[#9C3D1E] font-black uppercase">{selectedSection}</span>
+          </div>
+
+          {/* Sign out button */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl text-rose-700 transition cursor-pointer"
+            title="Sign out of Captain Cockpit"
+          >
+            <LogOut className="h-3.5 w-3.5" />
           </button>
         </div>
       </header>

@@ -30,13 +30,25 @@ function badgeStyle(status: SharedTable['status']) {
   }
 }
 
+const SECTION_MATCH: Record<string, string[]> = {
+  'ALL': [],
+  'Section A': ['Express / Couple Hall'],
+  'Section B': ['Main Dining Hall'],
+  'Section C': ['Family Section'],
+  'Section D': ['Courtyard Garden', 'Grand Feast Hall'],
+  'Express / Couple Hall': ['Express / Couple Hall'],
+  'Main Dining Hall': ['Main Dining Hall'],
+  'Family Section': ['Family Section'],
+  'Courtyard Garden': ['Courtyard Garden'],
+  'Grand Feast Hall': ['Grand Feast Hall'],
+};
+
 const SECTIONS = [
   'ALL',
-  'Express / Couple Hall',
-  'Main Dining Hall',
-  'Family Section',
-  'Courtyard Garden',
-  'Grand Feast Hall',
+  'Section A',
+  'Section B',
+  'Section C',
+  'Section D',
 ];
 
 export function TabletFloorMap({ selectedTableNum, selectedSection, onSelectTable }: Props) {
@@ -44,9 +56,12 @@ export function TabletFloorMap({ selectedTableNum, selectedSection, onSelectTabl
   const activePings = pings.filter((p) => p.status === 'PENDING');
   const urgentSet = new Set(activePings.map((p) => p.tableNumber));
 
-  const visible = tables.filter((t) =>
-    selectedSection === 'ALL' || t.section === selectedSection
-  );
+  const visible = tables.filter((t) => {
+    if (selectedSection === 'ALL') return true;
+    const mapped = SECTION_MATCH[selectedSection];
+    if (mapped) return mapped.includes(t.section);
+    return t.section === selectedSection;
+  });
 
   return (
     <div className="flex-1 overflow-y-auto p-4">

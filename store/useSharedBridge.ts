@@ -186,6 +186,9 @@ interface SharedBridgeState {
   /** Waiter merges two tables — combines bills */
   waiterMergeTables: (targetTable: string, sourceTable: string) => void;
 
+  /** Waiter unmerges tables — separates bills */
+  waiterUnmergeTable: (tableNumber: string) => void;
+
   /** Waiter resolves ping */
   waiterResolvePing: (pingId: string) => void;
 
@@ -746,6 +749,40 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               currentBill: 0,
               guestCount: 0,
               mergedWith: targetTable,
+            };
+          }
+          return t;
+        }),
+      };
+    });
+  },
+
+  waiterUnmergeTable: (tableNumber) => {
+    set((state) => {
+      const current = state.tables.find((t) => t.number === tableNumber);
+      if (!current || !current.mergedWith) return state;
+      const partnerNum = current.mergedWith;
+
+      // Estimate split bills or restore individual balances
+      const splitBill = Math.round(current.currentBill / 2);
+      const splitGuests = Math.max(1, Math.floor((current.guestCount || 2) / 2));
+
+      return {
+        tables: state.tables.map((t) => {
+          if (t.number === tableNumber) {
+            return {
+              ...t,
+              currentBill: splitBill,
+              guestCount: splitGuests,
+              mergedWith: undefined,
+            };
+          }
+          if (t.number === partnerNum) {
+            return {
+              ...t,
+              currentBill: splitBill,
+              guestCount: splitGuests,
+              mergedWith: undefined,
             };
           }
           return t;

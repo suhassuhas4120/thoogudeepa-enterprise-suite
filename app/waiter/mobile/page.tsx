@@ -13,7 +13,7 @@ import { ScreenM4OrderPad } from '../../../components/waiter-mobile/ScreenM4Orde
 import { ScreenM5Dispatch } from '../../../components/waiter-mobile/ScreenM5Dispatch';
 import { ScreenM6Settlement } from '../../../components/waiter-mobile/ScreenM6Settlement';
 
-type MainTab = 'TABLES' | 'DISPATCH';
+type MainTab = 'TABLES' | 'CALLS' | 'READY';
 type ActiveView =
   | { type: 'FLOOR' }
   | { type: 'SHEET'; tableNum: string }
@@ -26,7 +26,6 @@ export default function WaiterMobilePage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [waiterName, setWaiterName] = useState('');
   const [mainTab, setMainTab] = useState<MainTab>('TABLES');
-  const [dispatchTab, setDispatchTab] = useState<'PINGS' | 'READY'>('PINGS');
   const [view, setView] = useState<ActiveView>({ type: 'FLOOR' });
   const [toast, setToast] = useState<string | null>(null);
 
@@ -169,9 +168,10 @@ export default function WaiterMobilePage() {
         </div>
       </header>
 
-      {/* Tab navigation */}
-      <nav className="bg-white border-b border-[#EAE5DF] grid grid-cols-2 text-center font-mono text-xs font-black sticky top-[53px] z-30 shadow-2xs">
+      {/* Tab navigation: 3 Clean Dedicated Tabs */}
+      <nav className="bg-white border-b border-[#EAE5DF] grid grid-cols-3 text-center font-mono text-xs font-black sticky top-[53px] z-30 shadow-2xs">
         <button
+          type="button"
           onClick={() => { setMainTab('TABLES'); setView({ type: 'FLOOR' }); }}
           className={`py-3 border-b-2 transition flex items-center justify-center gap-1.5 ${
             mainTab === 'TABLES'
@@ -181,24 +181,40 @@ export default function WaiterMobilePage() {
         >
           <Utensils className="h-3.5 w-3.5" />
           <span>TABLES</span>
-          <span className="text-[10px] bg-[#FAF8F5] text-stone-600 border border-[#EAE5DF] px-1.5 py-0.5 rounded-full">
-            {/* count rendered inside ScreenM2 */}
-          </span>
         </button>
 
         <button
-          onClick={() => setMainTab('DISPATCH')}
-          className={`py-3 border-b-2 transition flex items-center justify-center gap-2 relative ${
-            mainTab === 'DISPATCH'
-              ? 'border-rose-600 text-rose-700 bg-rose-50/50'
+          type="button"
+          onClick={() => setMainTab('CALLS')}
+          className={`py-3 border-b-2 transition flex items-center justify-center gap-1.5 relative ${
+            mainTab === 'CALLS'
+              ? 'border-orange-600 text-orange-700 bg-orange-50/50'
               : 'border-transparent text-stone-500 hover:text-stone-800'
           }`}
         >
           <Bell className="h-3.5 w-3.5" />
-          <span>DISPATCH</span>
-          {(activePings.length + readyTickets.length) > 0 && (
-            <span className="text-[10px] bg-rose-600 text-white font-black px-1.5 py-0.5 rounded-full animate-pulse">
-              {activePings.length + readyTickets.length}
+          <span>CALLS</span>
+          {activePings.length > 0 && (
+            <span className="text-[10px] bg-rose-600 text-white font-black px-1.5 py-0.2 rounded-full animate-pulse">
+              {activePings.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab('READY')}
+          className={`py-3 border-b-2 transition flex items-center justify-center gap-1.5 relative ${
+            mainTab === 'READY'
+              ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+              : 'border-transparent text-stone-500 hover:text-stone-800'
+          }`}
+        >
+          <UtensilsCrossed className="h-3.5 w-3.5" />
+          <span>READY</span>
+          {readyTickets.length > 0 && (
+            <span className="text-[10px] bg-blue-600 text-white font-black px-1.5 py-0.2 rounded-full">
+              {readyTickets.length}
             </span>
           )}
         </button>
@@ -210,13 +226,23 @@ export default function WaiterMobilePage() {
           <ScreenM2FloorGrid
             waiterName={waiterName}
             onSelectTable={(num) => setView({ type: 'SHEET', tableNum: num })}
-            onGoToPings={() => { setMainTab('DISPATCH'); setDispatchTab('PINGS'); }}
-            onGoToReady={() => { setMainTab('DISPATCH'); setDispatchTab('READY'); }}
+            onGoToPings={() => setMainTab('CALLS')}
+            onGoToReady={() => setMainTab('READY')}
           />
         )}
 
-        {mainTab === 'DISPATCH' && (
-          <ScreenM5Dispatch initialTab={dispatchTab} />
+        {mainTab === 'CALLS' && (
+          <ScreenM5Dispatch
+            initialTab="CALLS"
+            onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num })}
+          />
+        )}
+
+        {mainTab === 'READY' && (
+          <ScreenM5Dispatch
+            initialTab="READY"
+            onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num })}
+          />
         )}
       </div>
 

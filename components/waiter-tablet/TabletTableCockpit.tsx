@@ -40,7 +40,7 @@ export function TabletTableCockpit({
   onGoToSettle,
   onVacated,
 }: Props) {
-  const { tables, kdsTickets, waiterVacatesTable } = useSharedBridge();
+  const { tables, kdsTickets, waiterVacatesTable, waiterUnmergeTable } = useSharedBridge();
 
   const table = tables.find((t) => t.number === selectedTableNum);
   const tickets = kdsTickets.filter((tk) => tk.tableNumber === selectedTableNum);
@@ -176,6 +176,16 @@ export function TabletTableCockpit({
             Settle Bill
           </motion.button>
         </div>
+
+        {table.mergedWith && (
+          <button
+            type="button"
+            onClick={() => waiterUnmergeTable(table.number)}
+            className="w-full py-2.5 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-800 rounded-xl font-mono text-xs font-black flex items-center justify-center gap-2 transition"
+          >
+            <span>Unmerge Table (Split from {table.mergedWith})</span>
+          </button>
+        )}
 
         <Link
           href={`/?table=${table.number}&seat=1`}

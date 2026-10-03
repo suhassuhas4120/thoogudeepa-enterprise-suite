@@ -57,13 +57,16 @@ export default function WaiterMobilePage() {
     prevPingCountRef.current = activePings.length;
   }, [activePings.length]);
 
+  const [assignedSection, setAssignedSection] = useState('ALL');
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   };
 
-  const handleLogin = (name: string) => {
+  const handleLogin = (name: string, section?: string) => {
     setWaiterName(name);
+    if (section) setAssignedSection(section);
     setLoggedIn(true);
   };
 
@@ -159,7 +162,7 @@ export default function WaiterMobilePage() {
             Mgr
           </Link>
           <button
-            onClick={() => { setLoggedIn(false); setWaiterName(''); setView({ type: 'FLOOR' }); }}
+            onClick={() => { setLoggedIn(false); setWaiterName(''); setAssignedSection('ALL'); setView({ type: 'FLOOR' }); }}
             className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md text-rose-700 transition"
             title="Sign out"
           >

@@ -1,42 +1,31 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Utensils, ShieldCheck, ArrowRight, Delete, RotateCcw, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  Utensils,
+  ShieldCheck,
+  ArrowRight,
+  Delete,
+  RotateCcw,
+  CheckCircle2,
+  AlertCircle,
+  User,
+  Layers,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const DEFAULT_PINS: Record<string, string> = {
-  '1234': 'Captain Ramesh — Floor Lead',
-  '1111': 'Ramesh — Section A (Couple)',
-  '2222': 'Suresh — Section B (Main Hall)',
-  '3333': 'Nayana — Section C (Family)',
-  '4444': 'Vennela — Section D (Garden)',
-};
-
 interface Props {
-  onLogin: (name: string) => void;
+  onLogin: (name: string, section?: string) => void;
 }
 
 export function ScreenM1StaffLogin({ onLogin }: Props) {
-  const [waiterName, setWaiterName] = useState('Captain Ramesh');
+  const [waiterName, setWaiterName] = useState('');
   const [selectedSection, setSelectedSection] = useState('ALL');
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState(false);
+  const [nameError, setNameError] = useState(false);
   const [pinSuccess, setPinSuccess] = useState(false);
-
-  const sections = [
-    { id: 'ALL', label: 'All Zones' },
-    { id: 'SEC_A', label: 'Couple (Sec A)' },
-    { id: 'SEC_B', label: 'Main (Sec B)' },
-    { id: 'SEC_C', label: 'Family (Sec C)' },
-    { id: 'SEC_D', label: 'Garden (Sec D)' },
-  ];
-
-  const quickStaff = [
-    { name: 'Captain Ramesh', section: 'SEC_A', pin: '1111' },
-    { name: 'Captain Suresh', section: 'SEC_B', pin: '2222' },
-    { name: 'Captain Nayana', section: 'SEC_C', pin: '3333' },
-    { name: 'Captain Vennela', section: 'SEC_D', pin: '4444' },
-  ];
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDigit = (digit: string) => {
     if (pin.length >= 4 || pinSuccess) return;
@@ -49,13 +38,19 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
   };
 
   const verifyPin = (code: string) => {
-    const isValid = code === '1234' || Boolean(DEFAULT_PINS[code]);
-    if (isValid) {
+    const trimmedName = waiterName.trim();
+    if (!trimmedName) {
+      setNameError(true);
+      inputRef.current?.focus();
+      return;
+    }
+
+    if (code === '1234') {
       setPinSuccess(true);
       setPinError(false);
-      const assignedName = waiterName.trim() || DEFAULT_PINS[code] || 'Captain Ramesh';
+      setNameError(false);
       setTimeout(() => {
-        onLogin(assignedName);
+        onLogin(trimmedName, selectedSection);
       }, 350);
     } else {
       setPinError(true);
@@ -77,16 +72,20 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
     setPinError(false);
   };
 
-  const handleQuickSelect = (staff: typeof quickStaff[0]) => {
-    setWaiterName(staff.name);
-    setSelectedSection(staff.section);
-    setPin(staff.pin);
-    verifyPin(staff.pin);
+  const handleUnlockClick = () => {
+    const trimmedName = waiterName.trim();
+    if (!trimmedName) {
+      setNameError(true);
+      inputRef.current?.focus();
+      return;
+    }
+    if (pin.length === 4) {
+      verifyPin(pin);
+    }
   };
 
   return (
     <main className="min-h-screen bg-[#FAF8F5] flex flex-col justify-between font-sans max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl relative select-none p-5">
-      
       {/* Top Header with Authentic Hotel Logo & Name */}
       <div className="space-y-4 pt-2">
         <div className="flex items-center gap-3.5 pb-3 border-b border-[#EAE5DF]">
@@ -95,9 +94,15 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
             <Utensils className="h-6 w-6 text-amber-200" />
           </div>
           <div className="min-w-0 flex-1">
-            <span className="font-mono text-[9.5px] font-black uppercase tracking-widest text-[#9C3D1E] bg-[#FFF8F5] border border-[#9C3D1E]/20 px-2 py-0.5 rounded-full inline-block">
-              Floor Steward Console
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-[9px] font-black uppercase tracking-widest text-[#9C3D1E] bg-[#FFF8F5] border border-[#9C3D1E]/20 px-2 py-0.5 rounded-full inline-block">
+                Floor Steward Console
+              </span>
+              <span className="flex items-center gap-1 font-mono text-[9px] text-emerald-600 font-bold">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
+            </div>
             <h1 className="text-stone-900 text-sm font-black tracking-tight uppercase truncate mt-0.5">
               Thoogudeepa Donne Biryani Mane
             </h1>
@@ -109,69 +114,114 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
 
         {/* Steward Name Input Field with Placeholder */}
         <div className="space-y-1.5">
-          <label className="font-mono text-[10px] font-black uppercase tracking-wider text-stone-500 flex items-center justify-between">
-            <span>Steward / Captain Name</span>
-            <span className="text-[#9C3D1E] font-bold">Shift A</span>
+          <label className="font-mono text-[10px] font-black uppercase tracking-wider text-stone-600 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <User className="h-3 w-3 text-stone-500" />
+              Steward / Captain Name
+            </span>
+            <span className="text-[#9C3D1E] font-bold">Required</span>
           </label>
           <div className="relative">
             <input
+              ref={inputRef}
               type="text"
               value={waiterName}
-              onChange={(e) => setWaiterName(e.target.value)}
-              placeholder="e.g. Captain Ramesh"
-              className="w-full px-3.5 py-2.5 bg-white border border-[#EAE5DF] rounded-xl text-xs font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none focus:border-[#9C3D1E] focus:ring-1 focus:ring-[#9C3D1E] shadow-2xs transition"
+              onChange={(e) => {
+                setWaiterName(e.target.value);
+                if (nameError && e.target.value.trim()) {
+                  setNameError(false);
+                }
+              }}
+              placeholder="Enter Captain / Steward Name"
+              className={`w-full px-3.5 py-2.5 bg-white border rounded-xl text-xs font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none shadow-2xs transition ${
+                nameError
+                  ? 'border-rose-500 ring-2 ring-rose-200'
+                  : 'border-[#EAE5DF] focus:border-[#9C3D1E] focus:ring-1 focus:ring-[#9C3D1E]'
+              }`}
             />
           </div>
+          {nameError && (
+            <motion.p
+              initial={{ opacity: 0, y: -2 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-rose-600 font-mono text-[10px] font-bold flex items-center gap-1"
+            >
+              <AlertCircle className="h-3 w-3 text-rose-500 shrink-0" />
+              <span>Please enter your name first before entering PIN</span>
+            </motion.p>
+          )}
         </div>
 
-        {/* Quick Staff Selection Chips */}
-        <div className="space-y-1">
-          <span className="font-mono text-[9px] font-bold uppercase text-stone-400 tracking-wider">
-            Quick Roster Profiles:
-          </span>
-          <div className="grid grid-cols-2 gap-1.5">
-            {quickStaff.map((st) => (
-              <button
-                key={st.pin}
-                type="button"
-                onClick={() => handleQuickSelect(st)}
-                className={`px-2.5 py-1.5 rounded-lg border text-[10.5px] font-mono font-bold text-left transition flex items-center justify-between ${
-                  waiterName === st.name
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                    : 'bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]'
-                }`}
-              >
-                <span className="truncate">{st.name.replace('Captain ', '')}</span>
-                <span className={`text-[9px] px-1 py-0.2 rounded font-mono ${
-                  waiterName === st.name ? 'bg-white/20 text-white' : 'bg-stone-100 text-stone-500'
-                }`}>
-                  {st.pin}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Assigned Dining Section Pills */}
+        {/* Assigned Dining Section Layout:
+            Row 1: ALL (full width)
+            Row 2: Section A & Section B
+            Row 3: Section C & Section D */}
         <div className="space-y-1.5 pt-1">
-          <label className="font-mono text-[10px] font-black uppercase tracking-wider text-stone-500">
-            Assigned Floor Section:
+          <label className="font-mono text-[10px] font-black uppercase tracking-wider text-stone-600 flex items-center gap-1.5">
+            <Layers className="h-3 w-3 text-stone-500" />
+            <span>Assigned Floor Section</span>
           </label>
-          <div className="flex flex-wrap gap-1.5">
-            {sections.map((sec) => (
-              <button
-                key={sec.id}
-                type="button"
-                onClick={() => setSelectedSection(sec.id)}
-                className={`px-2.5 py-1 rounded-lg border font-mono text-[10px] font-bold transition ${
-                  selectedSection === sec.id
-                    ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                    : 'bg-white text-stone-600 border-[#EAE5DF] hover:bg-[#FAF8F5]'
-                }`}
-              >
-                {sec.label}
-              </button>
-            ))}
+
+          <div className="space-y-1.5">
+            {/* Row 1: ALL in 1 row */}
+            <button
+              type="button"
+              onClick={() => setSelectedSection('ALL')}
+              className={`w-full py-2 px-3 rounded-xl border font-mono text-xs font-black transition flex items-center justify-center gap-2 ${
+                selectedSection === 'ALL'
+                  ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
+                  : 'bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]'
+              }`}
+            >
+              <span>ALL</span>
+              {selectedSection === 'ALL' && (
+                <span className="text-[9.5px] bg-white/20 text-white px-1.5 py-0.2 rounded font-mono font-bold">
+                  Active
+                </span>
+              )}
+            </button>
+
+            {/* Row 2: Section A & Section B in 1 row */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'SEC_A', label: 'Section A' },
+                { id: 'SEC_B', label: 'Section B' },
+              ].map((sec) => (
+                <button
+                  key={sec.id}
+                  type="button"
+                  onClick={() => setSelectedSection(sec.id)}
+                  className={`py-2 px-3 rounded-xl border font-mono text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    selectedSection === sec.id
+                      ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
+                      : 'bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]'
+                  }`}
+                >
+                  <span>{sec.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Row 3: Section C & Section D in 1 row */}
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'SEC_C', label: 'Section C' },
+                { id: 'SEC_D', label: 'Section D' },
+              ].map((sec) => (
+                <button
+                  key={sec.id}
+                  type="button"
+                  onClick={() => setSelectedSection(sec.id)}
+                  className={`py-2 px-3 rounded-xl border font-mono text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                    selectedSection === sec.id
+                      ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
+                      : 'bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]'
+                  }`}
+                >
+                  <span>{sec.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -200,8 +250,8 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
                     ? 'bg-emerald-500 border-emerald-500 scale-110'
                     : pin.length > i
                     ? pinError
-                      ? 'bg-rose-500 border-rose-500 scale-105'
-                      : 'bg-[#9C3D1E] border-[#9C3D1E] scale-105'
+                    ? 'bg-rose-500 border-rose-500 scale-105'
+                    : 'bg-[#9C3D1E] border-[#9C3D1E] scale-105'
                     : 'bg-white border-stone-300 shadow-2xs'
                 }`}
               />
@@ -289,11 +339,11 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
         <motion.button
           whileTap={{ scale: 0.98 }}
           type="button"
-          onClick={() => verifyPin(pin)}
-          disabled={pin.length < 4 || pinSuccess}
-          className={`w-full py-3.5 rounded-xl font-mono text-xs font-black shadow-md flex items-center justify-center gap-2 transition cursor-pointer ${
-            pin.length === 4
-              ? 'bg-[#9C3D1E] hover:bg-[#853216] text-white shadow-[#9C3D1E]/30'
+          onClick={handleUnlockClick}
+          disabled={pin.length < 4 || !waiterName.trim() || pinSuccess}
+          className={`w-full py-3.5 rounded-xl font-mono text-xs font-black shadow-md flex items-center justify-center gap-2 transition ${
+            pin.length === 4 && waiterName.trim().length > 0 && !pinSuccess
+              ? 'bg-[#9C3D1E] hover:bg-[#853216] text-white shadow-[#9C3D1E]/30 cursor-pointer'
               : 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
           }`}
         >
@@ -301,7 +351,6 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
           <ArrowRight className="h-4 w-4" />
         </motion.button>
       </div>
-
     </main>
   );
 }

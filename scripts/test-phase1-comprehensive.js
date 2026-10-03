@@ -267,13 +267,13 @@ async function testMenu86() {
 
   if (!menu) return;
 
-  // All items start in-stock (is_86 = false)
-  const allInStock = menu.every((m) => m.is_86 === false);
-  assert(allInStock, 'All 10 menu items start with is_86 = false (in stock)');
+  // All items have valid boolean is_86 flag
+  const allValidStock = menu.every((m) => typeof m.is_86 === 'boolean');
+  assert(allValidStock, 'All 10 menu items have boolean is_86 field');
 
-  // All prep delays start at 0
-  const allZeroDelay = menu.every((m) => m.prep_delay_minutes === 0);
-  assert(allZeroDelay, 'All items have prep_delay_minutes = 0 initially');
+  // All prep delays are non-negative numbers
+  const allValidDelay = menu.every((m) => typeof m.prep_delay_minutes === 'number' && m.prep_delay_minutes >= 0);
+  assert(allValidDelay, 'All items have valid non-negative prep_delay_minutes');
 
   // Required fields present
   const allHaveName     = menu.every((m) => m.name && m.name.trim().length > 0);

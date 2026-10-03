@@ -397,11 +397,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         });
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        const anyPrep = newItems.some((i) => i.stage === 'PREP');
+        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED');
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyPrep ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -444,11 +444,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         });
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        const anyPrep = newItems.some((i) => i.stage === 'PREP');
+        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED');
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyPrep ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -489,11 +489,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        const anyPrep = newItems.some((i) => i.stage === 'PREP');
+        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED');
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyPrep ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 

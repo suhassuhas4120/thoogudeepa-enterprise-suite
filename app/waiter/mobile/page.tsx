@@ -236,14 +236,14 @@ export default function WaiterMobilePage() {
 
         {mainTab === 'CALLS' && (
           <ScreenM5Dispatch
-            initialTab="CALLS"
+            mode="CALLS"
             onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num })}
           />
         )}
 
         {mainTab === 'READY' && (
           <ScreenM5Dispatch
-            initialTab="READY"
+            mode="READY"
             onNavigateToTable={(num) => setView({ type: 'SHEET', tableNum: num })}
           />
         )}

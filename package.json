@@ -11,6 +11,7 @@
     "test:customer": "npx tsx scripts/test-customer-workflow-matrix.ts",
     "test:kitchen": "npx tsx scripts/test-kitchen-workflow-matrix.ts",
     "test:waiter": "npx tsx scripts/test-waiter-workflow-matrix.ts",
+    "test:waiter:matrix": "npx tsx scripts/test-waiter-comprehensive-matrix.ts",
     "test:sync": "npx tsx scripts/test-customer-kitchen-sync-matrix.ts",
     "test:e2e": "node scripts/test-e2e-lifecycle.js",
     "test:rush": "node scripts/simulate-peak-rush.js",

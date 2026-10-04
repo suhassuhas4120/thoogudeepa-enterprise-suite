@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useSharedBridge } from '../../../store/useSharedBridge';
+import { useWaiterStore } from '../../../store/useWaiterStore';
 import { Smartphone, Bell, UtensilsCrossed, Utensils, Flame, Briefcase, LogOut, CheckCircle2 } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -13,12 +14,12 @@ import { ScreenM4OrderPad } from '../../../components/waiter-mobile/ScreenM4Orde
 import { ScreenM5Dispatch } from '../../../components/waiter-mobile/ScreenM5Dispatch';
 import { ScreenM6Settlement } from '../../../components/waiter-mobile/ScreenM6Settlement';
 
-type MainTab = 'TABLES' | 'DISPATCH';
+type MainTab = 'TABLES' | 'CALLS' | 'READY';
 type ActiveView =
   | { type: 'FLOOR' }
-  | { type: 'SHEET'; tableNum: string }
-  | { type: 'ORDER'; tableNum: string }
-  | { type: 'SETTLE'; tableNum: string };
+  | { type: 'SHEET'; tableNum: string; initialSeat?: 'ALL' | number }
+  | { type: 'ORDER'; tableNum: string; seatNum?: number }
+  | { type: 'SETTLE'; tableNum: string; splitAmount?: number; splitLabel?: string };
 
 export default function WaiterMobilePage() {
   const { pings, kdsTickets } = useSharedBridge();
@@ -26,21 +27,75 @@ export default function WaiterMobilePage() {
   const [loggedIn, setLoggedIn] = useState(false);
   const [waiterName, setWaiterName] = useState('');
   const [mainTab, setMainTab] = useState<MainTab>('TABLES');
-  const [dispatchTab, setDispatchTab] = useState<'PINGS' | 'READY'>('PINGS');
   const [view, setView] = useState<ActiveView>({ type: 'FLOOR' });
   const [toast, setToast] = useState<string | null>(null);
+
+  // Synchronize SPA navigation with native browser/device history & gesture navigation
+  const navigateView = (nextView: ActiveView, replace = false) => {
+    setView(nextView);
+    if (typeof window !== 'undefined') {
+      try {
+        if (replace) {
+          window.history.replaceState({ view: nextView }, '');
+        } else {
+          window.history.pushState({ view: nextView }, '');
+        }
+      } catch {}
+    }
+  };
+
+  const goBack = () => {
+    if (typeof window !== 'undefined' && window.history.state?.view && window.history.state.view.type !== 'FLOOR') {
+      window.history.back();
+    } else {
+      if (view.type === 'ORDER') {
+        navigateView({ type: 'SHEET', tableNum: view.tableNum, initialSeat: view.seatNum });
+      } else if (view.type === 'SETTLE') {
+        navigateView({ type: 'SHEET', tableNum: view.tableNum });
+      } else {
+        navigateView({ type: 'FLOOR' });
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      if (!window.history.state?.view) {
+        window.history.replaceState({ view: { type: 'FLOOR' } }, '');
+      }
+
+      const handlePopState = (e: PopStateEvent) => {
+        if (e.state && e.state.view) {
+          setView(e.state.view);
+        } else {
+          setView({ type: 'FLOOR' });
+        }
+      };
+
+      window.addEventListener('popstate', handlePopState);
+      return () => window.removeEventListener('popstate', handlePopState);
+    }
+  }, []);
 
   const activePings = pings.filter((p) => p.status === 'PENDING');
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
 
-  // Audio chime on new ping
+  // Audio chime on new ping — reuse AudioContext singleton
   const prevPingCountRef = useRef(activePings.length);
+  const audioCtxRef = useRef<any>(null);
+
   useEffect(() => {
     if (activePings.length > prevPingCountRef.current) {
       try {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         if (AudioCtx) {
-          const ctx = new AudioCtx();
+          if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+            audioCtxRef.current = new AudioCtx();
+          }
+          const ctx = audioCtxRef.current;
+          if (ctx.state === 'suspended') {
+            ctx.resume();
+          }
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sine';
@@ -58,13 +113,19 @@ export default function WaiterMobilePage() {
     prevPingCountRef.current = activePings.length;
   }, [activePings.length]);
 
+  const [assignedSection, setAssignedSection] = useState('ALL');
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   };
 
-  const handleLogin = (name: string) => {
+  const handleLogin = (name: string, section?: string) => {
     setWaiterName(name);
+    if (section) setAssignedSection(section);
+    try {
+      useWaiterStore.getState().setActiveCaptain(name);
+    } catch {}
     setLoggedIn(true);
   };
 
@@ -73,34 +134,153 @@ export default function WaiterMobilePage() {
     return <ScreenM1StaffLogin onLogin={handleLogin} />;
   }
 
-  // ── ORDER PAD (full screen takeover) ─────────────────────────────────────
-  if (view.type === 'ORDER') {
+  // ── TABLE DETAILS (Screen 3 - Full Screen Takeover with Edge-Swipe Back) ───
+  if (view.type === 'SHEET') {
     return (
-      <ScreenM4OrderPad
-        tableNum={view.tableNum}
-        waiterName={waiterName}
-        onBack={() => setView({ type: 'SHEET', tableNum: view.tableNum })}
-        onKOTFired={() => {
-          showToast('KOT sent to kitchen');
-          setView({ type: 'FLOOR' });
-          setMainTab('TABLES');
+      <motion.div
+        initial={{ opacity: 0, x: 15 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 15 }}
+        // NO drag prop — manual left-edge-only swipe back so horizontal
+        // scroll areas (chair rail, carousels) are never blocked.
+        onPointerDown={(e) => {
+          // Only track swipes that START within the left 40 px edge
+          if (e.clientX > 40) return;
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const pid = e.pointerId;
+
+          const onMove = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            const dx = ev.clientX - startX;
+            const dy = Math.abs(ev.clientY - startY);
+            // Require clearly horizontal swipe (dx > dy) and 70+ px travel
+            if (dx > 70 && dx > dy * 1.5) {
+              window.removeEventListener('pointermove', onMove);
+              window.removeEventListener('pointerup', onUp);
+              goBack();
+            }
+          };
+          const onUp = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+          };
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
         }}
-      />
+        className="flex-1 flex flex-col min-h-screen bg-[#FAF8F5] touch-pan-y"
+      >
+        <ScreenM3TableSheet
+          tableNum={view.tableNum}
+          initialSeat={view.initialSeat}
+          onClose={goBack}
+          onGoToOrder={(seatNum) => navigateView({ type: 'ORDER', tableNum: view.tableNum, seatNum })}
+          onGoToSettle={(amt, lbl) => navigateView({ type: 'SETTLE', tableNum: view.tableNum, splitAmount: amt, splitLabel: lbl })}
+          onGoToPings={() => {
+            setMainTab('CALLS');
+            navigateView({ type: 'FLOOR' });
+          }}
+          onVacated={() => {
+            showToast(`${view.tableNum} reset for new guests`);
+            navigateView({ type: 'FLOOR' });
+          }}
+        />
+      </motion.div>
     );
   }
 
-  // ── SETTLE BILL (full screen takeover) ────────────────────────────────────
+  // ── ORDER PAD (full screen takeover with Edge-Swipe Back) ──────────────────
+  if (view.type === 'ORDER') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, x: 15 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 15 }}
+        onPointerDown={(e) => {
+          if (e.clientX > 40) return;
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const pid = e.pointerId;
+          const onMove = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            const dx = ev.clientX - startX;
+            const dy = Math.abs(ev.clientY - startY);
+            if (dx > 70 && dx > dy * 1.5) {
+              window.removeEventListener('pointermove', onMove);
+              window.removeEventListener('pointerup', onUp);
+              goBack();
+            }
+          };
+          const onUp = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+          };
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
+        }}
+        className="flex-1 flex flex-col min-h-screen bg-[#FAF8F5] touch-pan-y"
+      >
+        <ScreenM4OrderPad
+          tableNum={view.tableNum}
+          seatNum={view.seatNum}
+          waiterName={waiterName}
+          onBack={goBack}
+          onKOTFired={() => {
+            showToast('✓ KOT fired to kitchen');
+            goBack();
+          }}
+        />
+      </motion.div>
+    );
+  }
+
+  // ── SETTLE BILL (full screen takeover with Edge-Swipe Back) ─────────────────
   if (view.type === 'SETTLE') {
     return (
-      <ScreenM6Settlement
-        tableNum={view.tableNum}
-        onBack={() => setView({ type: 'SHEET', tableNum: view.tableNum })}
-        onDone={() => {
-          showToast('Payment recorded');
-          setView({ type: 'FLOOR' });
-          setMainTab('TABLES');
+      <motion.div
+        initial={{ opacity: 0, x: 15 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: 15 }}
+        onPointerDown={(e) => {
+          if (e.clientX > 40) return;
+          const startX = e.clientX;
+          const startY = e.clientY;
+          const pid = e.pointerId;
+          const onMove = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            const dx = ev.clientX - startX;
+            const dy = Math.abs(ev.clientY - startY);
+            if (dx > 70 && dx > dy * 1.5) {
+              window.removeEventListener('pointermove', onMove);
+              window.removeEventListener('pointerup', onUp);
+              goBack();
+            }
+          };
+          const onUp = (ev: PointerEvent) => {
+            if (ev.pointerId !== pid) return;
+            window.removeEventListener('pointermove', onMove);
+            window.removeEventListener('pointerup', onUp);
+          };
+          window.addEventListener('pointermove', onMove);
+          window.addEventListener('pointerup', onUp);
         }}
-      />
+        className="flex-1 flex flex-col min-h-screen bg-[#FAF8F5] touch-pan-y"
+      >
+        <ScreenM6Settlement
+          tableNum={view.tableNum}
+          splitAmount={view.splitAmount}
+          splitLabel={view.splitLabel}
+          waiterName={waiterName}
+          onBack={goBack}
+          onDone={() => {
+            showToast('Payment recorded');
+            navigateView({ type: 'FLOOR' });
+            setMainTab('TABLES');
+          }}
+        />
+      </motion.div>
     );
   }
 
@@ -160,7 +340,7 @@ export default function WaiterMobilePage() {
             Mgr
           </Link>
           <button
-            onClick={() => { setLoggedIn(false); setWaiterName(''); setView({ type: 'FLOOR' }); }}
+            onClick={() => { setLoggedIn(false); setWaiterName(''); setAssignedSection('ALL'); navigateView({ type: 'FLOOR' }, true); }}
             className="p-1.5 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-md text-rose-700 transition"
             title="Sign out"
           >
@@ -169,10 +349,11 @@ export default function WaiterMobilePage() {
         </div>
       </header>
 
-      {/* Tab navigation */}
-      <nav className="bg-white border-b border-[#EAE5DF] grid grid-cols-2 text-center font-mono text-xs font-black sticky top-[53px] z-30 shadow-2xs">
+      {/* Tab navigation: 3 Clean Dedicated Tabs */}
+      <nav className="bg-white border-b border-[#EAE5DF] grid grid-cols-3 text-center font-mono text-xs font-black sticky top-[53px] z-30 shadow-2xs">
         <button
-          onClick={() => { setMainTab('TABLES'); setView({ type: 'FLOOR' }); }}
+          type="button"
+          onClick={() => { setMainTab('TABLES'); navigateView({ type: 'FLOOR' }, true); }}
           className={`py-3 border-b-2 transition flex items-center justify-center gap-1.5 ${
             mainTab === 'TABLES'
               ? 'border-[#9C3D1E] text-[#9C3D1E] bg-[#FFF8F5]'
@@ -181,24 +362,40 @@ export default function WaiterMobilePage() {
         >
           <Utensils className="h-3.5 w-3.5" />
           <span>TABLES</span>
-          <span className="text-[10px] bg-[#FAF8F5] text-stone-600 border border-[#EAE5DF] px-1.5 py-0.5 rounded-full">
-            {/* count rendered inside ScreenM2 */}
-          </span>
         </button>
 
         <button
-          onClick={() => setMainTab('DISPATCH')}
-          className={`py-3 border-b-2 transition flex items-center justify-center gap-2 relative ${
-            mainTab === 'DISPATCH'
-              ? 'border-rose-600 text-rose-700 bg-rose-50/50'
+          type="button"
+          onClick={() => setMainTab('CALLS')}
+          className={`py-3 border-b-2 transition flex items-center justify-center gap-1.5 relative ${
+            mainTab === 'CALLS'
+              ? 'border-orange-600 text-orange-700 bg-orange-50/50'
               : 'border-transparent text-stone-500 hover:text-stone-800'
           }`}
         >
           <Bell className="h-3.5 w-3.5" />
-          <span>DISPATCH</span>
-          {(activePings.length + readyTickets.length) > 0 && (
-            <span className="text-[10px] bg-rose-600 text-white font-black px-1.5 py-0.5 rounded-full animate-pulse">
-              {activePings.length + readyTickets.length}
+          <span>CALLS</span>
+          {activePings.length > 0 && (
+            <span className="text-[10px] bg-rose-600 text-white font-black px-1.5 py-0.2 rounded-full animate-pulse">
+              {activePings.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMainTab('READY')}
+          className={`py-3 border-b-2 transition flex items-center justify-center gap-1.5 relative ${
+            mainTab === 'READY'
+              ? 'border-blue-600 text-blue-700 bg-blue-50/50'
+              : 'border-transparent text-stone-500 hover:text-stone-800'
+          }`}
+        >
+          <UtensilsCrossed className="h-3.5 w-3.5" />
+          <span>READY</span>
+          {readyTickets.length > 0 && (
+            <span className="text-[10px] bg-blue-600 text-white font-black px-1.5 py-0.2 rounded-full">
+              {readyTickets.length}
             </span>
           )}
         </button>
@@ -209,30 +406,27 @@ export default function WaiterMobilePage() {
         {mainTab === 'TABLES' && (
           <ScreenM2FloorGrid
             waiterName={waiterName}
-            onSelectTable={(num) => setView({ type: 'SHEET', tableNum: num })}
-            onGoToPings={() => { setMainTab('DISPATCH'); setDispatchTab('PINGS'); }}
-            onGoToReady={() => { setMainTab('DISPATCH'); setDispatchTab('READY'); }}
+            assignedSection={assignedSection}
+            onSelectTable={(num, chair) => navigateView({ type: 'SHEET', tableNum: num, initialSeat: chair })}
+            onGoToPings={() => setMainTab('CALLS')}
+            onGoToReady={() => setMainTab('READY')}
           />
         )}
 
-        {mainTab === 'DISPATCH' && (
-          <ScreenM5Dispatch initialTab={dispatchTab} />
+        {mainTab === 'CALLS' && (
+          <ScreenM5Dispatch
+            mode="CALLS"
+            onNavigateToTable={(num) => navigateView({ type: 'SHEET', tableNum: num, initialSeat: 'ALL' })}
+          />
+        )}
+
+        {mainTab === 'READY' && (
+          <ScreenM5Dispatch
+            mode="READY"
+            onNavigateToTable={(num) => navigateView({ type: 'SHEET', tableNum: num, initialSeat: 'ALL' })}
+          />
         )}
       </div>
-
-      {/* Table detail sheet (overlay, rendered above main content) */}
-      {view.type === 'SHEET' && (
-        <ScreenM3TableSheet
-          tableNum={view.tableNum}
-          onClose={() => setView({ type: 'FLOOR' })}
-          onGoToOrder={() => setView({ type: 'ORDER', tableNum: view.tableNum })}
-          onGoToSettle={() => setView({ type: 'SETTLE', tableNum: view.tableNum })}
-          onVacated={() => {
-            showToast(`${view.tableNum} reset for new guests`);
-            setView({ type: 'FLOOR' });
-          }}
-        />
-      )}
     </main>
   );
 }

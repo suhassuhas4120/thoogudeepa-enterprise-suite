@@ -36,8 +36,12 @@ interface CustomerStoreState {
     item: MenuItem,
     selectedOption?: string,
     selectedAddOns?: string[],
-    quantity?: number
+    quantity?: number,
+    tableNumber?: string,
+    seatNumber?: number
   ) => void;
+  clearCart: (tableNumber?: string, seatNumber?: number) => void;
+  mergeChairs: (tableNumber: string, fromChair: number, toChair: number) => void;
   updateCartQuantity: (cartItemId: string, delta: number) => void;
   removeCartItem: (cartItemId: string) => void;
   orderSeparately: (cartItemId: string) => void;
@@ -124,7 +128,9 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     item,
     selectedOption = item.optionsGroup1.choices[0],
     selectedAddOns = [],
-    quantity = 1
+    quantity = 1,
+    tableNumber,
+    seatNumber
   ) => {
     let unitPrice = item.price;
     selectedAddOns.forEach((addonName) => {
@@ -139,7 +145,9 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           ci.menuItem.id === item.id &&
           ci.selectedOption === selectedOption &&
           JSON.stringify([...ci.selectedAddOns].sort()) ===
-            JSON.stringify([...selectedAddOns].sort())
+            JSON.stringify([...selectedAddOns].sort()) &&
+          ci.tableNumber === tableNumber &&
+          ci.seatNumber === seatNumber
       );
 
       let newCart: CartItem[];
@@ -164,10 +172,45 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           quantity,
           totalPrice: unitPrice * quantity,
           prepMode: item.prepMode,
+          tableNumber,
+          seatNumber,
         };
         newCart = [...state.cart, newCartItem];
       }
 
+      return {
+        cart: newCart,
+        payment: calculatePaymentTotals(newCart, state.payment),
+      };
+    });
+  },
+
+  clearCart: (tableNumber, seatNumber) => {
+    set((state) => {
+      let newCart: CartItem[];
+      if (!tableNumber) {
+        newCart = [];
+      } else if (seatNumber !== undefined) {
+        newCart = state.cart.filter(
+          (c) => !(c.tableNumber === tableNumber && c.seatNumber === seatNumber)
+        );
+      } else {
+        newCart = state.cart.filter((c) => c.tableNumber !== tableNumber);
+      }
+      return {
+        cart: newCart,
+        payment: calculatePaymentTotals(newCart, state.payment),
+      };
+    });
+  },
+
+  mergeChairs: (tableNumber, fromChair, toChair) => {
+    set((state) => {
+      const newCart = state.cart.map((ci) =>
+        (!ci.tableNumber || ci.tableNumber === tableNumber) && ci.seatNumber === fromChair
+          ? { ...ci, seatNumber: toChair }
+          : ci
+      );
       return {
         cart: newCart,
         payment: calculatePaymentTotals(newCart, state.payment),

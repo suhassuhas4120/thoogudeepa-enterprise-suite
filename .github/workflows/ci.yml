@@ -2,18 +2,33 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+      - 'feature/**'
   pull_request:
-    branches: [main, develop]
+    branches:
+      - main
+      - develop
+      - 'feature/**'
+  workflow_dispatch:
 
+# Cancel superseded runs on the same branch/PR to save runner minutes.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
 jobs:
-  type-check:
-    name: TypeScript Static Analysis
+  # ───────────────────────────────────────────────────────────────────────────
+  # 1. TypeScript static analysis (tsc --noEmit)
+  # ───────────────────────────────────────────────────────────────────────────
+  static-analysis:
+    name: TypeScript Type-Check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Codebase
         uses: actions/checkout@v4
@@ -30,13 +45,15 @@ jobs:
       - name: Validate TypeScript Types
         run: npm run type-check
 
-  test-suites:
-    name: Automated Test Suites
-    needs: type-check
+  # ───────────────────────────────────────────────────────────────────────────
+  # 2. Self-contained verification suites (no server / DB required)
+  #    These read source files, Zustand stores and pure logic only.
+  # ───────────────────────────────────────────────────────────────────────────
+  static-suites:
+    name: Static Verification Suites
+    needs: static-analysis
     runs-on: ubuntu-latest
-    env:
-      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
-      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+    timeout-minutes: 15
     steps:
       - name: Checkout Codebase
         uses: actions/checkout@v4
@@ -50,16 +67,109 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Phase 9 E2E Integration Suite
-        run: npx tsx scripts/test-phase9-comprehensive.ts
+      - name: Kitchen Display System Suite (Phase 6)
+        run: npx --yes tsx scripts/test-phase6-comprehensive.ts
 
-      - name: Run Phase 10 Invariants Suite
-        run: npx tsx scripts/test-phase10-comprehensive.ts
+      - name: Cross-Portal Bridge Suite (Phase 7)
+        run: npx --yes tsx scripts/test-phase7-comprehensive.ts
 
-  build-validation:
-    name: Production Build Verification
-    needs: type-check
+      - name: Visual, UI & UX Suite (Phase 8)
+        run: npx --yes tsx scripts/test-phase8-comprehensive.ts
+
+      - name: End-to-End Journeys Suite (Phase 9)
+        run: npx --yes tsx scripts/test-phase9-comprehensive.ts
+
+      - name: Edge Cases & Defensive Logic Suite (Phase 10)
+        run: npx --yes tsx scripts/test-phase10-comprehensive.ts
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 3. Live integration matrix — boots the dev server and exercises the real
+  #    API + Supabase. Requires repository secrets; skipped when they are not
+  #    available (e.g. pull requests opened from forks).
+  # ───────────────────────────────────────────────────────────────────────────
+  integration-suites:
+    name: Live Integration & E2E Suites
+    needs: static-analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+      TEST_BASE_URL: http://localhost:3001
+    steps:
+      - name: Checkout Codebase
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Detect Supabase Credentials
+        id: creds
+        run: |
+          if [ -n "${NEXT_PUBLIC_SUPABASE_URL}" ] && [ -n "${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}" ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Supabase secrets are not configured - skipping live integration suites."
+          fi
+
+      - name: Materialize .env.local
+        if: steps.creds.outputs.available == 'true'
+        run: |
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}"
+            echo "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY}"
+          } > .env.local
+
+      - name: Boot Next.js Dev Server
+        if: steps.creds.outputs.available == 'true'
+        run: |
+          npm run dev > dev-server.log 2>&1 &
+
+      - name: Wait For Server Readiness
+        if: steps.creds.outputs.available == 'true'
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf -o /dev/null http://localhost:3001/; then
+              echo "Server ready after ${i} attempt(s)."
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Server did not become ready in time."
+          tail -n 60 dev-server.log || true
+          exit 1
+
+      - name: Run Master Test Runner
+        if: steps.creds.outputs.available == 'true'
+        run: npm test
+
+      - name: Dev Server Log
+        if: always() && steps.creds.outputs.available == 'true'
+        run: tail -n 60 dev-server.log || true
+
+      - name: Stop Dev Server
+        if: always() && steps.creds.outputs.available == 'true'
+        run: pkill -f "next dev" || true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # 4. Production build verification
+  # ───────────────────────────────────────────────────────────────────────────
+  build-validation:
+    name: Production Build
+    needs: static-analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
     steps:
       - name: Checkout Codebase
         uses: actions/checkout@v4

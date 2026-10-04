@@ -6,7 +6,7 @@ import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
-import { ArrowRight, Check, UtensilsCrossed, Ban } from 'lucide-react';
+import { ArrowRight, Check, UtensilsCrossed, Ban, Plus, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Screen3ItemDetail: React.FC = () => {
@@ -21,6 +21,7 @@ export const Screen3ItemDetail: React.FC = () => {
     item.optionsGroup1?.choices[0] || 'Standard'
   );
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [quantity, setQuantity] = useState<number>(1);
 
   const handleToggleAddOn = (addonName: string) => {
     setSelectedAddOns((prev) =>
@@ -30,7 +31,7 @@ export const Screen3ItemDetail: React.FC = () => {
 
   const handleAddAndGoToCart = () => {
     if (isSoldOut) return;
-    addToCart(item, selectedOption, selectedAddOns, 1);
+    addToCart(item, selectedOption, selectedAddOns, quantity);
     setCurrentScreen(4);
   };
 
@@ -184,6 +185,32 @@ export const Screen3ItemDetail: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Quantity Stepper (Exact match with ItemDrawer) */}
+        <div className="flex items-center justify-between rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
+          <span className="text-xs font-black text-slate-800 font-mono tracking-wide">QUANTITY</span>
+          <div className="flex items-center gap-2.5">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E8D5C3] bg-white font-bold text-slate-800 hover:bg-[#F3DFCC] transition"
+              onClick={() => setQuantity(Math.max(1, quantity - 1))}
+            >
+              <Minus className="h-3.5 w-3.5 stroke-[2.5]" />
+            </motion.button>
+            <span className="min-w-6 text-center font-mono text-sm font-black text-[#8A4228]">
+              {quantity}
+            </span>
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E8D5C3] bg-white font-bold text-slate-800 hover:bg-[#F3DFCC] transition"
+              onClick={() => setQuantity(quantity + 1)}
+            >
+              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+            </motion.button>
+          </div>
+        </div>
       </div>
 
       {/* Sticky Bottom Bar */}
@@ -200,7 +227,9 @@ export const Screen3ItemDetail: React.FC = () => {
         >
           <span>{isSoldOut ? 'Item Sold Out' : 'Add to Cart & Review'}</span>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-sm font-bold text-[#F3DFCC]">₹{currentTotal}</span>
+            <span className="font-mono text-sm font-bold text-[#F3DFCC]">
+              ₹{currentTotal * quantity}
+            </span>
             <ArrowRight className="h-4 w-4 stroke-[2.5]" />
           </div>
         </motion.button>

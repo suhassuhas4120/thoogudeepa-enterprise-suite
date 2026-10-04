@@ -184,7 +184,7 @@ export const Screen2Menu: React.FC = () => {
             )}
           </div>
 
-          {/* Cart Icon Button Beside Search (Clean Icon Only, No Top Number Badge) */}
+          {/* Cart Icon Button Beside Search (Contains Red Item Count Badge) */}
           <motion.button
             whileTap={{ scale: 0.92 }}
             type="button"
@@ -193,6 +193,11 @@ export const Screen2Menu: React.FC = () => {
             title="View Cart"
           >
             <ShoppingCart className="h-5 w-5 stroke-[2.2]" />
+            {totalCartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white ring-2 ring-white shadow-xs">
+                {totalCartCount}
+              </span>
+            )}
           </motion.button>
         </div>
 
@@ -404,11 +409,8 @@ export const Screen2Menu: React.FC = () => {
               className="flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-[#9C3D1E] via-[#8A361A] to-[#712A12] px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-orange-950/20 transition hover:brightness-105"
             >
               <div className="flex items-center gap-2.5">
-                <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
                   <ShoppingCart className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-black text-white ring-1 ring-white">
-                    {totalCartCount}
-                  </span>
                 </div>
                 <div className="text-left">
                   <div className="text-xs font-black text-white">

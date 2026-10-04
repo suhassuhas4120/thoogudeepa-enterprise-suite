@@ -13,6 +13,7 @@ import {
   User,
   Armchair,
   Smartphone,
+  Flame,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -29,6 +30,14 @@ export const Screen1Welcome: React.FC = () => {
   } = useCustomer();
 
   const { tables } = useSharedBridge();
+
+  // Dynamic time-based human greeting
+  const timeGreeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning ☀️';
+    if (hour < 17) return 'Good Afternoon 🍛';
+    return 'Good Evening 🌙';
+  }, []);
 
   // 1. Read ?table=T-01&seat=1 from URL on mount
   useEffect(() => {
@@ -58,7 +67,7 @@ export const Screen1Welcome: React.FC = () => {
         number: tableNumber || 'T-01',
         section: 'Ground Floor',
         capacity: 4,
-        serverName: 'Captain Ramesh',
+        serverName: 'Floor Captain',
       }
     );
   }, [tables, tableNumber]);
@@ -87,53 +96,74 @@ export const Screen1Welcome: React.FC = () => {
 
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
-      <div className="flex flex-col min-h-full bg-gradient-to-b from-[#fffbf7] via-white to-[#fff8f2] p-4 space-y-3 pb-6">
-        {/* Row 1: Highlighted Hotel Header */}
-        <div className="rounded-2xl border border-orange-200/90 bg-gradient-to-r from-orange-50 via-white to-amber-50/60 p-3.5 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white shadow-md shadow-orange-500/25 ring-2 ring-orange-400/20">
-              <Crown className="h-6 w-6 stroke-[2.2]" />
+      <div className="flex flex-col min-h-full bg-gradient-to-b from-[#fffaf4] via-white to-[#fff8f2] p-4 space-y-3 pb-6">
+        {/* Row 1: Highlighted Hero Brand Card with Human Greeting */}
+        <motion.div
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border border-orange-200/90 bg-gradient-to-r from-orange-50 via-white to-amber-50/70 p-4 shadow-sm"
+        >
+          <div className="flex items-center gap-3.5">
+            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white shadow-md shadow-orange-500/25 ring-2 ring-orange-400/30">
+              <Crown className="h-7 w-7 stroke-[2.2]" />
+              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
+                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
+              </span>
             </div>
             <div className="min-w-0 flex-1">
-              <h1 className="text-sm font-black tracking-tight text-slate-900 uppercase">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-700">
+                <span>{timeGreeting}</span>
+              </div>
+              <h1 className="text-sm font-black tracking-tight text-slate-900 uppercase mt-0.5">
                 {venueName}
               </h1>
-              <p className="text-[11px] font-semibold text-orange-700">
-                Authentic Donne Biryani
-              </p>
+              <div className="flex items-center gap-1.5 mt-1 text-[10.5px] font-semibold text-slate-600">
+                <Flame className="h-3 w-3 text-orange-600" />
+                <span>Authentic Donne Biryani Mane</span>
+              </div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 2: Scanned QR Verified Table (Clean, Highlighted, No Drawer) */}
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50/60 p-3 shadow-xs">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 shadow-xs"
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-600 text-white shadow-xs">
+            <div className="flex items-center gap-2.5">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
                 <QrCode className="h-4 w-4" />
               </div>
               <div>
                 <div className="text-xs font-black text-slate-900 font-mono">
                   {activeTable.number} • {activeTable.section}
                 </div>
-                <div className="text-[10px] font-semibold text-emerald-700">
+                <div className="text-[10px] font-bold text-emerald-700">
                   QR Verified Table
                 </div>
               </div>
             </div>
-            <span className="flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 font-mono">
+            <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-[10px] font-black text-emerald-800 font-mono shadow-2xs">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
               ACTIVE
             </span>
           </div>
-        </div>
+        </motion.div>
 
-        {/* Card 3: Dynamic Chair / Seat Allocation (Clean Pills, No Clutter) */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-2">
+        {/* Card 3: Interactive Chair / Seat Matrix */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-2.5"
+        >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Armchair className="h-4 w-4 text-orange-600" />
-              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-700">
+              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-800">
                 SELECT YOUR CHAIR
               </span>
             </div>
@@ -142,82 +172,107 @@ export const Screen1Welcome: React.FC = () => {
             </span>
           </div>
 
-          {/* Chair Buttons */}
-          <div className={`grid gap-1.5 pt-0.5 ${tableCapacity <= 3 ? 'grid-cols-3' : tableCapacity <= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+          {/* Interactive Bouncy Chair Buttons */}
+          <div className={`grid gap-2 pt-0.5 ${tableCapacity <= 3 ? 'grid-cols-3' : tableCapacity <= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {Array.from({ length: tableCapacity }, (_, i) => i + 1).map((chairNum) => {
               const isSelected = currentSeat === chairNum;
 
               return (
-                <button
+                <motion.button
                   key={chairNum}
+                  whileTap={{ scale: 0.92 }}
                   type="button"
                   onClick={() => handleSelectSeat(chairNum)}
-                  className={`flex flex-col items-center justify-center rounded-xl border p-2 transition text-center ${
+                  className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all text-center relative ${
                     isSelected
-                      ? 'border-orange-500 bg-gradient-to-b from-orange-50 to-orange-100/80 ring-2 ring-orange-500/20 shadow-xs'
-                      : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/30'
+                      ? 'border-orange-500 bg-gradient-to-b from-orange-50 to-orange-100/90 ring-2 ring-orange-500/25 shadow-xs text-orange-950 font-bold'
+                      : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/30 text-slate-700'
                   }`}
                 >
-                  <span className="text-sm">🪑</span>
+                  <span className="text-base">{isSelected ? '🪑' : '🪑'}</span>
                   <span className={`font-mono text-[11px] font-black mt-0.5 ${isSelected ? 'text-orange-950' : 'text-slate-800'}`}>
                     Chair {chairNum}
                   </span>
-                  <span className={`text-[9px] font-bold mt-0.5 ${
+                  <span className={`text-[9.5px] font-bold mt-0.5 ${
                     isSelected ? 'text-orange-700 font-mono' : 'text-slate-400'
                   }`}>
                     {isSelected ? '✓ You' : 'Free'}
                   </span>
-                </button>
+                </motion.button>
               );
             })}
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 4: Diner Name (Clean, Placed Above Connections, NO 'Optional' on right side) */}
-        <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-1.5">
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-2"
+        >
           <div className="flex items-center gap-1.5">
-            <User className="h-3.5 w-3.5 text-slate-500" />
-            <label className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-700">
+            <User className="h-4 w-4 text-orange-600" />
+            <label className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-800">
               YOUR NAME
             </label>
           </div>
 
-          <input
-            type="text"
-            value={guestName}
-            onChange={(e) => setGuestName(e.target.value)}
-            placeholder="Enter your name (Optional)"
-            className="w-full rounded-xl border border-slate-200 bg-stone-50/60 px-3.5 py-2.5 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:outline-none transition shadow-2xs"
-          />
-        </div>
+          <div className="relative">
+            <input
+              type="text"
+              value={guestName}
+              onChange={(e) => setGuestName(e.target.value)}
+              placeholder="Enter your name (Optional)"
+              className="w-full rounded-xl border border-slate-200 bg-stone-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:outline-none transition shadow-2xs"
+            />
+            {guestName.trim() && (
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+                ✓
+              </span>
+            )}
+          </div>
+        </motion.div>
 
-        {/* Card 5: Connections (Action buttons that directly advance to Cart, NO subtext) */}
-        <div className="space-y-2 pt-1">
+        {/* Card 5: Connections (Tactile, High-Conversion Action Cards that directly advance to Cart, NO subtext) */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-2.5 pt-1"
+        >
           <motion.button
             whileTap={{ scale: 0.98 }}
+            whileHover={{ y: -1 }}
             type="button"
             onClick={handleConnectWifi}
-            className="flex w-full items-center justify-between rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 to-amber-50/80 p-3.5 shadow-xs hover:border-orange-300 transition text-left group"
+            className="flex w-full items-center justify-between rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-white to-amber-50/80 p-3.5 shadow-xs hover:border-orange-300 hover:shadow-sm transition-all text-left group"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-600 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-sm shadow-orange-500/25 group-hover:scale-105 transition">
                 <Wifi className="h-5 w-5 stroke-[2.2]" />
               </div>
               <span className="text-xs font-black text-slate-900">
                 Connect With Free Restaurant Wi-Fi
               </span>
             </div>
-            <ArrowRight className="h-4 w-4 text-orange-600 group-hover:translate-x-0.5 transition shrink-0" />
+            <div className="flex items-center gap-1.5">
+              <span className="rounded-md bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 font-mono">
+                ⚡ 5G
+              </span>
+              <ArrowRight className="h-4 w-4 text-orange-600 group-hover:translate-x-0.5 transition shrink-0" />
+            </div>
           </motion.button>
 
           <motion.button
             whileTap={{ scale: 0.98 }}
+            whileHover={{ y: -1 }}
             type="button"
             onClick={handleContinueMobileData}
-            className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs hover:border-slate-300 hover:bg-slate-50/70 transition text-left group"
+            className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs hover:border-slate-300 hover:bg-slate-50/70 hover:shadow-sm transition-all text-left group"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm group-hover:scale-105 transition">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm group-hover:scale-105 transition">
                 <Smartphone className="h-5 w-5 stroke-[2.2]" />
               </div>
               <span className="text-xs font-black text-slate-900">
@@ -226,14 +281,16 @@ export const Screen1Welcome: React.FC = () => {
             </div>
             <ArrowRight className="h-4 w-4 text-slate-700 group-hover:translate-x-0.5 transition shrink-0" />
           </motion.button>
-        </div>
+        </motion.div>
 
-        {/* Footer: Powered by Nelja */}
-        <div className="flex items-center justify-center gap-1.5 text-center pt-3 pb-1">
-          <Sparkles className="h-3 w-3 text-orange-500" />
-          <span className="font-mono text-[10px] font-bold text-slate-500 tracking-wider">
-            Powered by Nelja
-          </span>
+        {/* Footer: Properly Enclosed Badge Container for "Powered by Nelja" */}
+        <div className="flex items-center justify-center pt-3 pb-2">
+          <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/95 px-4 py-1.5 shadow-xs backdrop-blur-md">
+            <Sparkles className="h-3 w-3 text-orange-500 animate-pulse" />
+            <span className="text-[10px] font-bold text-slate-600 font-mono tracking-wider">
+              Powered by <span className="font-black text-orange-600">Nelja</span>
+            </span>
+          </div>
         </div>
       </div>
     </ScreenHousing>

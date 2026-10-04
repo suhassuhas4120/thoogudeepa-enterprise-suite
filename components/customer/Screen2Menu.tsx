@@ -148,9 +148,12 @@ export const Screen2Menu: React.FC = () => {
           <span className="inline-flex items-center gap-2">
             <UtensilsCrossed className="h-4 w-4 stroke-[2.2] text-[#D08A52]" />
             <span>Menu</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
           </span>
         }
-        leftSubtitle={`${venueName.toUpperCase()} • TABLE ${tableNumber} • CHAIR ${String(seatNumber || 1).padStart(2, '0')}`}
+        leftSubtitle={venueName.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(1)}
         showCallWaiter={true}
@@ -181,20 +184,17 @@ export const Screen2Menu: React.FC = () => {
             )}
           </div>
 
-          {/* Cart Button Beside Search */}
+          {/* Cart Icon Button (Icon Only, Red Badge at Top with Item Count) */}
           <motion.button
-            whileTap={{ scale: 0.94 }}
+            whileTap={{ scale: 0.92 }}
             type="button"
             onClick={() => setCurrentScreen(4)}
-            className="relative flex h-10 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#9C3D1E] to-[#7A2E14] px-3.5 text-white shadow-xs hover:brightness-105 transition shrink-0"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-xs hover:bg-[#853116] transition"
             title="View Cart"
           >
-            <ShoppingCart className="h-4 w-4 stroke-[2.2]" />
-            <span className="font-mono text-xs font-black">
-              {totalCartCount > 0 ? `₹${totalCartAmount}` : 'Cart'}
-            </span>
+            <ShoppingCart className="h-5 w-5 stroke-[2.2]" />
             {totalCartCount > 0 && (
-              <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-amber-950 shadow-2xs">
+              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white ring-2 ring-white shadow-xs">
                 {totalCartCount}
               </span>
             )}

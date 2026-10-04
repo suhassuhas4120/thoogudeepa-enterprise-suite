@@ -143,7 +143,7 @@ export const Screen1Welcome: React.FC = () => {
               </div>
               <div>
                 <div className="text-xs font-black text-slate-900 font-mono">
-                  {activeTable.number} • Chair {String(currentSeat).padStart(2, '0')}
+                  {activeTable.number} • C-{String(currentSeat).padStart(2, '0')}
                 </div>
                 <div className="text-[10px] font-bold text-emerald-700">
                   {activeTable.section} • Dine-In Verified
@@ -172,7 +172,7 @@ export const Screen1Welcome: React.FC = () => {
               </span>
             </div>
             <span className="rounded-full bg-orange-100 border border-orange-200 px-2.5 py-0.5 font-mono text-[10px] font-black text-orange-800">
-              CHAIR #{currentSeat}
+              C-{String(currentSeat).padStart(2, '0')}
             </span>
           </div>
 
@@ -195,7 +195,7 @@ export const Screen1Welcome: React.FC = () => {
                 >
                   <span className="text-base">🪑</span>
                   <span className={`font-mono text-[11px] font-black mt-0.5 ${isSelected ? 'text-orange-950' : 'text-slate-800'}`}>
-                    Chair {chairNum}
+                    C-{String(chairNum).padStart(2, '0')}
                   </span>
                   <span className={`text-[9.5px] font-bold mt-0.5 ${
                     isSelected ? 'text-orange-700 font-mono' : 'text-emerald-600'

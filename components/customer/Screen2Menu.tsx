@@ -411,7 +411,7 @@ export const Screen2Menu: React.FC = () => {
               <div className="flex items-center gap-2.5">
                 <div className="relative flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
                   <ShoppingCart className="h-4 w-4" />
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-amber-950 ring-1 ring-white">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-600 text-[9px] font-black text-white ring-1 ring-white">
                     {totalCartCount}
                   </span>
                 </div>

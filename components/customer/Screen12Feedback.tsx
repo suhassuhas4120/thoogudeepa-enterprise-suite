@@ -9,7 +9,7 @@ import { Star, Heart, CheckCircle2, MessageSquare, UtensilsCrossed, ArrowLeft, S
 import { motion } from 'framer-motion';
 
 export const Screen12Feedback: React.FC = () => {
-  const { navigateTo, tableNumber } = useCustomer();
+  const { navigateTo, tableNumber, seatNumber, venueName } = useCustomer();
   const [tasteRating, setTasteRating] = useState(5);
   const [speedRating, setSpeedRating] = useState(5);
   const [serviceRating, setServiceRating] = useState(5);
@@ -57,7 +57,15 @@ export const Screen12Feedback: React.FC = () => {
       screenTitle="DINING FEEDBACK & DISH REVIEW"
     >
       <WireHeader
-        title="Dining Feedback"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Dining Feedback</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName?.toUpperCase()}
         showBack={true}
         onBack={() => navigateTo(11)}
         showCallWaiter={true}

@@ -9,7 +9,7 @@ import { Crown, Sparkles, Gift, ArrowRight, ArrowLeft, CheckCircle2, Award, Zap,
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Screen11Loyalty: React.FC = () => {
-  const { navigateTo, tableNumber } = useCustomer();
+  const { navigateTo, tableNumber, seatNumber, venueName } = useCustomer();
   const [scratched, setScratched] = useState(false);
   const [redeemed, setRedeemed] = useState<string | null>(null);
 
@@ -25,7 +25,15 @@ export const Screen11Loyalty: React.FC = () => {
       screenTitle="LOYALTY CLUB & REWARDS"
     >
       <WireHeader
-        title="Loyalty & Rewards"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Loyalty & Rewards</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName?.toUpperCase()}
         showBack={true}
         onBack={() => navigateTo(9)}
         showCallWaiter={true}

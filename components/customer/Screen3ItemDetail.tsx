@@ -10,7 +10,14 @@ import { ArrowRight, Check, UtensilsCrossed, Ban, Plus, Minus } from 'lucide-rea
 import { motion } from 'framer-motion';
 
 export const Screen3ItemDetail: React.FC = () => {
-  const { setCurrentScreen, selectedDetailItem, addToCart } = useCustomer();
+  const {
+    setCurrentScreen,
+    selectedDetailItem,
+    addToCart,
+    venueName,
+    tableNumber,
+    seatNumber,
+  } = useCustomer();
   const { inventory86 } = useSharedBridge();
 
   const item = selectedDetailItem;
@@ -42,10 +49,18 @@ export const Screen3ItemDetail: React.FC = () => {
   });
 
   return (
-    <ScreenHousing screenNumber={3} screenTitle="DETAILED ITEM PAGE">
+    <ScreenHousing screenNumber={3} screenTitle="ITEM DETAILS">
       {/* Header */}
       <WireHeader
-        title="Item Details"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Item Details</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(2)}
         showCallWaiter={true}
@@ -72,7 +87,7 @@ export const Screen3ItemDetail: React.FC = () => {
 
           {isSoldOut && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-mono text-sm font-black uppercase tracking-wider text-rose-300">
-              Sold Out (86)
+              Sold Out
             </div>
           )}
         </div>

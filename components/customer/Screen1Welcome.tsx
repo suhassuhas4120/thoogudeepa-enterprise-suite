@@ -86,13 +86,13 @@ export const Screen1Welcome: React.FC = () => {
     }
   };
 
-  // Connection Handlers: directly advance to Cart
+  // Connection Handlers: advance to Authentic Menu
   const handleConnectWifi = () => {
-    setCurrentScreen(4);
+    setCurrentScreen(2);
   };
 
   const handleContinueMobileData = () => {
-    setCurrentScreen(4);
+    setCurrentScreen(2);
   };
 
   return (

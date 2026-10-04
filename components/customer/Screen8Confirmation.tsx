@@ -9,7 +9,14 @@ import { CheckCircle2, Star, ArrowRight, ShieldCheck, FileText, Check } from 'lu
 import { motion } from 'framer-motion';
 
 export const Screen8Confirmation: React.FC = () => {
-  const { setCurrentScreen, payment, guestName, tableNumber } = useCustomer();
+  const {
+    setCurrentScreen,
+    payment,
+    guestName,
+    tableNumber,
+    cart,
+    venueName,
+  } = useCustomer();
   const [selectedChips, setSelectedChips] = useState<string[]>(['Super Quick Service']);
   const [customFeedback, setCustomFeedback] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
@@ -17,6 +24,13 @@ export const Screen8Confirmation: React.FC = () => {
   // Read seat from URL
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const seatNumber = parseInt(params.get('seat') || '1', 10);
+
+  // Dynamic calculated amount if session payment total wasn't preset
+  const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : payment.subtotal;
+  const tax = Math.round(subtotal * 0.05);
+  const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
+  const calculatedGrandTotal = Math.max(0, subtotal + tax + payment.tipAmount - discount);
+  const paidAmount = payment.totalAmount > 0 ? payment.totalAmount : calculatedGrandTotal;
 
   // Verified 12-digit bank reference number
   const bankUtr = '4281' + Math.floor(10000000 + Math.random() * 90000000);
@@ -37,10 +51,18 @@ export const Screen8Confirmation: React.FC = () => {
   };
 
   return (
-    <ScreenHousing screenNumber={8} screenTitle="Confirmation & Feedback">
+    <ScreenHousing screenNumber={8} screenTitle="CONFIRMATION & FEEDBACK">
       {/* Header */}
       <WireHeader
-        title="Confirmation & Feedback"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Payment Confirmed</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName?.toUpperCase()}
         showBack={false}
         showCallWaiter={true}
         showCart={false}
@@ -63,7 +85,7 @@ export const Screen8Confirmation: React.FC = () => {
 
           <h3 className="text-base font-black text-[#5B5049]">Payment Successful</h3>
           <div className="font-mono text-sm font-black text-[#198754] mt-1">
-            Amount Paid: ₹{payment.totalAmount}
+            Amount Paid: ₹{paidAmount}
           </div>
 
           {/* 12-Digit Bank UTR Proof */}

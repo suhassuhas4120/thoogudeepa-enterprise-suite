@@ -15,6 +15,9 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     payment,
     updateTip,
     setSplitMode,
+    tableNumber,
+    seatNumber,
+    venueName,
   } = useCustomer();
 
   const [customTip, setCustomTip] = useState<string>('');
@@ -22,7 +25,8 @@ export const Screen6PaymentBreakdown: React.FC = () => {
 
   const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : payment.subtotal;
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
-  const grandTotal = subtotal + tax + payment.tipAmount;
+  const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
+  const grandTotal = Math.max(0, subtotal + tax + payment.tipAmount - discount);
 
   const handlePresetTip = (amount: number) => {
     setCustomTip('');
@@ -38,10 +42,18 @@ export const Screen6PaymentBreakdown: React.FC = () => {
   const tipPresets = [30, 50, 100];
 
   return (
-    <ScreenHousing screenNumber={6} screenTitle="Order Summary">
+    <ScreenHousing screenNumber={6} screenTitle="ORDER SUMMARY">
       {/* Header */}
       <WireHeader
-        title="Order Summary"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Order Summary</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(5)}
         showCallWaiter={true}
@@ -85,6 +97,12 @@ export const Screen6PaymentBreakdown: React.FC = () => {
               <span>Taxes &amp; Charges (5% GST)</span>
               <span className="font-mono">₹{tax}</span>
             </div>
+            {discount > 0 && (
+              <div className="flex justify-between font-bold text-emerald-700">
+                <span>Loyalty Reward Discount</span>
+                <span className="font-mono">-₹{discount}</span>
+              </div>
+            )}
             {payment.tipAmount > 0 && (
               <div className="flex justify-between font-bold text-[#8A4228]">
                 <span>Staff Tip</span>

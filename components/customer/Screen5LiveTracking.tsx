@@ -11,7 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useOrderTrackingQuery } from '../../hooks/useOrderTrackingQuery';
 
 export const Screen5LiveTracking: React.FC = () => {
-  const { setCurrentScreen, orderStage } = useCustomer();
+  const { setCurrentScreen, orderStage, venueName } = useCustomer();
 
   // Supabase Realtime — all live stage data comes from here
   const {
@@ -56,7 +56,15 @@ export const Screen5LiveTracking: React.FC = () => {
     <ScreenHousing screenNumber={5} screenTitle="LIVE ORDER TRACKING">
       {/* Header */}
       <WireHeader
-        title="Live Order Tracking"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Live Order Tracking</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableId} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName?.toUpperCase()}
         showBack={false}
         showCallWaiter={true}
         showCart={false}

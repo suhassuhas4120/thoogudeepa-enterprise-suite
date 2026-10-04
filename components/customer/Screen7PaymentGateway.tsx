@@ -28,6 +28,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     setPaymentMethod,
     cart,
     tableNumber,
+    venueName,
   } = useCustomer();
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -220,10 +221,18 @@ export const Screen7PaymentGateway: React.FC = () => {
   const defaultUpiUri = upiData?.upiUri || `upi://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=T${tableNumber}_S${seatNumber}`;
 
   return (
-    <ScreenHousing screenNumber={7} screenTitle="Payment Options">
+    <ScreenHousing screenNumber={7} screenTitle="PAYMENT OPTIONS">
       {/* Header */}
       <WireHeader
-        title="Payment Options"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Payment Options</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName?.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(6)}
         showCallWaiter={true}

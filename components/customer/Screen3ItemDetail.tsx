@@ -94,27 +94,43 @@ export const Screen3ItemDetail: React.FC = () => {
           </p>
         </div>
 
-        {/* Portion / Preparation Option */}
+        {/* Flavours / Preparation Option */}
         {item.optionsGroup1?.choices?.length > 0 && (
           <div className="rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
-            <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#5B5049]/70 font-mono">
-              {item.optionsGroup1.title || 'Select Portion / Style'}
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5B5049]/70 font-mono">
+                {item.optionsGroup1.title === 'Toss Style' ? 'Flavours' : (item.optionsGroup1.title || 'Flavours')}
+              </span>
+              <span className="text-[9.5px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full font-mono">
+                Choose 1
+              </span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               {item.optionsGroup1.choices.map((choice) => {
                 const isSelected = selectedOption === choice;
                 return (
                   <button
                     key={choice}
+                    type="button"
                     onClick={() => setSelectedOption(choice)}
-                    className={`flex items-center justify-between rounded-2xl border p-3 text-xs font-black transition ${
+                    className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-xs font-bold transition text-left ${
                       isSelected
-                        ? 'border-[#8A4228] bg-[#F3DFCC] text-[#8A4228] shadow-xs'
-                        : 'border-[#E8D5C3] bg-[#FFFCF7] text-[#5B5049] hover:bg-[#F3DFCC]/40'
+                        ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
+                        : 'border-[#E8D5C3] bg-white text-[#5B5049] hover:bg-[#F3DFCC]/30'
                     }`}
                   >
-                    <span>{choice}</span>
-                    {isSelected && <Check className="h-4 w-4 stroke-[3] text-[#8A4228]" />}
+                    <span className="font-extrabold text-slate-800">{choice}</span>
+                    <div
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                        isSelected
+                          ? 'border-[#8A4228] bg-white'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {isSelected && (
+                        <div className="h-2.5 w-2.5 rounded-full bg-[#8A4228]" />
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -125,8 +141,13 @@ export const Screen3ItemDetail: React.FC = () => {
         {/* Add-ons */}
         {item.optionsGroup2?.addOns?.length > 0 && (
           <div className="rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
-            <div className="mb-2.5 text-[10px] font-black uppercase tracking-[0.16em] text-[#5B5049]/70 font-mono">
-              {item.optionsGroup2.title || 'Popular Add-Ons'}
+            <div className="flex items-center justify-between mb-2.5">
+              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5B5049]/70 font-mono">
+                {item.optionsGroup2.title || 'Popular Add-Ons'}
+              </span>
+              <span className="text-[9.5px] font-bold text-slate-500 font-mono">
+                Optional
+              </span>
             </div>
             <div className="space-y-2">
               {item.optionsGroup2.addOns.map((addon) => {
@@ -134,24 +155,29 @@ export const Screen3ItemDetail: React.FC = () => {
                 return (
                   <button
                     key={addon.name}
+                    type="button"
                     onClick={() => handleToggleAddOn(addon.name)}
-                    className={`flex w-full items-center justify-between rounded-2xl border p-3 text-xs font-black transition ${
+                    className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-xs font-bold transition text-left ${
                       isSelected
-                        ? 'border-[#8A4228] bg-[#F3DFCC] text-[#8A4228]'
-                        : 'border-[#E8D5C3] bg-[#FFFCF7] text-[#5B5049] hover:bg-[#F3DFCC]/40'
+                        ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
+                        : 'border-[#E8D5C3] bg-white text-[#5B5049] hover:bg-[#F3DFCC]/30'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <div
-                        className={`flex h-4 w-4 items-center justify-center rounded-md border ${
-                          isSelected ? 'border-[#8A4228] bg-[#8A4228] text-white' : 'border-[#E8D5C3]'
-                        }`}
-                      >
-                        {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
-                      </div>
-                      <span>{addon.name}</span>
+                      <span className="font-extrabold text-slate-800">{addon.name}</span>
+                      <span className="font-mono text-xs font-black text-[#8A4228]">
+                        +₹{addon.extraPrice}
+                      </span>
                     </div>
-                    <span className="font-mono text-xs text-[#8A4228]">+₹{addon.extraPrice}</span>
+                    <div
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
+                        isSelected
+                          ? 'border-[#8A4228] bg-[#8A4228] text-white shadow-2xs'
+                          : 'border-slate-300 bg-white'
+                      }`}
+                    >
+                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                    </div>
                   </button>
                 );
               })}

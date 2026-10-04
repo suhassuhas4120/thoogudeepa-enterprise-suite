@@ -1,4 +1,4 @@
-﻿import { MenuItem } from '../types/customer';
+import { MenuItem } from '../types/customer';
 
 /** Canonical menu catalogue for Thoogudeepa donne biryani mane - consumed by TanStack Query */
 export const INITIAL_MENU_ITEMS: MenuItem[] = [
@@ -99,7 +99,7 @@ export const INITIAL_MENU_ITEMS: MenuItem[] = [
     imagePlaceholder: 'PEPPER CHICKEN',
     prepMode: 'Tawa Roasted Fry',
     optionsGroup1: {
-      title: 'Toss Style',
+      title: 'Flavours',
       choices: ['Dry Crisp Toss', 'Semi-Gravy Masala'],
     },
     optionsGroup2: {

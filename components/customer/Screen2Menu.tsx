@@ -184,7 +184,7 @@ export const Screen2Menu: React.FC = () => {
             )}
           </div>
 
-          {/* Cart Icon Button (Icon Only, Red Badge at Top with Item Count) */}
+          {/* Cart Icon Button Beside Search (Clean Icon Only, No Top Number Badge) */}
           <motion.button
             whileTap={{ scale: 0.92 }}
             type="button"
@@ -193,11 +193,6 @@ export const Screen2Menu: React.FC = () => {
             title="View Cart"
           >
             <ShoppingCart className="h-5 w-5 stroke-[2.2]" />
-            {totalCartCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white ring-2 ring-white shadow-xs">
-                {totalCartCount}
-              </span>
-            )}
           </motion.button>
         </div>
 

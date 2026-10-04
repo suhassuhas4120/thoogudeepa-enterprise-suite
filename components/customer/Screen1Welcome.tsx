@@ -119,13 +119,13 @@ export const Screen1Welcome: React.FC = () => {
               </h1>
               <div className="flex items-center gap-1.5 mt-1 text-[10.5px] font-semibold text-slate-600">
                 <Flame className="h-3 w-3 text-orange-600" />
-                <span>Authentic Donne Biryani Mane</span>
+                <span>Authentic Military Donne Biryani</span>
               </div>
             </div>
           </div>
         </motion.div>
 
-        {/* Card 2: Scanned QR Verified Table (Clean, Highlighted, No Drawer) */}
+        {/* Card 2: Scanned Table Information (Clean, Highlighted, Professional) */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -142,13 +142,13 @@ export const Screen1Welcome: React.FC = () => {
                   {activeTable.number} • {activeTable.section}
                 </div>
                 <div className="text-[10px] font-bold text-emerald-700">
-                  QR Verified Table
+                  Dine-In Table Verified
                 </div>
               </div>
             </div>
             <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-[10px] font-black text-emerald-800 font-mono shadow-2xs">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
-              ACTIVE
+              VERIFIED
             </span>
           </div>
         </motion.div>
@@ -172,7 +172,7 @@ export const Screen1Welcome: React.FC = () => {
             </span>
           </div>
 
-          {/* Interactive Bouncy Chair Buttons */}
+          {/* Interactive Chair Buttons */}
           <div className={`grid gap-2 pt-0.5 ${tableCapacity <= 3 ? 'grid-cols-3' : tableCapacity <= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
             {Array.from({ length: tableCapacity }, (_, i) => i + 1).map((chairNum) => {
               const isSelected = currentSeat === chairNum;
@@ -189,14 +189,14 @@ export const Screen1Welcome: React.FC = () => {
                       : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/30 text-slate-700'
                   }`}
                 >
-                  <span className="text-base">{isSelected ? '🪑' : '🪑'}</span>
+                  <span className="text-base">🪑</span>
                   <span className={`font-mono text-[11px] font-black mt-0.5 ${isSelected ? 'text-orange-950' : 'text-slate-800'}`}>
                     Chair {chairNum}
                   </span>
                   <span className={`text-[9.5px] font-bold mt-0.5 ${
-                    isSelected ? 'text-orange-700 font-mono' : 'text-slate-400'
+                    isSelected ? 'text-orange-700 font-mono' : 'text-emerald-600'
                   }`}>
-                    {isSelected ? '✓ You' : 'Free'}
+                    {isSelected ? '✓ Your Seat' : 'Available'}
                   </span>
                 </motion.button>
               );
@@ -257,8 +257,8 @@ export const Screen1Welcome: React.FC = () => {
               </span>
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="rounded-md bg-emerald-100 border border-emerald-300 px-1.5 py-0.5 text-[9px] font-black text-emerald-800 font-mono">
-                ⚡ 5G
+              <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-800 font-mono">
+                5G Wi-Fi
               </span>
               <ArrowRight className="h-4 w-4 text-orange-600 group-hover:translate-x-0.5 transition shrink-0" />
             </div>

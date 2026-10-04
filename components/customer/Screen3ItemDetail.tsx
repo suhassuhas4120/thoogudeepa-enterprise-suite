@@ -95,119 +95,117 @@ export const Screen3ItemDetail: React.FC = () => {
           </p>
         </div>
 
-        {/* Flavours / Preparation Option */}
+        {/* Flavours / Preparation Option (Exact match with Drawer) */}
         {item.optionsGroup1?.choices?.length > 0 && (
-          <div className="rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5B5049]/70 font-mono">
-                {item.optionsGroup1.title === 'Toss Style' ? 'Flavours' : (item.optionsGroup1.title || 'Flavours')}
+          <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3 shadow-2xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11.5px] font-extrabold text-slate-900">
+                {item.optionsGroup1.title === 'Toss Style' ? 'Flavours' : item.optionsGroup1.title}
               </span>
               <span className="text-[9.5px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full font-mono">
                 Choose 1
               </span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {item.optionsGroup1.choices.map((choice) => {
                 const isSelected = selectedOption === choice;
                 return (
-                  <button
+                  <div
                     key={choice}
-                    type="button"
                     onClick={() => setSelectedOption(choice)}
-                    className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-xs font-bold transition text-left ${
+                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
                       isSelected
-                        ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
-                        : 'border-[#E8D5C3] bg-white text-[#5B5049] hover:bg-[#F3DFCC]/30'
+                        ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
+                        : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
                     }`}
                   >
-                    <span className="font-extrabold text-slate-800">{choice}</span>
+                    <span className="font-bold text-slate-800">{choice}</span>
                     <div
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
                         isSelected
-                          ? 'border-[#8A4228] bg-white'
+                          ? 'border-orange-600 bg-white'
                           : 'border-slate-300 bg-white'
                       }`}
                     >
                       {isSelected && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-[#8A4228]" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-orange-600" />
                       )}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           </div>
         )}
 
-        {/* Add-ons */}
+        {/* Add-ons (Exact match with Drawer) */}
         {item.optionsGroup2?.addOns?.length > 0 && (
-          <div className="rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-[10px] font-black uppercase tracking-[0.16em] text-[#5B5049]/70 font-mono">
+          <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3 shadow-2xs">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11.5px] font-extrabold text-slate-900">
                 {item.optionsGroup2.title || 'Popular Add-Ons'}
               </span>
               <span className="text-[9.5px] font-bold text-slate-500 font-mono">
                 Optional
               </span>
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {item.optionsGroup2.addOns.map((addon) => {
                 const isSelected = selectedAddOns.includes(addon.name);
                 return (
-                  <button
+                  <div
                     key={addon.name}
-                    type="button"
                     onClick={() => handleToggleAddOn(addon.name)}
-                    className={`flex w-full items-center justify-between rounded-2xl border p-3.5 text-xs font-bold transition text-left ${
+                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
                       isSelected
-                        ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
-                        : 'border-[#E8D5C3] bg-white text-[#5B5049] hover:bg-[#F3DFCC]/30'
+                        ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
+                        : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
                     }`}
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-extrabold text-slate-800">{addon.name}</span>
-                      <span className="font-mono text-xs font-black text-[#8A4228]">
-                        +₹{addon.extraPrice}
+                      <span className="font-bold text-slate-800">{addon.name}</span>
+                      <span className="font-mono text-xs font-bold text-orange-600">
+                        (+₹ {addon.extraPrice})
                       </span>
                     </div>
                     <div
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
                         isSelected
-                          ? 'border-[#8A4228] bg-[#8A4228] text-white shadow-2xs'
+                          ? 'border-orange-600 bg-orange-600 text-white shadow-2xs'
                           : 'border-slate-300 bg-white'
                       }`}
                     >
                       {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                     </div>
-                  </button>
+                  </div>
                 );
               })}
             </div>
           </div>
         )}
 
-        {/* Quantity Stepper (Exact match with ItemDrawer) */}
-        <div className="flex items-center justify-between rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
-          <span className="text-xs font-black text-slate-800 font-mono tracking-wide">QUANTITY</span>
+        {/* Quantity Stepper (Exact match with Drawer) */}
+        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-2xs">
+          <span className="text-xs font-extrabold text-slate-900">Quantity</span>
           <div className="flex items-center gap-2.5">
             <motion.button
               whileTap={{ scale: 0.9 }}
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E8D5C3] bg-white font-bold text-slate-800 hover:bg-[#F3DFCC] transition"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
             >
-              <Minus className="h-3.5 w-3.5 stroke-[2.5]" />
+              <Minus className="h-3 w-3" />
             </motion.button>
-            <span className="min-w-6 text-center font-mono text-sm font-black text-[#8A4228]">
+            <span className="min-w-5 text-center font-mono text-xs font-black text-slate-900">
               {quantity}
             </span>
             <motion.button
               whileTap={{ scale: 0.9 }}
               type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-xl border border-[#E8D5C3] bg-white font-bold text-slate-800 hover:bg-[#F3DFCC] transition"
+              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
               onClick={() => setQuantity(quantity + 1)}
             >
-              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
+              <Plus className="h-3 w-3" />
             </motion.button>
           </div>
         </div>

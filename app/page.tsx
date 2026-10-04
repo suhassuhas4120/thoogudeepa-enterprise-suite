@@ -34,8 +34,6 @@ import {
   Briefcase,
   QrCode,
   Tablet,
-  Award,
-  MessageSquare,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -53,8 +51,6 @@ export default function CustomerJourneyPage() {
     { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
     { id: 9 as ScreenId, name: '9. Digital Tax Bill', icon: <FileText className="h-3.5 w-3.5 text-slate-700" />, comp: <Screen9DigitalBill /> },
     { id: 10 as ScreenId, name: '10. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
-    { id: 11 as ScreenId, name: '11. Loyalty Rewards', icon: <Award className="h-3.5 w-3.5 text-amber-600" />, comp: <Screen11Loyalty /> },
-    { id: 12 as ScreenId, name: '12. Feedback & Review', icon: <MessageSquare className="h-3.5 w-3.5 text-orange-600" />, comp: <Screen12Feedback /> },
   ];
 
   const renderActiveScreen = () => {
@@ -103,7 +99,7 @@ export default function CustomerJourneyPage() {
           <div className="flex items-center gap-1 rounded-2xl border border-[#EAE5DF] bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
             <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (12)</span>
+              <span>CUSTOMER (10)</span>
             </span>
             <Link
               href="/kitchen"
@@ -164,7 +160,7 @@ export default function CustomerJourneyPage() {
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 12 SCREENS</span>
+              <span>ALL 10 SCREENS</span>
             </button>
           </div>
         </div>

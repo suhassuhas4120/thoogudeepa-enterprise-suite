@@ -469,6 +469,42 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
 
             <button
               type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/receipts/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      tableNumber: tableNum,
+                      invoiceNumber,
+                      phone: customerPhone,
+                      total: grandTotal,
+                      subtotal,
+                      tax: totalTax,
+                      bankUtr: method === 'CASH' ? 'CASH-SETTLED' : `#UPI-${invoiceNumber}`,
+                      items: allOrderedItems.map((it) => ({
+                        name: it.name,
+                        quantity: it.quantity,
+                        price: it.price,
+                      })),
+                    }),
+                  });
+                  const data = await res.json();
+                  if (data?.deliveryStatus?.whatsappWebLink) {
+                    window.open(data.deliveryStatus.whatsappWebLink, '_blank');
+                  }
+                  showToast('📱 WhatsApp bill dispatched');
+                } catch {
+                  showToast('📱 Bill generated');
+                }
+              }}
+              className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
+            >
+              <span>📱 Send Bill on WhatsApp</span>
+            </button>
+
+            <button
+              type="button"
               onClick={onDone}
               className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >

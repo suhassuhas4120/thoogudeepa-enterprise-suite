@@ -150,23 +150,23 @@ export const Screen2Menu: React.FC = () => {
             <span>Menu</span>
           </span>
         }
-        leftSubtitle={`${venueName.toUpperCase()} • ${tableNumber} (CHAIR #${seatNumber || 1})`}
+        leftSubtitle={`${venueName.toUpperCase()} • TABLE ${tableNumber} • CHAIR ${String(seatNumber || 1).padStart(2, '0')}`}
         showBack={true}
         onBack={() => setCurrentScreen(1)}
         showCallWaiter={true}
-        showCart={true}
+        showCart={false}
       />
 
       <div className="bg-[#FFFCF7] flex-1 overflow-y-auto flex flex-col">
-        {/* Search Bar */}
-        <div className="px-4 pt-3 pb-2">
-          <div className="relative flex items-center">
+        {/* Search Bar + Cart Action Button Row */}
+        <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+          <div className="relative flex-1 flex items-center">
             <Search className="absolute left-3.5 h-4 w-4 text-[#8A4228]" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search Biryanis, Kebabs, Starters..."
+              placeholder="Search Biryanis, Kebabs..."
               className="w-full rounded-2xl border border-[#E8D5C3] bg-white pl-10 pr-9 py-2.5 text-xs font-semibold text-[#5B5049] placeholder:text-[#5B5049]/50 shadow-2xs focus:border-[#8A4228] focus:outline-none transition"
             />
             {searchTerm && (
@@ -180,6 +180,25 @@ export const Screen2Menu: React.FC = () => {
               </button>
             )}
           </div>
+
+          {/* Cart Button Beside Search */}
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            type="button"
+            onClick={() => setCurrentScreen(4)}
+            className="relative flex h-10 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-[#9C3D1E] to-[#7A2E14] px-3.5 text-white shadow-xs hover:brightness-105 transition shrink-0"
+            title="View Cart"
+          >
+            <ShoppingCart className="h-4 w-4 stroke-[2.2]" />
+            <span className="font-mono text-xs font-black">
+              {totalCartCount > 0 ? `₹${totalCartAmount}` : 'Cart'}
+            </span>
+            {totalCartCount > 0 && (
+              <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-amber-400 text-[9px] font-black text-amber-950 shadow-2xs">
+                {totalCartCount}
+              </span>
+            )}
+          </motion.button>
         </div>
 
         {/* Dynamic Categories Bar */}

@@ -143,10 +143,10 @@ export const Screen1Welcome: React.FC = () => {
               </div>
               <div>
                 <div className="text-xs font-black text-slate-900 font-mono">
-                  {activeTable.number} • {activeTable.section}
+                  {activeTable.number} • Chair {String(currentSeat).padStart(2, '0')}
                 </div>
                 <div className="text-[10px] font-bold text-emerald-700">
-                  Dine-In Table Verified
+                  {activeTable.section} • Dine-In Verified
                 </div>
               </div>
             </div>

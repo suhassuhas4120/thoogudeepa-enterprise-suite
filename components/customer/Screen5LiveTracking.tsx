@@ -216,7 +216,7 @@ export const Screen5LiveTracking: React.FC = () => {
     },
     {
       key: 'PLATED',
-      label: 'READY TO COLLECT',
+      label: 'READY TO COLLECT', // READY TO SERVE
       short: 'READY',
       icon: <UtensilsCrossed className="h-4 w-4" />,
       desc: 'Dishes are freshly plated at the pass. Ready for table pickup!',

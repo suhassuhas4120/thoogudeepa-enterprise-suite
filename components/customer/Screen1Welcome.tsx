@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+// Thoogudeepa Donne Biryani Mane #8A4228 #9C3D1E
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import {
@@ -271,7 +272,7 @@ export const Screen1Welcome: React.FC = () => {
             className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs hover:border-slate-300 hover:bg-slate-50/70 hover:shadow-sm transition-all text-left group"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-white shadow-sm group-hover:scale-105 transition">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#8A4228] text-white shadow-sm group-hover:scale-105 transition">
                 <Smartphone className="h-5 w-5 stroke-[2.2]" />
               </div>
               <span className="text-xs font-black text-slate-900">

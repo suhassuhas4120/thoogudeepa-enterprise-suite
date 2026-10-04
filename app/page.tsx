@@ -46,11 +46,9 @@ export default function CustomerJourneyPage() {
     { id: 3 as ScreenId, name: '3. Item Details', icon: <Sparkles className="h-3.5 w-3.5 text-amber-500" />, comp: <Screen3ItemDetail /> },
     { id: 4 as ScreenId, name: '4. Cart & Review', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
     { id: 5 as ScreenId, name: '5. Live Tracking', icon: <Clock className="h-3.5 w-3.5 text-indigo-500" />, comp: <Screen5LiveTracking /> },
-    { id: 6 as ScreenId, name: '6. Payment Breakdown', icon: <CreditCard className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
-    { id: 7 as ScreenId, name: '7. Payment Gateway (QR)', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
-    { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
-    { id: 9 as ScreenId, name: '9. Digital Tax Bill', icon: <FileText className="h-3.5 w-3.5 text-slate-700" />, comp: <Screen9DigitalBill /> },
-    { id: 10 as ScreenId, name: '10. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
+    { id: 6 as ScreenId, name: '6. Checkout & Pay', icon: <CreditCard className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
+    { id: 7 as ScreenId, name: '7. Confirmed & Tax Bill', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
+    { id: 8 as ScreenId, name: '8. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
   ];
 
   const renderActiveScreen = () => {
@@ -61,8 +59,8 @@ export default function CustomerJourneyPage() {
       case 4: return <Screen4Cart />;
       case 5: return <Screen5LiveTracking />;
       case 6: return <Screen6PaymentBreakdown />;
-      case 7: return <Screen7PaymentGateway />;
-      case 8: return <Screen8Confirmation />;
+      case 7: return <Screen8Confirmation />;
+      case 8: return <Screen10WaiterCall />;
       case 9: return <Screen9DigitalBill />;
       case 10: return <Screen10WaiterCall />;
       case 11: return <Screen11Loyalty />;
@@ -99,7 +97,7 @@ export default function CustomerJourneyPage() {
           <div className="flex items-center gap-1 rounded-2xl border border-[#EAE5DF] bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
             <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (10)</span>
+              <span>CUSTOMER (8)</span>
             </span>
             <Link
               href="/kitchen"
@@ -160,7 +158,7 @@ export default function CustomerJourneyPage() {
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 10 SCREENS</span>
+              <span>ALL 8 SCREENS</span>
             </button>
           </div>
         </div>

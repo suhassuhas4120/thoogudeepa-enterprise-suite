@@ -14,6 +14,7 @@ import {
   Armchair,
   Smartphone,
   Flame,
+  CookingPot,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -97,31 +98,34 @@ export const Screen1Welcome: React.FC = () => {
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
       <div className="flex flex-col min-h-full bg-gradient-to-b from-[#fffaf4] via-white to-[#fff8f2] p-4 space-y-3 pb-6">
-        {/* Row 1: Highlighted Hero Brand Card with Human Greeting */}
+        {/* Card 1: Restaurant Brand Header - Logo in Row 1, Hotel Name in Row 2 */}
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-orange-200/90 bg-gradient-to-r from-orange-50 via-white to-amber-50/70 p-4 shadow-sm"
+          className="rounded-3xl border border-orange-200/90 bg-gradient-to-b from-orange-50/80 via-white to-amber-50/60 p-4 shadow-xs text-center flex flex-col items-center"
         >
-          <div className="flex items-center gap-3.5">
-            <div className="relative flex h-13 w-13 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white shadow-md shadow-orange-500/25 ring-2 ring-orange-400/30">
-              <Crown className="h-7 w-7 stroke-[2.2]" />
-              <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500 ring-2 ring-white">
-                <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" />
-              </span>
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-1.5 text-[10px] font-bold text-orange-700">
-                <span>{timeGreeting}</span>
-              </div>
-              <h1 className="text-sm font-black tracking-tight text-slate-900 uppercase mt-0.5">
-                {venueName}
-              </h1>
-              <div className="flex items-center gap-1.5 mt-1 text-[10.5px] font-semibold text-slate-600">
-                <Flame className="h-3 w-3 text-orange-600" />
-                <span>Authentic Military Donne Biryani</span>
+          {/* Row 1: Dedicated Hotel Logo Icon (Crafted Culinary Crest with Biryani Pot & Royal Crown) */}
+          <div className="relative mb-2">
+            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white shadow-md shadow-orange-500/25 ring-2 ring-orange-400/30">
+              <CookingPot className="h-7 w-7 stroke-[2]" />
+              <div className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-xs ring-2 ring-white">
+                <Crown className="h-3 w-3 fill-amber-950 stroke-[2.2]" />
               </div>
             </div>
+          </div>
+
+          {/* Row 2: Human Time Greeting, Hotel Name & Tagline */}
+          <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100/90 border border-orange-200/80 px-2.5 py-0.5 text-[9.5px] font-bold text-orange-800 mb-1">
+            <span>{timeGreeting}</span>
+          </div>
+
+          <h1 className="text-sm font-black tracking-tight text-slate-900 uppercase">
+            {venueName}
+          </h1>
+
+          <div className="flex items-center justify-center gap-1.5 mt-0.5 text-[10.5px] font-semibold text-slate-600">
+            <Flame className="h-3 w-3 text-orange-600" />
+            <span>Authentic Military Donne Biryani</span>
           </div>
         </motion.div>
 
@@ -256,12 +260,7 @@ export const Screen1Welcome: React.FC = () => {
                 Connect With Free Restaurant Wi-Fi
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="rounded-md bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9px] font-black text-emerald-800 font-mono">
-                5G Wi-Fi
-              </span>
-              <ArrowRight className="h-4 w-4 text-orange-600 group-hover:translate-x-0.5 transition shrink-0" />
-            </div>
+            <ArrowRight className="h-4 w-4 text-orange-600 group-hover:translate-x-0.5 transition shrink-0" />
           </motion.button>
 
           <motion.button

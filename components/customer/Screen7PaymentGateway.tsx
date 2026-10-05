@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
@@ -23,9 +23,16 @@ import {
   ChevronUp,
   BellRing,
   Check,
-  Sparkles,
+  Coins,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+
+interface TenderOption {
+  id: string;
+  amount: number;
+  label: string;
+  change: number;
+}
 
 export const Screen7PaymentGateway: React.FC = () => {
   const {
@@ -40,11 +47,10 @@ export const Screen7PaymentGateway: React.FC = () => {
 
   const { waiterRecordsPayment } = useSharedBridge();
 
-  // Tab State: 'UPI' | 'CASH' | 'CARD' — Clean single word & single icon
+  // Tab State: 'UPI' | 'CASH' | 'CARD'
   const [activeTab, setActiveTab] = useState<'UPI' | 'CASH' | 'CARD'>('UPI');
   const [selectedApp, setSelectedApp] = useState<string>('');
   const [showSummary, setShowSummary] = useState(false);
-  const [cashTender, setCashTender] = useState<'EXACT' | '500' | '2000'>('EXACT');
   const [isProcessing, setIsProcessing] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [appNotice, setAppNotice] = useState<string>('');
@@ -60,6 +66,77 @@ export const Screen7PaymentGateway: React.FC = () => {
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
   const grandTotal = Math.max(0, subtotal + tax + payment.tipAmount - discount);
 
+  // Smart Dynamic Tender Generator (e.g. ₹1239 -> Exact ₹1239, ₹1250 [+11 change], ₹1300 [+61 change], ₹1500/₹2000)
+  const tenderOptions: TenderOption[] = useMemo(() => {
+    const total = grandTotal;
+    if (total <= 0) return [];
+
+    const opts: TenderOption[] = [];
+
+    // 1. Exact amount
+    opts.push({
+      id: 'exact',
+      amount: total,
+      label: `Exact (₹${total})`,
+      change: 0,
+    });
+
+    // 2. Nearest multiple of 50
+    const next50 = Math.ceil((total + 1) / 50) * 50;
+    if (next50 > total && !opts.some((o) => o.amount === next50)) {
+      opts.push({
+        id: `amt-${next50}`,
+        amount: next50,
+        label: `₹${next50}`,
+        change: next50 - total,
+      });
+    }
+
+    // 3. Nearest multiple of 100
+    let next100 = Math.ceil((total + 1) / 100) * 100;
+    if (next100 <= next50) {
+      next100 += 100;
+    }
+    if (next100 > total && !opts.some((o) => o.amount === next100)) {
+      opts.push({
+        id: `amt-${next100}`,
+        amount: next100,
+        label: `₹${next100}`,
+        change: next100 - total,
+      });
+    }
+
+    // 4. Next higher currency note (500, 1000, 1500, 2000, 3000, 5000)
+    const currencyNotes = [500, 1000, 1500, 2000, 3000, 5000];
+    const nextHigher = currencyNotes.find(
+      (n) => n > total && !opts.some((o) => o.amount === n)
+    );
+    if (nextHigher) {
+      opts.push({
+        id: `amt-${nextHigher}`,
+        amount: nextHigher,
+        label: `₹${nextHigher}`,
+        change: nextHigher - total,
+      });
+    }
+
+    return opts.slice(0, 4);
+  }, [grandTotal]);
+
+  const [selectedTender, setSelectedTender] = useState<TenderOption>(
+    tenderOptions[0] || { id: 'exact', amount: grandTotal, label: `Exact (₹${grandTotal})`, change: 0 }
+  );
+
+  // Sync selected tender if grandTotal updates
+  useEffect(() => {
+    if (tenderOptions.length > 0) {
+      setSelectedTender((prev) => {
+        const found = tenderOptions.find((o) => o.id === prev.id);
+        return found || tenderOptions[0];
+      });
+    }
+  }, [tenderOptions]);
+
   // Standard NPCI UPI URI string
   const merchantVpa = 'thoogudeepa@okicici';
   const merchantName = 'Thoogudeepa Donne Biryani';
@@ -68,11 +145,10 @@ export const Screen7PaymentGateway: React.FC = () => {
     merchantName
   )}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
-  // 1. Instant Bulletproof QR Generation on Mount (Never stuck loading)
+  // 1. Instant Bulletproof QR Generation on Mount (0-Second Display)
   useEffect(() => {
     let isMounted = true;
 
-    // A. Generate client-side QR data URL immediately
     QRCode.toDataURL(upiUri, {
       width: 320,
       margin: 1,
@@ -85,7 +161,6 @@ export const Screen7PaymentGateway: React.FC = () => {
         if (isMounted) setQrDataUrl(url);
       })
       .catch(() => {
-        // Fallback to high-res API if canvas fails
         if (isMounted) {
           setQrDataUrl(
             `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
@@ -101,35 +176,30 @@ export const Screen7PaymentGateway: React.FC = () => {
     };
   }, [upiUri]);
 
-  // App Intents for 1-Tap launch
+  // 1-Tap App launch options
   const upiAppOptions = [
     {
       id: 'gpay',
       name: 'Google Pay',
       scheme: `tez://upi/pay?pa=${merchantVpa}&pn=${encodeURIComponent(merchantName)}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`,
-      badgeColor: 'border-blue-200 bg-blue-50/60 text-blue-900',
     },
     {
       id: 'phonepe',
       name: 'PhonePe',
       scheme: `phonepe://pay?pa=${merchantVpa}&pn=${encodeURIComponent(merchantName)}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`,
-      badgeColor: 'border-purple-200 bg-purple-50/60 text-purple-900',
     },
     {
       id: 'paytm',
       name: 'Paytm',
       scheme: `paytmmp://pay?pa=${merchantVpa}&pn=${encodeURIComponent(merchantName)}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`,
-      badgeColor: 'border-sky-200 bg-sky-50/60 text-sky-900',
     },
     {
       id: 'other',
       name: 'Other UPI / Cred',
       scheme: upiUri,
-      badgeColor: 'border-emerald-200 bg-emerald-50/60 text-emerald-900',
     },
   ];
 
-  // Handler for 1-Tap App launch
   const handleLaunchApp = (app: typeof upiAppOptions[0]) => {
     setSelectedApp(app.name);
     setPaymentMethod('UPI');
@@ -174,7 +244,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     }
   };
 
-  // Clean Tab definitions: Single proper icon + single word name (NO emojis, NO duplicates)
+  // Clean Tab definitions: Single proper icon + single word name (UPI, Cash, Card)
   const paymentTabs = [
     { id: 'UPI' as const, label: 'UPI', icon: <Smartphone className="h-4 w-4" /> },
     { id: 'CASH' as const, label: 'Cash', icon: <Banknote className="h-4 w-4" /> },
@@ -201,7 +271,7 @@ export const Screen7PaymentGateway: React.FC = () => {
       />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#FFFCF7]">
-        {/* Money Card: Total Amount Due — Clear & Non-Clumsy */}
+        {/* Money Card: Total Amount Due — 100% Financial Clarity */}
         <div className="rounded-[28px] border border-[#E8D5C3] bg-white p-4 shadow-xs">
           <div className="flex items-center justify-between">
             <div>
@@ -262,7 +332,7 @@ export const Screen7PaymentGateway: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* PAYMENT TABS: ONE ICON & SINGLE WORD (UPI, Cash, Card) */}
+        {/* PAYMENT TABS: SINGLE ICON & CLEAN NAME (UPI, Cash, Card) */}
         <div className="rounded-[28px] border-2 border-[#8A4228]/30 bg-white p-4 shadow-sm space-y-4">
           <div className="text-[10px] font-black uppercase tracking-[0.22em] text-[#5B5049]/70 font-mono">
             Select Payment Method
@@ -297,7 +367,7 @@ export const Screen7PaymentGateway: React.FC = () => {
             })}
           </div>
 
-          {/* TAB 1: DYNAMIC UPI QR CODE & WORKING 1-TAP APPS */}
+          {/* TAB 1: DYNAMIC UPI QR CODE & 1-TAP APPS */}
           {activeTab === 'UPI' && (
             <motion.div
               initial={{ opacity: 0, y: 4 }}
@@ -379,7 +449,7 @@ export const Screen7PaymentGateway: React.FC = () => {
             </motion.div>
           )}
 
-          {/* TAB 2: CASH TO FLOOR CAPTAIN */}
+          {/* TAB 2: SMART CASH TENDER (DYNAMIC CALCULATED PILLS & CHANGE DUE) */}
           {activeTab === 'CASH' && (
             <motion.div
               initial={{ opacity: 0, y: 4 }}
@@ -387,7 +457,7 @@ export const Screen7PaymentGateway: React.FC = () => {
               exit={{ opacity: 0, y: -4 }}
               className="space-y-3"
             >
-              <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-4 space-y-2">
+              <div className="rounded-2xl border border-amber-300 bg-amber-50/70 p-4 space-y-3">
                 <div className="flex items-center gap-2.5">
                   <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-200/80 text-amber-900">
                     <Banknote className="h-5 w-5" />
@@ -400,58 +470,87 @@ export const Screen7PaymentGateway: React.FC = () => {
                   </div>
                 </div>
 
-                <div className="mt-2 pt-2 border-t border-amber-200/80">
-                  <div className="text-[10px] font-black uppercase tracking-wider text-amber-900 font-mono mb-1.5">
-                    Select Tender Note for Quick Change:
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setCashTender('EXACT')}
-                      className={`rounded-xl border py-1.5 text-center text-[10.5px] font-black transition ${
-                        cashTender === 'EXACT'
-                          ? 'border-amber-700 bg-amber-200 text-amber-950 shadow-2xs'
-                          : 'border-amber-300 bg-white text-amber-900 hover:bg-amber-100'
-                      }`}
-                    >
-                      Exact (₹{grandTotal})
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCashTender('500')}
-                      className={`rounded-xl border py-1.5 text-center text-[10.5px] font-black transition ${
-                        cashTender === '500'
-                          ? 'border-amber-700 bg-amber-200 text-amber-950 shadow-2xs'
-                          : 'border-amber-300 bg-white text-amber-900 hover:bg-amber-100'
-                      }`}
-                    >
-                      ₹500 Note
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setCashTender('2000')}
-                      className={`rounded-xl border py-1.5 text-center text-[10.5px] font-black transition ${
-                        cashTender === '2000'
-                          ? 'border-amber-700 bg-amber-200 text-amber-950 shadow-2xs'
-                          : 'border-amber-300 bg-white text-amber-900 hover:bg-amber-100'
-                      }`}
-                    >
-                      ₹2000 Note
-                    </button>
+                {/* Dynamic Smart Cash Tender Pills */}
+                <div className="pt-2 border-t border-amber-200/80">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 font-mono">
+                      Select Cash Tender Note:
+                    </span>
+                    <span className="text-[10px] font-bold text-amber-800 font-mono">
+                      Bill: ₹{grandTotal}
+                    </span>
                   </div>
 
-                  {cashTender !== 'EXACT' && (
-                    <div className="mt-2 text-[10.5px] font-mono font-bold text-amber-900 bg-white/80 rounded-lg p-1.5 border border-amber-200">
-                      Change needed: ₹{cashTender === '500' ? Math.max(0, 500 - grandTotal) : Math.max(0, 2000 - grandTotal)}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {tenderOptions.map((opt) => {
+                      const isSelected = selectedTender.id === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => setSelectedTender(opt)}
+                          className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition text-center ${
+                            isSelected
+                              ? 'border-[#8A4228] bg-[#F3DFCC] text-[#8A4228] ring-2 ring-[#8A4228]/20 shadow-xs'
+                              : 'border-amber-200/90 bg-white text-[#5B5049] hover:bg-amber-100/50'
+                          }`}
+                        >
+                          <span className="font-mono text-xs font-black">
+                            {opt.label}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold mt-0.5 ${
+                              isSelected
+                                ? 'text-[#8A4228]'
+                                : opt.change === 0
+                                ? 'text-emerald-700'
+                                : 'text-amber-800'
+                            }`}
+                          >
+                            {opt.change === 0 ? 'No change' : `₹${opt.change} change`}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Dynamic Cash & Change Due Summary Card */}
+                  <div className="mt-3 rounded-xl bg-white p-3 border border-amber-200/90 flex items-center justify-between text-xs shadow-2xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-900 font-mono font-black text-xs">
+                        ₹
+                      </div>
+                      <div>
+                        <div className="text-[10px] font-black uppercase tracking-wider text-[#5B5049]/70 font-mono">
+                          Tender Calculation
+                        </div>
+                        <div className="font-bold text-[#5B5049] text-[11px] mt-0.5">
+                          {selectedTender.change === 0 ? (
+                            <span className="text-emerald-800 font-black">
+                              Exact Cash • No change required
+                            </span>
+                          ) : (
+                            <span>
+                              Paying <span className="font-mono font-black text-[#8A4228]">₹{selectedTender.amount}</span> • Change to return:{' '}
+                              <span className="font-mono font-black text-emerald-800">₹{selectedTender.change}</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  )}
+
+                    <span className="font-mono text-[11px] font-black text-[#8A4228] bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0">
+                      {selectedTender.change === 0 ? 'NO CHANGE' : `+₹${selectedTender.change} CHANGE`}
+                    </span>
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 rounded-xl bg-white border border-[#E8D5C3] p-2.5 text-[11px] text-[#5B5049]">
                 <BellRing className="h-4 w-4 text-[#8A4228] shrink-0" />
                 <span>
-                  Floor Captain will arrive at Table {effectiveTable} with your printed tax bill &amp; cash folio.
+                  Floor Captain will arrive at Table {effectiveTable} with your printed tax bill{' '}
+                  {selectedTender.change > 0 ? `and ₹${selectedTender.change} in cash change.` : 'and receipt.'}
                 </span>
               </div>
             </motion.div>
@@ -502,7 +601,9 @@ export const Screen7PaymentGateway: React.FC = () => {
               : activeTab === 'UPI'
               ? `Pay ₹${grandTotal} via ${selectedApp || 'UPI'}`
               : activeTab === 'CASH'
-              ? `Confirm Cash Payment (₹${grandTotal})`
+              ? selectedTender.change === 0
+                ? `Confirm Cash (Exact ₹${grandTotal})`
+                : `Confirm Cash of ₹${selectedTender.amount} (Get ₹${selectedTender.change} Change)`
               : `Request Card Machine (₹${grandTotal})`}
           </span>
           {isProcessing ? (

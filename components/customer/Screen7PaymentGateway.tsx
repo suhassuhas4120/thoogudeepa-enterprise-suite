@@ -533,12 +533,24 @@ export const Screen7PaymentGateway: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 rounded-xl bg-white border border-[#E8D5C3] p-2.5 text-[11px] text-[#5B5049]">
-                <BellRing className="h-4 w-4 text-[#8A4228] shrink-0" />
-                <span>
-                  Floor Captain will arrive at Table {effectiveTable} with your printed tax bill{' '}
-                  {selectedTender.change > 0 ? `and ₹${selectedTender.change} return balance.` : 'and receipt.'}
-                </span>
+              <div className="flex items-center gap-3 rounded-2xl bg-amber-50/90 border border-amber-300/80 p-3 text-[11.5px] text-[#5B5049] shadow-2xs">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-200/90 text-[#8A4228] shrink-0">
+                  <BellRing className="h-4 w-4" />
+                </div>
+                <div className="flex-1 leading-relaxed">
+                  Floor Captain will arrive at <span className="font-bold text-[#2A2522]">Table {effectiveTable}</span> with your printed tax bill{' '}
+                  {selectedTender.change > 0 ? (
+                    <>
+                      and{' '}
+                      <span className="inline-flex items-center px-2.5 py-0.5 mx-1 rounded-xl bg-emerald-100 border border-emerald-300 font-mono font-black text-base text-emerald-900 shadow-2xs">
+                        ₹{selectedTender.change}
+                      </span>{' '}
+                      return balance.
+                    </>
+                  ) : (
+                    'and payment receipt.'
+                  )}
+                </div>
               </div>
             </motion.div>
           )}

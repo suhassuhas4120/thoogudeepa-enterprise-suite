@@ -57,6 +57,26 @@ export function ScreenM9WaiterCash() {
                       <div>
                         <div className="text-[10px] text-slate-400">HANDED OVER</div>
                         <div className="font-bold text-emerald-700">₹ {st.cashHandedOver}</div>
+                        {!isSettled && (
+                          <div className="mt-1 flex items-center rounded border border-slate-300 bg-white px-1.5">
+                            <IndianRupee className="h-3 w-3 text-slate-400" />
+                            <input
+                              id={`handover-${st.id}`}
+                              type="number"
+                              min="1"
+                              max={amountDue}
+                              step="1"
+                              value={handoverAmounts[st.id] ?? ''}
+                              placeholder="Add"
+                              onChange={(event) => setHandoverAmounts((current) => ({
+                                ...current,
+                                [st.id]: event.target.value,
+                              }))}
+                              className="w-full min-w-0 bg-transparent px-1 py-1 text-xs font-bold outline-none"
+                              aria-label={`Additional cash handed over by ${st.name}`}
+                            />
+                          </div>
+                        )}
                       </div>
                       <div>
                         <div className="text-[10px] text-slate-400">OUTSTANDING DUE</div>
@@ -71,30 +91,9 @@ export function ScreenM9WaiterCash() {
                       </div>
                     ) : (
                       <div className="mt-2 flex gap-2">
-                        <label className="sr-only" htmlFor={`handover-${st.id}`}>
-                          Cash received now from {st.name}
-                        </label>
-                        <div className="flex flex-1 items-center rounded border border-slate-300 bg-white px-2">
-                          <IndianRupee className="h-3 w-3 text-slate-400" />
-                          <input
-                            id={`handover-${st.id}`}
-                            type="number"
-                            min="1"
-                            max={amountDue}
-                            step="1"
-                            value={handoverAmounts[st.id] ?? ''}
-                            placeholder={`Max ₹${amountDue.toLocaleString('en-IN')}`}
-                            onChange={(event) => setHandoverAmounts((current) => ({
-                              ...current,
-                              [st.id]: event.target.value,
-                            }))}
-                            className="w-full bg-transparent px-1 py-1 text-xs font-bold outline-none"
-                            aria-label={`Cash received now from ${st.name}`}
-                          />
-                        </div>
                         <button
                           onClick={() => handleHandover(st.id, st.name, st.cashCollected, st.cashHandedOver)}
-                          className="bg-[#9C3D1E] text-white px-3 py-1 rounded text-xs font-bold hover:bg-emerald-600 transition text-center"
+                          className="bg-[#9C3D1E] text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-emerald-600 transition text-center whitespace-nowrap"
                         >
                           RECORD HANDOVER
                         </button>

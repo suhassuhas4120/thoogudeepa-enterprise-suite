@@ -204,9 +204,6 @@ export function ScreenM1Login() {
             <h3 className="text-base font-black font-mono text-slate-900">
               MANAGER / CASHIER AUTHENTICATION
             </h3>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">
-              Select your staff profile and enter your 4-digit security PIN
-            </p>
           </div>
 
           {/* Profile Select — [ACTIVE PROFILE] label removed */}
@@ -260,13 +257,11 @@ export function ScreenM1Login() {
                 );
               })}
             </div>
-            <div className="font-mono text-xs font-bold text-slate-500">
-              {authError ? (
-                <span className="text-rose-600 font-bold">INVALID PIN — PLEASE TRY AGAIN</span>
-              ) : (
-                <span>[{pinInput.length} OF 4 DIGITS ENTERED]</span>
-              )}
-            </div>
+            {authError && (
+              <div className="font-mono text-xs font-bold text-rose-600">
+                INVALID PIN — PLEASE TRY AGAIN
+              </div>
+            )}
           </div>
 
           {/* Numeric Keypad */}

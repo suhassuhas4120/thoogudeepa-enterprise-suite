@@ -71,7 +71,6 @@ export function ScreenM14AttendanceTips() {
                   <span className="font-bold text-slate-800">{st.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500">In: 17:45</span>
                   <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
                     st.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-[#FAF8F5] text-slate-600'
                   }`}>

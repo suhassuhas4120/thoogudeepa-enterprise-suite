@@ -34,8 +34,7 @@ import {
   Briefcase,
   QrCode,
   Tablet,
-  Award,
-  MessageSquare,
+  Receipt,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -43,18 +42,15 @@ export default function CustomerJourneyPage() {
   const { currentScreen, setCurrentScreen, viewMode, setViewMode } = useCustomer();
 
   const screens = [
-    { id: 1 as ScreenId, name: '1. Welcome & Wi-Fi', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },
-    { id: 2 as ScreenId, name: '2. Menu (2-Col Grid)', icon: <UtensilsCrossed className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen2Menu /> },
+    { id: 1 as ScreenId, name: '1. Welcome & Connect', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },
+    { id: 2 as ScreenId, name: '2. Authentic Menu', icon: <UtensilsCrossed className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen2Menu /> },
     { id: 3 as ScreenId, name: '3. Item Details', icon: <Sparkles className="h-3.5 w-3.5 text-amber-500" />, comp: <Screen3ItemDetail /> },
-    { id: 4 as ScreenId, name: '4. Cart & Stepper', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
+    { id: 4 as ScreenId, name: '4. Cart & Review', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
     { id: 5 as ScreenId, name: '5. Live Tracking', icon: <Clock className="h-3.5 w-3.5 text-indigo-500" />, comp: <Screen5LiveTracking /> },
-    { id: 6 as ScreenId, name: '6. Payment Breakdown', icon: <CreditCard className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
-    { id: 7 as ScreenId, name: '7. Payment Gateway (QR)', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
-    { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
-    { id: 9 as ScreenId, name: '9. Digital Tax Bill', icon: <FileText className="h-3.5 w-3.5 text-slate-700" />, comp: <Screen9DigitalBill /> },
-    { id: 10 as ScreenId, name: '10. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
-    { id: 11 as ScreenId, name: '11. Loyalty Rewards', icon: <Award className="h-3.5 w-3.5 text-amber-600" />, comp: <Screen11Loyalty /> },
-    { id: 12 as ScreenId, name: '12. Feedback & Review', icon: <MessageSquare className="h-3.5 w-3.5 text-orange-600" />, comp: <Screen12Feedback /> },
+    { id: 6 as ScreenId, name: '6. Order Summary & Bill', icon: <Receipt className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
+    { id: 7 as ScreenId, name: '7. Payment Options', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
+    { id: 8 as ScreenId, name: '8. Confirmed & Tax Bill', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
+    { id: 9 as ScreenId, name: '9. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
   ];
 
   const renderActiveScreen = () => {
@@ -67,7 +63,7 @@ export default function CustomerJourneyPage() {
       case 6: return <Screen6PaymentBreakdown />;
       case 7: return <Screen7PaymentGateway />;
       case 8: return <Screen8Confirmation />;
-      case 9: return <Screen9DigitalBill />;
+      case 9: return <Screen10WaiterCall />;
       case 10: return <Screen10WaiterCall />;
       case 11: return <Screen11Loyalty />;
       case 12: return <Screen12Feedback />;
@@ -103,7 +99,7 @@ export default function CustomerJourneyPage() {
           <div className="flex items-center gap-1 rounded-2xl border border-[#EAE5DF] bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
             <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (12)</span>
+              <span>CUSTOMER (9)</span>
             </span>
             <Link
               href="/kitchen"
@@ -164,7 +160,7 @@ export default function CustomerJourneyPage() {
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 10 SCREENS</span>
+              <span>ALL 9 SCREENS</span>
             </button>
           </div>
         </div>

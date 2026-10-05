@@ -17,6 +17,7 @@ interface CustomerStoreState {
   viewMode: 'single' | 'all';
   guestName: string;
   tableNumber: string;
+  seatNumber: number;
   venueName: string;
   selectedDetailItem: MenuItem;
   cart: CartItem[];
@@ -31,6 +32,7 @@ interface CustomerStoreState {
   setViewMode: (mode: 'single' | 'all') => void;
   setGuestName: (name: string) => void;
   setTableNumber: (table: string) => void;
+  setSeatNumber: (seat: number) => void;
   setSelectedDetailItem: (item: MenuItem) => void;
   addToCart: (
     item: MenuItem,
@@ -99,6 +101,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   viewMode: 'single',
   guestName: '',
   tableNumber: 'T-01',
+  seatNumber: 1,
   venueName: 'Thoogudeepa donne biryani mane',
   selectedDetailItem: INITIAL_MENU_ITEMS[0],
   cart: [],
@@ -122,6 +125,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
   setGuestName: (guestName) => set({ guestName }),
   setTableNumber: (tableNumber) => set({ tableNumber }),
+  setSeatNumber: (seatNumber) => set({ seatNumber }),
   setSelectedDetailItem: (selectedDetailItem) => set({ selectedDetailItem }),
 
   addToCart: (

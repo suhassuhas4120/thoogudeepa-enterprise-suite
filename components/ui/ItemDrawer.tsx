@@ -108,31 +108,38 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
               <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11.5px] font-extrabold text-slate-900">
-                    {item.optionsGroup1.title}
+                    {item.optionsGroup1.title === 'Toss Style' ? 'Flavours' : item.optionsGroup1.title}
                   </span>
-                  <span className="text-[9.5px] font-bold text-slate-500">Choose 1</span>
+                  <span className="text-[9.5px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full font-mono">
+                    Choose 1
+                  </span>
                 </div>
                 <div className="space-y-1.5">
                   {item.optionsGroup1.choices.map((choice) => {
                     const isChecked = selectedOption === choice;
                     return (
-                      <label
+                      <div
                         key={choice}
-                        className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer border transition ${
+                        onClick={() => setSelectedOption(choice)}
+                        className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
                           isChecked
-                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
+                            ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
                             : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <span>{choice}</span>
-                        <input
-                          type="radio"
-                          name="phone-sheet-opt1"
-                          checked={isChecked}
-                          onChange={() => setSelectedOption(choice)}
-                          className="accent-orange-600 h-4 w-4"
-                        />
-                      </label>
+                        <span className="font-bold text-slate-800">{choice}</span>
+                        <div
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                            isChecked
+                              ? 'border-[#8A4228] bg-white'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isChecked && (
+                            <div className="h-2.5 w-2.5 rounded-full bg-[#8A4228]" />
+                          )}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>
@@ -144,33 +151,39 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                   <span className="text-[11.5px] font-extrabold text-slate-900">
                     {item.optionsGroup2.title}
                   </span>
-                  <span className="text-[9.5px] font-bold text-slate-500">Optional</span>
+                  <span className="text-[9.5px] font-bold text-slate-500 font-mono">
+                    Optional
+                  </span>
                 </div>
                 <div className="space-y-1.5">
                   {item.optionsGroup2.addOns.map((addon) => {
                     const isChecked = selectedAddOns.includes(addon.name);
                     return (
-                      <label
+                      <div
                         key={addon.name}
-                        className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer border transition ${
+                        onClick={() => toggleAddOn(addon.name)}
+                        className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
                           isChecked
-                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
+                            ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
                             : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
                         }`}
                       >
-                        <div className="flex items-center gap-1.5">
-                          <span>{addon.name}</span>
-                          <span className="font-mono text-orange-600 font-bold">
-                            (+₹ {addon.extraPrice})
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-slate-800">{addon.name}</span>
+                          <span className="font-mono text-xs font-black text-[#8A4228]">
+                            +₹{addon.extraPrice}
                           </span>
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => toggleAddOn(addon.name)}
-                          className="accent-orange-600 h-4 w-4 rounded"
-                        />
-                      </label>
+                        <div
+                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
+                            isChecked
+                              ? 'border-[#8A4228] bg-[#8A4228] text-white shadow-2xs'
+                              : 'border-slate-300 bg-white'
+                          }`}
+                        >
+                          {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                        </div>
+                      </div>
                     );
                   })}
                 </div>

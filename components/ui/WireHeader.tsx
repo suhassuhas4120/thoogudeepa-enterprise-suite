@@ -56,7 +56,7 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
           <motion.button
             whileTap={{ scale: 0.9 }}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-orange-600 shadow-sm transition hover:bg-orange-100"
-            onClick={() => navigateTo(10)}
+            onClick={() => navigateTo(9)}
             title="Call Waiter"
           >
             <Bell className="h-4 w-4 stroke-[2.2]" />

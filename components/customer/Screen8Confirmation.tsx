@@ -36,7 +36,7 @@ export const Screen8Confirmation: React.FC = () => {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState(false);
   const [shareMsg, setShareMsg] = useState(false);
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
 
   // Read seat from URL
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -51,19 +51,19 @@ export const Screen8Confirmation: React.FC = () => {
       ? currentTable.serverName
       : 'Captain Suresh';
 
-  const formattedDateTime = useMemo(() => {
+  const { formattedDate, formattedTime } = useMemo(() => {
     const d = new Date();
-    const dateStr = d.toLocaleDateString('en-IN', {
+    const formattedDate = d.toLocaleDateString('en-IN', {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
     });
-    const timeStr = d.toLocaleTimeString('en-IN', {
+    const formattedTime = d.toLocaleTimeString('en-IN', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
     });
-    return `${dateStr}, ${timeStr}`;
+    return { formattedDate, formattedTime };
   }, []);
 
   // Calculations
@@ -175,22 +175,38 @@ export const Screen8Confirmation: React.FC = () => {
             </div>
 
             {/* Structured Table, Captain & Diner Metadata */}
-            <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[10.5px] font-mono text-[#5B5049] mt-3 pt-2.5 border-t border-dashed border-[#E8D5C3]">
-              <div className="text-left">
-                <span className="text-[#5B5049]/70 font-semibold">TABLE:</span>{' '}
-                <strong className="font-bold text-[#2A2522]">{effectiveTable} (Seat C-{String(seatNumber).padStart(2, '0')})</strong>
+            <div className="space-y-1.5 text-[10.5px] font-mono text-[#5B5049] mt-3 pt-2.5 border-t border-dashed border-[#E8D5C3]">
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <span className="text-[#5B5049]/70 font-semibold">DATE:</span>{' '}
+                  <strong className="font-bold text-[#2A2522]">{formattedDate}</strong>
+                </div>
+                <div className="text-right whitespace-nowrap">
+                  <span className="text-[#5B5049]/70 font-semibold">TIME:</span>{' '}
+                  <strong className="font-bold text-[#2A2522] whitespace-nowrap">{formattedTime}</strong>
+                </div>
               </div>
-              <div className="text-right">
-                <span className="text-[#5B5049]/70 font-semibold">CAPTAIN:</span>{' '}
-                <strong className="font-bold text-[#8A4228]">{captainName}</strong>
+
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <span className="text-[#5B5049]/70 font-semibold">TABLE:</span>{' '}
+                  <strong className="font-bold text-[#2A2522]">{effectiveTable} (Seat C-{String(seatNumber).padStart(2, '0')})</strong>
+                </div>
+                <div className="text-right">
+                  <span className="text-[#5B5049]/70 font-semibold">CAPTAIN:</span>{' '}
+                  <strong className="font-bold text-[#8A4228]">{captainName}</strong>
+                </div>
               </div>
-              <div className="text-left">
-                <span className="text-[#5B5049]/70 font-semibold">GUEST:</span>{' '}
-                <strong className="font-bold text-[#2A2522]">{guestName || 'Valued Diner'}</strong>
-              </div>
-              <div className="text-right">
-                <span className="text-[#5B5049]/70 font-semibold">DATE:</span>{' '}
-                <strong className="font-bold text-[#2A2522]">{formattedDateTime}</strong>
+
+              <div className="flex items-center justify-between">
+                <div className="text-left">
+                  <span className="text-[#5B5049]/70 font-semibold">GUEST:</span>{' '}
+                  <strong className="font-bold text-[#2A2522]">{guestName || 'Valued Diner'}</strong>
+                </div>
+                <div className="text-right">
+                  <span className="text-[#5B5049]/70 font-semibold">MODE:</span>{' '}
+                  <strong className="font-bold text-[#2A2522]">DINE-IN</strong>
+                </div>
               </div>
             </div>
           </div>
@@ -288,7 +304,7 @@ export const Screen8Confirmation: React.FC = () => {
                 Rate Experience
               </div>
               <div className="text-xs font-bold text-[#8A4228] mt-0.5 font-mono">
-                {rating} / 5 Stars
+                {rating > 0 ? `${rating} / 5 Stars` : 'Tap stars to rate'}
               </div>
             </div>
 
@@ -305,10 +321,10 @@ export const Screen8Confirmation: React.FC = () => {
                   aria-label={`Rate ${star} of 5 stars`}
                 >
                   <Star
-                    className={`h-5 w-5 ${
+                    className={`h-5 w-5 transition-colors ${
                       star <= rating
-                        ? 'fill-amber-400 text-amber-400'
-                        : 'text-slate-200'
+                        ? 'fill-amber-400 text-amber-400 stroke-amber-400'
+                        : 'fill-none text-slate-300 stroke-[1.75]'
                     }`}
                   />
                 </button>

@@ -281,36 +281,54 @@ export const Screen8Confirmation: React.FC = () => {
         </div>
 
         {/* Quick 1-Tap Experience Rating */}
-        <div className="rounded-[28px] border border-[#E8D5C3] bg-white p-3.5 shadow-xs flex items-center justify-between">
-          <div>
-            <div className="text-[10px] font-black uppercase tracking-wider text-[#5B5049]/70 font-mono">
-              Rate Experience
+        <div className="rounded-[28px] border border-[#E8D5C3] bg-white p-4 shadow-xs space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-[10px] font-black uppercase tracking-wider text-[#5B5049]/70 font-mono">
+                Rate Experience
+              </div>
+              <div className="text-xs font-bold text-[#8A4228] mt-0.5 font-mono">
+                {rating} / 5 Stars
+              </div>
             </div>
-            <div className="text-[11px] font-bold text-[#8A4228] mt-0.5">
-              {feedbackSubmitted ? 'Thank you for your feedback!' : `${rating} / 5 Stars`}
+
+            <div className="flex items-center gap-1">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => {
+                    setRating(star);
+                    setFeedbackSubmitted(true);
+                  }}
+                  className="p-1 hover:scale-110 active:scale-95 transition"
+                  aria-label={`Rate ${star} of 5 stars`}
+                >
+                  <Star
+                    className={`h-5 w-5 ${
+                      star <= rating
+                        ? 'fill-amber-400 text-amber-400'
+                        : 'text-slate-200'
+                    }`}
+                  />
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="flex items-center gap-1">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                onClick={() => {
-                  setRating(star);
-                  setFeedbackSubmitted(true);
-                }}
-                className="p-1 hover:scale-110 transition"
-              >
-                <Star
-                  className={`h-5 w-5 ${
-                    star <= rating
-                      ? 'fill-amber-400 text-amber-400'
-                      : 'text-slate-200'
-                  }`}
-                />
-              </button>
-            ))}
-          </div>
+          {/* Dedicated Feedback Acknowledgement Below Rating Row with Proper Alignment */}
+          {feedbackSubmitted && (
+            <motion.div
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="pt-2.5 border-t border-dashed border-[#E8D5C3] flex items-center justify-center"
+            >
+              <div className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3.5 py-1 text-xs font-bold text-emerald-800 shadow-2xs">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 stroke-[2.5]" />
+                <span>Thank you for your feedback!</span>
+              </div>
+            </motion.div>
+          )}
         </div>
       </div>
 

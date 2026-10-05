@@ -31,7 +31,6 @@ export function ScreenM13PettyExpenses() {
         <div>
           <div className="flex justify-between items-center pb-3 border-b border-slate-200">
             <div>
-              <span className="text-xs font-bold text-slate-500">[PETTY CASH DESK]</span>
               <h3 className="text-sm font-black text-slate-900 mt-0.5">
                 DAILY TILL OUTFLOW VOUCHERS
               </h3>
@@ -62,9 +61,6 @@ export function ScreenM13PettyExpenses() {
           </div>
         </div>
 
-        <div className="mt-4 p-3 bg-[#FAF8F5] rounded-lg border border-slate-300 text-xs text-slate-600">
-          All vouchers require physical receipt attachment before shift closing Z-Report.
-        </div>
       </div>
 
       {/* Right Add Voucher Form */}

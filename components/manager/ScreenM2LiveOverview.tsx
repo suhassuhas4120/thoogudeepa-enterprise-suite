@@ -3,7 +3,7 @@
 import React from 'react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useManagerStore } from '../../store/useManagerStore';
-import { IndianRupee, Users, Utensils, AlertTriangle, TrendingUp, Clock, CheckCircle2, ArrowRight } from 'lucide-react';
+import { IndianRupee, Users, Utensils, AlertTriangle, TrendingUp, Clock, CheckCircle2, ArrowRight, Bell, BellRing, PhoneCall, Receipt, Star } from 'lucide-react';
 
 export function ScreenM2LiveOverview() {
   const { tables, kdsTickets, shiftStats } = useSharedBridge();
@@ -31,9 +31,7 @@ export function ScreenM2LiveOverview() {
           <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
             ₹ {(shiftStats.totalRevenue + currentLiveBillSum).toLocaleString('en-IN')}.00
           </div>
-          <p className="text-[11px] font-mono text-emerald-700 font-bold mt-1">
-            +18% vs Yesterday Dinner
-          </p>
+
         </div>
 
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
@@ -44,9 +42,7 @@ export function ScreenM2LiveOverview() {
           <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
             {totalSeated} Guests
           </div>
-          <p className="text-[11px] font-mono text-slate-500 mt-1">
-            Across {occupiedTables.length} active tables
-          </p>
+
         </div>
 
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
@@ -57,9 +53,7 @@ export function ScreenM2LiveOverview() {
           <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
             {activeKdsCount} Orders
           </div>
-          <p className="text-[11px] font-mono text-orange-700 font-bold mt-1">
-            Avg Cook Time: 12 mins
-          </p>
+
         </div>
 
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
@@ -68,11 +62,8 @@ export function ScreenM2LiveOverview() {
             <Clock className="h-4 w-4 text-purple-600" />
           </div>
           <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            {Math.round((occupiedTables.length / tables.length) * 100)}%
+            {occupiedTables.length}/{tables.length} Tables
           </div>
-          <p className="text-[11px] font-mono text-slate-500 mt-1">
-            {tables.length - occupiedTables.length} tables vacant
-          </p>
         </div>
       </div>
 
@@ -83,9 +74,7 @@ export function ScreenM2LiveOverview() {
             <h3 className="text-sm font-black font-mono text-slate-900">
               RESTAURANT TABLES LIVE STATUS MATRIX
             </h3>
-            <p className="text-xs text-slate-500 font-mono">
-              Click any table card to inspect running orders, print KOT, or open billing POS
-            </p>
+
           </div>
           {/* Legend */}
           <div className="flex items-center gap-3 font-mono text-[11px] font-bold">
@@ -122,9 +111,11 @@ export function ScreenM2LiveOverview() {
                 <div className="mt-2 text-xs font-bold">
                   {isOcc || isBill ? `₹ ${tbl.currentBill}` : 'VACANT'}
                 </div>
-                <div className={`text-[10px] mt-0.5 truncate ${isOcc ? 'text-slate-300' : 'text-slate-400'}`}>
-                  {isOcc ? `${tbl.guestCount} Pax • ${tbl.kotCount} KOT` : tbl.section}
-                </div>
+                {isOcc && (
+                  <div className="text-[10px] mt-0.5 truncate text-slate-300">
+                    {tbl.guestCount} Pax • {tbl.kotCount} KOT
+                  </div>
+                )}
               </button>
             );
           })}
@@ -171,49 +162,78 @@ export function ScreenM2LiveOverview() {
           )}
         </div>
 
-        {/* Shift Cash & Settlements */}
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h4 className="text-xs font-mono font-black text-slate-900">
-                SHIFT CASH DRAWER SUMMARY
-              </h4>
-              <button
-                onClick={() => setCurrentScreen(9)}
-                className="text-[11px] font-mono font-bold text-slate-600 hover:underline flex items-center gap-1"
-              >
-                <span>RECONCILE</span>
-                <ArrowRight className="h-3 w-3" />
-              </button>
-            </div>
-            <div className="space-y-1.5 text-xs font-mono">
-              <div className="flex justify-between text-slate-600">
-                <span>Opening Cash Float:</span>
-                <span className="font-bold">₹ 5,000.00</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Cash Collected Today:</span>
-                <span className="font-bold text-emerald-700">₹ {shiftStats.totalRevenue.toLocaleString('en-IN')}.00</span>
-              </div>
-              <div className="flex justify-between text-slate-600">
-                <span>Total Tables Served:</span>
-                <span className="font-bold">{shiftStats.tablesServed} Tables</span>
-              </div>
-            </div>
+        {/* Customer Notifications Panel */}
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col">
+          <div className="flex items-center justify-between mb-3">
+            <h4 className="text-xs font-mono font-black text-slate-900 flex items-center gap-1.5">
+              <BellRing className="h-4 w-4 text-[#9C3D1E]" />
+              CUSTOMER NOTIFICATIONS
+            </h4>
+            <button
+              onClick={() => {}}
+              className="text-[11px] font-mono font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1"
+            >
+              <span>MARK ALL READ</span>
+              <CheckCircle2 className="h-3 w-3" />
+            </button>
           </div>
-          <div className="pt-3 border-t border-slate-200 mt-3 flex gap-2">
-            <button
-              onClick={() => setCurrentScreen(4)}
-              className="flex-1 bg-[#9C3D1E] text-white py-2 px-3 rounded-lg text-xs font-mono font-bold hover:bg-orange-600 transition text-center"
-            >
-              OPEN BILLING POS
-            </button>
-            <button
-              onClick={() => setCurrentScreen(16)}
-              className="bg-[#FAF8F5] text-slate-800 py-2 px-3 rounded-lg text-xs font-mono font-bold hover:bg-stone-200 transition"
-            >
-              Z-REPORT
-            </button>
+
+          <div className="space-y-2">
+            {/* Waiter Call Alert */}
+            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-red-50 border border-red-200">
+              <div className="mt-0.5 p-1.5 rounded-full bg-red-100 shrink-0">
+                <PhoneCall className="h-3.5 w-3.5 text-red-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-mono font-black text-slate-900">Table T-07 — Waiter Call</span>
+                  <span className="text-[10px] font-mono text-red-600 font-bold bg-red-100 px-1.5 py-0.5 rounded shrink-0">NEW</span>
+                </div>
+                <p className="text-[11px] font-mono text-slate-500 mt-0.5">Guest requesting assistance • 2 mins ago</p>
+              </div>
+            </div>
+
+            {/* Bill Request */}
+            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
+              <div className="mt-0.5 p-1.5 rounded-full bg-amber-100 shrink-0">
+                <Receipt className="h-3.5 w-3.5 text-amber-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-mono font-black text-slate-900">Table T-12 — Bill Request</span>
+                  <span className="text-[10px] font-mono text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded shrink-0">NEW</span>
+                </div>
+                <p className="text-[11px] font-mono text-slate-500 mt-0.5">Guest ready to pay • 4 mins ago</p>
+              </div>
+            </div>
+
+            {/* Waiter Call — Acknowledged */}
+            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-[#FAF8F5] border border-slate-200">
+              <div className="mt-0.5 p-1.5 rounded-full bg-slate-100 shrink-0">
+                <PhoneCall className="h-3.5 w-3.5 text-slate-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-mono font-black text-slate-500">Table T-03 — Waiter Call</span>
+                  <span className="text-[10px] font-mono text-emerald-700 font-bold bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">DONE</span>
+                </div>
+                <p className="text-[11px] font-mono text-slate-400 mt-0.5">Acknowledged by Kiran K. • 9 mins ago</p>
+              </div>
+            </div>
+
+            {/* Guest Feedback */}
+            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-[#FAF8F5] border border-slate-200">
+              <div className="mt-0.5 p-1.5 rounded-full bg-slate-100 shrink-0">
+                <Star className="h-3.5 w-3.5 text-slate-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between gap-1">
+                  <span className="text-xs font-mono font-black text-slate-500">Table T-19 — Guest Feedback</span>
+                  <span className="text-[10px] font-mono text-slate-500 font-bold bg-slate-200 px-1.5 py-0.5 rounded shrink-0">READ</span>
+                </div>
+                <p className="text-[11px] font-mono text-slate-400 mt-0.5">⭐⭐⭐⭐⭐ Excellent biryani! • 15 mins ago</p>
+              </div>
+            </div>
           </div>
         </div>
       </div>

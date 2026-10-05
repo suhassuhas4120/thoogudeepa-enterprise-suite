@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { X, CreditCard, QrCode, Banknote, CheckCircle2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, CreditCard, QrCode, Banknote, CheckCircle2, ShieldCheck, Printer, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
 
@@ -10,46 +10,77 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onDone: () => void;
+  splitAmount?: number;
+  splitLabel?: string;
 }
 
 type PayMethod = 'CASH' | 'UPI' | 'CARD';
-const CASH_PRESETS = [100, 200, 500, 1000, 2000];
 
-export function TabletSettleModal({ tableNum, open, onClose, onDone }: Props) {
+export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount, splitLabel }: Props) {
   const { tables, waiterRecordsPayment, waiterVacatesTable } = useSharedBridge();
   const table = tables.find((t) => t.number === tableNum);
 
-  const [method, setMethod] = useState<PayMethod>('CASH');
+  const [method, setMethod] = useState<PayMethod>('UPI');
   const [cashTendered, setCashTendered] = useState<number | ''>('');
-  const [vacateAfter, setVacateAfter] = useState(true);
+  const [isUpiVerified, setIsUpiVerified] = useState(false);
+  const [vacateAfter, setVacateAfter] = useState(!splitAmount);
   const [settled, setSettled] = useState(false);
 
   if (!table) return null;
 
-  const bill = table.currentBill || 0;
+  const fullBill = table.currentBill || 0;
+  const bill = splitAmount ? splitAmount : fullBill;
+  const subtotal = Math.round(bill / 1.05);
+  const totalTax = bill - subtotal;
+  const cgst = totalTax / 2;
+  const sgst = totalTax / 2;
+
+  // Dynamic cash presets tailored to the bill amount
+  const cashPresets = useMemo(() => {
+    if (bill <= 0) return [100, 200, 500];
+    const base = Math.ceil(bill / 50) * 50;
+    const presets = new Set<number>();
+    presets.add(bill);
+    if (base > bill) presets.add(base);
+    presets.add(Math.ceil(bill / 100) * 100);
+    presets.add(Math.ceil(bill / 500) * 500 || 500);
+    if (bill > 500) presets.add(Math.ceil(bill / 1000) * 1000 || 1000);
+    return Array.from(presets).filter((v) => v >= bill).sort((a, b) => a - b).slice(0, 4);
+  }, [bill]);
+
   const change =
     method === 'CASH' && typeof cashTendered === 'number' && cashTendered >= bill
       ? cashTendered - bill
-      : null;
+      : 0;
+
+  const isSettleDisabled =
+    bill <= 0 ||
+    (method === 'UPI' && !isUpiVerified) ||
+    (method === 'CASH' && (cashTendered === '' || Number(cashTendered) < bill));
 
   const handleSettle = () => {
+    if (isSettleDisabled) return;
+
     waiterRecordsPayment(tableNum, method, bill);
-    if (vacateAfter) {
+
+    if (vacateAfter && !splitAmount) {
       setTimeout(() => waiterVacatesTable(tableNum), 400);
     }
+
     setSettled(true);
     setTimeout(() => {
       setSettled(false);
       setCashTendered('');
-      setMethod('CASH');
+      setIsUpiVerified(false);
+      setMethod('UPI');
       onDone();
-    }, 1600);
+    }, 1500);
   };
 
   return (
     <AnimatePresence>
       {open && (
-        <>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           {/* Backdrop */}
           <motion.div
             key="settle-backdrop"
@@ -57,17 +88,17 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-stone-900/40 backdrop-blur-sm z-50"
+            className="absolute inset-0 bg-stone-950/60 backdrop-blur-xs"
           />
 
-          {/* Modal card */}
+          {/* Modal Card */}
           <motion.div
             key="settle-modal"
             initial={{ opacity: 0, scale: 0.94, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 20 }}
             transition={{ type: 'spring', damping: 30, stiffness: 340 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[420px] bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-50 overflow-hidden"
+            className="relative w-[480px] max-w-full bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-10 overflow-hidden font-sans"
           >
             {settled ? (
               <div className="p-10 flex flex-col items-center gap-4 text-center">
@@ -76,129 +107,212 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone }: Props) {
                 </div>
                 <div>
                   <p className="font-mono text-xs font-black text-emerald-700 uppercase tracking-wider">
-                    Payment Recorded
+                    Payment Successfully Recorded
                   </p>
                   <h3 className="text-2xl font-black text-stone-900 mt-1">{tableNum}</h3>
                   <p className="font-mono text-lg font-bold text-stone-700 mt-1">
-                    ₹{bill} via {method}
+                    ₹{bill.toFixed(2)} via {method}
                   </p>
+                  {splitLabel && (
+                    <span className="inline-block mt-2 font-mono text-[11px] font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300">
+                      {splitLabel}
+                    </span>
+                  )}
+                  {vacateAfter && !splitAmount && (
+                    <p className="font-mono text-xs text-stone-500 mt-2">
+                      Table marked for cleaning and reset.
+                    </p>
+                  )}
                 </div>
               </div>
             ) : (
               <>
-                <div className="px-6 py-5 border-b border-[#EAE5DF] flex items-center justify-between">
+                {/* Header */}
+                <div className="px-6 py-5 border-b border-[#EAE5DF] bg-[#FAF8F5] flex items-center justify-between">
                   <div>
-                    <p className="font-mono text-[10px] font-black text-[#9C3D1E] uppercase tracking-widest">
-                      Settle Bill
-                    </p>
-                    <h3 className="text-xl font-black text-stone-900 mt-0.5">{tableNum}</h3>
+                    <div className="flex items-center gap-2">
+                      <p className="font-mono text-[10px] font-black text-[#9C3D1E] uppercase tracking-widest">
+                        Terminal Cashier Settlement
+                      </p>
+                      {splitLabel && (
+                        <span className="font-mono text-[9px] font-bold bg-amber-200 text-amber-900 px-2 py-0.5 rounded uppercase">
+                          Split Check
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="text-xl font-black text-stone-900 mt-0.5">
+                      TABLE {tableNum} {splitLabel ? `(${splitLabel})` : ''}
+                    </h3>
                   </div>
                   <div className="text-right">
-                    <p className="font-mono text-[10px] text-stone-500">Total</p>
-                    <p className="font-mono text-2xl font-black text-stone-900">₹{bill}</p>
+                    <p className="font-mono text-[10px] text-stone-500 uppercase">Amount Due</p>
+                    <p className="font-mono text-2xl font-black text-[#9C3D1E]">₹{bill.toFixed(2)}</p>
                   </div>
                   <button
+                    type="button"
                     onClick={onClose}
-                    className="ml-4 p-2 bg-[#FAF8F5] hover:bg-stone-200 border border-[#EAE5DF] rounded-xl transition"
+                    className="ml-3 p-2 bg-white hover:bg-stone-200 border border-[#EAE5DF] rounded-xl transition cursor-pointer"
                   >
                     <X className="h-4 w-4 text-stone-500" />
                   </button>
                 </div>
 
-                <div className="px-6 py-5 space-y-5">
-                  {/* Payment method */}
+                <div className="p-6 space-y-4 font-mono">
+                  {/* Tax Breakdown Mini Card */}
+                  <div className="p-3 bg-stone-50 border border-stone-200 rounded-2xl text-xs space-y-1">
+                    <div className="flex justify-between text-stone-600">
+                      <span>Food &amp; Beverage Subtotal:</span>
+                      <span className="font-bold text-stone-900">₹{subtotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-[11px] text-stone-500">
+                      <span>CGST (2.5%) + SGST (2.5%):</span>
+                      <span>₹{cgst.toFixed(2)} + ₹{sgst.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between font-black text-stone-900 pt-1 border-t border-stone-200 text-sm">
+                      <span>Total Payable:</span>
+                      <span className="text-[#9C3D1E]">₹{bill.toFixed(2)}</span>
+                    </div>
+                  </div>
+
+                  {/* Payment Method Selector */}
                   <div>
-                    <p className="font-mono text-[10.5px] font-black text-stone-500 uppercase tracking-wider mb-2">
-                      Payment Method
+                    <p className="text-[11px] font-black text-stone-700 uppercase tracking-wider mb-2">
+                      Select Payment Method:
                     </p>
                     <div className="grid grid-cols-3 gap-2">
                       {([
+                        { id: 'UPI',  icon: <QrCode className="h-4 w-4" />,   label: 'UPI QR' },
                         { id: 'CASH', icon: <Banknote className="h-4 w-4" />, label: 'Cash' },
-                        { id: 'UPI',  icon: <QrCode className="h-4 w-4" />,   label: 'UPI' },
-                        { id: 'CARD', icon: <CreditCard className="h-4 w-4" />, label: 'Card' },
+                        { id: 'CARD', icon: <CreditCard className="h-4 w-4" />, label: 'Card POS' },
                       ] as { id: PayMethod; icon: React.ReactNode; label: string }[]).map(({ id, icon, label }) => (
-                        <motion.button
+                        <button
                           key={id}
-                          whileTap={{ scale: 0.95 }}
+                          type="button"
                           onClick={() => setMethod(id)}
-                          className={`py-3 rounded-2xl border-2 font-mono text-xs font-black flex flex-col items-center gap-1.5 transition ${
+                          className={`py-3 rounded-2xl border-2 font-black text-xs flex flex-col items-center gap-1.5 transition active:scale-95 cursor-pointer ${
                             method === id
-                              ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-sm'
-                              : 'bg-white text-stone-700 border-[#EAE5DF] hover:border-stone-300'
+                              ? 'bg-stone-900 text-white border-stone-900 shadow-md ring-2 ring-stone-900/20'
+                              : 'bg-[#FAF8F5] border-[#EAE5DF] hover:bg-stone-100 text-stone-700'
                           }`}
                         >
                           {icon}
-                          {label}
-                        </motion.button>
+                          <span>{label}</span>
+                        </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Cash tendered */}
-                  {method === 'CASH' && (
-                    <div className="space-y-2.5">
-                      <p className="font-mono text-[10.5px] font-black text-stone-500 uppercase tracking-wider">
-                        Cash Tendered
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {CASH_PRESETS.map((p) => (
-                          <button
-                            key={p}
-                            onClick={() => setCashTendered(p)}
-                            className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-bold transition ${
-                              cashTendered === p
-                                ? 'bg-stone-900 text-white border-stone-900'
-                                : 'bg-[#FAF8F5] text-stone-700 border-[#EAE5DF] hover:bg-stone-200'
-                            }`}
-                          >
-                            ₹{p}
-                          </button>
-                        ))}
+                  {/* Method Specific UI */}
+                  {method === 'UPI' && (
+                    <div className="p-3.5 bg-emerald-50/70 border border-emerald-300 rounded-2xl space-y-2.5">
+                      <div className="flex items-center gap-2 text-emerald-950 font-black text-xs">
+                        <QrCode className="h-4 w-4 text-emerald-700" />
+                        <span>Dynamic UPI / Soundbox Verification</span>
                       </div>
-                      <input
-                        type="number"
-                        placeholder="Enter amount…"
-                        value={cashTendered}
-                        onChange={(e) => setCashTendered(e.target.value ? Number(e.target.value) : '')}
-                        className="w-full px-4 py-2.5 bg-white border border-[#EAE5DF] rounded-xl font-mono text-sm font-bold text-stone-900 focus:outline-none focus:border-[#9C3D1E] shadow-xs"
-                      />
-                      {change !== null && change >= 0 && (
-                        <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl">
-                          <span className="font-mono text-xs font-bold text-emerald-800">Change</span>
-                          <span className="font-mono text-lg font-black text-emerald-700">₹{change}</span>
-                        </div>
-                      )}
+                      <p className="text-[11px] text-stone-600">
+                        Ask guest to scan Table QR or Captain handheld scanner for ₹{bill.toFixed(2)}.
+                      </p>
+                      <label className="flex items-center gap-2.5 p-2 bg-white rounded-xl border border-emerald-200 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isUpiVerified}
+                          onChange={(e) => setIsUpiVerified(e.target.checked)}
+                          className="h-4 w-4 accent-emerald-600 rounded"
+                        />
+                        <span className="text-xs font-bold text-emerald-950">
+                          Payment confirmed on Soundbox / Mobile App
+                        </span>
+                      </label>
                     </div>
                   )}
 
-                  {/* Vacate checkbox */}
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={vacateAfter}
-                      onChange={(e) => setVacateAfter(e.target.checked)}
-                      className="h-4 w-4 rounded accent-[#9C3D1E]"
-                    />
-                    <span className="font-mono text-xs font-bold text-stone-700">
-                      Reset table after settlement
-                    </span>
-                  </label>
+                  {method === 'CASH' && (
+                    <div className="p-3.5 bg-stone-50 border border-stone-200 rounded-2xl space-y-2.5">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="font-bold text-stone-700">Quick Cash Presets:</span>
+                        {typeof change === 'number' && change >= 0 && (
+                          <span className="font-black text-emerald-700">
+                            Change Due: ₹{change.toFixed(2)}
+                          </span>
+                        )}
+                      </div>
 
-                  {/* Confirm */}
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={handleSettle}
-                    disabled={bill === 0}
-                    className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-2xl font-mono text-sm font-black flex items-center justify-center gap-2 shadow-md transition"
-                  >
-                    <CheckCircle2 className="h-5 w-5" />
-                    Confirm ₹{bill} via {method}
-                  </motion.button>
+                      <div className="flex gap-2">
+                        {cashPresets.map((preset) => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setCashTendered(preset)}
+                            className={`flex-1 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
+                              cashTendered === preset
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                                : 'bg-white border-stone-300 text-stone-800 hover:bg-stone-100'
+                            }`}
+                          >
+                            ₹{preset}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-stone-600">Tendered:</span>
+                        <input
+                          type="number"
+                          placeholder={`Min ₹${bill}`}
+                          value={cashTendered}
+                          onChange={(e) => setCashTendered(e.target.value === '' ? '' : Number(e.target.value))}
+                          className="flex-1 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {method === 'CARD' && (
+                    <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl text-xs space-y-1">
+                      <div className="flex items-center gap-2 text-blue-900 font-black">
+                        <CreditCard className="h-4 w-4" />
+                        <span>Card Swipe / Tap on POS Terminal</span>
+                      </div>
+                      <p className="text-[11px] text-stone-600">
+                        Swipe or tap guest card on the handheld POS machine. Enter ₹{bill.toFixed(2)}.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Vacate Table Checkbox (if full bill) */}
+                  {!splitAmount && (
+                    <label className="flex items-center gap-2.5 px-1 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={vacateAfter}
+                        onChange={(e) => setVacateAfter(e.target.checked)}
+                        className="h-4 w-4 accent-[#9C3D1E] rounded"
+                      />
+                      <span className="text-xs text-stone-700 font-bold">
+                        Automatically mark Table {tableNum} as Vacant &amp; Clean after payment
+                      </span>
+                    </label>
+                  )}
+
+                  {/* Settle Action Button */}
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      disabled={isSettleDisabled}
+                      onClick={handleSettle}
+                      className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-2xl font-mono text-xs font-black shadow-md active:scale-95 transition cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <CheckCircle2 className="h-4 w-4" />
+                      <span>
+                        Confirm ₹{bill.toFixed(2)} Payment ({method})
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </>
             )}
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );

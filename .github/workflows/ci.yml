@@ -70,6 +70,9 @@ jobs:
       - name: Kitchen Display System Suite (Phase 6)
         run: npx --yes tsx scripts/test-phase6-comprehensive.ts
 
+      - name: Run Waiter Mobile & Tablet Comprehensive Matrix (93 Assertions)
+        run: npm run test:waiter:matrix
+
       - name: Cross-Portal Bridge Suite (Phase 7)
         run: npx --yes tsx scripts/test-phase7-comprehensive.ts
 

@@ -13,6 +13,8 @@ export interface SharedKDSItem {
   options?: string;
   addOns?: string[];
   notes?: string;
+  seatNumber?: number;
+  price?: number;
 }
 
 export interface SharedKDSTicket {
@@ -24,6 +26,7 @@ export interface SharedKDSTicket {
   status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED';
   items: SharedKDSItem[];
   source: 'CUSTOMER' | 'WAITER'; // who originated the order
+  seatNumber?: number;
 }
 
 export interface SharedTable {
@@ -37,8 +40,22 @@ export interface SharedTable {
   currentBill: number;
   serverName: string;
   kotCount: number;
-  mergedWith?: string;
-  activeItems?: { name: string; quantity: number; status: string }[];
+  mergedWith?: string;           // primary table's number (for the non-primary members)
+  mergeGroupPeers?: string[];    // ALL table numbers in the group including self (set on every member)
+  preMergeCapacity?: number;
+  preMergeBill?: number;
+  preMergeGuests?: number;
+  preMergeStatus?: 'VACANT' | 'OCCUPIED' | 'BILLING' | 'CLEANING'; // status before merge — restored on unmerge
+  mergedSeatGroups?: Record<string, number[]>; // e.g. { 'Chairs 1 & 2': [1, 2] }
+  activeItems?: {
+    id?: string;
+    name: string;
+    quantity: number;
+    status: string;
+    seatNumber?: number;
+    price?: number;
+    options?: string;
+  }[];
 }
 
 export interface SharedPing {
@@ -122,7 +139,15 @@ const freshInventory86: SharedMenuItem86[] = INITIAL_MENU_ITEMS.map((item) => ({
 }));
 
 let ticketCounter = 1;
-const makeTicketId = () => `KDS-${String(100 + ticketCounter++).padStart(3, '0')}`;
+let notifCounter = 1;
+const makeTicketId = () => {
+  if (typeof ticketCounter !== 'number' || isNaN(ticketCounter)) {
+    ticketCounter = 1;
+  }
+  const currentCount = ticketCounter++;
+  const suffix = Math.floor(100 + Math.random() * 900);
+  return `KDS-${String(100 + currentCount).padStart(3, '0')}-${suffix}`;
+};
 const nowTime = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
 
@@ -177,7 +202,8 @@ interface SharedBridgeState {
   waiterFiresKOT: (
     tableNumber: string,
     captainName: string,
-    items: Array<{ item: MenuItem; selectedOption: string; quantity: number }>
+    items: Array<{ item: MenuItem; selectedOption: string; quantity: number }>,
+    seatNumber?: number
   ) => void;
 
   /** Waiter seats guests at a table */
@@ -185,6 +211,21 @@ interface SharedBridgeState {
 
   /** Waiter merges two tables — combines bills */
   waiterMergeTables: (targetTable: string, sourceTable: string) => void;
+
+  /** Waiter merges two chairs on a table — combines items/orders */
+  waiterMergeChairs: (tableNumber: string, fromChair: number, toChair: number) => void;
+
+  /** Waiter merges multiple chairs into a named group (e.g. Chairs 1 & 2) */
+  waiterMergeSeatGroup: (tableNumber: string, groupKey: string, seats: number[]) => void;
+
+  /** Waiter unmerges / dissolves a chair group back to individual chairs */
+  waiterUnmergeSeatGroup: (tableNumber: string, groupKey: string) => void;
+
+  /** Waiter unmerges tables — separates bills */
+  waiterUnmergeTable: (tableNumber: string) => void;
+
+  /** Removes one specific table from a multi-group, keeping the rest merged */
+  waiterRemoveTableFromGroup: (tableNumberToRemove: string) => void;
 
   /** Waiter resolves ping */
   waiterResolvePing: (pingId: string) => void;
@@ -262,6 +303,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       elapsedMinutes: 0,
       status: 'NEW',
       source: 'CUSTOMER',
+      seatNumber: 1,
       items: items.map((i, idx) => ({
         id: `ki-c-${Date.now()}-${idx}`,
         name: i.item.name,
@@ -270,13 +312,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         prepMode: i.item.prepMode,
         options: i.selectedOption,
         addOns: i.addOns,
+        seatNumber: 1,
+        price: i.item.price,
       })),
     };
     const orderTotal = items.reduce((s, i) => s + i.item.price * i.quantity, 0);
 
     // Create kitchen notification for new order
     const notif = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${Date.now()}-${notifCounter++}`,
       ticketId: ticket.id,
       tableNumber,
       itemCount: items.reduce((s, i) => s + i.quantity, 0),
@@ -304,10 +348,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               kotCount: t.kotCount + 1,
               activeItems: [
                 ...(t.activeItems || []),
-                ...items.map((i) => ({
+                ...items.map((i, idx) => ({
+                  id: `ai-c-${Date.now()}-${idx}`,
                   name: i.item.name,
                   quantity: i.quantity,
                   status: 'Placed',
+                  seatNumber: 1,
+                  price: i.item.price,
+                  options: i.selectedOption,
                 })),
               ],
             }
@@ -412,9 +460,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...tbl,
           activeItems: ticket.items.map((it) => ({
+            id: it.id,
             name: it.name,
             quantity: it.quantity,
             status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
+            seatNumber: it.seatNumber,
+            price: it.price,
+            options: it.options,
           })),
         };
       });
@@ -459,9 +511,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...tbl,
           activeItems: ticket.items.map((it) => ({
+            id: it.id,
             name: it.name,
             quantity: it.quantity,
             status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
+            seatNumber: it.seatNumber,
+            price: it.price,
+            options: it.options,
           })),
         };
       });
@@ -504,9 +560,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...tbl,
           activeItems: ticket.items.map((it) => ({
+            id: it.id,
             name: it.name,
             quantity: it.quantity,
             status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
+            seatNumber: it.seatNumber,
+            price: it.price,
+            options: it.options,
           })),
         };
       });
@@ -613,7 +673,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   
-  waiterFiresKOT: (tableNumber, captainName, items) => {
+  waiterFiresKOT: (tableNumber, captainName, items, seatNumber) => {
     const ticket: SharedKDSTicket = {
       id: makeTicketId(),
       tableNumber,
@@ -622,6 +682,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       elapsedMinutes: 0,
       status: 'NEW',
       source: 'WAITER',
+      seatNumber,
       items: items.map((i, idx) => ({
         id: `ki-w-${Date.now()}-${idx}`,
         name: i.item.name,
@@ -629,11 +690,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         stage: 'PLACED',
         prepMode: i.item.prepMode,
         options: i.selectedOption,
+        price: i.item.price,
+        seatNumber,
       })),
     };
 
     const notif = {
-      id: `notif-${Date.now()}`,
+      id: `notif-${Date.now()}-${notifCounter++}`,
       ticketId: ticket.id,
       tableNumber,
       itemCount: items.reduce((s, i) => s + i.quantity, 0),
@@ -659,11 +722,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           ? {
               ...t,
               status: 'OCCUPIED',
+              guestCount: Math.max(t.guestCount || 0, seatNumber ? seatNumber : 1),
+              seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
               currentBill: t.currentBill + kotTotal,
               kotCount: t.kotCount + 1,
               activeItems: [
                 ...(t.activeItems || []),
-                ...items.map((i) => ({ name: i.item.name, quantity: i.quantity, status: 'Placed' })),
+                ...items.map((i, idx) => ({
+                  id: `ai-w-${Date.now()}-${idx}`,
+                  name: i.item.name,
+                  quantity: i.quantity,
+                  status: 'Placed',
+                  seatNumber,
+                  price: i.item.price,
+                  options: i.selectedOption,
+                })),
               ],
             }
           : t
@@ -675,7 +748,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       '/api/orders/create',
       {
         tableNumber,
-        seatNumber: 1,
+        seatNumber: seatNumber || 1,
         guestName: captainName,
         guestCount: 1,
         source: 'WAITER',
@@ -687,7 +760,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           prepMode: i.item.prepMode || 'Regular',
           selectedOption: i.selectedOption || null,
           addOns: [],
-          notes: '',
+          notes: seatNumber ? `Seat ${seatNumber}` : '',
         })),
       },
       () => {
@@ -720,32 +793,257 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   
-  waiterMergeTables: (targetTable, sourceTable) => {
+  waiterMergeTables: (tableA, tableB) => {
     set((state) => {
-      const target = state.tables.find((t) => t.number === targetTable);
-      const source = state.tables.find((t) => t.number === sourceTable);
-      if (!target || !source) return state;
-      const mergedBill = target.currentBill + source.currentBill;
-      const mergedGuests = Math.max(2, (target.guestCount || 2) + (source.guestCount || 2));
+      const tblA = state.tables.find((t) => t.number === tableA);
+      const tblB = state.tables.find((t) => t.number === tableB);
+      if (!tblA || !tblB) return state;
+
+      // Collect all table numbers currently in each table's group (or solo)
+      const groupA: string[] = tblA.mergeGroupPeers && tblA.mergeGroupPeers.length > 0
+        ? tblA.mergeGroupPeers
+        : [tblA.number];
+      const groupB: string[] = tblB.mergeGroupPeers && tblB.mergeGroupPeers.length > 0
+        ? tblB.mergeGroupPeers
+        : [tblB.number];
+
+      // Combine and deduplicate — hard cap at 4 tables
+      const combined = Array.from(new Set([...groupA, ...groupB])).sort();
+      if (combined.length > 4) return state; // silently block; UI should prevent this
+
+      // Primary = lowest table number in combined group (stable sort order)
+      const primaryNum = combined[0];
+
+      // Combined capacity: sum of all members' capacities
+      const combinedCapacity = combined.reduce((sum, num) => {
+        const t = state.tables.find((x) => x.number === num);
+        return sum + (t?.capacity || 2);
+      }, 0);
+
+      // Sum up all bills and guests from every table in the combined group
+      const combinedBill = combined.reduce((sum, num) => {
+        const t = state.tables.find((x) => x.number === num);
+        return sum + (t?.currentBill || 0);
+      }, 0);
+      const combinedGuests = combined.reduce((sum, num) => {
+        const t = state.tables.find((x) => x.number === num);
+        return sum + (t?.guestCount || 0);
+      }, 0);
+
+      // Collect all active items from every table
+      const combinedItems = combined.flatMap((num) => {
+        const t = state.tables.find((x) => x.number === num);
+        return t?.activeItems || [];
+      });
+
       return {
         tables: state.tables.map((t) => {
-          if (t.number === targetTable) {
+          if (!combined.includes(t.number)) return t;
+
+          const isPrimary = t.number === primaryNum;
+          return {
+            ...t,
+            status: 'OCCUPIED' as const,
+            // Primary holds combined capacity, bill + items
+            capacity: isPrimary ? combinedCapacity : t.capacity,
+            currentBill: isPrimary ? combinedBill : 0,
+            guestCount: isPrimary ? Math.max(combined.length * 2, combinedGuests) : 0,
+            activeItems: isPrimary ? combinedItems : [],
+            // mergedWith = primary's number for all (including primary itself so isMerged check works)
+            mergedWith: primaryNum,
+            mergeGroupPeers: combined,
+            preMergeCapacity: t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity,
+            preMergeBill: t.preMergeBill !== undefined ? t.preMergeBill : t.currentBill,
+            preMergeGuests: t.preMergeGuests !== undefined ? t.preMergeGuests : t.guestCount,
+            preMergeStatus: t.preMergeStatus !== undefined ? t.preMergeStatus : t.status,
+          };
+        }),
+      };
+    });
+  },
+
+  waiterMergeChairs: (tableNumber, fromChair, toChair) => {
+    set((state) => ({
+      kdsTickets: state.kdsTickets.map((tk) => {
+        if (tk.tableNumber !== tableNumber) return tk;
+        return {
+          ...tk,
+          seatNumber: tk.seatNumber === fromChair ? toChair : tk.seatNumber,
+          items: tk.items.map((it) =>
+            it.seatNumber === fromChair ? { ...it, seatNumber: toChair } : it
+          ),
+        };
+      }),
+      tables: state.tables.map((t) => {
+        if (t.number !== tableNumber) return t;
+        const currentGroups = t.mergedSeatGroups || {};
+        const groupKey = `Chairs ${Math.min(fromChair, toChair)} & ${Math.max(fromChair, toChair)}`;
+        return {
+          ...t,
+          mergedSeatGroups: {
+            ...currentGroups,
+            [groupKey]: [Math.min(fromChair, toChair), Math.max(fromChair, toChair)],
+          },
+          activeItems: (t.activeItems || []).map((it: any) =>
+            it.seatNumber === fromChair ? { ...it, seatNumber: toChair } : it
+          ),
+        };
+      }),
+    }));
+  },
+
+  waiterMergeSeatGroup: (tableNumber, groupKey, seats) => {
+    set((state) => {
+      const primarySeat = Math.min(...seats);
+      return {
+        kdsTickets: state.kdsTickets.map((tk) => {
+          if (tk.tableNumber !== tableNumber) return tk;
+          const isTargetSeat = tk.seatNumber && seats.includes(tk.seatNumber);
+          return {
+            ...tk,
+            seatNumber: isTargetSeat ? primarySeat : tk.seatNumber,
+            items: tk.items.map((it) =>
+              it.seatNumber && seats.includes(it.seatNumber) ? { ...it, seatNumber: primarySeat } : it
+            ),
+          };
+        }),
+        tables: state.tables.map((t) => {
+          if (t.number !== tableNumber) return t;
+          return {
+            ...t,
+            mergedSeatGroups: {
+              ...(t.mergedSeatGroups || {}),
+              [groupKey]: seats,
+            },
+            activeItems: (t.activeItems || []).map((it: any) =>
+              it.seatNumber && seats.includes(it.seatNumber) ? { ...it, seatNumber: primarySeat } : it
+            ),
+          };
+        }),
+      };
+    });
+  },
+
+  waiterUnmergeSeatGroup: (tableNumber, groupKey) => {
+    set((state) => ({
+      tables: state.tables.map((t) => {
+        if (t.number !== tableNumber || !t.mergedSeatGroups) return t;
+        const nextGroups = { ...t.mergedSeatGroups };
+        delete nextGroups[groupKey];
+        return {
+          ...t,
+          mergedSeatGroups: nextGroups,
+        };
+      }),
+    }));
+  },
+
+  waiterUnmergeTable: (tableNumber) => {
+    set((state) => {
+      const tbl = state.tables.find((t) => t.number === tableNumber);
+      if (!tbl || !tbl.mergedWith) return state;
+
+      // Get all members of this group
+      const group: string[] = tbl.mergeGroupPeers && tbl.mergeGroupPeers.length > 0
+        ? tbl.mergeGroupPeers
+        : [tbl.number, tbl.mergedWith];
+
+      return {
+        tables: state.tables.map((t) => {
+          if (!group.includes(t.number)) return t;
+          // Restore each table to its pre-merge state individually
+          const restoredCapacity = t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity;
+          const restoredBill = t.preMergeBill !== undefined ? t.preMergeBill : 0;
+          const restoredGuests = t.preMergeGuests !== undefined ? t.preMergeGuests : 0;
+          const restoredStatus = t.preMergeStatus ?? (restoredBill === 0 && restoredGuests === 0 ? 'VACANT' : 'OCCUPIED');
+          return {
+            ...t,
+            status: restoredStatus,
+            capacity: restoredCapacity,
+            currentBill: restoredBill,
+            guestCount: restoredGuests,
+            activeItems: [],
+            mergedWith: undefined,
+            mergeGroupPeers: undefined,
+            mergedSeatGroups: undefined,
+            preMergeCapacity: undefined,
+            preMergeBill: undefined,
+            preMergeGuests: undefined,
+            preMergeStatus: undefined,
+          };
+        }),
+      };
+    });
+  },
+
+  waiterRemoveTableFromGroup: (tableNumToRemove) => {
+    set((state) => {
+      const removedTable = state.tables.find((t) => t.number === tableNumToRemove);
+      if (!removedTable?.mergedWith) return state; // not merged, nothing to do
+
+      const peers: string[] = removedTable.mergeGroupPeers ?? [removedTable.number, removedTable.mergedWith];
+
+      // If the group is just 2 — removing one fully dissolves it (same as full unmerge)
+      if (peers.length <= 2) {
+        const restoredTables = state.tables.map((t) => {
+          if (!peers.includes(t.number)) return t;
+          const restoredBill = t.preMergeBill ?? t.currentBill;
+          const restoredGuests = t.preMergeGuests ?? t.guestCount;
+          const restoredStatus = t.preMergeStatus ?? (restoredBill === 0 && restoredGuests === 0 ? 'VACANT' : 'OCCUPIED');
+          return {
+            ...t,
+            status: restoredStatus,
+            currentBill: restoredBill,
+            guestCount: restoredGuests,
+            activeItems: [],
+            mergedWith: undefined,
+            mergeGroupPeers: undefined,
+            preMergeBill: undefined,
+            preMergeGuests: undefined,
+            preMergeStatus: undefined,
+          };
+        });
+        return { tables: restoredTables };
+      }
+
+      // 3+ member group — remove one, keep the rest merged
+      const oldPrimaryNum = [...peers].sort()[0];
+      const oldPrimary = state.tables.find((t) => t.number === oldPrimaryNum);
+
+      // The old combined bill lives on the primary. Subtract the removed table's preMergeBill.
+      const removedPreMerge = removedTable.preMergeBill ?? 0;
+      const removedPreGuests = removedTable.preMergeGuests ?? removedTable.guestCount;
+      const removedRestoredStatus = removedTable.preMergeStatus ?? (removedPreMerge === 0 && removedPreGuests === 0 ? 'VACANT' : 'OCCUPIED');
+      const oldCombinedBill = oldPrimary?.currentBill ?? 0;
+      const newCombinedBill = Math.max(0, oldCombinedBill - removedPreMerge);
+
+      const newPeers = peers.filter((n) => n !== tableNumToRemove).sort();
+      const newPrimaryNum = newPeers[0]; // lowest-numbered of the remaining group
+
+      return {
+        tables: state.tables.map((t) => {
+          if (t.number === tableNumToRemove) {
+            // This table leaves the group and gets its own bill + original status back
             return {
               ...t,
-              status: 'OCCUPIED',
-              currentBill: mergedBill,
-              guestCount: mergedGuests,
-              mergedWith: sourceTable,
-              activeItems: [...(t.activeItems || []), ...(source.activeItems || [])],
+              status: removedRestoredStatus,
+              currentBill: removedPreMerge,
+              guestCount: removedPreGuests,
+              mergedWith: undefined,
+              mergeGroupPeers: undefined,
+              preMergeBill: undefined,
+              preMergeGuests: undefined,
+              preMergeStatus: undefined,
             };
           }
-          if (t.number === sourceTable) {
+          if (peers.includes(t.number)) {
+            // Remaining group member: update group peers + bill
+            const isNewPrimary = t.number === newPrimaryNum;
             return {
               ...t,
-              status: 'OCCUPIED',
-              currentBill: 0,
-              guestCount: 0,
-              mergedWith: targetTable,
+              mergedWith: newPrimaryNum,
+              mergeGroupPeers: newPeers,
+              currentBill: isNewPrimary ? newCombinedBill : 0,
             };
           }
           return t;
@@ -776,10 +1074,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   waiterRecordsPayment: (tableNumber, method, amount) => {
     set((state) => {
       const targetTbl = state.tables.find((t) => t.number === tableNumber);
-      const partner = targetTbl?.mergedWith;
+      // Use mergeGroupPeers to cover ALL tables in a 3-4 member group (not just mergedWith partner)
+      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [tableNumber]);
       return {
         tables: state.tables.map((t) =>
-          t.number === tableNumber || (partner && t.number === partner)
+          groupNums.has(t.number)
             ? { ...t, status: 'BILLING' }
             : t
         ),
@@ -800,10 +1099,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const targetTbl = state.tables.find((t) => t.number === tableNumber);
-      const partner = targetTbl?.mergedWith;
+      // Use mergeGroupPeers so all tables in a 3-4 member group are fully vacated
+      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [tableNumber]);
       return {
         tables: state.tables.map((t) =>
-          t.number === tableNumber || (partner && t.number === partner)
+          groupNums.has(t.number)
             ? {
                 ...t,
                 status: 'VACANT',
@@ -813,15 +1113,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                 seatedTime: '--',
                 activeItems: [],
                 mergedWith: undefined,
+                mergeGroupPeers: undefined,
+                preMergeBill: undefined,
+                preMergeGuests: undefined,
+                preMergeStatus: undefined,
               }
             : t
         ),
-        // Remove ALL KDS tickets for this table (completed or not, since table is vacated)
+        // Remove ALL KDS tickets for every table in this group
         kdsTickets: state.kdsTickets.filter(
-          (tk) =>
-            !(
-              (tk.tableNumber === tableNumber || (partner && tk.tableNumber === partner))
-            )
+          (tk) => !groupNums.has(tk.tableNumber)
         ),
       };
     });
@@ -839,16 +1140,38 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   waiterMarkKitchenItemServed: (ticketId, itemId) => {
-    set((state) => ({
-      kdsTickets: state.kdsTickets.map((t) => {
+    set((state) => {
+      let targetTableNumber: string | undefined;
+      let targetItemName: string | undefined;
+
+      const newTickets = state.kdsTickets.map((t) => {
         if (t.id !== ticketId) return t;
+        targetTableNumber = t.tableNumber;
+        const target = t.items.find((i) => i.id === itemId);
+        if (target) targetItemName = target.name;
         const newItems = t.items.map((it) =>
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
         return { ...t, items: newItems, status: allServed ? 'COMPLETED' : t.status };
-      }),
-    }));
+      });
+
+      const updatedTables = targetTableNumber
+        ? state.tables.map((tbl) => {
+            if (tbl.number !== targetTableNumber) return tbl;
+            return {
+              ...tbl,
+              activeItems: (tbl.activeItems || []).map((ai) =>
+                ai.id === itemId || (targetItemName && ai.name === targetItemName && ai.status !== 'Served')
+                  ? { ...ai, status: 'Served' }
+                  : ai
+              ),
+            };
+          })
+        : state.tables;
+
+      return { kdsTickets: newTickets, tables: updatedTables };
+    });
   },
 
   
@@ -859,6 +1182,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       } catch {}
     }
     ticketCounter = 1;
+    notifCounter = 1;
     set({
       tables: freshTables,
       kdsTickets: [],
@@ -880,9 +1204,16 @@ if (typeof window !== 'undefined') {
   const applyPersistedState = (parsed: Record<string, unknown>, suppressBroadcast = false) => {
     if (!parsed || !Array.isArray(parsed.tables)) return;
     const cur = useSharedBridge.getState();
-    // Always filter COMPLETED tickets on incoming sync
+    // Always filter COMPLETED tickets and sanitize any malformed/NaN IDs on incoming sync
     const liveTickets = Array.isArray(parsed.kdsTickets)
-      ? (parsed.kdsTickets as SharedKDSTicket[]).filter((tk) => tk.status !== 'COMPLETED')
+      ? (parsed.kdsTickets as SharedKDSTicket[])
+          .filter((tk) => tk && tk.status !== 'COMPLETED')
+          .map((tk, idx) => {
+            if (!tk.id || typeof tk.id !== 'string' || tk.id.includes('NaN')) {
+              return { ...tk, id: `KDS-${Date.now().toString().slice(-4)}-${idx + 1}-${Math.floor(100 + Math.random() * 900)}` };
+            }
+            return tk;
+          })
       : cur.kdsTickets;
     // Validate shiftStats shape before accepting
     const rawStats = parsed.shiftStats as Partial<typeof cur.shiftStats> | undefined;
@@ -925,9 +1256,16 @@ if (typeof window !== 'undefined') {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && Array.isArray(parsed.tables)) {
-        // Filter out COMPLETED tickets on rehydration so old orders don't persist
+        // Filter out COMPLETED tickets on rehydration so old orders don't persist & sanitize any NaN
         const liveTickets = Array.isArray(parsed.kdsTickets)
-          ? parsed.kdsTickets.filter((tk: SharedKDSTicket) => tk.status !== 'COMPLETED')
+          ? (parsed.kdsTickets as SharedKDSTicket[])
+              .filter((tk) => tk && tk.status !== 'COMPLETED')
+              .map((tk, idx) => {
+                if (!tk.id || typeof tk.id !== 'string' || tk.id.includes('NaN')) {
+                  return { ...tk, id: `KDS-${Date.now().toString().slice(-4)}-${idx + 1}-${Math.floor(100 + Math.random() * 900)}` };
+                }
+                return tk;
+              })
           : [];
         isBroadcasting = true;
         useSharedBridge.setState({
@@ -937,12 +1275,17 @@ if (typeof window !== 'undefined') {
           kitchenNotifications: [],
         });
         isBroadcasting = false;
-        // Sync ticket counter so new tickets don't collide with saved ones
+        // Safely recover ticket counter
         if (liveTickets.length > 0) {
-          const maxNum = liveTickets
-            .map((tk: SharedKDSTicket) => parseInt(tk.id.replace('KDS-', ''), 10) - 100)
-            .reduce((a: number, b: number) => Math.max(a, b), 0);
-          ticketCounter = maxNum + 1;
+          const validNums = liveTickets
+            .map((tk: SharedKDSTicket) => {
+              const cleaned = (tk.id || '').replace(/^KDS-/, '').split('-')[0];
+              const parsedInt = parseInt(cleaned, 10);
+              return isNaN(parsedInt) ? 0 : parsedInt - 100;
+            })
+            .filter((n: number) => !isNaN(n) && n > 0);
+          const maxNum = validNums.length > 0 ? Math.max(...validNums) : 0;
+          ticketCounter = (maxNum > 0 ? maxNum : 1) + 1;
         }
       }
     }

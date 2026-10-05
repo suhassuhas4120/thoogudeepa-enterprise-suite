@@ -44,6 +44,11 @@ const SUITES = [
     args: ['tsx', 'scripts/test-waiter-workflow-matrix.ts'],
   },
   {
+    name: 'Waiter Comprehensive Multi-Form Test Matrix',
+    cmd: 'npx',
+    args: ['tsx', 'scripts/test-waiter-comprehensive-matrix.ts'],
+  },
+  {
     name: 'Customer-Kitchen Bidirectional Sync Matrix',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-customer-kitchen-sync-matrix.ts'],

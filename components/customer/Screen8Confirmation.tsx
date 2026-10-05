@@ -229,76 +229,37 @@ export const Screen8Confirmation: React.FC = () => {
           </motion.button>
         </div>
 
-        {/* Quick Feedback & Chef Review */}
-        <div className="rounded-[28px] border border-[#E8D5C3] bg-white p-4 shadow-xs">
-          <div className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#5B5049]/70 font-mono">
-            Rate Your Dining Experience
+        {/* Quick 1-Tap Experience Rating */}
+        <div className="rounded-[28px] border border-[#E8D5C3] bg-white p-3.5 shadow-xs flex items-center justify-between">
+          <div>
+            <div className="text-[10px] font-black uppercase tracking-wider text-[#5B5049]/70 font-mono">
+              Rate Experience
+            </div>
+            <div className="text-[11px] font-bold text-[#8A4228] mt-0.5">
+              {feedbackSubmitted ? 'Thank you for your feedback!' : `${rating} / 5 Stars`}
+            </div>
           </div>
 
-          {/* 5-Star Selector */}
-          <div className="flex items-center gap-1.5 mb-3">
+          <div className="flex items-center gap-1">
             {[1, 2, 3, 4, 5].map((star) => (
               <button
                 key={star}
-                onClick={() => setRating(star)}
+                onClick={() => {
+                  setRating(star);
+                  setFeedbackSubmitted(true);
+                }}
                 className="p-1 hover:scale-110 transition"
               >
                 <Star
                   className={`h-5 w-5 ${
                     star <= rating
                       ? 'fill-amber-400 text-amber-400'
-                      : 'text-slate-300'
+                      : 'text-slate-200'
                   }`}
                 />
               </button>
             ))}
-            <span className="ml-2 font-mono text-xs font-bold text-[#8A4228]">
-              {rating === 5 ? 'Exceptional!' : `${rating} / 5 Stars`}
-            </span>
           </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {chips.map((chip) => {
-              const isSelected = selectedChips.includes(chip);
-              return (
-                <button
-                  key={chip}
-                  onClick={() => toggleChip(chip)}
-                  className={`rounded-full border px-2.5 py-1 text-[11px] font-black transition ${
-                    isSelected
-                      ? 'border-[#8A4228] bg-[#F3DFCC] text-[#8A4228] shadow-2xs'
-                      : 'border-[#E8D5C3] bg-[#FAF8F5] text-[#5B5049] hover:bg-[#F3DFCC]/40'
-                  }`}
-                >
-                  {chip}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Custom Note */}
-          <div className="mt-3">
-            <textarea
-              rows={2}
-              value={customFeedback}
-              onChange={(e) => setCustomFeedback(e.target.value)}
-              placeholder="Leave a note for the Head Chef..."
-              className="w-full rounded-2xl border border-[#E8D5C3] bg-[#FAF8F5] p-2.5 text-xs font-semibold text-[#5B5049] placeholder:text-[#5B5049]/50 focus:border-[#8A4228] focus:outline-none"
-            />
-          </div>
-
-          {!feedbackSubmitted ? (
-            <button
-              onClick={() => setFeedbackSubmitted(true)}
-              className="mt-2 w-full rounded-xl bg-[#8A4228] py-2 text-xs font-black uppercase tracking-wider text-[#FFFCF7] hover:bg-[#71351F] transition"
-            >
-              Submit Feedback
-            </button>
-          ) : (
-            <div className="mt-2 rounded-xl bg-emerald-100 p-2 text-center text-xs font-black text-emerald-800">
-              Thank you for your feedback!
-            </div>
-          )}
         </div>
       </div>
 

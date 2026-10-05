@@ -66,8 +66,16 @@ export const Screen8Confirmation: React.FC = () => {
     return { formattedDate, formattedTime };
   }, []);
 
-  // Calculations
-  const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : payment.subtotal;
+  // Calculations (Use live cart or authentic preview dishes)
+  const previewDishes = [
+    { cartItemId: 'sample-1', menuItem: { name: 'Special Mutton Donne Biryani' }, quantity: 2, totalPrice: 680 },
+    { cartItemId: 'sample-2', menuItem: { name: 'Chicken Ghee Roast' }, quantity: 1, totalPrice: 280 },
+    { cartItemId: 'sample-3', menuItem: { name: 'Mutton Nalli Fry' }, quantity: 1, totalPrice: 220 },
+  ];
+  const activeItems = cart.length > 0 ? cart : previewDishes;
+  const subtotal = cart.length > 0
+    ? cart.reduce((s, i) => s + i.totalPrice, 0)
+    : (payment.subtotal > 0 ? payment.subtotal : 1180);
   const cgst = Math.round(subtotal * 0.025);
   const sgst = Math.round(subtotal * 0.025);
   const totalTax = cgst + sgst;
@@ -217,7 +225,7 @@ export const Screen8Confirmation: React.FC = () => {
               <span>ITEM DESCRIPTION</span>
               <span>AMOUNT</span>
             </div>
-            {cart.map((ci) => (
+            {activeItems.map((ci) => (
               <div key={ci.cartItemId} className="flex justify-between items-center text-[#2A2522]">
                 <span className="font-semibold text-xs">
                   {ci.menuItem.name} <span className="text-[#8A4228] font-bold">× {ci.quantity}</span>

@@ -57,10 +57,10 @@ export const Screen10WaiterCall: React.FC = () => {
     },
   ];
 
-  const returnTarget = previousScreen && previousScreen !== 10 ? previousScreen : 2;
+  const returnTarget = previousScreen && previousScreen !== 10 && previousScreen !== 9 ? previousScreen : 2;
 
   return (
-    <ScreenHousing screenNumber={10} screenTitle="CALL WAITER">
+    <ScreenHousing screenNumber={9} screenTitle="CALL WAITER">
       {/* Header */}
       <WireHeader
         title={

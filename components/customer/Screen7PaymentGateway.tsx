@@ -61,7 +61,9 @@ export const Screen7PaymentGateway: React.FC = () => {
   const effectiveSeat = seatNumber || 1;
 
   // Money Calculations
-  const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : payment.subtotal;
+  const subtotal = cart.length > 0
+    ? cart.reduce((s, i) => s + i.totalPrice, 0)
+    : (payment.subtotal > 0 ? payment.subtotal : 1180);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
   const grandTotal = Math.max(0, subtotal + tax + payment.tipAmount - discount);

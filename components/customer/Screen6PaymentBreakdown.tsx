@@ -27,8 +27,14 @@ export const Screen6PaymentBreakdown: React.FC = () => {
   const effectiveTable = tableNumber || 'T-01';
   const effectiveSeat = seatNumber || 1;
 
-  // Bill calculations
-  const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : payment.subtotal;
+  // Bill calculations (use live cart or authentic preview dishes)
+  const previewDishes = [
+    { cartItemId: 'sample-1', menuItem: { name: 'Special Mutton Donne Biryani' } as any, quantity: 2, totalPrice: 680 },
+    { cartItemId: 'sample-2', menuItem: { name: 'Chicken Ghee Roast' } as any, quantity: 1, totalPrice: 280 },
+    { cartItemId: 'sample-3', menuItem: { name: 'Mutton Nalli Fry' } as any, quantity: 1, totalPrice: 220 },
+  ];
+  const activeCart = cart.length > 0 ? cart : previewDishes;
+  const subtotal = activeCart.reduce((s, i) => s + i.totalPrice, 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
   const grandTotal = Math.max(0, subtotal + tax + payment.tipAmount - discount);
@@ -75,28 +81,20 @@ export const Screen6PaymentBreakdown: React.FC = () => {
               <span>Items &amp; Price Breakdown</span>
             </div>
             <span className="text-[10px] font-bold text-[#8A4228] font-mono">
-              {cart.length} {cart.length === 1 ? 'Dish' : 'Dishes'}
+              {activeCart.length} {activeCart.length === 1 ? 'Dish' : 'Dishes'}
             </span>
           </div>
 
           {/* Itemized Table */}
           <div className="space-y-2 border-b border-dashed border-[#E8D5C3] pb-3 text-xs">
-            {cart.length > 0 ? (
-              cart.map((item) => (
-                <div key={item.cartItemId} className="flex items-center justify-between text-[#5B5049]">
-                  <span className="font-semibold">
-                    {item.menuItem.name} × {item.quantity}
-                  </span>
-                  <span className="font-mono font-black text-[#5B5049]">₹{item.totalPrice}</span>
-                </div>
-              ))
-            ) : (
-              <div className="flex flex-col items-center justify-center py-4 text-center text-[#5B5049]/60">
-                <Receipt className="h-6 w-6 text-[#D08A52] mb-1" />
-                <span className="text-xs font-black text-[#5B5049]">No Items In Cart</span>
-                <span className="text-[10px] text-[#5B5049]/70">Add dishes from menu to generate bill</span>
+            {activeCart.map((item) => (
+              <div key={item.cartItemId} className="flex items-center justify-between text-[#5B5049]">
+                <span className="font-semibold">
+                  {item.menuItem.name} × {item.quantity}
+                </span>
+                <span className="font-mono font-black text-[#5B5049]">₹{item.totalPrice}</span>
               </div>
-            )}
+            ))}
           </div>
 
           {/* Subtotal, Tax, Tip, Total */}

@@ -489,32 +489,19 @@ export const Screen7PaymentGateway: React.FC = () => {
                           key={opt.id}
                           type="button"
                           onClick={() => setSelectedTender(opt)}
-                          className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition text-center ${
+                          className={`flex items-center justify-center py-2.5 px-3 rounded-xl border text-xs font-mono font-black transition text-center shadow-2xs ${
                             isSelected
-                              ? 'border-[#8A4228] bg-[#F3DFCC] text-[#8A4228] ring-2 ring-[#8A4228]/20 shadow-xs'
+                              ? 'border-[#8A4228] bg-[#F3DFCC] text-[#8A4228] ring-2 ring-[#8A4228]/20'
                               : 'border-amber-200/90 bg-white text-[#5B5049] hover:bg-amber-100/50'
                           }`}
                         >
-                          <span className="font-mono text-xs font-black">
-                            {opt.label}
-                          </span>
-                          <span
-                            className={`text-[10px] font-bold mt-0.5 ${
-                              isSelected
-                                ? 'text-[#8A4228]'
-                                : opt.change === 0
-                                ? 'text-emerald-700'
-                                : 'text-amber-800'
-                            }`}
-                          >
-                            {opt.change === 0 ? 'No change' : `₹${opt.change} change`}
-                          </span>
+                          {opt.label}
                         </button>
                       );
                     })}
                   </div>
 
-                  {/* Dynamic Cash & Change Due Summary Card */}
+                  {/* Dynamic Cash Tender Collection Summary Card */}
                   <div className="mt-3 rounded-xl bg-white p-3 border border-amber-200/90 flex items-center justify-between text-xs shadow-2xs">
                     <div className="flex items-center gap-2.5">
                       <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-100 text-amber-900 font-mono font-black text-xs">
@@ -522,16 +509,16 @@ export const Screen7PaymentGateway: React.FC = () => {
                       </div>
                       <div>
                         <div className="text-[10px] font-black uppercase tracking-wider text-[#5B5049]/70 font-mono">
-                          Tender Calculation
+                          Tender Collection
                         </div>
                         <div className="font-bold text-[#5B5049] text-[11px] mt-0.5">
                           {selectedTender.change === 0 ? (
                             <span className="text-emerald-800 font-black">
-                              Exact Cash • No change required
+                              Exact Cash • No balance return needed
                             </span>
                           ) : (
                             <span>
-                              Paying <span className="font-mono font-black text-[#8A4228]">₹{selectedTender.amount}</span> • Change to return:{' '}
+                              Paying <span className="font-mono font-black text-[#8A4228]">₹{selectedTender.amount}</span> • Return balance:{' '}
                               <span className="font-mono font-black text-emerald-800">₹{selectedTender.change}</span>
                             </span>
                           )}
@@ -540,7 +527,7 @@ export const Screen7PaymentGateway: React.FC = () => {
                     </div>
 
                     <span className="font-mono text-[11px] font-black text-[#8A4228] bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 shrink-0">
-                      {selectedTender.change === 0 ? 'NO CHANGE' : `+₹${selectedTender.change} CHANGE`}
+                      {selectedTender.change === 0 ? 'EXACT CASH' : `₹${selectedTender.change} RETURN`}
                     </span>
                   </div>
                 </div>
@@ -550,7 +537,7 @@ export const Screen7PaymentGateway: React.FC = () => {
                 <BellRing className="h-4 w-4 text-[#8A4228] shrink-0" />
                 <span>
                   Floor Captain will arrive at Table {effectiveTable} with your printed tax bill{' '}
-                  {selectedTender.change > 0 ? `and ₹${selectedTender.change} in cash change.` : 'and receipt.'}
+                  {selectedTender.change > 0 ? `and ₹${selectedTender.change} return balance.` : 'and receipt.'}
                 </span>
               </div>
             </motion.div>
@@ -603,7 +590,7 @@ export const Screen7PaymentGateway: React.FC = () => {
               : activeTab === 'CASH'
               ? selectedTender.change === 0
                 ? `Confirm Cash (Exact ₹${grandTotal})`
-                : `Confirm Cash of ₹${selectedTender.amount} (Get ₹${selectedTender.change} Change)`
+                : `Confirm Cash ₹${selectedTender.amount} (Return ₹${selectedTender.change})`
               : `Request Card Machine (₹${grandTotal})`}
           </span>
           {isProcessing ? (

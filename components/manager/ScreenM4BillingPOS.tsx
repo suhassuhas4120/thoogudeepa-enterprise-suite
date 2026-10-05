@@ -139,9 +139,7 @@ export function ScreenM4BillingPOS() {
             <span className="font-mono text-xs font-black text-slate-900 uppercase">
               BILLING &amp; DIRECT COUNTER POS TERMINAL
             </span>
-            <span className="text-slate-400 text-[11px] ml-2 hidden sm:inline">
-              Walk-in counter ordering + tableside invoice settlement
-            </span>
+
           </div>
         </div>
 
@@ -246,12 +244,7 @@ export function ScreenM4BillingPOS() {
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2 shrink-0">
               <div>
-                <div className="flex items-center gap-2">
-                  <span className="bg-[#9C3D1E] text-white font-mono text-xs font-bold px-2 py-0.5 rounded">
-                    [TAX INVOICE BILL]
-                  </span>
-                  <span className="font-mono text-xs font-bold text-slate-500">INV-8942</span>
-                </div>
+
                 <h3 className="text-sm sm:text-base font-black font-mono text-slate-900 mt-1">
                   THOOGUDEEPA DONNE BIRYANI MANE
                 </h3>
@@ -475,7 +468,7 @@ export function ScreenM4BillingPOS() {
                 <div className="text-[11px] font-bold text-slate-800 mt-2">
                   UPI ID: thoogudeepabiryani@icici
                 </div>
-                <p className="text-[9.5px] text-slate-500">Auto-verifies on soundbox announcement</p>
+
               </div>
             )}
           </div>

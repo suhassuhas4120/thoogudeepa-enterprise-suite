@@ -29,16 +29,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-.manager-portal {
-  min-width: 0;
-}
-
-.manager-portal > header,
-.manager-portal > nav,
-.manager-portal > div {
-  min-width: 0;
-}
-
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
   width: 5px;
@@ -131,3 +121,4 @@ body {
     background: #fff;
   }
 }
+

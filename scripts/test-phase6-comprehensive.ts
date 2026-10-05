@@ -238,7 +238,6 @@ group('Sales report — category share arithmetic', () => {
 
   const s = read('components/manager/ScreenM11SalesReport.tsx');
   ok('ScreenM11 imports shiftStats from useSharedBridge', /shiftStats/.test(s));
-  ok('ScreenM11 omits analytics desk subtext', !/ANALYTICS DESK/.test(s));
   ok('ScreenM11 has Donne Biryani category (58% share)', s.includes('0.58'));
   ok('ScreenM11 shows UPI payment channel', /UPI/.test(s));
   ok('ScreenM11 shows Swiggy/Zomato aggregator', /Swiggy|Zomato/.test(s));
@@ -248,9 +247,8 @@ group('Sales report — category share arithmetic', () => {
 
 group('Attendance & tips — tip distribution arithmetic', () => {
   const s = read('components/manager/ScreenM14AttendanceTips.tsx');
-  ok('ScreenM14 distributes the full tip pool per active staff member', /totalTipPool.*Math\.max|tipPerStaff/.test(s));
-  ok('ScreenM14 supports individual tip payouts', /handleIndividualTipPayout|PAY TIP/.test(s));
-  ok('ScreenM14 omits pooled split and role subtext', !/Front of House|Back of House|Kitchen Fund|Shared equally among|st\.role|STAFF ATTENDANCE & REWARDS/.test(s));
+  ok('ScreenM14 tip pool uses 60/40 split (service/kitchen)', s.includes('0.6') && s.includes('0.4'));
+  ok('ScreenM14 tipPerServer divides by active staff count', /Math\.max\(1,/.test(s));
   ok('ScreenM14 imports staffRoster from useManagerStore', /staffRoster/.test(s));
   ok('ScreenM14 imports shiftStats from useSharedBridge', /shiftStats/.test(s));
   ok('ScreenM14 uses tipsEarned from shiftStats', /tipsEarned/.test(s));
@@ -275,7 +273,6 @@ group('Petty expenses — voucher and arithmetic', () => {
 
   const s13 = read('components/manager/ScreenM13PettyExpenses.tsx');
   ok('ScreenM13 reduces pettyExpenses for total', /pettyExpenses\.reduce/.test(s13));
-  ok('ScreenM13 omits petty cash desk subtext and receipt note', !/PETTY CASH DESK|physical receipt attachment/.test(s13));
   ok('ScreenM13 addPettyExpense called on form submit', /addPettyExpense/.test(s13));
   ok('ScreenM13 has category dropdown with Kitchen Supplies', /Kitchen Supplies/.test(s13));
   ok('ScreenM13 has Fuel/Gas category', /Fuel\/Gas/.test(s13));
@@ -285,15 +282,29 @@ group('Petty expenses — voucher and arithmetic', () => {
   ok('ScreenM13 clears amount after submit', /setAmount\(''\)/.test(s13));
 });
 
-// ─── GROUP 10: Waiter cash reconciliation (M9) ────────────────────────────────
+// ─── GROUP 10: Denomination cash counting (M9) ────────────────────────────────
 
-group('Waiter cash reconciliation', () => {
+group('Waiter cash — denomination counter arithmetic', () => {
+  const denominations: Record<number, number> = {
+    500: 12, 200: 8, 100: 25, 50: 10, 20: 15, 10: 20,
+  };
+  const totalCalculated = Object.entries(denominations).reduce(
+    (acc, [denom, qty]) => acc + Number(denom) * qty, 0
+  );
+  ok('500 × 12 = 6000', 500 * 12 === 6000);
+  ok('200 × 8 = 1600', 200 * 8 === 1600);
+  ok('100 × 25 = 2500', 100 * 25 === 2500);
+  ok('50 × 10 = 500', 50 * 10 === 500);
+  ok('20 × 15 = 300', 20 * 15 === 300);
+  ok('10 × 20 = 200', 10 * 20 === 200);
+  ok('All denominations total = 11100', totalCalculated === 11100);
+
   const s9 = read('components/manager/ScreenM9WaiterCash.tsx');
+  ok('ScreenM9 uses reduce for total calculation', /reduce/.test(s9));
   ok('ScreenM9 imports reconcileStaffCash from store', /reconcileStaffCash/.test(s9));
-  ok('ScreenM9 keeps captain cash reconciliation', /CAPTAIN TABLE-SIDE CASH RECONCILIATION/.test(s9));
-  ok('ScreenM9 omits physical denomination counter', !/Denomination|denomination|Calculator|totalCalculated/.test(s9));
-  ok('ScreenM9 supports partial handover amounts', /handoverAmounts|RECORD HANDOVER/.test(s9));
-  ok('ScreenM9 prevents handover above amount due', /amount > amountDue/.test(s9));
+  ok('ScreenM9 has 500 denomination', s9.includes('500'));
+  ok('ScreenM9 has 200 denomination', s9.includes('200'));
+  ok('ScreenM9 has 100 denomination', s9.includes('100'));
 });
 
 // ─── GROUP 11: All 16 screen files existence ──────────────────────────────────
@@ -308,7 +319,7 @@ group('All 16 manager screen files — existence and minimum size', () => {
     ['ScreenM6WaitingQueue.tsx',     4000],
     ['ScreenM7StaffRoster.tsx',      3000],
     ['ScreenM8CallsAlerts.tsx',      2500],
-    ['ScreenM9WaiterCash.tsx',       3000],
+    ['ScreenM9WaiterCash.tsx',       4000],
     ['ScreenM10Menu86Stock.tsx',     2500],
     ['ScreenM11SalesReport.tsx',     3500],
     ['ScreenM12OffersRules.tsx',     2500],
@@ -535,8 +546,7 @@ group('UX logic — ScreenM5KitchenSpeed.tsx (KDS monitor)', () => {
   ok('M5 uses useSharedBridge for kdsTickets', /kdsTickets/.test(s));
   ok('M5 uses kitchenBumpTable action', /kitchenBumpTable/.test(s));
   ok('M5 filters active tickets (not COMPLETED)', /status !== 'COMPLETED'/.test(s));
-  ok('M5 keeps the dispatch tracker title without operational subtext', /DUM POT.*TANDOOR DISPATCH TRACKER/.test(s)
-    && !/KITCHEN SPEED MONITOR|REAL-TIME KDS AUDIT/.test(s));
+  ok('M5 shows KITCHEN SPEED MONITOR header', /KITCHEN SPEED MONITOR/.test(s));
   ok('M5 shows DUM POT / TANDOOR branding', /DUM POT|TANDOOR/.test(s));
   ok('M5 shows ticket status (READY, PREP, etc.)', /READY|PREP|status/.test(s));
   ok('M5 has alerting / bottleneck detection', /AlertTriangle|alert|BOTTLENECK/.test(s));
@@ -565,12 +575,12 @@ group('UX logic — ScreenM7StaffRoster.tsx (staff management)', () => {
   ok('M7 uses useManagerStore for staffRoster', /staffRoster/.test(s));
   ok('M7 uses updateStaffStatus action', /updateStaffStatus/.test(s));
   ok('M7 has broadcast button', /handleBroadcast|Broadcast/.test(s));
-  ok('M7 keeps the roster title without operational subtext', /FLOOR CAPTAINS.*TABLE ASSIGNMENTS/.test(s)
-    && !/STAFF ROSTER DESK|DINNER SERVICE SQUAD/.test(s));
+  ok('M7 shows STAFF ROSTER DESK header', /STAFF ROSTER DESK/.test(s));
+  ok('M7 shows DINNER SERVICE SQUAD', /DINNER SERVICE SQUAD|DINNER SERVICE/.test(s));
   ok('M7 shows staff status badges (ACTIVE, ON BREAK)', /ACTIVE/.test(s) && /ON BREAK/.test(s));
   ok('M7 uses brand color #9C3D1E', /\#9C3D1E/.test(s));
-  ok('M7 omits only role and assigned section card subtext', !/st\.assignedSection|st\.role/.test(s)
-    && /st\.phone|st\.cashCollected|st\.tablesCount/.test(s));
+  ok('M7 shows phone numbers for staff', /phone/.test(s));
+  ok('M7 shows assigned section for each staff', /assignedSection/.test(s));
 });
 
 // ─── GROUP 25: UX logic — ScreenM8CallsAlerts ────────────────────────────────
@@ -579,9 +589,9 @@ group('UX logic — ScreenM8CallsAlerts.tsx (customer pings)', () => {
   const s = read('components/manager/ScreenM8CallsAlerts.tsx');
   ok('M8 uses useSharedBridge for pings', /pings/.test(s));
   ok('M8 uses waiterResolvePing action', /waiterResolvePing/.test(s));
-  ok('M8 keeps the calls title without operational subtext', /TABLE SERVICE CALLS.*ESCALATIONS/.test(s)
-    && !/CUSTOMER CALLS DESK|REAL-TIME SERVICE ALERTS/.test(s));
-  ok('M8 omits the apology discount action', !/handleApology|APOLOGY 10% OFF|10%/.test(s));
+  ok('M8 has CUSTOMER CALLS DESK header', /CUSTOMER CALLS DESK/.test(s));
+  ok('M8 has apology goodwill function', /handleApology/.test(s));
+  ok('M8 apology adds 10% discount mention', /10%/.test(s));
   ok('M8 uses rose/red color for alert badge', /bg-rose-600|text-rose-/.test(s));
   ok('M8 shows ping type and table number', /tableNum|tableNumber/.test(s));
 });
@@ -593,8 +603,8 @@ group('UX logic — ScreenM10Menu86Stock.tsx (86 menu kill-switch)', () => {
   ok('M10 uses useSharedBridge for inventory86', /inventory86/.test(s));
   ok('M10 uses kitchenToggle86 action', /kitchenToggle86/.test(s));
   ok('M10 uses kitchenUpdatePrepDelay action', /kitchenUpdatePrepDelay/.test(s));
-  ok('M10 keeps the availability title without operational subtext', /REAL-TIME DISH AVAILABILITY.*PREP DELAYS/.test(s)
-    && !/ITEM 86 STOCK CONTROLLER|LIVE MENU KILL-SWITCH|Toggling 86 instantly/.test(s));
+  ok('M10 shows ITEM 86 STOCK CONTROLLER header', /ITEM 86 STOCK CONTROLLER/.test(s));
+  ok('M10 shows LIVE MENU KILL-SWITCH label', /KILL-SWITCH/.test(s));
   ok('M10 uses rose color for 86 badge', /bg-rose-600|text-rose-/.test(s));
 });
 
@@ -604,8 +614,7 @@ group('UX logic — ScreenM12OffersRules.tsx (promo campaigns)', () => {
   const s = read('components/manager/ScreenM12OffersRules.tsx');
   ok('M12 uses useManagerStore for promos', /promos/.test(s));
   ok('M12 uses togglePromo action', /togglePromo/.test(s));
-  ok('M12 keeps promo campaigns without the discounts/promos label or audit log', /ACTIVE PROMOTIONAL CAMPAIGNS/.test(s)
-    && !/DISCOUNTS & PROMOS|Manager Goodwill Override Log|Table A-03|Table B-02/.test(s));
+  ok('M12 shows DISCOUNTS & PROMOS header', /DISCOUNT|PROMO/.test(s));
   ok('M12 shows ACTIVE PROMOTIONAL CAMPAIGNS text', /PROMOTIONAL CAMPAIGNS|ACTIVE.*PROMO/.test(s));
   ok('M12 shows promo code for each rule', /\.code/.test(s));
   ok('M12 shows discount percentage for each rule', /discountPercent/.test(s));
@@ -621,7 +630,7 @@ group('UX logic — ScreenM15PrinterHealth.tsx (hardware diagnostics)', () => {
   ok('M15 uses toggleHardwareStatus action', /toggleHardwareStatus/.test(s));
   ok('M15 has handleTestPrint function', /handleTestPrint/.test(s));
   ok('M15 test print shows ESC/POS mention', /ESC\/POS/.test(s));
-  ok('M15 omits hardware diagnostic subtext', !/HARDWARE DIAGNOSTIC CENTER/.test(s));
+  ok('M15 shows HARDWARE DIAGNOSTIC CENTER header', /HARDWARE DIAGNOSTIC CENTER/.test(s));
   ok('M15 shows THERMAL PRINTERS label', /THERMAL PRINTERS/.test(s));
   ok('M15 shows device status (ONLINE/WARNING/OFFLINE)', /ONLINE/.test(s));
   ok('M15 shows printer location', /\.location/.test(s));
@@ -738,15 +747,19 @@ group('UI components — M4BillingPOS layout and components', () => {
   ok('M4 has PlusCircle for add to bill', /PlusCircle/.test(s));
 });
 
-// ─── GROUP 34: UI components — M9 cash reconciliation visuals ─────────────────
+// ─── GROUP 34: UI components — M9 denomination counter visuals ────────────────
 
-group('UI components — M9WaiterCash cash reconciliation', () => {
+group('UI components — M9WaiterCash denomination counter', () => {
   const s = read('components/manager/ScreenM9WaiterCash.tsx');
+  ok('M9 has denomination state with 6 values (500,200,100,50,20,10)', s.includes('500') && s.includes('200') && s.includes('100') && s.includes('50') && s.includes('20') && s.includes('10'));
+  ok('M9 shows total calculated amount', /totalCalculated/.test(s));
   ok('M9 uses Banknote icon', /Banknote/.test(s));
+  ok('M9 uses Calculator icon', /Calculator/.test(s));
+  ok('M9 shows handleQtyChange handler', /handleQtyChange/.test(s));
+  ok('M9 shows CASH DENOMINATION COUNTER or similar', /denomination|DENOMINATION|Denomination/.test(s));
   ok('M9 shows reconcileStaffCash per staff member', /reconcileStaffCash/.test(s));
   ok('M9 uses CheckCircle2 for reconciliation success', /CheckCircle2/.test(s));
   ok('M9 uses IndianRupee icon', /IndianRupee/.test(s));
-  ok('M9 has handover amount input', /Amount handed over|handover-/.test(s));
 });
 
 // ─── GROUP 35: No AI traces in manager portal files ───────────────────────────
@@ -787,7 +800,6 @@ group('No AI traces or unwanted terms — manager portal', () => {
 group('Brand venue name consistency — manager portal', () => {
   const m1 = read('components/manager/ScreenM1Login.tsx');
   const m16 = read('components/manager/ScreenM16DayCloseZReport.tsx');
-  ok('M16 omits day close Z-report subtext', !/DAY CLOSE NIGHT Z-REPORT/.test(m16));
   const store = read('store/useManagerStore.ts');
 
   ok('M1 shows THOOGUDEEPA DONNE BIRYANI MANE', /THOOGUDEEPA DONNE BIRYANI MANE/i.test(m1));
@@ -889,7 +901,7 @@ group('UI/UX — responsive layout tokens in manager portal', () => {
   ok('M1 keypad buttons use hover states', /hover:/.test(s1));
   ok('M2 table buttons use transition', /transition/.test(s2));
   ok('M4 has interactive hover state styling on buttons', /hover:bg-/.test(s4));
-  ok('M9 has handover amount input elements', /type="number"/.test(read('components/manager/ScreenM9WaiterCash.tsx')));
+  ok('M9 has input elements for denomination entry', /type="number"/.test(read('components/manager/ScreenM9WaiterCash.tsx')));
   ok('M16 has number input for cash counted', /type="number"/.test(s16));
   ok('M6 has form element for queue entry', /<form/.test(read('components/manager/ScreenM6WaitingQueue.tsx')));
   ok('M13 has form element for petty expense', /<form/.test(read('components/manager/ScreenM13PettyExpenses.tsx')));

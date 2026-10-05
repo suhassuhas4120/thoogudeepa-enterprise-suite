@@ -11,9 +11,18 @@ export function ScreenM10Menu86Stock() {
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2">
+            <span className="bg-rose-600 text-white text-xs font-bold px-2 py-0.5 rounded">
+              [ITEM 86 STOCK CONTROLLER]
+            </span>
+            <span className="text-xs font-bold text-slate-500">LIVE MENU KILL-SWITCH</span>
+          </div>
           <h3 className="text-base font-black text-slate-900 mt-1">
             REAL-TIME DISH AVAILABILITY &amp; PREP DELAYS
           </h3>
+          <p className="text-xs text-slate-500">
+            Toggling 86 instantly disables the dish on Customer QR Menus and Waiter Captain Handhelds!
+          </p>
         </div>
         <span className="bg-[#FAF8F5] border border-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold">
           {inventory86.filter((i) => i.is86).length} ITEMS SOLD OUT (86)

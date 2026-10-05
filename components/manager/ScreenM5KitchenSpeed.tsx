@@ -14,6 +14,12 @@ export function ScreenM5KitchenSpeed() {
       {/* Top Banner */}
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2">
+            <span className="bg-orange-600 text-white font-mono text-xs font-bold px-2 py-0.5 rounded">
+              [KITCHEN SPEED MONITOR]
+            </span>
+            <span className="font-mono text-xs font-bold text-slate-500">REAL-TIME KDS AUDIT</span>
+          </div>
           <h3 className="text-base font-black font-mono text-slate-900 mt-1">
             DUM POT &amp; TANDOOR DISPATCH TRACKER
           </h3>
@@ -38,6 +44,7 @@ export function ScreenM5KitchenSpeed() {
             <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">NORMAL</span>
           </div>
           <div className="text-xl font-black text-slate-900 mt-2">6 Mins Avg Prep</div>
+          <p className="text-[11px] text-slate-500 mt-1">Pot 3 (Mutton) • Pot 4 (Chicken) Open</p>
         </div>
 
         <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
@@ -46,6 +53,7 @@ export function ScreenM5KitchenSpeed() {
             <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">RUSH</span>
           </div>
           <div className="text-xl font-black text-slate-900 mt-2">14 Mins Avg Prep</div>
+          <p className="text-[11px] text-slate-500 mt-1">8 skewers active • Charcoal heated</p>
         </div>
 
         <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
@@ -54,6 +62,7 @@ export function ScreenM5KitchenSpeed() {
             <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">NORMAL</span>
           </div>
           <div className="text-xl font-black text-slate-900 mt-2">5 Mins Avg Prep</div>
+          <p className="text-[11px] text-slate-500 mt-1">Parotta hot press running</p>
         </div>
       </div>
 
@@ -85,7 +94,8 @@ export function ScreenM5KitchenSpeed() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 pt-2 border-t border-slate-200 flex justify-end items-center">
+                <div className="mt-3 pt-2 border-t border-slate-200 flex justify-between items-center text-[11px] text-slate-500">
+                  <span>Server: {tk.serverName}</span>
                   <button
                     onClick={() => kitchenBumpTable(tk.id)}
                     className="bg-[#9C3D1E] text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-orange-600 transition"

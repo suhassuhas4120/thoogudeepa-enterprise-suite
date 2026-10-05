@@ -16,6 +16,12 @@ export function ScreenM7StaffRoster() {
       {/* Top Banner */}
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
+          <div className="flex items-center gap-2">
+            <span className="bg-[#9C3D1E] text-white text-xs font-bold px-2 py-0.5 rounded">
+              [STAFF ROSTER DESK]
+            </span>
+            <span className="text-xs font-bold text-slate-500">DINNER SERVICE SQUAD</span>
+          </div>
           <h3 className="text-base font-black text-slate-900 mt-1">
             FLOOR CAPTAINS &amp; TABLE ASSIGNMENTS
           </h3>
@@ -37,6 +43,7 @@ export function ScreenM7StaffRoster() {
               <div className="flex justify-between items-start">
                 <div>
                   <h4 className="font-black text-sm text-slate-900">{st.name}</h4>
+                  <span className="text-xs text-orange-600 font-bold">{st.role}</span>
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded font-bold ${
                   st.status === 'ACTIVE'
@@ -50,6 +57,10 @@ export function ScreenM7StaffRoster() {
               </div>
 
               <div className="mt-3 space-y-1 text-xs text-slate-600">
+                <div className="flex justify-between">
+                  <span>Assigned Section:</span>
+                  <span className="font-bold text-slate-900">{st.assignedSection}</span>
+                </div>
                 <div className="flex justify-between">
                   <span>Active Tables:</span>
                   <span className="font-bold text-slate-900">{st.tablesCount} Tables</span>
@@ -71,6 +82,12 @@ export function ScreenM7StaffRoster() {
                 className="flex-1 bg-[#FAF8F5] border border-slate-300 py-1.5 rounded text-xs font-bold text-slate-700 hover:bg-stone-200 transition text-center"
               >
                 {st.status === 'ACTIVE' ? 'MARK ON BREAK' : 'SET ACTIVE'}
+              </button>
+              <button
+                onClick={() => alert(`Vibrating smartwatch & handheld of ${st.name}!`)}
+                className="bg-[#9C3D1E] text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-orange-600 transition"
+              >
+                PAGE
               </button>
             </div>
           </div>

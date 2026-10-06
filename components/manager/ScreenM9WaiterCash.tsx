@@ -2,10 +2,11 @@
 
 import React, { useState } from 'react';
 import { useManagerStore } from '../../store/useManagerStore';
-import { Banknote, Calculator, CheckCircle2, IndianRupee } from 'lucide-react';
+import { Banknote, Calculator, IndianRupee } from 'lucide-react';
 
 export function ScreenM9WaiterCash() {
   const { staffRoster, reconcileStaffCash } = useManagerStore();
+  const [handoverAmounts, setHandoverAmounts] = useState<Record<string, string>>({});
 
   // Denominations
   const [counts, setCounts] = useState<{ [denom: number]: number }>({
@@ -27,6 +28,21 @@ export function ScreenM9WaiterCash() {
     setCounts((prev) => ({ ...prev, [denom]: n }));
   };
 
+  const handleHandover = (staffId: string, staffName: string, cashCollected: number, cashHandedOver: number) => {
+    const amountDue = Math.max(0, cashCollected - cashHandedOver);
+    const amount = Number(handoverAmounts[staffId] ?? '');
+
+    if (!Number.isFinite(amount) || amount <= 0 || amount > amountDue) {
+      alert(`Enter an amount between ₹1 and ₹${amountDue.toLocaleString('en-IN')} for ${staffName}.`);
+      return;
+    }
+
+    const updatedHandedOver = cashHandedOver + amount;
+    reconcileStaffCash(staffId, updatedHandedOver);
+    setHandoverAmounts((current) => ({ ...current, [staffId]: '' }));
+    alert(`₹${amount.toLocaleString('en-IN')} received from ${staffName} into Till Safe.`);
+  };
+
   return (
     <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 font-mono">
       {/* Left Captain Cash Balance */}
@@ -46,7 +62,8 @@ export function ScreenM9WaiterCash() {
             {staffRoster
               .filter((st) => st.cashCollected > 0)
               .map((st) => {
-                const diff = st.cashCollected - st.cashHandedOver;
+                const amountDue = Math.max(0, st.cashCollected - st.cashHandedOver);
+                const isSettled = amountDue === 0;
                 return (
                   <div key={st.id} className="p-3 bg-stone-50 rounded-xl border border-slate-300 text-xs">
                     <div className="flex justify-between items-center">
@@ -61,24 +78,56 @@ export function ScreenM9WaiterCash() {
                       <div>
                         <div className="text-[10px] text-slate-400">HANDED OVER</div>
                         <div className="font-bold text-emerald-700">₹ {st.cashHandedOver}</div>
+                        {!isSettled && (
+                          <div className="mt-1 flex items-center rounded border border-slate-300 bg-white px-1.5">
+                            <IndianRupee className="h-3 w-3 text-slate-400" />
+                            <input
+                              id={`handover-${st.id}`}
+                              type="number"
+                              min="1"
+                              max={amountDue}
+                              step="1"
+                              value={handoverAmounts[st.id] ?? ''}
+                              placeholder="Add"
+                              onChange={(event) => setHandoverAmounts((current) => ({
+                                ...current,
+                                [st.id]: event.target.value,
+                              }))}
+                              className="w-full min-w-0 bg-transparent px-1 py-1 text-xs font-bold outline-none"
+                              aria-label={`Additional cash handed over by ${st.name}`}
+                            />
+                          </div>
+                        )}
                       </div>
                       <div>
-                        <div className="text-[10px] text-slate-400">DIFF / DUE</div>
-                        <div className={`font-black ${diff === 0 ? 'text-slate-500' : 'text-rose-600'}`}>
-                          ₹ {diff}
+                        <div className="text-[10px] text-slate-400">OUTSTANDING DUE</div>
+                        <div className={`font-black ${isSettled ? 'text-emerald-700' : 'text-rose-600'}`}>
+                          ₹ {amountDue}
                         </div>
                       </div>
                     </div>
-                    {diff !== 0 && (
-                      <button
-                        onClick={() => {
-                          reconcileStaffCash(st.id, st.cashCollected);
-                          alert(`Collected ₹${st.cashCollected} from ${st.name} into Till Safe!`);
-                        }}
-                        className="w-full mt-2 bg-slate-900 text-white py-1 rounded text-xs font-bold hover:bg-emerald-600 transition text-center"
-                      >
-                        RECONCILE &amp; DEPOSIT TO TILL
-                      </button>
+                    {isSettled ? (
+                      <div className="mt-2 text-center text-[11px] font-bold text-emerald-700">
+                        HANDED OVER IN FULL
+                      </div>
+                    ) : (
+                      <div className="mt-2 flex gap-2">
+                        <button
+                          onClick={() => handleHandover(st.id, st.name, st.cashCollected, st.cashHandedOver)}
+                          className="bg-[#9C3D1E] text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-emerald-600 transition text-center whitespace-nowrap"
+                        >
+                          RECORD HANDOVER
+                        </button>
+                        <button
+                          onClick={() => {
+                            reconcileStaffCash(st.id, st.cashCollected);
+                            alert(`Collected full ₹${st.cashCollected} from ${st.name} into Till Safe!`);
+                          }}
+                          className="bg-slate-900 text-white px-2.5 py-1 rounded text-[11px] font-bold hover:bg-slate-800 transition text-center whitespace-nowrap"
+                        >
+                          ALL
+                        </button>
+                      </div>
                     )}
                   </div>
                 );

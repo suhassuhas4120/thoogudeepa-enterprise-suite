@@ -33,7 +33,7 @@ export const Screen11Loyalty: React.FC = () => {
             <div className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-amber-200 fill-amber-200" />
               <span className="font-mono text-xs font-black tracking-widest text-amber-100 uppercase">
-                BIRYANI RAJA • LEVEL 3
+                BIRYANI RAJA &bull; LEVEL 3
               </span>
             </div>
             <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-sm">
@@ -45,7 +45,7 @@ export const Screen11Loyalty: React.FC = () => {
             <div className="text-[11px] font-medium text-amber-100/90">AVAILABLE REWARD POINTS</div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black tracking-tight">1,450</span>
-              <span className="text-xs font-bold text-amber-200">PTS (Worth ₹145)</span>
+              <span className="text-xs font-bold text-amber-200">PTS (Worth &#8377;145)</span>
             </div>
           </div>
 

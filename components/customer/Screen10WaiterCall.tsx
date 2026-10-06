@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -11,7 +12,16 @@ import { Droplets, Scroll, Utensils, Sparkles, Send, CheckCircle2, ArrowRight } 
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Screen10WaiterCall: React.FC = () => {
-  const { navigateTo, previousScreen, pingWaiter, waiterNotification, tableNumber } = useCustomer();
+  const { currentTheme } = useCustomerTheme();
+  const {
+    navigateTo,
+    previousScreen,
+    pingWaiter,
+    waiterNotification,
+    tableNumber,
+    seatNumber,
+    venueName,
+  } = useCustomer();
   const { pings } = useSharedBridge();
   const activePing = pings?.find((p) => p.tableNumber === tableNumber);
   const [customText, setCustomText] = useState('');
@@ -49,20 +59,28 @@ export const Screen10WaiterCall: React.FC = () => {
     },
   ];
 
-  const returnTarget = previousScreen && previousScreen !== 10 ? previousScreen : 2;
+  const returnTarget = previousScreen && previousScreen !== 10 && previousScreen !== 9 ? previousScreen : 2;
 
   return (
-    <ScreenHousing screenNumber={10} screenTitle="Call Waiter">
+    <ScreenHousing screenNumber={9} screenTitle="CALL WAITER">
       {/* Header */}
       <WireHeader
-        title="Call Waiter"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Call Waiter</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName?.toUpperCase()}
         showBack={true}
         onBack={() => navigateTo(returnTarget)}
         showCallWaiter={false}
         showCart={false}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#FFFCF7]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Active Ping Status Banner */}
         <AnimatePresence>
           {waiterNotification?.active && (
@@ -84,8 +102,17 @@ export const Screen10WaiterCall: React.FC = () => {
         </AnimatePresence>
 
         {/* 4 Quick Ping Buttons */}
-        <div className="rounded-[28px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
-          <div className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] text-[#5B5049]/70 font-mono">
+        <div
+          className="rounded-[28px] border p-4 shadow-xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div
+            className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] font-mono"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
             Quick Assistance Buttons
           </div>
 
@@ -95,20 +122,44 @@ export const Screen10WaiterCall: React.FC = () => {
                 key={btn.type}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => handlePing(btn.type)}
-                className="flex flex-col items-center justify-center gap-2 rounded-[22px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs transition hover:border-[#8A4228] hover:bg-[#F3DFCC]/40"
+                className="flex flex-col items-center justify-center gap-2 rounded-[22px] border p-4 shadow-xs transition hover:opacity-90"
+                style={{
+                  backgroundColor: currentTheme.colors.bgSurface,
+                  borderColor: currentTheme.colors.border,
+                }}
               >
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[#E8D5C3] bg-[#F3DFCC]/50">
+                <div
+                  className="flex h-12 w-12 items-center justify-center rounded-2xl border"
+                  style={{
+                    backgroundColor: currentTheme.colors.secondaryBg,
+                    borderColor: currentTheme.colors.border,
+                  }}
+                >
                   {btn.icon}
                 </div>
-                <span className="text-xs font-black text-[#5B5049] text-center">{btn.label}</span>
+                <span
+                  className="text-xs font-black text-center"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  {btn.label}
+                </span>
               </motion.button>
             ))}
           </div>
         </div>
 
         {/* Custom Request Textbox */}
-        <div className="rounded-[28px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
-          <div className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] text-[#5B5049]/70 font-mono">
+        <div
+          className="rounded-[28px] border p-4 shadow-xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div
+            className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] font-mono"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
             Custom Message to Captain
           </div>
 
@@ -118,12 +169,22 @@ export const Screen10WaiterCall: React.FC = () => {
               value={customText}
               onChange={(e) => setCustomText(e.target.value)}
               placeholder="e.g. Please bring extra lemon or mild raita..."
-              className="w-full rounded-2xl border border-[#E8D5C3] bg-[#FFFCF7] p-3 text-xs font-semibold text-[#5B5049] placeholder:text-[#5B5049]/40 focus:border-[#8A4228] focus:outline-none"
+              className="w-full rounded-2xl border p-3 text-xs font-semibold focus:outline-none"
+              style={{
+                backgroundColor: currentTheme.colors.bgElevated,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.textPrimary,
+              }}
             />
             <button
               onClick={handleSendCustomText}
               disabled={!customText.trim()}
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#8A4228] py-2.5 text-xs font-black uppercase tracking-wider text-[#FFFCF7] disabled:opacity-50 transition hover:bg-[#71351F]"
+              style={{
+                backgroundColor: currentTheme.colors.buttonBg,
+                color: currentTheme.colors.buttonFg,
+                boxShadow: currentTheme.colors.buttonShadow,
+              }}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black uppercase tracking-wider disabled:opacity-50 transition hover:brightness-105"
             >
               <Send className="h-3.5 w-3.5" />
               <span>Send Request to Waiter</span>
@@ -137,7 +198,12 @@ export const Screen10WaiterCall: React.FC = () => {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => navigateTo(returnTarget)}
-          className="flex w-full items-center justify-between rounded-[20px] bg-[#8A4228] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] text-[#FFFCF7] shadow-lg transition hover:bg-[#71351F]"
+          style={{
+            backgroundColor: currentTheme.colors.buttonBg,
+            color: currentTheme.colors.buttonFg,
+            boxShadow: currentTheme.colors.buttonShadow,
+          }}
+          className="flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
         >
           <span>Return to Previous Screen</span>
           <ArrowRight className="h-4 w-4 stroke-[2.5]" />

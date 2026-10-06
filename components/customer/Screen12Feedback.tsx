@@ -65,7 +65,7 @@ export const Screen12Feedback: React.FC = () => {
               </div>
               <h2 className="text-sm font-black text-slate-900">How was your meal today?</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Table {tableNumber} • Chef Manjunath would love your feedback!
+                Table {tableNumber} &bull; Chef Manjunath would love your feedback!
               </p>
             </div>
 

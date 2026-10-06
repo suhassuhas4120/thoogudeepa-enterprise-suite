@@ -1,11 +1,23 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+import { useCustomerTheme } from '../../context/ThemeContext';
+import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
-import { Wifi, ArrowRight, Crown, CheckCircle2, Globe, MapPin, RefreshCw, AlertCircle, Sparkles } from 'lucide-react';
+import {
+  Crown,
+  Wifi,
+  QrCode,
+  Sparkles,
+  ArrowRight,
+  User,
+  Armchair,
+  Smartphone,
+  Flame,
+  CookingPot,
+} from 'lucide-react';
 import { motion } from 'framer-motion';
-import { supabase } from '../../lib/supabase';
 
 export const Screen1Welcome: React.FC = () => {
   const {
@@ -14,193 +26,412 @@ export const Screen1Welcome: React.FC = () => {
     setGuestName,
     venueName,
     tableNumber,
+    seatNumber,
     setTableNumber,
+    setSeatNumber,
   } = useCustomer();
 
-  const [wifiConnected, setWifiConnected] = useState(false);
-  const [seatNumber, setSeatNumber] = useState<number>(1);
-  const [activeOrderFound, setActiveOrderFound] = useState<any | null>(null);
-  const [checkingSession, setCheckingSession] = useState(false);
+  const { currentTheme } = useCustomerTheme();
+  const { tables } = useSharedBridge();
 
-  // 1. Read ?table=A-01&seat=1 from URL on mount
+  // Dynamic time-based human greeting
+  const timeGreeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning ☀️';
+    if (hour < 17) return 'Good Afternoon 🍛';
+    return 'Good Evening 🌙';
+  }, []);
+
+  // 1. Read ?table=T-01&seat=1 from URL on mount
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
-    const tbl = (params.get('table') || tableNumber || 'A-01').toUpperCase();
-    const seat = parseInt(params.get('seat') || '1', 10);
-    setTableNumber(tbl);
-    setSeatNumber(seat);
+    const tblParam = params.get('table') || params.get('t') || tableNumber || 'T-01';
+    const seatParam = params.get('seat') || params.get('chair') || params.get('s') || String(seatNumber || 1);
 
-    // 2. The 80% Action: Zero Data Loss / Session Recovery Check
-    // If the diner closed the browser, locked screen, or switched networks,
-    // check if this table + seat has an active unpaid order in Supabase.
-    async function checkExistingSeatSession() {
-      try {
-        setCheckingSession(true);
-        const { data: tickets, error } = await supabase
-          .from('kds_tickets')
-          .select('*, order_items(*)')
-          .eq('table_number', tbl)
-          .neq('status', 'COMPLETED')
-          .order('created_at', { ascending: false });
+    // Normalize table string (e.g. T-1, T1 -> T-01)
+    let cleanTable = tblParam.trim().toUpperCase();
+    const match = cleanTable.match(/^T-?(\d+)$/);
+    if (match) {
+      cleanTable = `T-${String(parseInt(match[1], 10)).padStart(2, '0')}`;
+    }
+    setTableNumber(cleanTable);
 
-        if (!error && tickets && tickets.length > 0) {
-          // Find any ticket with items matching this seat
-          const seatMatch = tickets.find((t) =>
-            t.server_name?.toLowerCase().includes(`seat ${seat}`) ||
-            t.order_items?.some((it: any) => it.name.includes(`[Seat ${seat}]`))
-          );
-          if (seatMatch) {
-            setActiveOrderFound(seatMatch);
-          }
-        }
-      } catch (err) {
-        console.warn('Session recovery check error:', err);
-      } finally {
-        setCheckingSession(false);
+    const parsedSeat = parseInt(seatParam, 10);
+    setSeatNumber(!isNaN(parsedSeat) && parsedSeat > 0 ? parsedSeat : 1);
+  }, [setTableNumber, setSeatNumber]);
+
+  // Dynamically resolve real table data from the shared bridge
+  const activeTable = useMemo(() => {
+    return (
+      tables.find((t) => t.number.toUpperCase() === tableNumber.toUpperCase()) ||
+      tables[0] || {
+        id: 'tbl-1',
+        number: tableNumber || 'T-01',
+        section: 'Ground Floor',
+        capacity: 4,
+        serverName: 'Floor Captain',
       }
-    }
+    );
+  }, [tables, tableNumber]);
 
-    checkExistingSeatSession();
-  }, [setTableNumber]);
+  const currentSeat = seatNumber || 1;
+  const tableCapacity = activeTable?.capacity || 4;
 
-  const handleProceed = () => {
-    if (!guestName.trim()) setGuestName(`Seat ${seatNumber}`);
-    if (activeOrderFound) {
-      setCurrentScreen(5); // Jump straight to Live Tracking
-    } else {
-      setCurrentScreen(2); // Fresh menu
+  const handleSelectSeat = (newSeat: number) => {
+    setSeatNumber(newSeat);
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('table', activeTable.number);
+      url.searchParams.set('seat', newSeat.toString());
+      window.history.replaceState({}, '', url.toString());
     }
+  };
+
+  // Connection Handlers: advance to Authentic Menu
+  const handleConnectWifi = () => {
+    setCurrentScreen(2);
+  };
+
+  const handleContinueMobileData = () => {
+    setCurrentScreen(2);
   };
 
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
-      <div className="flex h-full min-h-[90vh] flex-col justify-between bg-[#FFFCF7] p-5 text-[#5B5049]">
-        {/* Top: Venue Logo & Name */}
+      <div
+        className="flex flex-col min-h-full p-4 space-y-3 pb-6 transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.colors.bgApp }}
+      >
+        {/* Card 1: Restaurant Brand Header - Logo in Row 1, Hotel Name in Row 2 */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="flex flex-col items-center gap-3 pt-6 text-center"
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="rounded-3xl border p-4 shadow-xs text-center flex flex-col items-center transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
         >
-          <motion.div
-            initial={{ rotate: -8, scale: 0.85 }}
-            animate={{ rotate: 0, scale: 1 }}
-            transition={{ type: 'spring', stiffness: 200, damping: 12, delay: 0.15 }}
-            className="relative flex h-24 w-24 flex-col items-center justify-center rounded-[28px] border border-[#E8D5C3] bg-[#F3DFCC] p-2 shadow-sm"
-          >
-            <Crown className="relative h-10 w-10 text-[#8A4228] stroke-[1.8]" />
-            <span className="relative mt-1 text-[8px] font-black uppercase tracking-[0.18em] text-[#8A4228]">
-              THOOGUDEEPA
-            </span>
-          </motion.div>
-
-          <div className="mt-1 w-full">
-            <div className="mt-2 rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] px-4 py-3 shadow-xs">
-              <h2 className="text-base font-black tracking-[0.08em] text-[#5B5049] uppercase">
-                {venueName}
-              </h2>
-              <p className="mt-1 text-[11px] font-medium text-[#5B5049]/80 capitalize">
-                Authentic Donne Biryani &amp; Military Flavours
-              </p>
+          {/* Row 1: Dedicated Hotel Logo Icon */}
+          <div className="relative mb-2">
+            <div
+              className="relative flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md ring-2"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                boxShadow: currentTheme.colors.primaryShadow,
+                borderColor: currentTheme.colors.primaryBorder,
+              }}
+            >
+              <CookingPot className="h-7 w-7 stroke-[2]" />
+              <div
+                className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full shadow-xs ring-2 ring-white"
+                style={{
+                  backgroundColor: currentTheme.colors.accent,
+                  color: currentTheme.colors.accentFg,
+                }}
+              >
+                <Crown className="h-3 w-3 fill-current stroke-[2.2]" />
+              </div>
             </div>
           </div>
 
-          {/* Tabletop Edge Physical Seat Badge */}
-          <div className="flex items-center gap-2 rounded-full border border-[#E8D5C3] bg-[#F3DFCC]/80 px-3.5 py-1 text-[11px] font-black tracking-wide text-[#8A4228] shadow-xs">
-            <MapPin className="h-3.5 w-3.5 text-[#8A4228]" />
-            <span>TABLE {tableNumber}</span>
-            <span className="text-[#8A4228]/40">•</span>
-            <span>SEAT {seatNumber}</span>
+          {/* Row 2: Human Time Greeting, Hotel Name & Tagline */}
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[9.5px] font-bold mb-1 border"
+            style={{
+              backgroundColor: currentTheme.colors.secondaryBg,
+              color: currentTheme.colors.secondaryFg,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
+            <span>{timeGreeting}</span>
           </div>
 
-          {/* Zero Data Loss / Session Recovery Banner */}
-          {activeOrderFound && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="w-full rounded-2xl border border-emerald-300 bg-emerald-50/80 p-3 text-left shadow-xs"
-            >
-              <div className="flex items-center gap-2 text-xs font-black text-emerald-800">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                <span>Active Dine-In Session Restored!</span>
-              </div>
-              <p className="mt-1 text-[11px] font-medium text-emerald-700">
-                Found your ongoing order. Tapping below resumes your live kitchen tracker and bill.
-              </p>
-            </motion.div>
-          )}
+          <h1
+            className="text-sm font-black tracking-tight uppercase"
+            style={{ color: currentTheme.colors.textPrimary }}
+          >
+            {venueName}
+          </h1>
+
+          <div
+            className="flex items-center justify-center gap-1.5 mt-0.5 text-[10.5px] font-semibold"
+            style={{ color: currentTheme.colors.textSecondary }}
+          >
+            <Flame className="h-3 w-3" style={{ color: currentTheme.colors.primary }} />
+            <span>Authentic Military Donne Biryani</span>
+          </div>
         </motion.div>
 
-        {/* Middle: Wi-Fi + Mobile Data */}
-        <div className="my-4 flex flex-col gap-3">
-          {/* Wi-Fi Connect */}
-          <div>
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setWifiConnected(true)}
-              className={`flex w-full items-center justify-center gap-2 rounded-[20px] border py-3.5 px-4 text-[11px] font-extrabold tracking-[0.12em] shadow-xs transition ${
-                wifiConnected
-                  ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
-                  : 'border-[#E8D5C3] bg-[#FFFCF7] text-[#5B5049] hover:bg-[#F3DFCC]'
-              }`}
+        {/* Card 2: Scanned Table Information */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.05 }}
+          className="rounded-2xl border p-3 shadow-xs transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-xs"
+                style={{ backgroundColor: currentTheme.colors.primary }}
+              >
+                <QrCode className="h-4 w-4" />
+              </div>
+              <div>
+                <div
+                  className="text-xs font-black font-mono"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  {activeTable.number} • C-{String(currentSeat).padStart(2, '0')}
+                </div>
+                <div
+                  className="text-[10px] font-bold"
+                  style={{ color: currentTheme.colors.primary }}
+                >
+                  {activeTable.section} • Dine-In Verified
+                </div>
+              </div>
+            </div>
+            <span
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black font-mono shadow-2xs border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
             >
-              {wifiConnected ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                  <span>Wi-Fi Connected — Free High-Speed</span>
-                </>
-              ) : (
-                <>
-                  <Wifi className="h-4 w-4 text-[#8A4228] animate-pulse" />
-                  <span>Connect To Restaurant Free Wi-Fi</span>
-                </>
-              )}
-            </motion.button>
+              <span
+                className="h-1.5 w-1.5 rounded-full animate-ping"
+                style={{ backgroundColor: currentTheme.colors.primary }}
+              />
+              VERIFIED
+            </span>
           </div>
+        </motion.div>
 
-          {/* Continue with Mobile Data */}
-          <div>
-            <motion.button
-              whileTap={{ scale: 0.98 }}
-              onClick={handleProceed}
-              className="flex w-full items-center justify-center gap-2 rounded-[20px] border border-[#8A4228] bg-[#8A4228] py-3.5 px-4 text-[11px] font-black tracking-[0.12em] text-[#FFFCF7] shadow-sm transition hover:bg-[#71351F]"
-            >
-              <Globe className="h-4 w-4 text-[#FFFCF7]" />
-              <span className="capitalize">
-                {activeOrderFound ? 'Resume Ongoing Order' : 'Continue With Mobile Data'}
+        {/* Card 3: Interactive Chair / Seat Matrix */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="rounded-2xl border p-3.5 shadow-xs space-y-2.5 transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Armchair className="h-4 w-4" style={{ color: currentTheme.colors.primary }} />
+              <span
+                className="font-mono text-[10px] font-black uppercase tracking-wider"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                SELECT YOUR CHAIR
               </span>
-            </motion.button>
+            </div>
+            <span
+              className="rounded-full px-2.5 py-0.5 font-mono text-[10px] font-black border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
+              C-{String(currentSeat).padStart(2, '0')}
+            </span>
           </div>
 
-          {/* Diner Name (Optional) */}
-          <div className="mt-1">
+          {/* Interactive Chair Buttons */}
+          <div className={`grid gap-2 pt-0.5 ${tableCapacity <= 3 ? 'grid-cols-3' : tableCapacity <= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+            {Array.from({ length: tableCapacity }, (_, i) => i + 1).map((chairNum) => {
+              const isSelected = currentSeat === chairNum;
+
+              return (
+                <motion.button
+                  key={chairNum}
+                  whileTap={{ scale: 0.92 }}
+                  type="button"
+                  onClick={() => handleSelectSeat(chairNum)}
+                  className="flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all text-center relative"
+                  style={
+                    isSelected
+                      ? {
+                          borderColor: currentTheme.colors.pillActiveBorder,
+                          backgroundColor: currentTheme.colors.pillActiveBg,
+                          color: currentTheme.colors.pillActiveFg,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        }
+                      : {
+                          borderColor: currentTheme.colors.pillInactiveBorder,
+                          backgroundColor: currentTheme.colors.pillInactiveBg,
+                          color: currentTheme.colors.pillInactiveFg,
+                        }
+                  }
+                >
+                  <span className="text-base">🪑</span>
+                  <span
+                    className="font-mono text-[11px] font-black mt-0.5"
+                    style={{
+                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textPrimary,
+                    }}
+                  >
+                    C-{String(chairNum).padStart(2, '0')}
+                  </span>
+                  <span
+                    className="text-[9.5px] font-bold mt-0.5 font-mono"
+                    style={{
+                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textMuted,
+                    }}
+                  >
+                    {isSelected ? '✓ Your Seat' : 'Available'}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.div>
+
+        {/* Card 4: Diner Name */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+          className="rounded-2xl border p-3.5 shadow-xs space-y-2 transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div className="flex items-center gap-1.5">
+            <User className="h-4 w-4" style={{ color: currentTheme.colors.buttonBg }} />
+            <label
+              className="font-mono text-[10px] font-black uppercase tracking-wider"
+              style={{ color: currentTheme.colors.textPrimary }}
+            >
+              YOUR NAME
+            </label>
+          </div>
+
+          <div className="relative">
             <input
               type="text"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Your Name (Optional)"
-              className="w-full rounded-[20px] border border-[#E8D5C3] bg-[#FFFCF7] px-4 py-3 text-xs font-semibold text-[#5B5049] placeholder:text-[#5B5049]/40 focus:border-[#8A4228] focus:outline-none focus:ring-1 focus:ring-[#8A4228]/30 shadow-xs"
+              placeholder="Enter your name (Optional)"
+              className="w-full rounded-xl border px-3.5 py-2.5 text-xs font-semibold placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
+              style={{
+                backgroundColor: currentTheme.colors.bgApp,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.textPrimary,
+              }}
             />
+            {guestName.trim() && (
+              <span
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold"
+                style={{
+                  backgroundColor: currentTheme.colors.pillActiveBg,
+                  color: currentTheme.colors.pillActiveFg,
+                }}
+              >
+                ✓
+              </span>
+            )}
           </div>
-        </div>
+        </motion.div>
 
-        {/* Bottom: Direct Menu Proceed + Platform Badge */}
-        <div className="flex flex-col items-center pb-4 pt-1">
+        {/* Card 5: Connections (Action Button + Secondary Option) */}
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-2.5 pt-1"
+        >
           <motion.button
             whileTap={{ scale: 0.98 }}
-            onClick={handleProceed}
-            className="flex w-full items-center justify-center gap-2 rounded-[20px] border border-[#8A4228] bg-[#8A4228] py-3.5 px-4 text-[11px] font-black tracking-[0.12em] text-[#FFFCF7] shadow-md hover:bg-[#71351F] transition"
+            whileHover={{ y: -1 }}
+            type="button"
+            onClick={handleConnectWifi}
+            className="flex w-full items-center justify-between rounded-2xl p-4 shadow-md transition-all text-left group"
+            style={{
+              backgroundColor: currentTheme.colors.buttonBg,
+              color: currentTheme.colors.buttonFg,
+              boxShadow: currentTheme.colors.buttonShadow,
+            }}
           >
-            <span>{activeOrderFound ? 'VIEW LIVE ORDER TRACKER' : 'PROCEED TO MENU'}</span>
-            <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
+                <Wifi className="h-5 w-5 stroke-[2.4]" />
+              </div>
+              <div>
+                <div className="text-xs font-black tracking-wide">
+                  Connect With Free Restaurant Wi-Fi
+                </div>
+                <div className="text-[10px] font-medium opacity-90 mt-0.5">
+                  High-Speed Dine-In Network • Instant Menu Access
+                </div>
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition shrink-0" />
           </motion.button>
 
-          <div className="mt-4 flex flex-col items-center text-center">
-            <div className="flex items-center gap-1.5 rounded-full border border-[#E8D5C3] bg-[#FFFCF7] px-3 py-1 text-[9px] font-black uppercase tracking-[0.14em] text-[#5B5049] shadow-xs">
-              <Sparkles className="h-3 w-3 text-[#D08A52]" />
-              <span className="capitalize">Powered by Thoogudeepa SaaS</span>
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            whileHover={{ y: -1 }}
+            type="button"
+            onClick={handleContinueMobileData}
+            className="flex w-full items-center justify-between rounded-2xl border p-3.5 shadow-2xs transition-all text-left group"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+              color: currentTheme.colors.textPrimary,
+            }}
+          >
+            <div className="flex items-center gap-3">
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  backgroundColor: currentTheme.colors.bgElevated,
+                  color: currentTheme.colors.textSecondary,
+                }}
+              >
+                <Smartphone className="h-5 w-5 stroke-[2]" />
+              </div>
+              <div>
+                <div className="text-xs font-bold">
+                  Continue With Mobile Data
+                </div>
+                <div className="text-[10px]" style={{ color: currentTheme.colors.textMuted }}>
+                  Browse using 4G / 5G cellular connection
+                </div>
+              </div>
             </div>
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition shrink-0" style={{ color: currentTheme.colors.textMuted }} />
+          </motion.button>
+        </motion.div>
+
+        {/* Footer: Properly Enclosed Badge Container for "Powered by Nelja" */}
+        <div className="flex items-center justify-center pt-3 pb-2">
+          <div
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 shadow-xs backdrop-blur-md"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
+            <Sparkles className="h-3 w-3 animate-pulse" style={{ color: currentTheme.colors.primary }} />
+            <span
+              className="text-[10px] font-bold font-mono tracking-wider"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
+              Powered by <span className="font-black" style={{ color: currentTheme.colors.primary }}>Nelja</span>
+            </span>
           </div>
         </div>
       </div>

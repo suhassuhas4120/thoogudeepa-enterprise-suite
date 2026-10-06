@@ -122,3 +122,55 @@ body {
   }
 }
 
+/* ── Dynamic Theme Utility Classes ────────────────────────────── */
+.phone-mockup.dark-theme {
+  color: #F8FAFC !important;
+}
+
+.phone-mockup.dark-theme input {
+  background-color: #161B22 !important;
+  color: #F8FAFC !important;
+  border-color: #30363D !important;
+}
+
+.phone-mockup.dark-theme input::placeholder {
+  color: #8B949E !important;
+}
+
+.phone-mockup.dark-theme .bg-white {
+  background-color: #161B22 !important;
+  color: #F8FAFC !important;
+}
+
+.phone-mockup.dark-theme .text-slate-900,
+.phone-mockup.dark-theme .text-slate-800,
+.phone-mockup.dark-theme .text-stone-900 {
+  color: #F8FAFC !important;
+}
+
+.phone-mockup.dark-theme .text-slate-700,
+.phone-mockup.dark-theme .text-slate-600,
+.phone-mockup.dark-theme .text-[#5B5049] {
+  color: #CBD5E1 !important;
+}
+
+.phone-mockup.dark-theme .text-slate-500,
+.phone-mockup.dark-theme .text-stone-500 {
+  color: #94A3B8 !important;
+}
+
+.phone-mockup.dark-theme .border-slate-200,
+.phone-mockup.dark-theme .border-slate-100,
+.phone-mockup.dark-theme .border-[#E8D5C3],
+.phone-mockup.dark-theme .border-orange-200 {
+  border-color: #30363D !important;
+}
+
+.phone-mockup.dark-theme .bg-slate-50,
+.phone-mockup.dark-theme .bg-stone-50,
+.phone-mockup.dark-theme .bg-[#FFFCF7],
+.phone-mockup.dark-theme .bg-[#FAF8F5] {
+  background-color: #0D1117 !important;
+}
+
+

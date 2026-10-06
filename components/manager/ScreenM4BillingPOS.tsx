@@ -130,7 +130,7 @@ export function ScreenM4BillingPOS() {
   return (
     <div className="w-full max-w-[1520px] mx-auto p-4 space-y-4">
       {/* Top POS Action Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-[#EAE5DF] rounded-xl px-4 py-2.5 shadow-xs">
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white border-2 border-slate-900 rounded-xl px-4 py-2.5 shadow-[3px_3px_0px_#0f172a]">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-orange-600 text-white shadow-sm">
             <Utensils className="h-4 w-4" />
@@ -147,10 +147,10 @@ export function ScreenM4BillingPOS() {
 
         <button
           onClick={() => setShowMenuCatalog(!showMenuCatalog)}
-          className={`px-3.5 py-1.5 rounded-lg border border-[#EAE5DF] font-mono text-xs font-black flex items-center gap-1.5 transition ${
+          className={`px-3.5 py-1.5 rounded-lg border-2 border-slate-900 font-mono text-xs font-black flex items-center gap-1.5 transition ${
             showMenuCatalog
               ? 'bg-orange-500 text-white shadow-xs'
-              : 'bg-[#FAF8F5] text-slate-800 hover:bg-stone-200'
+              : 'bg-stone-100 text-slate-800 hover:bg-stone-200'
           }`}
         >
           <LayoutGrid className="h-3.5 w-3.5" />
@@ -162,7 +162,7 @@ export function ScreenM4BillingPOS() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         {/* LEFT COLUMN: DIRECT ORDER MENU ITEMS SIDE TAB */}
         {showMenuCatalog && (
-          <div className="lg:col-span-4 bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-sm flex flex-col h-[650px]">
+          <div className="lg:col-span-4 bg-white border-2 border-slate-900 rounded-xl p-4 shadow-[4px_4px_0px_#0f172a] flex flex-col h-[650px]">
             {/* Header & Search */}
             <div className="pb-3 border-b border-slate-200 shrink-0 space-y-2.5">
               <div className="flex items-center justify-between">
@@ -183,7 +183,7 @@ export function ScreenM4BillingPOS() {
                   placeholder="Search biryani, kebabs, coffee..."
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 bg-[#FAF8F5] border border-slate-300 rounded-lg text-xs font-mono placeholder-slate-400 focus:outline-none focus:border-orange-500"
+                  className="w-full pl-8 pr-3 py-1.5 bg-stone-50 border border-slate-300 rounded-lg text-xs font-mono placeholder-slate-400 focus:outline-none focus:border-orange-500"
                 />
               </div>
 
@@ -195,8 +195,8 @@ export function ScreenM4BillingPOS() {
                     onClick={() => setSelectedCategory(cat)}
                     className={`px-2.5 py-1 rounded-md text-[10.5px] font-mono font-bold whitespace-nowrap transition ${
                       selectedCategory === cat
-                        ? 'bg-[#9C3D1E] text-white'
-                        : 'bg-[#FAF8F5] text-slate-600 hover:bg-stone-200 border border-slate-200'
+                        ? 'bg-slate-900 text-white'
+                        : 'bg-stone-100 text-slate-600 hover:bg-stone-200 border border-slate-200'
                     }`}
                   >
                     {cat}
@@ -226,7 +226,7 @@ export function ScreenM4BillingPOS() {
                     <span className="font-mono text-xs font-black text-slate-900">
                       ₹{menuItem.price}
                     </span>
-                    <span className="h-6 w-6 rounded-md bg-[#9C3D1E] group-hover:bg-[#D28835] text-white flex items-center justify-center transition">
+                    <span className="h-6 w-6 rounded-md bg-slate-900 group-hover:bg-orange-600 text-white flex items-center justify-center transition">
                       <Plus className="h-3.5 w-3.5" />
                     </span>
                   </div>
@@ -240,14 +240,14 @@ export function ScreenM4BillingPOS() {
         <div
           className={`${
             showMenuCatalog ? 'lg:col-span-5' : 'lg:col-span-7'
-          } bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-col justify-between h-[650px]`}
+          } bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex flex-col justify-between h-[650px]`}
         >
           <div className="flex flex-col h-full overflow-hidden">
             {/* Header */}
             <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2 shrink-0">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="bg-[#9C3D1E] text-white font-mono text-xs font-bold px-2 py-0.5 rounded">
+                  <span className="bg-slate-900 text-white font-mono text-xs font-bold px-2 py-0.5 rounded">
                     [TAX INVOICE BILL]
                   </span>
                   <span className="font-mono text-xs font-bold text-slate-500">INV-8942</span>
@@ -263,7 +263,7 @@ export function ScreenM4BillingPOS() {
                 <select
                   value={selectedTableNumber}
                   onChange={(e) => setSelectedTableNumber(e.target.value)}
-                  className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg px-2.5 py-1 font-mono text-xs font-black text-slate-900 focus:outline-none"
+                  className="bg-stone-50 border-2 border-slate-900 rounded-lg px-2.5 py-1 font-mono text-xs font-black text-slate-900 focus:outline-none"
                 >
                   <option value="COUNTER">Counter / Direct Takeaway</option>
                   {tables.map((t) => (
@@ -279,7 +279,7 @@ export function ScreenM4BillingPOS() {
             <div className="mt-3 flex-1 overflow-y-auto overflow-x-auto pr-1">
               <table className="w-full text-xs font-mono">
                 <thead>
-                  <tr className="border-b border-[#EAE5DF] text-slate-500 text-left sticky top-0 bg-white">
+                  <tr className="border-b-2 border-slate-900 text-slate-500 text-left sticky top-0 bg-white">
                     <th className="pb-2">ITEM DESCRIPTION</th>
                     <th className="pb-2 text-center">QTY</th>
                     <th className="pb-2 text-right">PRICE</th>
@@ -289,7 +289,7 @@ export function ScreenM4BillingPOS() {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {items.map((it) => (
-                    <tr key={it.id} className="hover:bg-[#FAF8F5]">
+                    <tr key={it.id} className="hover:bg-stone-50">
                       <td className="py-2 font-bold text-slate-800">
                         <div>{it.name}</div>
                         {it.isFree && (
@@ -300,17 +300,17 @@ export function ScreenM4BillingPOS() {
                       </td>
                       <td className="py-2 text-center">
                         {/* Stepper */}
-                        <div className="inline-flex items-center border border-[#EAE5DF] rounded bg-white overflow-hidden">
+                        <div className="inline-flex items-center border border-slate-900 rounded bg-white overflow-hidden">
                           <button
                             onClick={() => updateQty(it.id, -1)}
-                            className="px-2 py-0.5 bg-[#FAF8F5] hover:bg-stone-200 font-black"
+                            className="px-2 py-0.5 bg-stone-100 hover:bg-stone-200 font-black"
                           >
                             -
                           </button>
                           <span className="px-2 font-bold">{it.qty}</span>
                           <button
                             onClick={() => updateQty(it.id, 1)}
-                            className="px-2 py-0.5 bg-[#FAF8F5] hover:bg-stone-200 font-black"
+                            className="px-2 py-0.5 bg-stone-100 hover:bg-stone-200 font-black"
                           >
                             +
                           </button>
@@ -335,7 +335,7 @@ export function ScreenM4BillingPOS() {
             </div>
 
             {/* Discount Bar */}
-            <div className="mt-3 p-2.5 bg-[#FAF8F5] rounded-xl border border-slate-300 shrink-0">
+            <div className="mt-3 p-2.5 bg-stone-50 rounded-xl border border-slate-300 shrink-0">
               <div className="flex items-center justify-between text-xs font-mono font-bold mb-1.5">
                 <span className="flex items-center gap-1.5 text-slate-700">
                   <Percent className="h-3.5 w-3.5 text-orange-600" />
@@ -350,8 +350,8 @@ export function ScreenM4BillingPOS() {
                     onClick={() => setDiscountPercent(pct)}
                     className={`flex-1 py-1 rounded border font-mono text-xs font-bold transition ${
                       discountPercent === pct
-                        ? 'bg-[#9C3D1E] text-white border-[#9C3D1E]'
-                        : 'bg-white text-slate-700 border-slate-300 hover:bg-[#FAF8F5]'
+                        ? 'bg-slate-900 text-white border-slate-900'
+                        : 'bg-white text-slate-700 border-slate-300 hover:bg-stone-100'
                     }`}
                   >
                     {pct === 0 ? 'NONE' : `${pct}%`}
@@ -380,7 +380,7 @@ export function ScreenM4BillingPOS() {
                 <span>SGST (2.5%):</span>
                 <span>₹ {sgst.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 pt-1.5 border-t border-[#EAE5DF]">
+              <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 pt-1.5 border-t border-slate-900">
                 <span>GRAND TOTAL PAYABLE:</span>
                 <span>₹ {grandTotal.toLocaleString('en-IN')}.00</span>
               </div>
@@ -392,7 +392,7 @@ export function ScreenM4BillingPOS() {
         <div
           className={`${
             showMenuCatalog ? 'lg:col-span-3' : 'lg:col-span-5'
-          } bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-col justify-between h-[650px]`}
+          } bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex flex-col justify-between h-[650px]`}
         >
           <div>
             <h3 className="text-sm font-black font-mono text-slate-900 pb-3 border-b border-slate-200 uppercase">
@@ -405,8 +405,8 @@ export function ScreenM4BillingPOS() {
                 onClick={() => setPaymentMethod('UPI')}
                 className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition ${
                   paymentMethod === 'UPI'
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-stone-50'
                 }`}
               >
                 <QrCode className="h-4 w-4" />
@@ -416,8 +416,8 @@ export function ScreenM4BillingPOS() {
                 onClick={() => setPaymentMethod('CASH')}
                 className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition ${
                   paymentMethod === 'CASH'
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-stone-50'
                 }`}
               >
                 <Banknote className="h-4 w-4" />
@@ -427,8 +427,8 @@ export function ScreenM4BillingPOS() {
                 onClick={() => setPaymentMethod('CARD')}
                 className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition ${
                   paymentMethod === 'CARD'
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-stone-50'
                 }`}
               >
                 <CreditCard className="h-4 w-4" />
@@ -438,8 +438,8 @@ export function ScreenM4BillingPOS() {
                 onClick={() => setPaymentMethod('AGGREGATOR')}
                 className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition ${
                   paymentMethod === 'AGGREGATOR'
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                    : 'bg-white text-slate-700 border-slate-200 hover:bg-stone-50'
                 }`}
               >
                 <Smartphone className="h-4 w-4" />
@@ -449,14 +449,14 @@ export function ScreenM4BillingPOS() {
 
             {/* Cash Tendered Box */}
             {paymentMethod === 'CASH' && (
-              <div className="mt-4 p-3 bg-[#FAF8F5] rounded-xl border border-slate-300 font-mono text-xs">
+              <div className="mt-4 p-3 bg-stone-50 rounded-xl border border-slate-300 font-mono text-xs">
                 <div className="flex justify-between items-center mb-2">
                   <span className="font-bold text-slate-700">CASH TENDERED:</span>
                   <input
                     type="number"
                     value={cashTendered}
                     onChange={(e) => setCashTendered(e.target.value)}
-                    className="w-24 text-right bg-white border border-[#EAE5DF] rounded p-1 font-mono font-bold"
+                    className="w-24 text-right bg-white border border-slate-900 rounded p-1 font-mono font-bold"
                   />
                 </div>
                 <div className="flex justify-between text-slate-900 font-black text-sm pt-2 border-t border-slate-200">
@@ -468,8 +468,8 @@ export function ScreenM4BillingPOS() {
 
             {/* QR Code Demo Box */}
             {paymentMethod === 'UPI' && (
-              <div className="mt-4 p-3 bg-[#FAF8F5] rounded-xl border border-slate-300 text-center font-mono">
-                <div className="w-24 h-24 mx-auto bg-white border border-[#EAE5DF] p-1 flex items-center justify-center shadow-xs">
+              <div className="mt-4 p-3 bg-stone-50 rounded-xl border border-slate-300 text-center font-mono">
+                <div className="w-24 h-24 mx-auto bg-white border-2 border-slate-900 p-1 flex items-center justify-center shadow-xs">
                   <QrCode className="w-full h-full text-slate-900" />
                 </div>
                 <div className="text-[11px] font-bold text-slate-800 mt-2">
@@ -491,21 +491,21 @@ export function ScreenM4BillingPOS() {
               <>
                 <button
                   onClick={handleSettle}
-                  className="w-full bg-[#9C3D1E] text-white py-2.5 px-3 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-600 transition shadow-xs"
+                  className="w-full bg-slate-900 text-white py-2.5 px-3 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-600 transition shadow-[3px_3px_0px_#0f172a]"
                 >
                   <span>COLLECT ₹{grandTotal} &amp; SETTLE BILL</span>
                 </button>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     onClick={() => alert(`Thermal Tax Invoice Printed for ₹${grandTotal}`)}
-                    className="bg-[#FAF8F5] border border-slate-300 py-1.5 rounded-lg font-mono text-[11px] font-bold text-slate-700 hover:bg-stone-200 transition text-center flex items-center justify-center gap-1.5"
+                    className="bg-stone-100 border border-slate-300 py-1.5 rounded-lg font-mono text-[11px] font-bold text-slate-700 hover:bg-stone-200 transition text-center flex items-center justify-center gap-1.5"
                   >
                     <Printer className="h-3 w-3" />
                     <span>PRINT INVOICE</span>
                   </button>
                   <button
                     onClick={() => alert('Digital Invoice sent via WhatsApp!')}
-                    className="bg-[#FAF8F5] border border-slate-300 py-1.5 rounded-lg font-mono text-[11px] font-bold text-slate-700 hover:bg-stone-200 transition text-center"
+                    className="bg-stone-100 border border-slate-300 py-1.5 rounded-lg font-mono text-[11px] font-bold text-slate-700 hover:bg-stone-200 transition text-center"
                   >
                     WHATSAPP BILL
                   </button>

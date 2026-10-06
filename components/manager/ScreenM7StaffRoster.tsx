@@ -14,10 +14,10 @@ export function ScreenM7StaffRoster() {
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
       {/* Top Banner */}
-      <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <span className="bg-[#9C3D1E] text-white text-xs font-bold px-2 py-0.5 rounded">
+            <span className="bg-slate-900 text-white text-xs font-bold px-2 py-0.5 rounded">
               [STAFF ROSTER DESK]
             </span>
             <span className="text-xs font-bold text-slate-500">DINNER SERVICE SQUAD</span>
@@ -28,7 +28,7 @@ export function ScreenM7StaffRoster() {
         </div>
         <button
           onClick={handleBroadcast}
-          className="bg-[#9C3D1E] text-white py-2 px-4 rounded-xl text-xs font-bold hover:bg-orange-600 transition flex items-center gap-2 shadow-xs"
+          className="bg-slate-900 text-white py-2 px-4 rounded-xl text-xs font-bold hover:bg-orange-600 transition flex items-center gap-2 shadow-[2px_2px_0px_#0f172a]"
         >
           <Radio className="h-4 w-4 text-emerald-400" />
           <span>PAGE ALL CAPTAINS TO TILL</span>
@@ -38,7 +38,7 @@ export function ScreenM7StaffRoster() {
       {/* Staff Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {staffRoster.map((st) => (
-          <div key={st.id} className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div key={st.id} className="bg-white border-2 border-slate-900 rounded-xl p-4 shadow-[3px_3px_0px_#0f172a] flex flex-col justify-between">
             <div>
               <div className="flex justify-between items-start">
                 <div>
@@ -50,7 +50,7 @@ export function ScreenM7StaffRoster() {
                     ? 'bg-emerald-100 text-emerald-800'
                     : st.status === 'ON BREAK'
                     ? 'bg-amber-100 text-amber-800'
-                    : 'bg-[#FAF8F5] text-slate-500'
+                    : 'bg-slate-100 text-slate-500'
                 }`}>
                   [{st.status}]
                 </span>
@@ -79,13 +79,13 @@ export function ScreenM7StaffRoster() {
             <div className="mt-4 pt-3 border-t border-slate-200 flex gap-2">
               <button
                 onClick={() => updateStaffStatus(st.id, st.status === 'ACTIVE' ? 'ON BREAK' : 'ACTIVE')}
-                className="flex-1 bg-[#FAF8F5] border border-slate-300 py-1.5 rounded text-xs font-bold text-slate-700 hover:bg-stone-200 transition text-center"
+                className="flex-1 bg-stone-100 border border-slate-300 py-1.5 rounded text-xs font-bold text-slate-700 hover:bg-stone-200 transition text-center"
               >
                 {st.status === 'ACTIVE' ? 'MARK ON BREAK' : 'SET ACTIVE'}
               </button>
               <button
                 onClick={() => alert(`Vibrating smartwatch & handheld of ${st.name}!`)}
-                className="bg-[#9C3D1E] text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-orange-600 transition"
+                className="bg-slate-900 text-white px-3 py-1.5 rounded text-xs font-bold hover:bg-orange-600 transition"
               >
                 PAGE
               </button>

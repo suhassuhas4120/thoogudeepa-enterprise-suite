@@ -26,7 +26,8 @@ export const Screen9DigitalBill: React.FC = () => {
   const cgst = Math.round(subtotal * 0.025);
   const sgst = Math.round(subtotal * 0.025);
   const totalTax = cgst + sgst;
-  const paidTotal = subtotal + totalTax + payment.tipAmount;
+  const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + totalTax) : 0);
+  const paidTotal = Math.max(0, subtotal + totalTax + payment.tipAmount - discount);
 
   // Read seat from URL
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -49,10 +50,18 @@ export const Screen9DigitalBill: React.FC = () => {
   };
 
   return (
-    <ScreenHousing screenNumber={9} screenTitle="Bill Page">
+    <ScreenHousing screenNumber={9} screenTitle="DIGITAL TAX INVOICE">
       {/* Header */}
       <WireHeader
-        title="Detailed Bill & Invoice"
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Tax Invoice</span>
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+            </span>
+          </span>
+        }
+        leftSubtitle={venueName?.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(8)}
         showCallWaiter={true}
@@ -107,6 +116,12 @@ export const Screen9DigitalBill: React.FC = () => {
               <div className="flex justify-between font-bold text-[#8A4228]">
                 <span className="font-sans">Staff Tip</span>
                 <span>+₹{payment.tipAmount}</span>
+              </div>
+            )}
+            {discount > 0 && (
+              <div className="flex justify-between font-bold text-emerald-700">
+                <span className="font-sans">Loyalty Discount</span>
+                <span>-₹{discount}</span>
               </div>
             )}
             <div className="flex items-center justify-between border-t border-[#E8D5C3] pt-2 text-sm font-black text-[#5B5049]">

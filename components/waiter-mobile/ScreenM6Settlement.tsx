@@ -14,8 +14,10 @@ import {
   UtensilsCrossed,
   ChevronDown,
   ChevronUp,
-  User,
+    User,
   Armchair,
+  Smartphone,
+  Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -255,8 +257,9 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
               ₹{grandTotal.toFixed(2)} collected via {method} for Table {tableNum}
             </p>
             {customerPhone && (
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 font-mono text-[11px] font-bold text-emerald-900 mt-1">
-                <span>📱 Digital bill dispatched to +91 {customerPhone}</span>
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 font-mono text-[11px] font-bold text-emerald-900 mt-1">
+                <Smartphone className="h-4 w-4 text-emerald-600" />
+                <span>Digital bill dispatched to +91 {customerPhone}</span>
               </div>
             )}
           </div>
@@ -460,7 +463,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           <div className="space-y-2.5 pt-2 pb-6 font-mono">
             <button
               type="button"
-              onClick={() => showToast('🖨️ Thermal tax invoice printed')}
+              onClick={() => showToast('Thermal tax invoice printed')}
               className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
               <Printer className="h-4 w-4 text-amber-400" />
@@ -493,14 +496,15 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                   if (data?.deliveryStatus?.whatsappWebLink) {
                     window.open(data.deliveryStatus.whatsappWebLink, '_blank');
                   }
-                  showToast('📱 WhatsApp bill dispatched');
+                  showToast('WhatsApp bill dispatched');
                 } catch {
-                  showToast('📱 Bill generated');
+                  showToast('Bill generated');
                 }
               }}
               className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
-              <span>📱 Send Bill on WhatsApp</span>
+              <Smartphone className="h-4 w-4" />
+              <span>Send Bill on WhatsApp</span>
             </button>
 
             <button
@@ -678,7 +682,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           <div className="relative flex items-center rounded-2xl border-2 border-[#EAE5DF] bg-white shadow-2xs focus-within:border-[#9C3D1E] focus-within:ring-2 focus-within:ring-[#9C3D1E]/20 overflow-hidden transition">
             {/* Fixed +91 Country Code Badge for India */}
             <div className="flex items-center gap-1.5 px-3 py-3 bg-stone-100/90 border-r border-[#EAE5DF] font-mono text-xs font-black text-stone-800 shrink-0 select-none">
-              <span className="text-sm">🇮🇳</span>
+                            <span className="text-xs font-bold">IN</span>
               <span>+91</span>
             </div>
             {/* Strictly Numeric Input Only */}
@@ -770,8 +774,9 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                 <span className="text-[11px] font-black text-stone-800">
                   Scan to Pay ₹{grandTotal}
                 </span>
-                <span className="text-[9.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full group-hover:bg-indigo-100">
-                  🔍 Tap to Enlarge
+                                <span className="text-[9.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full group-hover:bg-indigo-100 flex items-center gap-1">
+                  <Search className="h-3.5 w-3.5" />
+                  <span>Tap to Enlarge</span>
                 </span>
               </div>
               {qrCodeUrl ? (

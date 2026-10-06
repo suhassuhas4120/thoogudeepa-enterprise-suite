@@ -41,6 +41,36 @@ function statusBadge(status: string) {
   }
 }
 
+function StagePill({ stage }: { stage: string }) {
+  if (stage === 'Cooking') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 animate-pulse">
+        Cooking
+      </span>
+    );
+  }
+  if (stage === 'Ready') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
+        <span className="text-emerald-600">●</span>
+        Ready
+      </span>
+    );
+  }
+  if (stage === 'Served') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-blue-50 text-blue-600 line-through opacity-60">
+        Served
+      </span>
+    );
+  }
+  return (
+    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600">
+      {stage}
+    </span>
+  );
+}
+
 export function ScreenM3TableSheet({
   tableNum,
   initialSeat = 'ALL',
@@ -110,6 +140,8 @@ export function ScreenM3TableSheet({
   const groupTables = groupPeers.map((n) => tables.find((t) => t.number === n)).filter(Boolean) as typeof tables;
 
   const isVacant = table.status === 'VACANT';
+  const inMergeGroup = groupPeers.length > 1;
+  const mergePeerLabel = groupPeers.filter((n) => n !== tableNum).join(', ');
 
   // Tickets for table — vacant tables have NO active tickets
   const tickets = isVacant ? [] : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
@@ -206,14 +238,14 @@ export function ScreenM3TableSheet({
       );
 
   // Tax calculation
-  const cgst = subtotal * 0.025;
-  const sgst = subtotal * 0.025;
-  const totalTax = cgst + sgst;
+  const totalTax = Math.round(subtotal * 0.05);
+  const cgst = totalTax / 2;
+  const sgst = totalTax - cgst;
   const grandTotal = subtotal + totalTax;
 
   // Individual Chair Share calculation
   const perChairSubtotal = occupiedChairsCount > 0 ? Math.round(subtotal / occupiedChairsCount) : 0;
-  const perChairTax = perChairSubtotal * 0.05;
+  const perChairTax = Math.round(perChairSubtotal * 0.05);
   const perChairTotal = perChairSubtotal + perChairTax;
 
   // ── Exact Chair / Group Bill Breakdown Helper ──
@@ -270,7 +302,7 @@ export function ScreenM3TableSheet({
           : 0;
     }
 
-    const calculatedTax = calculatedSub * 0.05;
+    const calculatedTax = Math.round(calculatedSub * 0.05);
     const calculatedTotal = calculatedSub + calculatedTax;
 
     return {
@@ -446,14 +478,8 @@ export function ScreenM3TableSheet({
               <span>{activePings.length}</span>
             </button>
           )}
-          {isMerged && (
-            <span className="font-mono text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300 uppercase tracking-wider flex items-center gap-1 shadow-2xs">
-              <Link2 className="h-3 w-3 text-indigo-700" />
-              <span>+{table.mergedWith}</span>
-            </span>
-          )}
-          <span className={`font-mono text-[10px] font-black uppercase px-2 py-0.5 rounded border ${statusBadge(table.status)}`}>
-            {table.status}
+          <span className="font-mono text-[10.5px] font-black px-2.5 py-1 rounded-full bg-amber-50 text-[#9C3D1E] border border-amber-200">
+            {occupiedChairsCount} / {totalChairs} Seats Occupied
           </span>
         </div>
       </header>
@@ -477,16 +503,24 @@ export function ScreenM3TableSheet({
         </AnimatePresence>
 
         {/* Table Hero Card: Number, Section & Bill Total */}
-        <div className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs space-y-2">
+        <div className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs">
           <div className="flex items-start justify-between">
             <div>
               <p className="font-mono text-[10px] text-[#9C3D1E] font-black uppercase tracking-widest">
                 {table.section}
               </p>
-              <h1 className="text-2xl font-black text-stone-900 tracking-tight mt-0.5">
-                {table.number}
-                {isMerged && <span className="text-stone-400 text-base font-bold ml-1.5">+ {table.mergedWith}</span>}
-              </h1>
+              <div className="flex items-center gap-2 mt-0.5">
+                <h1 className="text-2xl font-black text-stone-900 tracking-tight">
+                  {table.number}
+                </h1>
+                <Armchair className="h-5 w-5 text-[#9C3D1E]" />
+                {inMergeGroup && (
+                  <span className="font-mono text-[9.5px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300 uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                    <Link2 className="h-3 w-3 text-indigo-700" />
+                    <span>Merged{mergePeerLabel ? ` (+${mergePeerLabel})` : ''}</span>
+                  </span>
+                )}
+              </div>
             </div>
             <div className="text-right">
               <span className="text-[10px] font-mono text-stone-400 uppercase font-bold block">
@@ -497,26 +531,10 @@ export function ScreenM3TableSheet({
               </span>
             </div>
           </div>
-
-          <div className="pt-2 border-t border-stone-100 flex items-center justify-between font-mono text-[10.5px] text-stone-500">
-            <span>Food: ₹{subtotal.toFixed(2)} + GST: ₹{totalTax.toFixed(2)}</span>
-            <span className="text-[#9C3D1E] font-bold">
-              {occupiedChairsCount} / {totalChairs} Seats Occupied
-            </span>
-          </div>
         </div>
 
         {/* ── INTERACTIVE CHAIR NAVIGATION (LARGE, PROMINENT CHAIRS) ── */}
         <div className="space-y-2">
-          <div className="flex items-center justify-between font-mono text-xs">
-            <span className="font-black text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
-              <Armchair className="h-4 w-4 text-[#9C3D1E]" />
-              <span>Chair Navigation:</span>
-            </span>
-            <span className="text-stone-400 font-bold text-[10.5px]">
-              {selectedChairsForMerge.length > 0 ? `${selectedChairsForMerge.length} selected` : 'Long-press to select & merge'}
-            </span>
-          </div>
 
           {/* Merge action bar — slides in when ≥1 chair is selected, providing immediate cancel option */}
           <AnimatePresence>
@@ -653,15 +671,6 @@ export function ScreenM3TableSheet({
                             <X className="h-2.5 w-2.5" />
                           </button>
                         ))}
-                        <button
-                          type="button"
-                          onClick={(e) => { e.stopPropagation(); handleSplitSeatGroup(groupKey); }}
-                          className={`font-mono text-[8px] font-black underline underline-offset-2 active:scale-90 transition ${
-                            isSelected ? 'text-white/70' : 'text-rose-500'
-                          }`}
-                        >
-                          Split All
-                        </button>
                       </div>
                     </div>
                   )}
@@ -693,6 +702,9 @@ const isSelected = selectedSeat === seatNum;
               const isSeated = hasOrders || seatNum <= occupiedChairsCount;
               const seatCardTotal = chairBreakdown.totalDue;
               const isSelectedForMerge = selectedChairsForMerge.includes(seatNum);
+              const seatHasReady = allTableOrderedItems.some(
+                (i) => i.seatNumber === seatNum && i.stage === 'Ready'
+              );
 
               return (
                 <button
@@ -748,6 +760,9 @@ const isSelected = selectedSeat === seatNum;
                       : 'bg-white text-stone-400 border-dashed border-stone-300 hover:bg-[#FAF8F5]'
                   }`}
                 >
+                  {seatHasReady && (
+                    <span className="absolute -top-1 -left-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                  )}
                   {/* Tick badge when selected for merge */}
                   {isSelectedForMerge && (
                     <span className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
@@ -803,37 +818,44 @@ const isSelected = selectedSeat === seatNum;
           }}
           className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs space-y-3 font-mono touch-pan-y"
         >
-          <div className="flex items-center justify-between pb-2 border-b border-stone-100">
-            <div className="flex items-center gap-2">
-              <span className="font-black text-sm text-stone-900 uppercase">
+          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
+            <div className="min-w-0 flex items-center gap-1.5 flex-1">
+              <span className="font-black text-sm text-stone-900 uppercase tracking-wide">
                 {activeGroup
-                  ? `Combined Check: ${activeGroup.key}`
+                  ? `Chairs ${activeGroup.seats.join(', ')}`
                   : selectedSeat === 'ALL'
-                  ? 'Table Consolidated Check'
+                  ? `Table Orders (${tickets.length || 1} KOT)`
                   : `Chair ${selectedSeat} Breakdown`}
               </span>
+              {selectedSeat === 'ALL' && allTableOrderedItems.length > 0 && (
+                <span className="text-[11px] font-bold text-stone-400 shrink-0">
+                  • {allTableOrderedItems.reduce((s, i) => s + i.quantity, 0)} Items
+                </span>
+              )}
             </div>
-            <span className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase ${
-              activeGroup
-                ? 'bg-indigo-100 text-indigo-800 border-indigo-300'
-                : selectedSeat === 'ALL'
-                ? statusBadge(table.status)
-                : allTableOrderedItems.some((i) => i.seatNumber === Number(selectedSeat))
-                ? 'bg-amber-100 text-amber-800 border-amber-300'
-                : Number(selectedSeat) <= occupiedChairsCount
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                : 'bg-emerald-100 text-emerald-800 border-emerald-300'
-            }`}>
-              {activeGroup
-                ? 'Combined Seats'
-                : selectedSeat === 'ALL'
-                ? table.status
-                : allTableOrderedItems.some((i) => i.seatNumber === Number(selectedSeat))
-                ? 'Active Orders'
-                : Number(selectedSeat) <= occupiedChairsCount
-                ? 'Seated'
-                : 'Available'}
-            </span>
+            {!activeGroup && (
+              <span className={`shrink-0 whitespace-nowrap text-[9.5px] font-mono font-black uppercase px-2.5 py-1 rounded-full border shadow-2xs ${
+                selectedSeat === 'ALL'
+                  ? table.status === 'BILLING' || (table.currentBill === 0 && !isVacant)
+                    ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                    : 'bg-rose-100 text-rose-800 border-rose-300'
+                  : allTableOrderedItems.some((i) => i.seatNumber === Number(selectedSeat))
+                  ? 'bg-amber-100 text-amber-800 border-amber-300'
+                  : Number(selectedSeat) <= occupiedChairsCount
+                  ? 'bg-amber-50 text-amber-800 border-amber-200'
+                  : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+              }`}>
+                {selectedSeat === 'ALL'
+                  ? table.status === 'BILLING' || (table.currentBill === 0 && !isVacant)
+                    ? 'PAID'
+                    : 'UNPAID'
+                  : allTableOrderedItems.some((i) => i.seatNumber === Number(selectedSeat))
+                  ? 'Active Orders'
+                  : Number(selectedSeat) <= occupiedChairsCount
+                  ? 'Seated'
+                  : 'Available'}
+              </span>
+            )}
           </div>
 
           {/* Details Breakdown */}
@@ -845,7 +867,7 @@ const isSelected = selectedSeat === seatNum;
               );
               const groupItemsSubtotal = groupItems.reduce((sum, it) => sum + it.totalPrice, 0);
               const groupSubtotal = groupItems.length > 0 ? groupItemsSubtotal : perChairSubtotal * activeGroup.seats.length;
-              const groupTax = groupSubtotal * 0.05;
+              const groupTax = Math.round(groupSubtotal * 0.05);
               const groupTotal = groupSubtotal + groupTax;
 
               return (
@@ -856,7 +878,7 @@ const isSelected = selectedSeat === seatNum;
                         <span>Combined Ordered Dishes</span>
                         <span>{groupItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                      <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-0.5">
                         {groupItems.map((item, idx) => (
                           <div
                             key={item.id || idx}
@@ -885,17 +907,7 @@ const isSelected = selectedSeat === seatNum;
                             </div>
                             <div className="flex items-center justify-between pt-1 border-t border-indigo-100 text-[10px]">
                               <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <span className={`px-2 py-0.5 rounded font-black uppercase text-[9px] border ${
-                                item.stage === 'Ready'
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                  : item.stage === 'Cooking'
-                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                  : item.stage === 'Served'
-                                  ? 'bg-stone-100 text-stone-700 border-stone-300'
-                                  : 'bg-blue-100 text-blue-800 border-blue-300'
-                              }`}>
-                                {item.stage}
-                              </span>
+                              <StagePill stage={item.stage} />
                             </div>
                           </div>
                         ))}
@@ -904,10 +916,6 @@ const isSelected = selectedSeat === seatNum;
                   )}
 
                   <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
-                    <div className="flex justify-between text-indigo-900">
-                      <span>Combined Chairs:</span>
-                      <span className="font-black">Chairs {activeGroup.seats.join(' & ')}</span>
-                    </div>
                     <div className="flex justify-between text-indigo-900">
                       <span>Food Subtotal ({activeGroup.seats.length} Chairs):</span>
                       <span className="font-bold">₹{groupSubtotal.toFixed(2)}</span>
@@ -921,15 +929,6 @@ const isSelected = selectedSeat === seatNum;
                       <span className="text-[#9C3D1E]">₹{groupTotal.toFixed(2)}</span>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => handleSplitSeatGroup(activeGroup.key)}
-                    className="w-full py-2.5 bg-white border border-indigo-300 text-indigo-800 rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs hover:bg-indigo-50 transition"
-                  >
-                    <Split className="h-4 w-4" />
-                    <span>Split Seats Back to Individual Billing</span>
-                  </button>
                 </div>
               );
             })()
@@ -937,11 +936,7 @@ const isSelected = selectedSeat === seatNum;
             // All Table KOT Tickets & Items
             allTableOrderedItems.length > 0 ? (
               <div className="space-y-2.5">
-                <div className="flex items-center justify-between text-xs font-bold text-stone-600 uppercase tracking-wider px-1">
-                  <span>Table Orders ({tickets.length || 1} KOT)</span>
-                  <span>{allTableOrderedItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
-                </div>
-                <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-0.5">
                   {allTableOrderedItems.map((item, idx) => (
                     <div
                       key={item.id || idx}
@@ -976,17 +971,7 @@ const isSelected = selectedSeat === seatNum;
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
                         <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                        <span className={`px-2 py-0.5 rounded font-black uppercase text-[9px] border ${
-                          item.stage === 'Ready'
-                            ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                            : item.stage === 'Cooking'
-                            ? 'bg-amber-100 text-amber-800 border-amber-300'
-                            : item.stage === 'Served'
-                            ? 'bg-stone-100 text-stone-700 border-stone-300'
-                            : 'bg-blue-100 text-blue-800 border-blue-300'
-                        }`}>
-                          {item.stage}
-                        </span>
+                        <StagePill stage={item.stage} />
                       </div>
                     </div>
                   ))}
@@ -1031,9 +1016,9 @@ const isSelected = selectedSeat === seatNum;
               const hasSeatItems = thisSeatItems.length > 0;
               const isSeatOccupied = hasSeatItems || thisSeatNum <= occupiedChairsCount;
               const thisSeatSubtotal = thisSeatItems.reduce((sum, i) => sum + i.totalPrice, 0);
-              const thisSeatCgst = thisSeatSubtotal * 0.025;
-              const thisSeatSgst = thisSeatSubtotal * 0.025;
-              const thisSeatTax = thisSeatCgst + thisSeatSgst;
+              const thisSeatTax = Math.round(thisSeatSubtotal * 0.05);
+              const thisSeatCgst = thisSeatTax / 2;
+              const thisSeatSgst = thisSeatTax - thisSeatCgst;
               const thisSeatTotal = thisSeatSubtotal + thisSeatTax;
 
               if (hasSeatItems) {
@@ -1045,7 +1030,7 @@ const isSelected = selectedSeat === seatNum;
                         <span>Chair {thisSeatNum} Ordered Dishes</span>
                         <span>{thisSeatItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
-                      <div className="space-y-1.5 max-h-56 overflow-y-auto pr-0.5">
+                      <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-0.5">
                         {thisSeatItems.map((item, idx) => (
                           <div
                             key={item.id || idx}
@@ -1076,17 +1061,7 @@ const isSelected = selectedSeat === seatNum;
                             </div>
                             <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
                               <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <span className={`px-2 py-0.5 rounded font-black uppercase text-[9px] border ${
-                                item.stage === 'Ready'
-                                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                                  : item.stage === 'Cooking'
-                                  ? 'bg-amber-100 text-amber-800 border-amber-300'
-                                  : item.stage === 'Served'
-                                  ? 'bg-stone-100 text-stone-700 border-stone-300'
-                                  : 'bg-blue-100 text-blue-800 border-blue-300'
-                              }`}>
-                                {item.stage}
-                              </span>
+                              <StagePill stage={item.stage} />
                             </div>
                           </div>
                         ))}
@@ -1161,136 +1136,48 @@ const isSelected = selectedSeat === seatNum;
             })()
           )}
 
-          {/* Subtotal & Due Row */}
-          {(() => {
-            const currentBreakdown = getChairBillBreakdown(selectedSeat);
-            return (
-              <div className="pt-2.5 border-t border-stone-200 flex justify-between items-center text-xs font-mono">
-                <span className="text-stone-500">
-                  Subtotal: ₹{currentBreakdown.subtotal.toFixed(2)}
-                </span>
-                <span className="font-black text-base text-[#9C3D1E]">
-                  Total Due: ₹{currentBreakdown.totalDue.toFixed(2)}
-                </span>
-              </div>
-            );
-          })()}
         </motion.div>
 
-        {/* ── TABLE MERGE & SEAT MERGE SECTION ── */}
+        {/* Quick Operations: Merge Seats / Split Back & Serve Food */}
         <div className="space-y-2">
-          <span className="font-mono text-xs font-black text-stone-700 uppercase tracking-wider">
-            Merge Operations:
-          </span>
-          <div className="grid grid-cols-2 gap-2 font-mono text-xs">
-            {isMerged ? (
+          <div className="grid grid-cols-2 gap-2.5 font-mono text-xs">
+            {Object.keys(mergedSeatGroups).length > 0 ? (
               <button
                 type="button"
-                onClick={handleConfirmTableUnmerge}
-                className="py-2.5 px-3 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 font-black flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs"
+                onClick={() => {
+                  const targetKey = activeGroup ? activeGroup.key : Object.keys(mergedSeatGroups)[0];
+                  if (targetKey) handleSplitSeatGroup(targetKey);
+                }}
+                className="min-h-[44px] py-2.5 px-3 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 font-black flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs"
               >
-                <Link2 className="h-3.5 w-3.5 text-rose-600" />
-                <span>Unmerge Table</span>
+                <Split className="h-4 w-4 text-rose-600" />
+                <span>Split Back</span>
               </button>
             ) : (
               <button
                 type="button"
-                onClick={() => { setMergeTab('TABLE'); setShowMergeModal(true); }}
-                className="py-2.5 px-3 rounded-xl border border-purple-300 bg-purple-50 hover:bg-purple-100 text-purple-900 font-black flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs"
+                onClick={() => { setMergeTab('SEATS'); setShowMergeModal(true); }}
+                className="min-h-[44px] py-2.5 px-3 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100 text-indigo-900 font-black flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs"
               >
-                <Link2 className="h-3.5 w-3.5 text-purple-700" />
-                <span>Merge Table</span>
+                <Users className="h-4 w-4 text-indigo-700" />
+                <span>Merge Seats</span>
               </button>
             )}
 
             <button
               type="button"
-              onClick={() => { setMergeTab('SEATS'); setShowMergeModal(true); }}
-              className="py-2.5 px-3 rounded-xl border border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-900 font-black flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs"
+              onClick={handleServeReadyFood}
+              disabled={!hasReadyFood}
+              className={`min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-95 ${
+                hasReadyFood
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs'
+                  : 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60'
+              }`}
             >
-              <Users className="h-3.5 w-3.5 text-indigo-700" />
-              <span>Merge Seats</span>
+              <Utensils className="h-4 w-4" />
+              <span>Serve Food</span>
             </button>
           </div>
-
-          {/* Active Merged Seat Groups */}
-          {Object.keys(mergedSeatGroups).length > 0 && (
-            <div className="space-y-1.5 font-mono text-xs pt-1">
-              {Object.entries(mergedSeatGroups).map(([k, group]) => (
-                <div key={k} className="p-2.5 bg-indigo-50 border border-indigo-200 rounded-xl flex items-center justify-between">
-                  <span className="font-bold text-indigo-900">
-                    Combined Check: Chairs {group.join(' & ')}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleSplitSeatGroup(k)}
-                    className="px-2 py-1 bg-white border border-indigo-300 text-indigo-700 font-black rounded-lg text-[10px]"
-                  >
-                    Split Back
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* ── READY FOOD SERVE NOTIFICATION & ACTION ── */}
-        {hasReadyFood && (
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            type="button"
-            onClick={handleServeReadyFood}
-            className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black shadow-md flex items-center justify-center gap-2 transition cursor-pointer"
-          >
-            <Utensils className="h-4 w-4" />
-            <span>ðŸ½ï¸ Serve Ready Food to Table</span>
-          </motion.button>
-        )}
-
-        {/* ── ACTION BUTTONS ── */}
-        <div className="space-y-2.5 pt-1 pb-6">
-          {grandTotal > 0 && !isVacant && (
-            <button
-              type="button"
-              onClick={() => setShowSplitModal(true)}
-              className="w-full py-3 bg-amber-50 hover:bg-amber-100 border border-amber-300 text-amber-900 rounded-xl font-mono text-xs font-black flex items-center justify-center gap-2 transition shadow-xs cursor-pointer active:scale-95"
-            >
-              <Split className="h-4 w-4 text-amber-700" />
-              <span>Split Bill (By Covers or Chairs)</span>
-            </button>
-          )}
-
-          <div className={grandTotal > 0 && !isVacant ? "grid grid-cols-2 gap-2.5" : "flex flex-col gap-2.5"}>
-            <button
-              type="button"
-              onClick={() => onGoToOrder(typeof selectedSeat === 'number' ? selectedSeat : undefined)}
-              className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
-            >
-              <Plus className="h-4 w-4" />
-              <span>{selectedSeat === 'ALL' ? 'Add Dishes' : `Add for ${typeof selectedSeat === 'string' ? selectedSeat : `Chair ${selectedSeat}`}`}</span>
-            </button>
-
-            {grandTotal > 0 && !isVacant && (
-              <button
-                type="button"
-                onClick={() => onGoToSettle()}
-                className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-mono text-xs font-black flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
-              >
-                <CreditCard className="h-4 w-4 text-emerald-400" />
-                <span>Settle Full Bill</span>
-              </button>
-            )}
-          </div>
-
-          {/* Vacate Table Action Button */}
-          <button
-            type="button"
-            onClick={() => setConfirmVacate(true)}
-            className="w-full py-2.5 bg-white hover:bg-rose-50 border border-stone-300 hover:border-rose-300 text-stone-600 hover:text-rose-700 rounded-xl font-mono text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95"
-          >
-            <Trash2 className="h-4 w-4" />
-            <span>Vacate &amp; Clean {table.number}</span>
-          </button>
         </div>
 
         {/* ── VACATE TABLE CONFIRMATION MODAL ── */}
@@ -1300,49 +1187,49 @@ const isSelected = selectedSeat === seatNum;
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4"
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs"
               onClick={() => setConfirmVacate(false)}
             >
               <motion.div
-                initial={{ scale: 0.92, y: 15 }}
-                animate={{ scale: 1, y: 0 }}
-                exit={{ scale: 0.92, y: 15 }}
+                initial={{ y: 200 }}
+                animate={{ y: 0 }}
+                exit={{ y: 200 }}
+                transition={{ type: 'spring', stiffness: 380, damping: 34 }}
                 onClick={(e) => e.stopPropagation()}
-                className="bg-white rounded-3xl p-5 max-w-sm w-full border border-stone-200 shadow-2xl space-y-4"
+                className="fixed inset-x-0 bottom-0 mx-auto max-w-sm rounded-t-3xl bg-white p-5 pb-6 border-t border-x border-[#EAE5DF] shadow-2xl space-y-4"
               >
                 <div className="flex items-center gap-3">
-                  <div className="h-10 w-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                  <div className="h-11 w-11 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
                     <Trash2 className="h-5 w-5" />
                   </div>
                   <div>
                     <h3 className="font-mono text-sm font-black text-stone-900">
-                      Vacate &amp; Reset {table.number}?
+                      Vacate {table.number}?
                     </h3>
                     <p className="font-mono text-xs text-stone-500">
-                      This will clear active orders and mark the table as vacant.
+                      All guests must have paid.
                     </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2.5 font-mono pt-1">
-                  <button
+                  <motion.button
+                    whileTap={{ scale: 0.93 }}
                     type="button"
                     onClick={() => setConfirmVacate(false)}
-                    className="py-2.5 rounded-xl border border-stone-200 font-bold text-stone-700 hover:bg-stone-50 active:scale-95 transition"
+                    className="min-h-[48px] rounded-xl border border-stone-200 font-bold text-stone-700 hover:bg-stone-50 transition-all duration-150"
                   >
                     Cancel
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
+                    whileTap={{ scale: 0.93 }}
                     type="button"
-                    onClick={() => {
-                      setConfirmVacate(false);
-                      handleVacate();
-                    }}
-                    className="py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black active:scale-95 transition shadow-xs flex items-center justify-center gap-1.5"
+                    onClick={handleVacate}
+                    className="min-h-[48px] rounded-xl bg-red-600 hover:bg-red-700 text-white font-black transition-all duration-150 shadow-xs flex items-center justify-center gap-1.5"
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     <span>Confirm Vacate</span>
-                  </button>
+                  </motion.button>
                 </div>
               </motion.div>
             </motion.div>
@@ -1350,6 +1237,31 @@ const isSelected = selectedSeat === seatNum;
         </AnimatePresence>
 
       </div>
+
+      {/* Sticky footer: Add Dishes & Settle */}
+      <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#EAE5DF] px-4 py-3 pb-6">
+        <div className="grid grid-cols-2 gap-2.5 font-mono text-xs font-black">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            onClick={() => onGoToOrder(typeof selectedSeat === 'number' ? selectedSeat : undefined)}
+            className="min-h-[48px] rounded-xl bg-[#9C3D1E] hover:bg-[#853318] text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Dishes</span>
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            type="button"
+            disabled={grandTotal <= 0 || isVacant}
+            onClick={() => onGoToSettle()}
+            className="min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            <CreditCard className="h-4 w-4" />
+            <span>Settle</span>
+          </motion.button>
+        </div>
+      </footer>
 
       {/* ── MODAL: TABLE MERGE & SEAT MERGE (DYNAMIC & FULLY FUNCTIONAL) ── */}
       <AnimatePresence>

@@ -127,6 +127,11 @@ const buildInstructionTooltip = (items: K2TableItem[]): string => {
     .join('  •  ');
 };
 
+const getShortKot = (raw: string): string => {
+  const tail = raw.split('-').pop();
+  return tail || raw;
+};
+
 export const ScreenK2Overview: React.FC = () => {
   const {
     setCurrentScreen,
@@ -462,7 +467,7 @@ export const ScreenK2Overview: React.FC = () => {
         <div className="bg-[#FAF8F5] border-b border-[#EAE5DF] p-3 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
-              BATCH PREPARATION SUMMARY
+              SAME DISH LIST
             </span>
           </div>
 
@@ -551,49 +556,31 @@ export const ScreenK2Overview: React.FC = () => {
             ) : (
               <div className="grid grid-cols-3 gap-3">
                 {categoryFilteredTables.map((tbl, idx) => {
-                  const isDelayed = tbl.elapsedMinutes >= 15;
+                  const shortKot = getShortKot(tbl.kotNumber);
                   return (
                     <div
                       key={`${tbl.id}-${idx}`}
                       onClick={() => handleOpenTable(tbl.tableNumber)}
-                      className={`border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between ${
-                        isDelayed
-                          ? 'bg-rose-50/80 border-rose-600 shadow-[3px_3px_0px_#e11d48] hover:shadow-[5px_5px_0px_#e11d48]'
-                          : 'bg-white border-[#EAE5DF] shadow-xs hover:shadow-sm'
-                      }`}
+                      className="border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between bg-white border-[#EAE5DF] shadow-xs hover:shadow-sm"
                     >
                       <div>
-                        <div
-                          className={`flex items-center justify-between pb-1.5 border-b-2 mb-2 ${
-                            isDelayed ? 'border-rose-400' : 'border-[#EAE5DF]'
-                          }`}
-                        >
-                          <div className="flex items-center gap-1 font-mono text-xs font-black text-slate-900">
-                            <span>{tbl.tableNumber}</span>
-                            {tbl.isVip && (
-                              <span className="text-amber-700 font-bold text-[9px] bg-amber-50 border border-amber-300 px-1 rounded">
-                                VIP
-                              </span>
-                            )}
-                            {isDelayed && (
-                              <span className="text-rose-700 font-bold text-[9px] bg-rose-100 border border-rose-300 px-1 rounded animate-pulse">
-                                RUSH
-                              </span>
-                            )}
+                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#EAE5DF] mb-2">
+                          <div className="font-mono text-xs font-black text-slate-900 whitespace-nowrap">
+                            {tbl.tableNumber}
                           </div>
-                        <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1">
-                          <Clock className="h-3 w-3 text-orange-600" />
-                          <span>
-                            {tbl.elapsedMinutes}m (KOT #{tbl.kotNumber})
+                          <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1 whitespace-nowrap">
+                            <Clock className="h-3 w-3 text-orange-600 shrink-0" />
+                            <span>
+                              {tbl.elapsedMinutes}m (KOT #{shortKot})
+                            </span>
+                            {tbl.items.some(hasSpecialInstruction) && (
+                              <span
+                                title={buildInstructionTooltip(tbl.items)}
+                                className="h-2 w-2 rounded-full bg-orange-500 animate-pulse inline-block ml-1 shrink-0"
+                              />
+                            )}
                           </span>
-                          {tbl.items.some(hasSpecialInstruction) && (
-                            <span
-                              title={buildInstructionTooltip(tbl.items)}
-                              className="h-2 w-2 rounded-full bg-orange-500 animate-pulse inline-block ml-1 shrink-0"
-                            />
-                          )}
-                        </span>
-                      </div>
+                        </div>
 
                       <div className="space-y-2">
                         {tbl.items.map((it) => (
@@ -661,10 +648,10 @@ export const ScreenK2Overview: React.FC = () => {
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-[#EAE5DF] mb-3">
                 <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
-                  ORDER SEQUENCE
+                 TIME QUEUE
                 </span>
                 <span className="font-mono text-[11px] text-slate-500 font-bold">
-                  PASS QUEUE
+                 TIMED ORDERS
                 </span>
               </div>
 
@@ -675,11 +662,11 @@ export const ScreenK2Overview: React.FC = () => {
                     onClick={() => handleOpenTable(tq.table)}
                     className="p-2.5 rounded-lg border border-[#EAE5DF] bg-[#FAF8F5] hover:bg-orange-50/50 cursor-pointer transition shadow-xs"
                   >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="font-mono text-xs font-black text-slate-900">
-                        #{tq.ticketNum} • {tq.table}
+                    <div className="flex items-center justify-between mb-1 gap-2">
+                      <span className="font-mono text-xs font-black text-slate-900 whitespace-nowrap">
+                        #{getShortKot(tq.ticketNum)} • {tq.table}
                       </span>
-                      <span className="font-mono text-[10px] font-bold text-slate-500">
+                      <span className="font-mono text-[10px] font-bold text-slate-500 whitespace-nowrap shrink-0">
                         {tq.time}
                       </span>
                     </div>

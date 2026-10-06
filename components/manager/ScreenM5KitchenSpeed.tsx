@@ -12,7 +12,7 @@ export function ScreenM5KitchenSpeed() {
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5">
       {/* Top Banner */}
-      <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex flex-wrap items-center justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
             <span className="bg-orange-600 text-white font-mono text-xs font-bold px-2 py-0.5 rounded">
@@ -29,7 +29,7 @@ export function ScreenM5KitchenSpeed() {
             activeTickets.forEach((t) => kitchenBumpTable(t.id));
             alert('Expedited all ready tickets to SERVED!');
           }}
-          className="bg-[#9C3D1E] text-white py-2 px-4 rounded-xl font-mono text-xs font-bold hover:bg-orange-600 transition flex items-center gap-2 shadow-xs"
+          className="bg-slate-900 text-white py-2 px-4 rounded-xl font-mono text-xs font-bold hover:bg-orange-600 transition flex items-center gap-2 shadow-[2px_2px_0px_#0f172a]"
         >
           <Zap className="h-4 w-4 text-amber-400" />
           <span>EXPEDITE ALL READY DISHES</span>
@@ -38,7 +38,7 @@ export function ScreenM5KitchenSpeed() {
 
       {/* 3 Station Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono">
-        <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
+        <div className="bg-stone-50 border-2 border-slate-900 rounded-xl p-4 shadow-[3px_3px_0px_#0f172a]">
           <div className="flex justify-between items-center text-xs text-slate-500">
             <span>STATION 1: DUM BIRYANI POT</span>
             <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">NORMAL</span>
@@ -47,7 +47,7 @@ export function ScreenM5KitchenSpeed() {
           <p className="text-[11px] text-slate-500 mt-1">Pot 3 (Mutton) • Pot 4 (Chicken) Open</p>
         </div>
 
-        <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
+        <div className="bg-stone-50 border-2 border-slate-900 rounded-xl p-4 shadow-[3px_3px_0px_#0f172a]">
           <div className="flex justify-between items-center text-xs text-slate-500">
             <span>STATION 2: TANDOOR &amp; KEBABS</span>
             <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-bold">RUSH</span>
@@ -56,7 +56,7 @@ export function ScreenM5KitchenSpeed() {
           <p className="text-[11px] text-slate-500 mt-1">8 skewers active • Charcoal heated</p>
         </div>
 
-        <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
+        <div className="bg-stone-50 border-2 border-slate-900 rounded-xl p-4 shadow-[3px_3px_0px_#0f172a]">
           <div className="flex justify-between items-center text-xs text-slate-500">
             <span>STATION 3: GRAVIES &amp; BREADS</span>
             <span className="bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">NORMAL</span>
@@ -67,7 +67,7 @@ export function ScreenM5KitchenSpeed() {
       </div>
 
       {/* Active Orders List */}
-      <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm">
+      <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a]">
         <h4 className="text-xs font-mono font-black text-slate-900 uppercase mb-3">
           Active Kitchen Tickets ({activeTickets.length} orders in pipeline)
         </h4>
@@ -75,7 +75,7 @@ export function ScreenM5KitchenSpeed() {
         {activeTickets.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {activeTickets.map((tk) => (
-              <div key={tk.id} className="p-3 rounded-lg border border-[#EAE5DF] bg-[#FAF8F5] font-mono text-xs">
+              <div key={tk.id} className="p-3 rounded-lg border-2 border-slate-900 bg-stone-50 font-mono text-xs">
                 <div className="flex justify-between items-center border-b border-slate-200 pb-2">
                   <span className="font-black text-slate-900">
                     Table {tk.tableNumber} • {tk.id}
@@ -98,7 +98,7 @@ export function ScreenM5KitchenSpeed() {
                   <span>Server: {tk.serverName}</span>
                   <button
                     onClick={() => kitchenBumpTable(tk.id)}
-                    className="bg-[#9C3D1E] text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-orange-600 transition"
+                    className="bg-slate-900 text-white px-2 py-1 rounded text-[10px] font-bold hover:bg-orange-600 transition"
                   >
                     BUMP TO READY
                   </button>
@@ -107,7 +107,7 @@ export function ScreenM5KitchenSpeed() {
             ))}
           </div>
         ) : (
-          <div className="p-8 text-center font-mono text-xs text-slate-500 bg-[#FAF8F5] rounded-xl">
+          <div className="p-8 text-center font-mono text-xs text-slate-500 bg-stone-50 rounded-xl">
             Kitchen queue is clear! All placed KOTs have been prepared and served.
           </div>
         )}

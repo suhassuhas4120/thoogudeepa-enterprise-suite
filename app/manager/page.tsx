@@ -91,17 +91,17 @@ export default function ManagerPortalPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans">
+    <main className="min-h-screen bg-stone-100 flex flex-col font-sans">
       {/* Top Header Console */}
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/90 bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-sm shadow-[#9C3D1E]/25">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-sm shadow-slate-900/30">
             <Briefcase className="h-5 w-5 fill-white" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-900 bg-[#FAF8F5] border border-slate-300 rounded-md px-1.5 py-0.5">
-                MANAGER PORTAL • OPERATIONS
+              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-900 bg-stone-100 border border-slate-300 rounded-md px-1.5 py-0.5">
+                MANAGER COMMAND DESK • 16 SCREENS • REACT 19
               </span>
               <span className="font-mono text-[10px] font-bold text-slate-400">
                 THOOGUDEEPA DONNE BIRYANI MANE
@@ -123,7 +123,7 @@ export default function ManagerPortalPage() {
 
         {/* Global Multi-Portal Switcher */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs font-mono text-xs font-bold">
             <Link
               href="/"
               className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-slate-600 hover:text-slate-900 transition"
@@ -145,19 +145,19 @@ export default function ManagerPortalPage() {
               <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
               <span>WAITER (10)</span>
             </Link>
-            <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
+            <span className="rounded-xl bg-slate-900 text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Briefcase className="h-3.5 w-3.5 fill-white" />
               <span>MANAGER (16)</span>
             </span>
           </div>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs">
             <button
               onClick={() => setViewMode('single')}
               className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-mono font-bold transition ${
                 viewMode === 'single'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -168,7 +168,7 @@ export default function ManagerPortalPage() {
               onClick={() => setViewMode('all')}
               className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-mono font-bold transition ${
                 viewMode === 'all'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -192,8 +192,8 @@ export default function ManagerPortalPage() {
               }}
               className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-bold transition ${
                 isActive
-                  ? 'border-[#9C3D1E] bg-[#9C3D1E] text-white shadow-xs'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-[#FAF8F5]'
+                  ? 'border-slate-900 bg-slate-900 text-white shadow-xs'
+                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-stone-50'
               }`}
             >
               <span>{sc.name}</span>
@@ -224,21 +224,21 @@ export default function ManagerPortalPage() {
             {screens.map((sc) => (
               <div
                 key={sc.id}
-                className="bg-white border border-[#EAE5DF] rounded-2xl shadow-md overflow-hidden"
+                className="bg-white border-2 border-slate-900 rounded-2xl shadow-[6px_6px_0px_#0f172a] overflow-hidden"
               >
-                <div className="bg-[#1C1917] text-white px-5 py-3 flex items-center justify-between font-mono">
+                <div className="bg-slate-900 text-white px-5 py-3 flex items-center justify-between font-mono">
                   <span className="font-bold text-sm">SCREEN {sc.name.toUpperCase()}</span>
                   <button
                     onClick={() => {
                       setCurrentScreen(sc.id);
                       setViewMode('single');
                     }}
-                    className="bg-white text-slate-900 px-3 py-1 rounded text-xs font-bold hover:bg-[#FAF8F5] transition"
+                    className="bg-white text-slate-900 px-3 py-1 rounded text-xs font-bold hover:bg-stone-100 transition"
                   >
                     OPEN STAGE
                   </button>
                 </div>
-                <div className="p-4 bg-[#FAF8F5]">
+                <div className="p-4 bg-stone-50">
                   {sc.comp}
                 </div>
               </div>

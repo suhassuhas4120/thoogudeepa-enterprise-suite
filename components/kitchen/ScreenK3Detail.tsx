@@ -8,7 +8,6 @@ import { OrderStage } from '../../types/customer';
 import {
   ArrowLeft,
   Clock,
-  Bell,
   Sliders,
   Lock,
   LockOpen,
@@ -31,7 +30,6 @@ export const ScreenK3Detail: React.FC = () => {
     kitchenUpdatePrepDelay,
     kitchenBumpTable,
     kitchenSetItemStage,
-    callFloorWaiter,
   } = useSharedBridge();
 
   const [inventoryLocked, setInventoryLocked] = useState(false);
@@ -56,14 +54,6 @@ export const ScreenK3Detail: React.FC = () => {
     setPendingChanges((prev) => ({
       ...prev,
       [itemId]: itemId in prev ? !prev[itemId] : !currentIs86,
-    }));
-  };
-
-  const handlePendingDelay = (itemId: string, delta: number) => {
-    if (inventoryLocked) return;
-    setPendingDelays((prev) => ({
-      ...prev,
-      [itemId]: (prev[itemId] ?? 0) + delta,
     }));
   };
 
@@ -95,7 +85,6 @@ export const ScreenK3Detail: React.FC = () => {
     Object.keys(pendingChanges).length > 0 ||
     Object.keys(pendingDelays).length > 0;
 
-  // Active stages: PLACED, PREP, PLATED
   const stageOrder: OrderStage[] = ['PLACED', 'PREP', 'PLATED'];
   const stageLabels: Record<string, string> = {
     PLACED: '1.REC',
@@ -119,13 +108,12 @@ export const ScreenK3Detail: React.FC = () => {
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="flex-1 flex overflow-hidden">
           {/* LEFT 55% */}
-          <div className="w-[55%] border-r border-slate-200 p-5 overflow-y-auto bg-[#FAF8F5]/50 flex flex-col justify-between">
+          <div className="w-[55%] border-r border-[#EFE6DA] p-5 overflow-y-auto bg-[#FAF6EE]/60 flex flex-col justify-between">
             <div className="space-y-4">
-              {/* Back navigation header */}
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setCurrentScreen(2)}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#EAE5DF] bg-white hover:bg-orange-50 transition shadow-xs shrink-0"
+                  className="flex h-9 w-9 items-center justify-center rounded-xl border border-[#EFE6DA] bg-white hover:bg-[#FFF4EC] transition shadow-xs shrink-0"
                   title="Back to All Tables"
                 >
                   <ArrowLeft className="h-4 w-4 stroke-[2.5] text-slate-900" />
@@ -152,7 +140,7 @@ export const ScreenK3Detail: React.FC = () => {
 
               {currentTicket && (
                 <>
-                  <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs flex items-center justify-between">
+                  <div className="rounded-2xl border border-[#EFE6DA] bg-white p-4 shadow-xs flex items-center justify-between">
                     <div>
                       <div className="text-base font-black text-slate-900 mt-0.5">
                         Table [{currentTicket?.tableNumber}] •{' '}
@@ -166,7 +154,7 @@ export const ScreenK3Detail: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="flex items-center gap-1 font-mono text-xs font-black text-orange-600">
+                      <div className="inline-flex items-center gap-1 rounded-full border border-[#F5C9A5] bg-[#FFF4EC] px-2.5 py-1 font-mono text-[11px] font-black text-[#B85A1F]">
                         <Clock className="h-3.5 w-3.5" />
                         <span>ELAPSED: {currentTicket?.elapsedMinutes} MIN</span>
                       </div>
@@ -178,12 +166,12 @@ export const ScreenK3Detail: React.FC = () => {
                     {currentTicket?.items.map((it) => (
                       <div
                         key={it.id}
-                        className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-2.5"
+                        className="rounded-2xl border border-[#EFE6DA] bg-white p-3.5 shadow-xs space-y-2.5"
                       >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-mono text-xs font-black text-orange-600">
+                              <span className="font-mono text-xs font-black text-[#E8722E]">
                                 {it.quantity}×
                               </span>
                               <span className="text-xs font-black text-slate-900 truncate">
@@ -206,7 +194,7 @@ export const ScreenK3Detail: React.FC = () => {
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : it.stage === 'PREP'
                                 ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : 'bg-[#FAF8F5] text-slate-600 border-slate-200'
+                                : 'bg-[#FBF7F0] text-slate-600 border-[#EFE6DA]'
                             }`}
                           >
                             {it.stage}
@@ -232,10 +220,10 @@ export const ScreenK3Detail: React.FC = () => {
                                 }
                                 className={`py-1.5 rounded text-center transition border ${
                                   isActive
-                                    ? 'bg-orange-600 text-white border-orange-700 shadow-xs ring-1 ring-orange-500'
+                                    ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-xs'
                                     : isPast
                                     ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                                    : 'bg-[#FAF8F5] text-slate-600 border-slate-300 hover:bg-orange-50'
+                                    : 'bg-[#FBF7F0] text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
                                 }`}
                               >
                                 {stageLabels[stg]}
@@ -251,7 +239,7 @@ export const ScreenK3Detail: React.FC = () => {
             </div>
 
             {currentTicket && (
-              <div className="pt-4 border-t border-slate-200 flex gap-3">
+              <div className="pt-4 border-t border-[#EFE6DA] flex gap-3">
                 <button
                   onClick={() => kitchenBumpTable(currentTicket?.id || '')}
                   className="flex-1 rounded-xl bg-emerald-600 py-3 text-xs font-black uppercase tracking-wider text-white shadow-md shadow-emerald-600/20 hover:bg-emerald-700 transition"
@@ -264,9 +252,9 @@ export const ScreenK3Detail: React.FC = () => {
 
           {/* RIGHT 45% — Inventory */}
           <div className="w-[45%] bg-white p-5 overflow-y-auto flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+            <div className="flex items-center justify-between pb-2 border-b border-[#EFE6DA]">
               <div className="flex items-center gap-1.5 font-mono text-[10.5px] font-black uppercase text-slate-700">
-                <Sliders className="h-4 w-4 text-orange-600" />
+                <Sliders className="h-4 w-4 text-[#E8722E]" />
                 <span>ITEM AVAILABILITY &amp; PREPARATION DELAY</span>
               </div>
             </div>
@@ -274,15 +262,15 @@ export const ScreenK3Detail: React.FC = () => {
             <div
               className={`flex items-center justify-between rounded-xl border p-3 transition ${
                 inventoryLocked
-                  ? 'border-slate-200 bg-[#FAF8F5]'
-                  : 'border-orange-300 bg-orange-50'
+                  ? 'border-[#EFE6DA] bg-[#FBF7F0]'
+                  : 'border-[#F5C9A5] bg-[#FFF4EC]'
               }`}
             >
               <div className="flex items-center gap-2">
                 {inventoryLocked ? (
                   <Lock className="h-4 w-4 text-slate-500" />
                 ) : (
-                  <LockOpen className="h-4 w-4 text-orange-600" />
+                  <LockOpen className="h-4 w-4 text-[#E8722E]" />
                 )}
                 <div>
                   <div className="font-mono text-[10.5px] font-black text-slate-800">
@@ -307,7 +295,7 @@ export const ScreenK3Detail: React.FC = () => {
                 }}
                 className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 font-mono text-[10.5px] font-black transition ${
                   inventoryLocked
-                    ? 'bg-[#9C3D1E] text-white hover:bg-[#7c3018]'
+                    ? 'bg-[#E8722E] text-white hover:bg-[#d15f1f]'
                     : 'bg-slate-200 text-slate-700 hover:bg-slate-300'
                 }`}
               >
@@ -352,15 +340,15 @@ export const ScreenK3Detail: React.FC = () => {
                       effectiveIs86
                         ? 'border-rose-200 bg-rose-50/50'
                         : hasPending
-                        ? 'border-orange-200 bg-orange-50/40'
-                        : 'border-slate-200 bg-[#FAF8F5]/70'
+                        ? 'border-[#F5C9A5] bg-[#FFF4EC]/60'
+                        : 'border-[#EFE6DA] bg-[#FBF7F0]/80'
                     } ${inventoryLocked ? 'opacity-90' : ''}`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-extrabold text-slate-900 truncate">
                         {item.name}
                         {hasPending && !inventoryLocked && (
-                          <span className="ml-1.5 text-orange-600 text-[10px] font-black">
+                          <span className="ml-1.5 text-[#E8722E] text-[10px] font-black">
                             PENDING
                           </span>
                         )}
@@ -376,10 +364,10 @@ export const ScreenK3Detail: React.FC = () => {
                         disabled={inventoryLocked}
                         className={`rounded-xl px-3 py-1.5 font-mono text-[10.5px] font-black uppercase transition ${
                           inventoryLocked
-                            ? 'opacity-40 cursor-not-allowed border border-slate-200 bg-[#FAF8F5] text-slate-500'
+                            ? 'opacity-40 cursor-not-allowed border border-[#EFE6DA] bg-[#FBF7F0] text-slate-500'
                             : effectiveIs86
                             ? 'bg-rose-600 text-white shadow-xs hover:bg-rose-700'
-                            : 'border border-slate-300 bg-white text-emerald-700 hover:bg-emerald-50'
+                            : 'border border-emerald-400 bg-white text-emerald-700 hover:bg-emerald-50'
                         }`}
                       >
                         {effectiveIs86 ? '86 SOLD OUT' : 'IN STOCK'}
@@ -396,21 +384,17 @@ export const ScreenK3Detail: React.FC = () => {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: 8 }}
-                  className="border-t border-slate-200 pt-3 flex gap-2 shrink-0"
+                  className="border-t border-[#EFE6DA] pt-3 flex gap-2 shrink-0"
                 >
                   <button
                     onClick={handleDiscard}
-                    className="flex-1 rounded-xl border border-slate-300 bg-[#FAF8F5] py-3 font-mono text-xs font-black text-slate-600 hover:bg-[#FAF8F5] transition"
+                    className="flex-1 rounded-xl border border-[#EFE6DA] bg-[#FBF7F0] py-3 font-mono text-xs font-black text-slate-600 hover:bg-[#FFF4EC] transition"
                   >
                     DISCARD
                   </button>
                   <button
                     onClick={handleUpdate}
-                    className={`flex-[2] rounded-xl py-3 font-mono text-xs font-black uppercase transition flex items-center justify-center gap-2 shadow-sm ${
-                      hasPendingChanges
-                        ? 'bg-emerald-700 text-white hover:bg-emerald-800'
-                        : 'bg-slate-700 text-white hover:bg-slate-800'
-                    }`}
+                    className="flex-[2] rounded-xl py-3 font-mono text-xs font-black uppercase transition flex items-center justify-center gap-2 shadow-sm bg-[#1E293B] text-white hover:bg-[#0F172A]"
                   >
                     <RefreshCw className="h-4 w-4" />
                     <span>
@@ -428,7 +412,7 @@ export const ScreenK3Detail: React.FC = () => {
               )}
             </AnimatePresence>
 
-            <div className="p-3 rounded-xl bg-orange-50/60 border border-orange-200/80 text-[11px] text-orange-950 font-medium shrink-0">
+            <div className="p-3 rounded-xl bg-[#FFF4EC]/70 border border-[#F5C9A5] text-[11px] text-[#8B4A1E] font-medium shrink-0">
               <strong>Notice:</strong> Items marked sold out will immediately be unavailable on customer menus and captain tablets.
             </div>
           </div>

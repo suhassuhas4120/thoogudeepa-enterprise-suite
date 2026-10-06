@@ -5,23 +5,33 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: read
+
+env:
+  # Node 22: @supabase/* v2.117 requires >=22 (EBADENGINE warnings on Node 20 in earlier runs)
+  NODE_VERSION: 22
+  NEXT_TELEMETRY_DISABLED: 1
+
 jobs:
   type-check:
     name: TypeScript Static Analysis
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install Dependencies
@@ -34,44 +44,59 @@ jobs:
     name: Automated Test Suites
     needs: type-check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     env:
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Run Waiter Mobile & Tablet Comprehensive Matrix (93 Assertions)
+      # Every suite runs even if an earlier one fails, so one red suite can no longer
+      # hide the results of the others (Phase 10 never ran in the last failed build).
+      - name: Run Waiter Mobile & Tablet Comprehensive Matrix
         run: npm run test:waiter:matrix
 
       - name: Run Phase 9 E2E Integration Suite
+        if: ${{ !cancelled() }}
         run: npx tsx scripts/test-phase9-comprehensive.ts
 
       - name: Run Phase 10 Invariants Suite
+        if: ${{ !cancelled() }}
         run: npx tsx scripts/test-phase10-comprehensive.ts
 
   build-validation:
     name: Production Build Verification
     needs: type-check
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout Codebase
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
-          node-version: 20
+          node-version: ${{ env.NODE_VERSION }}
           cache: npm
+
+      # Next.js asked for a build cache in the last run ("No build cache found")
+      - name: Cache Next.js build
+        uses: actions/cache@v5
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**', 'components/**', 'store/**', 'lib/**', 'hooks/**', 'types/**', 'data/**') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
 
       - name: Install Dependencies
         run: npm ci

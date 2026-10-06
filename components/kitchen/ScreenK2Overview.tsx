@@ -168,8 +168,8 @@ export const ScreenK2Overview: React.FC = () => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5 note
-          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5 note
+          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
           gain.gain.setValueAtTime(0.3, ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
           osc.connect(gain);
@@ -430,7 +430,8 @@ export const ScreenK2Overview: React.FC = () => {
       screenTitle="ALL TABLES & FEEDS (70/30 SPLIT)"
     >
       <div className="flex-1 flex flex-col h-full overflow-hidden bg-white">
-        <div className="bg-white border-b border-[#EAE5DF] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
+        {/* Filter bar */}
+        <div className="bg-white border-b border-[#EFE6DA] px-4 py-2.5 flex flex-wrap items-center justify-between gap-2 shrink-0">
           <div className="flex items-center gap-1.5 overflow-x-auto">
             <span className="font-mono text-[11px] font-black uppercase text-slate-600 mr-1">
               CATEGORIES:
@@ -441,8 +442,8 @@ export const ScreenK2Overview: React.FC = () => {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-2.5 py-1 rounded border font-mono text-[10.5px] font-black transition whitespace-nowrap ${
                   selectedCategory === cat
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E]'
-                    : 'bg-[#FAF8F5] text-slate-700 border-slate-300 hover:bg-stone-200'
+                    ? 'bg-[#E8722E] text-white border-[#E8722E]'
+                    : 'bg-[#FBF7F0] text-slate-700 border-[#EFE6DA] hover:bg-[#FFF4EC]'
                 }`}
               >
                 {cat}
@@ -451,12 +452,12 @@ export const ScreenK2Overview: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <span className="font-mono text-[10px] font-bold text-slate-700 bg-[#FAF8F5] border border-slate-300 px-2 py-1 rounded">
+            <span className="font-mono text-[10px] font-bold text-slate-700 bg-[#FBF7F0] border border-[#EFE6DA] px-2 py-1 rounded">
               VISIBLE TABLES: {categoryFilteredTables.length}
             </span>
             <button
               onClick={handleCallWaiter}
-              className="flex items-center gap-1.5 rounded-lg border border-orange-500 bg-orange-600 hover:bg-orange-700 px-3 py-1.5 font-mono text-[10.5px] font-black uppercase text-white transition shadow-sm whitespace-nowrap"
+              className="flex items-center gap-1.5 rounded-lg border border-[#E8722E] bg-[#E8722E] hover:bg-[#d15f1f] px-3 py-1.5 font-mono text-[10.5px] font-black uppercase text-white transition shadow-sm whitespace-nowrap"
             >
               <Bell className="h-3 w-3" />
               <span>CALL WAITER</span>
@@ -464,7 +465,8 @@ export const ScreenK2Overview: React.FC = () => {
           </div>
         </div>
 
-        <div className="bg-[#FAF8F5] border-b border-[#EAE5DF] p-3 shrink-0">
+        {/* SAME DISH LIST */}
+        <div className="bg-[#FAF6EE] border-b border-[#EFE6DA] p-3 shrink-0">
           <div className="flex items-center justify-between mb-2">
             <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
               SAME DISH LIST
@@ -485,30 +487,30 @@ export const ScreenK2Overview: React.FC = () => {
                 return (
                   <div
                     key={idx}
-                    className="bg-white border border-[#EAE5DF] rounded-xl p-2.5 shadow-xs flex flex-col justify-between gap-1.5 shrink-0 w-[260px]"
+                    className="bg-white border border-[#EFE6DA] rounded-xl p-2.5 shadow-xs flex flex-col justify-between gap-1.5 shrink-0 w-[260px]"
                   >
-                    <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+                    <div className="flex items-center justify-between pb-1 border-b border-[#EFE6DA]">
                       <span
                         className="font-mono text-[11px] font-black text-slate-900 truncate"
                         title={b.name}
                       >
                         {b.name}
                       </span>
-                      <span className="font-mono text-[10px] font-black bg-[#9C3D1E] text-white px-1.5 py-0.5 rounded ml-1 shrink-0">
+                      <span className="font-mono text-[10px] font-black bg-[#E8722E] text-white px-1.5 py-0.5 rounded ml-1 shrink-0">
                         TOTAL: {b.total}
                       </span>
                     </div>
                     <div className="font-mono text-[9px] text-slate-600 truncate">
                       {b.sources}
-                     </div>
-                    <div className="flex items-center justify-between font-mono text-[9px] font-extrabold text-orange-700">
+                    </div>
+                    <div className="flex items-center justify-between font-mono text-[9px] font-extrabold text-[#B85A1F]">
                       <span>STATUS:</span>
-                      <span className="bg-orange-50 border border-orange-200 px-1.5 py-0.2 rounded text-[8.5px] truncate">
+                      <span className="bg-[#FFF4EC] border border-[#F5C9A5] px-1.5 py-0.2 rounded text-[8.5px] truncate">
                         {b.status}
                       </span>
                     </div>
 
-                    <div className="pt-1.5 border-t border-slate-200/80">
+                    <div className="pt-1.5 border-t border-[#EFE6DA]">
                       <div className="grid grid-cols-3 gap-1 font-mono text-[9px] font-black">
                         {STAGE_STEPS.map((stg, sIdx) => {
                           const isActive = currentBulkStage === stg;
@@ -522,8 +524,8 @@ export const ScreenK2Overview: React.FC = () => {
                               }}
                               className={`py-1.5 rounded text-center transition border ${
                                 isActive
-                                  ? 'bg-orange-600 text-white border-orange-700 shadow-xs ring-1 ring-orange-500'
-                                  : 'bg-[#FAF8F5] text-slate-700 border-slate-300 hover:bg-orange-100 hover:text-orange-900'
+                                  ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-xs'
+                                  : 'bg-[#FBF7F0] text-slate-700 border-[#EFE6DA] hover:bg-[#FFF4EC] hover:text-[#B85A1F]'
                               }`}
                             >
                               {STAGE_LABELS[sIdx]}
@@ -539,8 +541,9 @@ export const ScreenK2Overview: React.FC = () => {
           )}
         </div>
 
+        {/* Tables + Time queue */}
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-[70%] border-r-2 border-[#EAE5DF] p-3 overflow-y-auto bg-[#FAF8F5]/60">
+          <div className="w-[70%] border-r-2 border-[#EFE6DA] p-3 overflow-y-auto bg-[#FAF6EE]/70">
             <div className="flex items-center justify-between mb-2.5">
               <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
                 ALL TABLES
@@ -561,97 +564,98 @@ export const ScreenK2Overview: React.FC = () => {
                     <div
                       key={`${tbl.id}-${idx}`}
                       onClick={() => handleOpenTable(tbl.tableNumber)}
-                      className="border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between bg-white border-[#EAE5DF] shadow-xs hover:shadow-sm"
+                      className="border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between bg-white border-[#EFE6DA] shadow-xs hover:shadow-sm"
                     >
                       <div>
-                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#EAE5DF] mb-2">
+                        <div className="flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#EFE6DA] mb-2">
                           <div className="font-mono text-xs font-black text-slate-900 whitespace-nowrap">
                             {tbl.tableNumber}
                           </div>
                           <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1 whitespace-nowrap">
-                            <Clock className="h-3 w-3 text-orange-600 shrink-0" />
+                            <Clock className="h-3 w-3 text-[#E8722E] shrink-0" />
                             <span>
                               {tbl.elapsedMinutes}m (KOT #{shortKot})
                             </span>
                             {tbl.items.some(hasSpecialInstruction) && (
                               <span
                                 title={buildInstructionTooltip(tbl.items)}
-                                className="h-2 w-2 rounded-full bg-orange-500 animate-pulse inline-block ml-1 shrink-0"
+                                className="h-2 w-2 rounded-full bg-[#E8722E] animate-pulse inline-block ml-1 shrink-0"
                               />
                             )}
                           </span>
                         </div>
 
-                      <div className="space-y-2">
-                        {tbl.items.map((it) => (
-                          <div
-                            key={it.id}
-                            className="bg-[#FAF8F5] border border-slate-300 rounded-lg p-2 space-y-1.5"
-                          >
-                            <div className="flex items-center justify-between text-xs font-mono font-black">
-                              <span className="text-slate-900 truncate pr-1">
-                                {it.quantity}x {it.name}
-                              </span>
-                              <span className="font-mono text-[8.5px] font-bold bg-white border border-slate-300 px-1.5 py-0.5 rounded text-slate-800 shrink-0">
-                                STAGE{' '}
-                                {it.stage === 'RECEIVED'
-                                  ? '1: RECEIVED'
-                                  : it.stage === 'PREPARING'
-                                  ? '2: PREPARING'
-                                  : '3: READY'}
-                              </span>
-                            </div>
+                        <div className="space-y-2">
+                          {tbl.items.map((it) => (
+                            <div
+                              key={it.id}
+                              className="bg-[#FBF7F0] border border-[#EFE6DA] rounded-lg p-2 space-y-1.5"
+                            >
+                              <div className="flex items-center justify-between text-xs font-mono font-black">
+                                <span className="text-slate-900 truncate pr-1">
+                                  {it.quantity}x {it.name}
+                                </span>
+                                <span className="font-mono text-[8.5px] font-bold bg-white border border-[#EFE6DA] px-1.5 py-0.5 rounded text-slate-800 shrink-0">
+                                  STAGE{' '}
+                                  {it.stage === 'RECEIVED'
+                                    ? '1: RECEIVED'
+                                    : it.stage === 'PREPARING'
+                                    ? '2: PREPARING'
+                                    : '3: READY'}
+                                </span>
+                              </div>
 
-                            <div className="grid grid-cols-3 gap-1 pt-0.5 font-mono text-[9px] font-black">
-                              {STAGE_STEPS.map((stg, sIdx) => {
-                                const isActive = it.stage === stg;
-                                return (
-                                  <button
-                                    key={stg}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSetStage(tbl.id, it.id, stg);
-                                    }}
-                                    className={`py-1.5 rounded text-center transition border ${
-                                      isActive
-                                        ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-2xs'
-                                        : 'bg-white text-slate-600 border-slate-300 hover:bg-stone-200'
-                                    }`}
-                                  >
-                                    {STAGE_LABELS[sIdx]}
-                                  </button>
-                                );
-                              })}
+                              <div className="grid grid-cols-3 gap-1 pt-0.5 font-mono text-[9px] font-black">
+                                {STAGE_STEPS.map((stg, sIdx) => {
+                                  const isActive = it.stage === stg;
+                                  return (
+                                    <button
+                                      key={stg}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleSetStage(tbl.id, it.id, stg);
+                                      }}
+                                      className={`py-1.5 rounded text-center transition border ${
+                                        isActive
+                                          ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-2xs'
+                                          : 'bg-white text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
+                                      }`}
+                                    >
+                                      {STAGE_LABELS[sIdx]}
+                                    </button>
+                                  );
+                                })}
+                              </div>
                             </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
-                    </div>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleOpenTable(tbl.tableNumber);
-                      }}
-                      className="w-full mt-3 py-1.5 bg-[#9C3D1E] hover:bg-[#7c3018] text-white font-mono text-[10px] font-black rounded uppercase tracking-wider transition text-center shadow-xs"
-                    >
-                      MANAGE {tbl.tableNumber} &rarr;
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleOpenTable(tbl.tableNumber);
+                        }}
+                        className="w-full mt-3 py-1.5 bg-[#E8722E] hover:bg-[#d15f1f] text-white font-mono text-[10px] font-black rounded uppercase tracking-wider transition text-center shadow-xs"
+                      >
+                        MANAGE {tbl.tableNumber} &rarr;
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
+          {/* TIME QUEUE */}
           <div className="w-[30%] bg-white p-3 overflow-y-auto flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-2 border-b border-[#EAE5DF] mb-3">
+              <div className="flex items-center justify-between pb-2 border-b border-[#EFE6DA] mb-3">
                 <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
-                 TIME QUEUE
+                  TIME QUEUE
                 </span>
                 <span className="font-mono text-[11px] text-slate-500 font-bold">
-                 TIMED ORDERS
+                  TIMED ORDERS
                 </span>
               </div>
 
@@ -660,7 +664,7 @@ export const ScreenK2Overview: React.FC = () => {
                   <div
                     key={idx}
                     onClick={() => handleOpenTable(tq.table)}
-                    className="p-2.5 rounded-lg border border-[#EAE5DF] bg-[#FAF8F5] hover:bg-orange-50/50 cursor-pointer transition shadow-xs"
+                    className="p-2.5 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] cursor-pointer transition shadow-xs"
                   >
                     <div className="flex items-center justify-between mb-1 gap-2">
                       <span className="font-mono text-xs font-black text-slate-900 whitespace-nowrap">
@@ -685,9 +689,9 @@ export const ScreenK2Overview: React.FC = () => {
 
             <button
               onClick={handleCallWaiter}
-              className="w-full mt-4 py-2.5 rounded-xl border border-[#EAE5DF] bg-[#FAF8F5] hover:bg-orange-50 font-mono text-xs font-black uppercase text-slate-900 flex items-center justify-center gap-1.5 shadow-xs transition"
+              className="w-full mt-4 py-2.5 rounded-xl border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] font-mono text-xs font-black uppercase text-slate-900 flex items-center justify-center gap-1.5 shadow-xs transition"
             >
-              <Bell className="h-3.5 w-3.5 text-orange-600" />
+              <Bell className="h-3.5 w-3.5 text-[#E8722E]" />
               <span>CALL FLOOR RUNNER TO PASS</span>
             </button>
           </div>

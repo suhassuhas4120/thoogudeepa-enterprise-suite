@@ -49,13 +49,13 @@ export const ScreenK1Login: React.FC = () => {
 
   return (
     <KitchenTabletHousing screenNumber={1} screenTitle="KDS KITCHEN LOGIN">
-      <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-8 gap-8 overflow-y-auto bg-[#FAF8F5]/50">
+      <div className="flex-1 flex flex-col md:flex-row items-center justify-center p-8 gap-8 overflow-y-auto bg-[#FAF6EE]/60">
         {/* Left Card: Logo + Venue name */}
-        <div className="w-full md:w-[440px] bg-white rounded-3xl border border-[#EAE5DF] p-8 shadow-sm flex flex-col items-center justify-between text-center min-h-[440px]">
+        <div className="w-full md:w-[440px] bg-white rounded-3xl border border-[#EFE6DA] p-8 shadow-sm flex flex-col items-center justify-between text-center min-h-[440px]">
           <div className="flex flex-col items-center my-auto">
-            <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl border border-[#EAE5DF] bg-gradient-to-br from-amber-50 to-orange-100 shadow-xs mb-5">
-              <UtensilsCrossed className="h-12 w-12 text-amber-700" />
-              <div className="absolute -bottom-2 -right-2 rounded-full border border-[#EAE5DF] bg-orange-600 p-1.5 text-white shadow-xs">
+            <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl border border-[#EFE6DA] bg-gradient-to-br from-[#FFF4EC] to-[#FCE4CE] shadow-xs mb-5">
+              <UtensilsCrossed className="h-12 w-12 text-[#B85A1F]" />
+              <div className="absolute -bottom-2 -right-2 rounded-full border border-[#EFE6DA] bg-[#E8722E] p-1.5 text-white shadow-xs">
                 <ChefHat className="h-4 w-4" />
               </div>
             </div>
@@ -66,12 +66,12 @@ export const ScreenK1Login: React.FC = () => {
             <p className="mt-1 text-md font-mono font-bold text-slate-600">
               KITCHEN LOGIN
             </p>
-            <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-[10.5px] font-mono font-bold text-orange-800">
+            <div className="mt-4 rounded-lg border border-[#F5C9A5] bg-[#FFF4EC] px-3 py-2 text-[10.5px] font-mono font-bold text-[#B85A1F]">
               PIN: <strong>1234</strong>
             </div>
           </div>
 
-          <div className="w-full mt-6 pt-4 border-t border-slate-200 flex items-center justify-between font-mono text-[10px] text-slate-500">
+          <div className="w-full mt-6 pt-4 border-t border-[#EFE6DA] flex items-center justify-between font-mono text-[10px] text-slate-500">
             <span>VENUE: THOOGUDEEPA DONNE BIRYANI MANE</span>
             <span className="text-emerald-600 font-bold">KDS v3.0 ONLINE</span>
           </div>
@@ -81,7 +81,7 @@ export const ScreenK1Login: React.FC = () => {
         <motion.div
           animate={shake ? { x: [-12, 12, -10, 10, -5, 5, 0] } : { x: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full md:w-80 bg-white rounded-3xl border border-[#EAE5DF] p-6 shadow-sm flex flex-col justify-between min-h-[440px]"
+          className="w-full md:w-80 bg-white rounded-3xl border border-[#EFE6DA] p-6 shadow-sm flex flex-col justify-between min-h-[440px]"
         >
           <div>
             <div className="text-md font-bold font-mono uppercase tracking-wider pl-[45px] pb-[20px] text-slate-600 ">
@@ -92,15 +92,15 @@ export const ScreenK1Login: React.FC = () => {
             <motion.div
               animate={shake ? { x: [-8, 8, -6, 6, -3, 3, 0] } : { x: 0 }}
               transition={{ duration: 0.35 }}
-              className={`h-11 rounded-xl bg-[#FAF8F5] border transition flex items-center justify-center gap-3 mb-7 ${
-                shake ? 'border-rose-500 bg-rose-50' : 'border-slate-200'
+              className={`h-11 rounded-xl bg-[#FBF7F0] border transition flex items-center justify-center gap-3 mb-7 ${
+                shake ? 'border-rose-500 bg-rose-50' : 'border-[#EFE6DA]'
               }`}
             >
               {[0, 1, 2, 3].map((idx) => (
                 <div
                   key={idx}
-                  className={`h-3 w-3 rounded-full border border-[#EAE5DF] transition ${
-                    enteredPin.length > idx ? 'bg-[#9C3D1E]' : 'bg-transparent'
+                  className={`h-3 w-3 rounded-full border border-[#EFE6DA] transition ${
+                    enteredPin.length > idx ? 'bg-[#E8722E]' : 'bg-transparent'
                   }`}
                 />
               ))}
@@ -118,26 +118,26 @@ export const ScreenK1Login: React.FC = () => {
                 <button
                   key={num}
                   onClick={() => handleKeyPress(num)}
-                  className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-[#FAF8F5] font-mono text-sm font-bold text-slate-800 transition active:scale-95"
+                  className="h-10 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] font-mono text-sm font-bold text-slate-800 transition active:scale-95"
                 >
                   {num}
                 </button>
               ))}
               <button
                 onClick={handleClear}
-                className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-stone-200 font-mono text-[10px] font-bold text-slate-600 transition"
+                className="h-10 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#EFE6DA] font-mono text-[10px] font-bold text-slate-600 transition"
               >
                 CLR
               </button>
               <button
                 onClick={() => handleKeyPress('0')}
-                className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-[#FAF8F5] font-mono text-sm font-bold text-slate-800 transition active:scale-95"
+                className="h-10 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] font-mono text-sm font-bold text-slate-800 transition active:scale-95"
               >
                 0
               </button>
               <button
                 onClick={handleBackspace}
-                className="h-10 rounded-lg border border-slate-200 bg-[#FAF8F5] hover:bg-stone-200 font-mono text-[10px] font-bold text-slate-600 transition"
+                className="h-10 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#EFE6DA] font-mono text-[10px] font-bold text-slate-600 transition"
               >
                 DEL
               </button>
@@ -150,7 +150,7 @@ export const ScreenK1Login: React.FC = () => {
             disabled={enteredPin.length < 4}
             className={`w-full mt-4 flex items-center justify-center gap-2 rounded-xl py-3 text-xs font-black uppercase tracking-wider transition ${
               enteredPin.length === 4
-                ? 'bg-orange-600 text-white shadow-md shadow-orange-600/30 hover:bg-orange-700'
+                ? 'bg-[#E8722E] text-white shadow-md shadow-[#E8722E]/30 hover:bg-[#d15f1f]'
                 : 'bg-slate-200 text-slate-400 cursor-not-allowed'
             }`}
           >

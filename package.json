@@ -2,12 +2,18 @@
   "name": "thoogudeepa-enterprise-suite",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
     "type-check": "tsc --noEmit",
     "test": "npx tsx scripts/run-all-tests.ts",
+    "test:static": "npx tsx scripts/run-all-tests.ts --group=static --keep-going",
+    "test:live": "npx tsx scripts/run-all-tests.ts --group=live --keep-going",
+    "test:quarantine": "npx tsx scripts/run-all-tests.ts --group=quarantine --keep-going",
     "test:customer": "npx tsx scripts/test-customer-workflow-matrix.ts",
     "test:kitchen": "npx tsx scripts/test-kitchen-workflow-matrix.ts",
     "test:waiter": "npx tsx scripts/test-waiter-workflow-matrix.ts",

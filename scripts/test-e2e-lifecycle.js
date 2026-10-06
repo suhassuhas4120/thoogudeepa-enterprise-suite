@@ -14,7 +14,7 @@
  */
 
 const BASE = process.env.TEST_BASE_URL || 'http://localhost:3001';
-const SUPABASE_URL = 'https://dwjjprzyyjmunhdxvkuo.supabase.co';
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://dwjjprzyyjmunhdxvkuo.supabase.co';
 const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
   'sb_publishable_n2WMU-LLYOgykukVbxg5Zw_vHCa74DV';
 

@@ -11,7 +11,8 @@
  * 7. Peak Rush Concurrency Stress Simulation
  * 8. End-to-End Dining Lifecycle Suite
  *
- * Execution: npx tsx scripts/run-all-tests.ts
+ * Execution: npx tsx scripts/run-all-tests.ts [--group=static|live|quarantine|all] [--keep-going]
+ * (--keep-going is implied when CI=true so one red suite cannot hide the others)
  */
 
 import { spawnSync } from 'child_process';
@@ -27,63 +28,126 @@ interface SuiteResult {
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
-const SUITES = [
+type Group = 'static' | 'live' | 'quarantine';
+
+interface SuiteDef {
+  name: string;
+  cmd: string;
+  args: string[];
+  group: Group;
+}
+
+// static     = reads source files only, no server / DB needed (safe on every PR)
+// live       = needs the app running at TEST_BASE_URL and a Supabase test project
+// quarantine = offline suites with known stale assertions; reported but non-blocking in CI
+const ALL_SUITES: SuiteDef[] = [
+  {
+    name: 'Phase 3 Waiter Tablet & Hardware Suite',
+    cmd: 'npx',
+    args: ['tsx', 'scripts/test-phase3-comprehensive.ts'],
+    group: 'static',
+  },
+  {
+    name: 'Phase 6 Cross-Portal Bridge Suite',
+    cmd: 'npx',
+    args: ['tsx', 'scripts/test-phase6-comprehensive.ts'],
+    group: 'static',
+  },
+  {
+    name: 'Phase 8 Visual & UX Components Suite',
+    cmd: 'npx',
+    args: ['tsx', 'scripts/test-phase8-comprehensive.ts'],
+    group: 'static',
+  },
+  {
+    name: 'Phase 5 Customer Portal Suite (quarantined)',
+    cmd: 'npx',
+    args: ['tsx', 'scripts/test-phase5-comprehensive.ts'],
+    group: 'quarantine',
+  },
+  {
+    name: 'Phase 7 Supabase Schema & CDC Suite (quarantined)',
+    cmd: 'npx',
+    args: ['tsx', 'scripts/test-phase7-comprehensive.ts'],
+    group: 'quarantine',
+  },
   {
     name: 'Customer Workflow & Security Matrix',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-customer-workflow-matrix.ts'],
+    group: 'live',
   },
   {
     name: 'Kitchen KDS & Bulking Matrix',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-kitchen-workflow-matrix.ts'],
+    group: 'live',
   },
   {
     name: 'Waiter Handheld & Cockpit Matrix',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-waiter-workflow-matrix.ts'],
+    group: 'live',
   },
   {
     name: 'Waiter Comprehensive Multi-Form Test Matrix',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-waiter-comprehensive-matrix.ts'],
+    group: 'static',
   },
   {
     name: 'Customer-Kitchen Bidirectional Sync Matrix',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-customer-kitchen-sync-matrix.ts'],
+    group: 'live',
   },
   {
     name: 'Phase 9 E2E Multi-Portal Suite',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-phase9-comprehensive.ts'],
+    group: 'static',
   },
   {
     name: 'Phase 10 Invariants & Defensive Guard Suite',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-phase10-comprehensive.ts'],
+    group: 'static',
   },
   {
     name: 'Full E2E Dining Lifecycle Suite',
     cmd: 'node',
     args: ['scripts/test-e2e-lifecycle.js'],
+    group: 'live',
   },
   {
     name: 'Peak Rush Concurrency Stress Simulation',
     cmd: 'node',
     args: ['scripts/simulate-peak-rush.js'],
+    group: 'live',
   },
   {
     name: 'DB Schema Validation Suite',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-db-schema-validation.ts'],
+    group: 'live',
   },
   {
     name: 'Environment Variable Startup Guard',
     cmd: 'npx',
     args: ['tsx', 'scripts/test-env-validation.ts'],
+    group: 'live',
   },
 ];
+
+const argv = process.argv.slice(2);
+const groupArg = (argv.find((a) => a.startsWith('--group=')) || '--group=all').split('=')[1];
+const KEEP_GOING = argv.includes('--keep-going') || process.env.CI === 'true';
+const SUITES = ALL_SUITES.filter((s) => groupArg === 'all' ? s.group !== 'quarantine' : s.group === groupArg);
+
+if (SUITES.length === 0) {
+  console.error(`No suites for group "${groupArg}". Use --group=static|live|quarantine|all`);
+  process.exit(1);
+}
 
 async function main() {
   console.log('\n================================================================');
@@ -121,8 +185,11 @@ async function main() {
     });
 
     if (!passed) {
-      console.error(`\n[ABORT] Suite failed: ${suite.name} (exit code ${child.status})`);
-      break;
+      console.error(`\n[FAIL] Suite failed: ${suite.name} (exit code ${child.status})`);
+      if (!KEEP_GOING) {
+        console.error('[ABORT] Stopping early (pass --keep-going to run remaining suites).');
+        break;
+      }
     }
   }
 

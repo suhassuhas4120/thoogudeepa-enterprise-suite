@@ -6,20 +6,32 @@ on:
     - cron: '30 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   ping-health:
     name: Keepalive Health Ping
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Ping System Health Endpoint
+      - name: Ping /api/health (exercises app + database)
         env:
-          TARGET_URL: ${{ secrets.DEPLOYED_APP_URL || 'https://dwjjprzyyjmunhdxvkuo.supabase.co' }}
+          DEPLOYED_APP_URL: ${{ secrets.DEPLOYED_APP_URL }}
         run: |
-          echo "Executing scheduled keepalive ping to $TARGET_URL"
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$TARGET_URL" || echo "000")
-          echo "HTTP response status code: $RESPONSE"
-          if [ "$RESPONSE" -ge 200 ] && [ "$RESPONSE" -lt 500 ]; then
-            echo "Database connection is active and responsive."
-          else
-            echo "Warning: Response code $RESPONSE received."
+          if [ -z "$DEPLOYED_APP_URL" ]; then
+            echo "::error::DEPLOYED_APP_URL secret is not set; keepalive would not touch the app or DB."
+            exit 1
           fi
+          URL="${DEPLOYED_APP_URL%/}/api/health"
+          for attempt in 1 2 3; do
+            CODE=$(curl -s -o health.json -w "%{http_code}" --max-time 30 "$URL" || echo "000")
+            echo "Attempt $attempt: HTTP $CODE"
+            if [ "$CODE" = "200" ] && grep -q '"CONNECTED"' health.json; then
+              echo "App and database are healthy."; cat health.json; exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::Health check failed after 3 attempts (last HTTP $CODE)"
+          cat health.json 2>/dev/null || true
+          exit 1

@@ -9,22 +9,13 @@ export function ScreenM10Menu86Stock() {
 
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
-      <div className="bg-white border-2 border-slate-900 rounded-xl p-5 shadow-[4px_4px_0px_#0f172a] flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-rose-600 text-white text-xs font-bold px-2 py-0.5 rounded">
-              [ITEM 86 STOCK CONTROLLER]
-            </span>
-            <span className="text-xs font-bold text-slate-500">LIVE MENU KILL-SWITCH</span>
-          </div>
           <h3 className="text-base font-black text-slate-900 mt-1">
             REAL-TIME DISH AVAILABILITY &amp; PREP DELAYS
           </h3>
-          <p className="text-xs text-slate-500">
-            Toggling 86 instantly disables the dish on Customer QR Menus and Waiter Captain Handhelds!
-          </p>
         </div>
-        <span className="bg-stone-100 border border-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold">
+        <span className="bg-[#FAF8F5] border border-slate-300 px-3 py-1.5 rounded-lg text-xs font-bold">
           {inventory86.filter((i) => i.is86).length} ITEMS SOLD OUT (86)
         </span>
       </div>
@@ -36,7 +27,7 @@ export function ScreenM10Menu86Stock() {
             className={`p-4 rounded-xl border-2 transition flex flex-col justify-between ${
               it.is86
                 ? 'bg-rose-50/70 border-rose-600 shadow-[3px_3px_0px_#e11d48]'
-                : 'bg-white border-slate-900 shadow-[3px_3px_0px_#0f172a]'
+                : 'bg-white border-[#EAE5DF] shadow-xs'
             }`}
           >
             <div>
@@ -78,13 +69,13 @@ export function ScreenM10Menu86Stock() {
                 <div className="flex gap-1">
                   <button
                     onClick={() => kitchenUpdatePrepDelay(it.id, 5)}
-                    className="bg-stone-100 hover:bg-stone-200 px-2 py-0.5 rounded font-bold text-slate-700"
+                    className="bg-[#FAF8F5] hover:bg-stone-200 px-2 py-0.5 rounded font-bold text-slate-700"
                   >
                     +5m
                   </button>
                   <button
                     onClick={() => kitchenUpdatePrepDelay(it.id, -5)}
-                    className="bg-stone-100 hover:bg-stone-200 px-2 py-0.5 rounded font-bold text-slate-700"
+                    className="bg-[#FAF8F5] hover:bg-stone-200 px-2 py-0.5 rounded font-bold text-slate-700"
                   >
                     -5m
                   </button>

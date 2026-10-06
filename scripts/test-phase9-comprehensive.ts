@@ -189,7 +189,8 @@ group('E2E Flow 5 — Order Placement & Kitchen Dispatch Trigger', () => {
   const bridge = useSharedBridge.getState();
   const table = bridge.tables.find(t => t.number === 'T-01')!;
   ok('Table T-01 status transitioned from VACANT to OCCUPIED', table.status === 'OCCUPIED');
-  ok('Table T-01 guestCount updated to 2', table.guestCount === 2);
+  // the 3rd argument is the seat number; guestCount = distinct seats that have ordered
+  ok('Table T-01 guestCount counts distinct ordering seats (seat 2 -> 1)', table.guestCount === 1);
   ok('Table T-01 currentBill updated with order total', table.currentBill > 0);
   ok('KDS ticket queue created 1 new ticket', bridge.kdsTickets.length === 1);
 
@@ -454,12 +455,14 @@ group('E2E Flow 17 — Table Merging & Guest Transfer Lifecycle', () => {
   const t5 = tables.find(t => t.number === 'T-05')!;
   const t6 = tables.find(t => t.number === 'T-06')!;
 
-  ok('Primary table T-05 guest count increases to 6', t5.guestCount === 6);
+  // Per-table model: merging links tables, it does not pool guests onto the primary
+  ok('Primary table T-05 keeps its own 4 guests', t5.guestCount === 4);
+  ok('Secondary table T-06 keeps its own 2 guests', t6.guestCount === 2);
   // Group-based merge: the primary is the lowest table number and every member points at it
   ok('Primary table T-05 is the merge group head (mergedWith = T-05)', t5.mergedWith === 'T-05');
   ok('Secondary table T-06 records mergedWith T-05', t6.mergedWith === 'T-05');
   ok('Both tables list the same merge group peers', JSON.stringify(t5.mergeGroupPeers) === JSON.stringify(['T-05', 'T-06']) && JSON.stringify(t6.mergeGroupPeers) === JSON.stringify(['T-05', 'T-06']));
-  ok('Primary holds the combined capacity (3 + 3 = 6)', t5.capacity === 6);
+  ok('Primary keeps its own capacity (3), floor grid adds members up', t5.capacity === 3);
   ok('Secondary keeps its own capacity (3)', t6.capacity === 3);
   ok('Pre-merge capacity is remembered for undo', t5.preMergeCapacity === 3);
 

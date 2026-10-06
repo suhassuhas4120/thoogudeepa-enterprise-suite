@@ -123,9 +123,9 @@ group('Group 4 — Table Grouping, Merge State Machine & Unmerging', () => {
   ok('SharedBridge defines preMergeBill cache for lossless unmerging', hasText(bridge, 'preMergeBill?: number'));
   ok('SharedBridge defines preMergeGuests cache for restore integrity', hasText(bridge, 'preMergeGuests?: number'));
   ok('SharedBridge defines preMergeStatus cache for vacant/occupied status', hasText(bridge, 'preMergeStatus?:'));
-  ok('SharedBridge waiterMergeTables aggregates total bill to primary table', hasText(bridge, 'waiterMergeTables:', 'combinedBill'));
+  ok('SharedBridge waiterMergeTables keeps each table\'s own bill and items (no consolidation onto primary)', hasText(bridge, 'waiterMergeTables:', 'do NOT consolidate onto primary', 'mergeGroupPeers: combined'));
   ok('SharedBridge waiterUnmergeTable cleanly restores individual table state', hasText(bridge, 'waiterUnmergeTable:', 'restoredTables'));
-  ok('SharedBridge supports multi-table groups with 3 or more members', hasText(bridge, 'oldPrimaryNum', 'newPeers', 'newCombinedBill'));
+  ok('SharedBridge supports multi-table groups (up to 4 members, lowest number is primary)', hasText(bridge, 'combined.length > 4', 'const primaryNum = combined[0]', 'waiterRemoveTableFromGroup'));
   ok('Tablet merge modal provides visual table selector with capacity preview', hasText(tMerge, 'candidateTables', 'handleMerge'));
   ok('SharedBridge waiterRecordsPayment flags all merged peers simultaneously', hasText(bridge, 'groupNums.has(t.number)', "status: 'BILLING'"));
   ok('SharedBridge waiterVacatesTable resets all grouped peers simultaneously', hasText(bridge, 'groupNums.has(t.number)', "status: 'VACANT'"));

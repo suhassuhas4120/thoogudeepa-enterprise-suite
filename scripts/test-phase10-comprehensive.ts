@@ -534,22 +534,24 @@ group('Shift stat accumulation — waiterRecordsPayment', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 // GROUP 14 — waiterMergeTables guest count formula
 // ═══════════════════════════════════════════════════════════════════════════
-group('waiterMergeTables — merge formula and guard', () => {
+group('waiterMergeTables — per-table model and guard', () => {
   ok(
-    'merge guest formula: max(2 x tables, combined guests)',
+    'merge keeps each table\'s own guest count (no pooling onto the primary)',
     (() => {
       freshBridge();
-      orderOn('T-05', 0, 1, 4);
-      orderOn('T-06', 1, 1, 3);
+      orderOn('T-05', 0, 1, 4); // seat arg > capacity 3 -> falls back to seat 1
+      orderOn('T-06', 1, 1, 3); // seat 3
+      const g5 = tableOf('T-05').guestCount;
+      const g6 = tableOf('T-06').guestCount;
       bridgeState().waiterMergeTables('T-05', 'T-06');
-      return tableOf('T-05').guestCount === 7; // max(4, 4 + 3)
+      return tableOf('T-05').guestCount === g5 && tableOf('T-06').guestCount === g6;
     })() &&
     (() => {
       freshBridge();
-      bridgeState().waiterSeatsGuests('T-05', 1, 'Captain Ramesh');
-      bridgeState().waiterSeatsGuests('T-06', 0, 'Captain Ramesh');
+      bridgeState().waiterSeatsGuests('T-05', 4, 'Captain Ramesh');
+      bridgeState().waiterSeatsGuests('T-06', 2, 'Captain Ramesh');
       bridgeState().waiterMergeTables('T-05', 'T-06');
-      return tableOf('T-05').guestCount === 4; // floor of 2 guests per merged table
+      return tableOf('T-05').guestCount === 4 && tableOf('T-06').guestCount === 2;
     })()
   );
   ok(
@@ -593,29 +595,35 @@ group('waiterMergeTables — merge formula and guard', () => {
     })()
   );
   ok(
-    'merged bill = sum of every table\'s bill, held on the primary only',
+    'each table keeps its own bill after merge (floor grid sums members, no double billing)',
     (() => {
       freshBridge();
       const d1 = orderOn('T-05', 0, 1, 2);
       const d2 = orderOn('T-06', 1, 2, 2);
-      const expected = d1.price + d2.price * 2;
       bridgeState().waiterMergeTables('T-05', 'T-06');
-      return tableOf('T-05').currentBill === expected && tableOf('T-06').currentBill === 0;
+      return tableOf('T-05').currentBill === d1.price && tableOf('T-06').currentBill === d2.price * 2;
     })()
   );
   ok(
-    'source table currentBill set to 0 after merge',
-    hasText(bridge, 'currentBill: 0,')
-  );
-  ok(
-    'primary activeItems contains both tables\' items, secondary is emptied',
+    'merge does not zero any member\'s bill',
     (() => {
       freshBridge();
       orderOn('T-05', 0, 1, 2);
       orderOn('T-06', 1, 1, 2);
-      const n = (tableOf('T-05').activeItems?.length ?? 0) + (tableOf('T-06').activeItems?.length ?? 0);
       bridgeState().waiterMergeTables('T-05', 'T-06');
-      return n >= 2 && tableOf('T-05').activeItems?.length === n && (tableOf('T-06').activeItems?.length ?? 0) === 0;
+      return tableOf('T-05').currentBill > 0 && tableOf('T-06').currentBill > 0;
+    })()
+  );
+  ok(
+    'each table keeps its own activeItems after merge',
+    (() => {
+      freshBridge();
+      orderOn('T-05', 0, 1, 2);
+      orderOn('T-06', 1, 1, 2);
+      const n5 = tableOf('T-05').activeItems?.length ?? 0;
+      const n6 = tableOf('T-06').activeItems?.length ?? 0;
+      bridgeState().waiterMergeTables('T-05', 'T-06');
+      return n5 >= 1 && n6 >= 1 && tableOf('T-05').activeItems?.length === n5 && tableOf('T-06').activeItems?.length === n6;
     })()
   );
 });
@@ -717,8 +725,8 @@ group('localStorage rehydration — ticket counter deduplication', () => {
     /Math\.max\(\.\.\.validNums\)/.test(bridge) && /validNums\.length\s*>\s*0\s*\?[^:]+:\s*0/.test(bridge)
   );
   ok(
-    'COMPLETED tickets filtered out on rehydration (not persisted)',
-    /\.filter\(\(tk\)\s*=>\s*tk\s*&&\s*tk\.status\s*!==\s*'COMPLETED'\)/.test(bridge)
+    'COMPLETED and orphan (vacant-table) tickets filtered out on rehydration',
+    /\.filter\(\(tk\)\s*=>\s*tk\s*&&\s*tk\.status\s*!==\s*'COMPLETED'\s*&&\s*activeTableNums\.has\(tk\.tableNumber\)\)/.test(bridge)
   );
   ok(
     'kitchenNotifications not persisted (session-only, cleared to [])',
@@ -1203,8 +1211,8 @@ group('Cross-tab sync — applyPersistedState guard and reconciliation', () => {
     hasText(bridge, 'if (!parsed || !Array.isArray(parsed.tables)) return')
   );
   ok(
-    'incoming kdsTickets filtered to exclude COMPLETED on sync',
-    /as SharedKDSTicket\[\]\)\s*\.filter\(\(tk\)\s*=>\s*tk\s*&&\s*tk\.status\s*!==\s*'COMPLETED'\)/.test(bridge)
+    'incoming kdsTickets filtered to exclude COMPLETED and orphan tickets on sync',
+    /as SharedKDSTicket\[\]\)\s*\.filter\(\(tk\)\s*=>\s*tk\s*&&\s*tk\.status\s*!==\s*'COMPLETED'\s*&&\s*activeTableNums\.has\(tk\.tableNumber\)\)/.test(bridge)
   );
   ok(
     'shiftStats validated by checking typeof tablesServed and totalRevenue',

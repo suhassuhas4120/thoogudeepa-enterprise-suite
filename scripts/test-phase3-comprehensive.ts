@@ -194,7 +194,8 @@ function testCustomerOrderPlacement(): void {
   const table1 = state1.tables.find((t) => t.number === 'T-01');
   assert(table1 !== undefined, 'Table T-01 found in floor plan');
   assert(table1?.status === 'OCCUPIED', 'Table status transitioned to OCCUPIED');
-  assert(table1?.guestCount === 2, 'Table guestCount updated to 2');
+  // customerPlacesOrder's 3rd argument is the SEAT number, and guestCount = distinct seats that have ordered
+  assert(table1?.guestCount === 1, 'Table guestCount counts distinct ordering seats (seat 2 only -> 1)');
   assert(table1?.kotCount === 1, 'Table kotCount incremented to 1');
   assert(table1?.seatedTime !== '--', 'Table seatedTime updated from "--"');
 
@@ -717,25 +718,51 @@ function testWaiterMergeTables(): void {
   assert(t20Before.currentBill === 520, 'T-20 bill is 520');
   assert(t21Before.currentBill === 220, 'T-21 bill is 220');
 
-  // Merge T-21 into T-20
-  bridge.waiterMergeTables('T-20', 'T-21');
+  // Merge T-21 with T-20 (whole tables only)
+  useSharedBridge.getState().waiterMergeTables('T-20', 'T-21');
 
   const state = useSharedBridge.getState();
   const t20After = state.tables.find((t) => t.number === 'T-20')!;
   const t21After = state.tables.find((t) => t.number === 'T-21')!;
 
-  assert(t20After.currentBill === 740, `Target table combined bill (520 + 220 = 740, actual: ${t20After.currentBill})`);
-  assert(t20After.guestCount === 4, `Target table combined guest count (2 + 2 = 4, actual: ${t20After.guestCount})`);
-  assert(t20After.mergedWith === 'T-21', 'Target table mergedWith set to source table');
-  assert(t20After.activeItems?.length === 2, 'Target table activeItems combined both tables');
+  // Per-table model: each table keeps its own bill, guests and items. Nothing is poured into the primary.
+  assert(t20After.currentBill === 520, `Primary keeps its own bill (520, actual: ${t20After.currentBill})`);
+  assert(t21After.currentBill === 220, `Secondary keeps its own bill (220, actual: ${t21After.currentBill})`);
+  assert(t20After.currentBill + t21After.currentBill === 740, 'Group total across members is 740 (floor grid sums members)');
+  assert(t20After.guestCount === 1 && t21After.guestCount === 1, `Each table keeps its own guest count (1 + 1, actual: ${t20After.guestCount} + ${t21After.guestCount})`);
+  assert(t20After.activeItems?.length === 1 && t21After.activeItems?.length === 1, 'Each table keeps its own activeItems');
 
-  assert(t21After.currentBill === 0, 'Source table bill zeroed out');
-  assert(t21After.guestCount === 0, 'Source table guest count zeroed out');
-  assert(t21After.mergedWith === 'T-20', 'Source table mergedWith points to target table');
+  // Group linkage: lowest table number is the primary and EVERY member (primary included) points at it
+  assert(t20After.mergedWith === 'T-20', 'Primary mergedWith points to itself (group head)');
+  assert(t21After.mergedWith === 'T-20', 'Secondary mergedWith points to primary');
+  assert(
+    JSON.stringify(t20After.mergeGroupPeers) === JSON.stringify(['T-20', 'T-21']) &&
+      JSON.stringify(t21After.mergeGroupPeers) === JSON.stringify(['T-20', 'T-21']),
+    'Both members list the same sorted mergeGroupPeers'
+  );
+
+  // Unmerge hands each table back untouched
+  useSharedBridge.getState().waiterUnmergeTable('T-21');
+  const afterUnmerge = useSharedBridge.getState().tables;
+  const u20 = afterUnmerge.find((t) => t.number === 'T-20')!;
+  const u21 = afterUnmerge.find((t) => t.number === 'T-21')!;
+  assert(u20.currentBill === 520 && u21.currentBill === 220, 'Unmerge leaves each table bill unchanged (520 / 220)');
+  assert(!u20.mergedWith && !u21.mergedWith && !u20.mergeGroupPeers && !u21.mergeGroupPeers, 'Unmerge clears all merge links');
 
   // Invalid merge call
   bridge.waiterMergeTables('T-99', 'T-88');
   assert(useSharedBridge.getState().tables.length === 34, 'Invalid table merge does not alter store');
+
+  // Cap: a group never exceeds 4 tables
+  useSharedBridge.getState().resetToFreshDemoState();
+  const b2 = useSharedBridge.getState();
+  b2.waiterMergeTables('T-20', 'T-21');
+  b2.waiterMergeTables('T-20', 'T-22');
+  b2.waiterMergeTables('T-20', 'T-23');
+  b2.waiterMergeTables('T-20', 'T-24'); // 5th table -> silently blocked
+  const grp = useSharedBridge.getState().tables.find((t) => t.number === 'T-20')!;
+  assert(grp.mergeGroupPeers?.length === 4, `Merge group is capped at 4 tables (actual: ${grp.mergeGroupPeers?.length})`);
+  assert(!useSharedBridge.getState().tables.find((t) => t.number === 'T-24')!.mergedWith, '5th table is not linked to the group');
 }
 
 // ---------------------------------------------------------------------------

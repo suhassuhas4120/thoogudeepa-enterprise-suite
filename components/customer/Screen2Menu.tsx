@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
@@ -11,7 +11,18 @@ import { MenuItem } from '../../types/customer';
 import { Search, Plus, Minus, ArrowRight, ShoppingCart, UtensilsCrossed, Ban, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const Screen2Menu: React.FC = () => {
+interface Screen2MenuProps {
+  isWaiterMode?: boolean;
+  tabletMode?: boolean;
+  tableNum?: string;
+  seatNum?: number;
+  waiterName?: string;
+  onBack?: () => void;
+  onKOTFired?: () => void;
+  onSwitchToPayment?: () => void;
+}
+
+export const Screen2Menu: React.FC<Screen2MenuProps> = () => {
   const {
     setCurrentScreen,
     menuItems,

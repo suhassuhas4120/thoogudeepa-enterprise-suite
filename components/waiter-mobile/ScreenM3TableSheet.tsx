@@ -452,11 +452,17 @@ export function ScreenM3TableSheet({
       : null
     : null;
 
+  const unmergedChairsCount = Array.from({ length: totalChairs }).filter(
+    (_, idx) => !Object.values(mergedSeatGroups).some((seats) => seats.includes(idx + 1))
+  ).length;
+  const totalRailCardsCount = 1 + Object.keys(mergedSeatGroups).length + unmergedChairsCount;
+  const isCompactRail = totalRailCardsCount <= 4;
+
   return (
-    <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl relative select-none">
+    <main className="h-[100dvh] bg-[#FAF8F5] flex flex-col font-sans w-full relative select-none overflow-hidden">
 
       {/* Sticky Header: Back to Floor & Table Identity */}
-      <header className="sticky top-0 z-40 bg-white/95 border-b border-[#EAE5DF] px-4 py-3 flex items-center justify-between shadow-2xs backdrop-blur-md">
+      <header className="shrink-0 bg-white/95 border-b border-[#EAE5DF] px-4 py-2.5 flex items-center justify-between shadow-2xs backdrop-blur-md z-40">
         <button
           type="button"
           onClick={onClose}
@@ -484,8 +490,9 @@ export function ScreenM3TableSheet({
         </div>
       </header>
 
-      {/* Main Scrollable Content */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+      {/* Main Content */}
+      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+        <div className="shrink-0 px-4 pt-2.5 pb-0 flex flex-col gap-2.5">
 
         {/* Temporary Notice Toast */}
         <AnimatePresence>
@@ -494,7 +501,7 @@ export function ScreenM3TableSheet({
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
-              className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold font-mono rounded-2xl flex items-center gap-2 shadow-xs"
+              className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-bold font-mono rounded-2xl flex items-center gap-2 shadow-xs shrink-0"
             >
               <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
               <span>{notice}</span>
@@ -503,7 +510,7 @@ export function ScreenM3TableSheet({
         </AnimatePresence>
 
         {/* Table Hero Card: Number, Section & Bill Total */}
-        <div className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs">
+        <div className="shrink-0 p-3.5 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs">
           <div className="flex items-start justify-between">
             <div>
               <p className="font-mono text-[10px] text-[#9C3D1E] font-black uppercase tracking-widest">
@@ -534,7 +541,7 @@ export function ScreenM3TableSheet({
         </div>
 
         {/* ── INTERACTIVE CHAIR NAVIGATION (LARGE, PROMINENT CHAIRS) ── */}
-        <div className="space-y-2">
+        <div className="shrink-0 space-y-1.5">
 
           {/* Merge action bar — slides in when ≥1 chair is selected, providing immediate cancel option */}
           <AnimatePresence>
@@ -580,20 +587,22 @@ export function ScreenM3TableSheet({
           </AnimatePresence>
 
           {/* Horizontal Grid of Large Interactive Chair Cards */}
-          <div className="flex items-center gap-2.5 overflow-x-auto pb-2 scrollbar-none pt-3.5 px-1">
+          <div className={`flex items-center gap-2 pt-2 pb-0.5 px-0.5 ${isCompactRail ? 'w-full' : 'overflow-x-auto scrollbar-none'}`}>
             {/* All Table Card */}
             <button
               type="button"
               onClick={() => setSelectedSeat('ALL')}
-              className={`p-3 rounded-2xl font-mono text-xs font-black border-2 transition shrink-0 flex flex-col items-center justify-between min-w-[88px] h-[86px] shadow-xs active:scale-95 ${
+              className={`p-2.5 rounded-2xl font-mono text-xs font-black border-2 transition flex flex-col items-center justify-between h-[84px] shadow-xs active:scale-95 ${
+                isCompactRail ? 'flex-1 min-w-0' : 'shrink-0 min-w-[88px]'
+              } ${
                 selectedSeat === 'ALL'
                   ? 'bg-stone-900 text-white border-stone-900 ring-2 ring-stone-900/30'
                   : 'bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]'
               }`}
             >
-              <FileText className="h-5 w-5 mb-0.5" />
-              <span>All Table</span>
-              <span className="text-[10px] opacity-80">₹{grandTotal.toFixed(0)}</span>
+              <FileText className="h-4.5 w-4.5 mb-0.5 shrink-0" />
+              <span className="truncate w-full text-center">All Table</span>
+              <span className="text-[10px] opacity-80 shrink-0">₹{grandTotal.toFixed(0)}</span>
             </button>
 
             {/* Merged Group Cards (if any) — each shows a direct Split × button */}
@@ -603,26 +612,28 @@ export function ScreenM3TableSheet({
               const groupAmt = breakdown.totalDue;
 
               return (
-                <div key={groupKey} className="relative shrink-0">
+                <div key={groupKey} className={`relative ${isCompactRail ? 'flex-1 min-w-0' : 'shrink-0'}`}>
                   {groupSeats.length <= 2 ? (
                     /* 2-chair group: single outer button, no inner buttons, split × is sibling */
                     <button
                       type="button"
                       onClick={() => setSelectedSeat(groupKey)}
-                      className={`p-3 rounded-2xl font-mono text-xs font-black border-2 transition flex flex-col items-start justify-between active:scale-95 h-auto min-h-[86px] min-w-[96px] ${
+                      className={`w-full p-2.5 rounded-2xl font-mono text-xs font-black border-2 transition flex flex-col items-start justify-between active:scale-95 h-[84px] ${
+                        !isCompactRail ? 'min-w-[96px]' : ''
+                      } ${
                         isSelected
                           ? 'bg-indigo-700 text-white border-indigo-700 shadow-md ring-2 ring-indigo-400'
                           : 'bg-indigo-50 text-indigo-950 border-indigo-300 hover:bg-indigo-100'
                       }`}
                     >
-                      <div className="flex items-center gap-1 w-full">
-                        <Link2 className="h-4 w-4 shrink-0" />
-                        <span className="font-black">Group</span>
-                        <span className={`ml-auto text-[10px] font-bold ${isSelected ? 'opacity-80' : 'text-indigo-600'}`}>
+                      <div className="flex items-center gap-1 w-full min-w-0">
+                        <Link2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="font-black truncate">Group</span>
+                        <span className={`ml-auto text-[10px] font-bold shrink-0 ${isSelected ? 'opacity-80' : 'text-indigo-600'}`}>
                           ₹{groupAmt.toFixed(0)}
                         </span>
                       </div>
-                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase ${
+                      <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase truncate max-w-full ${
                         isSelected ? 'bg-white/20 text-white' : 'bg-indigo-200 text-indigo-900'
                       }`}>
                         Chairs {groupSeats.join(' & ')}
@@ -635,23 +646,25 @@ export function ScreenM3TableSheet({
                       tabIndex={0}
                       onClick={() => setSelectedSeat(groupKey)}
                       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSelectedSeat(groupKey); }}
-                      className={`p-3 rounded-2xl font-mono text-xs font-black border-2 transition flex flex-col items-start justify-between cursor-pointer active:scale-95 h-auto min-h-[86px] min-w-[130px] ${
+                      className={`w-full p-2.5 rounded-2xl font-mono text-xs font-black border-2 transition flex flex-col items-start justify-between cursor-pointer active:scale-95 h-[84px] ${
+                        !isCompactRail ? 'min-w-[130px]' : ''
+                      } ${
                         isSelected
                           ? 'bg-indigo-700 text-white border-indigo-700 shadow-md ring-2 ring-indigo-400'
                           : 'bg-indigo-50 text-indigo-950 border-indigo-300 hover:bg-indigo-100'
                       }`}
                     >
                       {/* Header row */}
-                      <div className="flex items-center gap-1 w-full">
-                        <Link2 className="h-4 w-4 shrink-0" />
-                        <span className="font-black">Group</span>
-                        <span className={`ml-auto text-[10px] font-bold ${isSelected ? 'opacity-80' : 'text-indigo-600'}`}>
+                      <div className="flex items-center gap-1 w-full min-w-0">
+                        <Link2 className="h-3.5 w-3.5 shrink-0" />
+                        <span className="font-black truncate">Group</span>
+                        <span className={`ml-auto text-[10px] font-bold shrink-0 ${isSelected ? 'opacity-80' : 'text-indigo-600'}`}>
                           ₹{groupAmt.toFixed(0)}
                         </span>
                       </div>
 
                       {/* Per-chair removal chips */}
-                      <div className="mt-1.5 flex flex-wrap gap-1">
+                      <div className="mt-1 flex flex-wrap gap-1">
                         {groupSeats.map((seat) => (
                           <button
                             key={seat}
@@ -660,7 +673,7 @@ export function ScreenM3TableSheet({
                               e.stopPropagation();
                               removeChairFromGroup(seat, groupKey);
                             }}
-                            className={`flex items-center gap-0.5 px-1.5 py-0.5 rounded-md border font-mono text-[9px] font-black active:scale-90 transition ${
+                            className={`flex items-center gap-0.5 px-1 py-0.5 rounded-md border font-mono text-[8.5px] font-black active:scale-90 transition ${
                               isSelected
                                 ? 'bg-white/20 text-white border-white/30 hover:bg-white/30'
                                 : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'
@@ -680,7 +693,7 @@ export function ScreenM3TableSheet({
                     <button
                       type="button"
                       onClick={(e) => { e.stopPropagation(); handleSplitSeatGroup(groupKey); }}
-                      className="absolute -top-1 -right-1 h-5.5 w-5.5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white active:scale-90 z-20 cursor-pointer"
+                      className="absolute -top-1 -right-1 h-5 w-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center shadow-md border-2 border-white active:scale-90 z-20 cursor-pointer"
                       title={`Split ${groupKey}`}
                     >
                       <X className="h-3 w-3" />
@@ -696,7 +709,7 @@ export function ScreenM3TableSheet({
               const inGroup = Object.values(mergedSeatGroups).some((seats) => seats.includes(seatNum));
               if (inGroup) return null;
 
-const isSelected = selectedSeat === seatNum;
+              const isSelected = selectedSeat === seatNum;
               const chairBreakdown = getChairBillBreakdown(seatNum);
               const hasOrders = chairBreakdown.directItems.length > 0;
               const isSeated = hasOrders || seatNum <= occupiedChairsCount;
@@ -748,7 +761,9 @@ const isSelected = selectedSeat === seatNum;
                       setSelectedSeat(seatNum);
                     }
                   }}
-                  className={`p-3 rounded-2xl font-mono text-xs font-black border-2 transition-all active:scale-95 shrink-0 flex flex-col items-center justify-between min-w-[86px] h-[86px] relative select-none ${
+                  className={`p-2.5 rounded-2xl font-mono text-xs font-black border-2 transition-all active:scale-95 flex flex-col items-center justify-between h-[84px] relative select-none ${
+                    isCompactRail ? 'flex-1 min-w-0' : 'shrink-0 min-w-[86px]'
+                  } ${
                     isSelectedForMerge
                       ? 'bg-emerald-50 text-emerald-900 border-emerald-500 ring-2 ring-emerald-400 shadow-md'
                       : isSelected
@@ -769,14 +784,14 @@ const isSelected = selectedSeat === seatNum;
                       <CheckCircle2 className="h-3 w-3 text-white" />
                     </span>
                   )}
-                  <div className="flex items-center gap-1">
-                    <Armchair className="h-4 w-4" />
-                    <span>Chair {seatNum}</span>
+                  <div className="flex items-center gap-1 truncate w-full justify-center">
+                    <Armchair className="h-3.5 w-3.5 shrink-0" />
+                    <span className="truncate">Chair {seatNum}</span>
                   </div>
-                  <span className={`text-[10.5px] font-bold ${isSelectedForMerge ? 'text-emerald-700' : isSelected ? 'text-white' : isSeated && seatCardTotal > 0 ? 'text-[#9C3D1E]' : 'text-stone-400'}`}>
+                  <span className={`text-[10px] font-bold truncate ${isSelectedForMerge ? 'text-emerald-700' : isSelected ? 'text-white' : isSeated && seatCardTotal > 0 ? 'text-[#9C3D1E]' : 'text-stone-400'}`}>
                     {hasOrders ? `₹${seatCardTotal.toFixed(0)}` : isSeated && seatCardTotal > 0 ? `₹${seatCardTotal.toFixed(0)}` : isVacant ? 'Vacant' : '₹0'}
                   </span>
-                  <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase ${
+                  <span className={`text-[8.5px] px-1.5 py-0.2 rounded font-bold uppercase truncate max-w-full ${
                     isSelectedForMerge
                       ? 'bg-emerald-200 text-emerald-800'
                       : isSelected
@@ -794,8 +809,10 @@ const isSelected = selectedSeat === seatNum;
             })}
           </div>
         </div>
+        </div>
+        <div className="flex-1 min-h-0 flex flex-col pb-2.5 gap-2 overflow-hidden">
 
-        {/* ── DETAILS PANEL: DYNAMICALLY ISOLATED BY SEAT / GROUP / TABLE (SWIPEABLE CAROUSEL) ── */}
+        <div className="flex-1 min-h-0 flex flex-col">
         <motion.div
           onPanEnd={(_, info) => {
             if (info.offset.x < -60) {
@@ -816,9 +833,9 @@ const isSelected = selectedSeat === seatNum;
               }
             }
           }}
-          className="p-4 bg-white border border-[#EAE5DF] rounded-2xl shadow-xs space-y-3 font-mono touch-pan-y"
+          className="h-full flex flex-col px-4 pt-3 pb-1 bg-white border-t border-[#EAE5DF] font-mono touch-pan-y overflow-hidden"
         >
-          <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
+          <div className="shrink-0 flex items-center justify-between gap-2 pb-2.5 border-b border-stone-100">
             <div className="min-w-0 flex items-center gap-1.5 flex-1">
               <span className="font-black text-sm text-stone-900 uppercase tracking-wide">
                 {activeGroup
@@ -871,14 +888,14 @@ const isSelected = selectedSeat === seatNum;
               const groupTotal = groupSubtotal + groupTax;
 
               return (
-                <div className="space-y-3 py-1">
-                  {groupItems.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-indigo-950 uppercase tracking-wider px-1">
+                <div className="flex-1 min-h-0 flex flex-col space-y-2 py-1">
+                  {groupItems.length > 0 ? (
+                    <div className="flex-1 min-h-0 flex flex-col space-y-1.5">
+                      <div className="shrink-0 flex items-center justify-between text-xs font-bold text-indigo-950 uppercase tracking-wider px-1">
                         <span>Combined Ordered Dishes</span>
                         <span>{groupItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
-                      <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-0.5">
+                      <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
                         {groupItems.map((item, idx) => (
                           <div
                             key={item.id || idx}
@@ -913,9 +930,18 @@ const isSelected = selectedSeat === seatNum;
                         ))}
                       </div>
                     </div>
+                  ) : (
+                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-6 text-center space-y-2">
+                      <div className="h-10 w-10 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-700">
+                        <Users className="h-5 w-5" />
+                      </div>
+                      <p className="font-mono text-xs font-bold text-indigo-950">
+                        Combined group active — no dishes ordered yet.
+                      </p>
+                    </div>
                   )}
 
-                  <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
+                  <div className="shrink-0 p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl space-y-1.5 text-xs">
                     <div className="flex justify-between text-indigo-900">
                       <span>Food Subtotal ({activeGroup.seats.length} Chairs):</span>
                       <span className="font-bold">₹{groupSubtotal.toFixed(2)}</span>
@@ -935,8 +961,8 @@ const isSelected = selectedSeat === seatNum;
           ) : selectedSeat === 'ALL' ? (
             // All Table KOT Tickets & Items
             allTableOrderedItems.length > 0 ? (
-              <div className="space-y-2.5">
-                <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-0.5">
+              <div className="flex-1 min-h-0 flex flex-col space-y-2.5 py-1">
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
                   {allTableOrderedItems.map((item, idx) => (
                     <div
                       key={item.id || idx}
@@ -978,7 +1004,7 @@ const isSelected = selectedSeat === seatNum;
                 </div>
 
                 {/* Table Cost Summary */}
-                <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5 text-xs font-mono">
+                <div className="shrink-0 p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5 text-xs font-mono">
                   <div className="flex justify-between text-stone-700">
                     <span>Food Subtotal ({allTableOrderedItems.length} items):</span>
                     <span className="font-bold text-stone-900">₹{subtotal.toFixed(2)}</span>
@@ -999,9 +1025,9 @@ const isSelected = selectedSeat === seatNum;
               </div>
             ) : (
               /* Empty orders on table with proper icon and single line */
-              <div className="py-10 flex flex-col items-center justify-center text-center space-y-2">
-                <div className="h-10 w-10 rounded-2xl bg-[#FFF8F5] border border-[#9C3D1E]/20 flex items-center justify-center text-[#9C3D1E]">
-                  <UtensilsCrossed className="h-5 w-5" />
+              <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-8 text-center space-y-2">
+                <div className="h-11 w-11 rounded-2xl bg-[#FFF8F5] border border-[#9C3D1E]/20 flex items-center justify-center text-[#9C3D1E]">
+                  <UtensilsCrossed className="h-5.5 w-5.5" />
                 </div>
                 <p className="font-mono text-xs font-bold text-stone-600">
                   No active orders placed on this table yet.
@@ -1023,14 +1049,14 @@ const isSelected = selectedSeat === seatNum;
 
               if (hasSeatItems) {
                 return (
-                  <div className="space-y-3 py-1">
+                  <div className="flex-1 min-h-0 flex flex-col space-y-2 py-1">
                     {/* Ordered Dishes List for this Chair */}
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between text-xs font-bold text-stone-600 uppercase tracking-wider px-1">
+                    <div className="flex-1 min-h-0 flex flex-col space-y-1.5">
+                      <div className="shrink-0 flex items-center justify-between text-xs font-bold text-stone-600 uppercase tracking-wider px-1">
                         <span>Chair {thisSeatNum} Ordered Dishes</span>
                         <span>{thisSeatItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
-                      <div className="space-y-1.5 max-h-[380px] overflow-y-auto pr-0.5">
+                      <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
                         {thisSeatItems.map((item, idx) => (
                           <div
                             key={item.id || idx}
@@ -1069,7 +1095,7 @@ const isSelected = selectedSeat === seatNum;
                     </div>
 
                     {/* Chair Cost Breakdown Card */}
-                    <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 text-xs">
+                    <div className="shrink-0 p-3 bg-amber-50/70 border border-amber-200 rounded-xl space-y-1.5 text-xs">
                       <div className="flex justify-between text-stone-700">
                         <span>Assigned Guest:</span>
                         <span className="font-black text-stone-900">Seat {thisSeatNum} Guest</span>
@@ -1097,14 +1123,19 @@ const isSelected = selectedSeat === seatNum;
 
               if (isSeatOccupied && allTableOrderedItems.length > 0) {
                 return (
-                  <div className="space-y-3 py-1">
-                    <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5 text-xs">
+                  <div className="flex-1 min-h-0 flex flex-col space-y-2 py-1">
+                    <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-6 text-center space-y-1">
+                      <p className="text-xs font-bold text-stone-700">
+                        Seat {thisSeatNum} Guest
+                      </p>
+                      <p className="text-[11px] text-stone-500 max-w-[280px]">
+                        Chair {thisSeatNum} is sharing general table orders (no chair-specific items ordered yet).
+                      </p>
+                    </div>
+                    <div className="shrink-0 p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5 text-xs">
                       <div className="flex justify-between text-stone-700">
                         <span>Assigned Guest:</span>
                         <span className="font-black text-stone-900">Seat {thisSeatNum} Guest</span>
-                      </div>
-                      <div className="text-[11px] text-stone-500 py-0.5">
-                        Chair {thisSeatNum} is sharing general table orders (no chair-specific items ordered yet).
                       </div>
                       <div className="flex justify-between text-stone-700">
                         <span>Equal Table Share:</span>
@@ -1124,9 +1155,9 @@ const isSelected = selectedSeat === seatNum;
               }
 
               return (
-                <div className="py-10 flex flex-col items-center justify-center text-center space-y-2.5">
-                  <div className="h-10 w-10 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400">
-                    <Armchair className="h-5 w-5" />
+                <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-8 text-center space-y-2.5">
+                  <div className="h-11 w-11 rounded-2xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400">
+                    <Armchair className="h-5.5 w-5.5" />
                   </div>
                   <p className="font-mono text-xs font-bold text-stone-600">
                     {isVacant ? `Table is Vacant — Chair ${thisSeatNum} is empty.` : `Chair ${thisSeatNum} has no orders placed yet.`}
@@ -1137,9 +1168,10 @@ const isSelected = selectedSeat === seatNum;
           )}
 
         </motion.div>
+        </div>
 
         {/* Quick Operations: Merge Seats / Split Back & Serve Food */}
-        <div className="space-y-2">
+        <div className="shrink-0 space-y-2 px-4">
           <div className="grid grid-cols-2 gap-2.5 font-mono text-xs">
             {Object.keys(mergedSeatGroups).length > 0 ? (
               <button
@@ -1236,10 +1268,11 @@ const isSelected = selectedSeat === seatNum;
           )}
         </AnimatePresence>
 
+        </div>
       </div>
 
       {/* Sticky footer: Add Dishes & Settle */}
-      <footer className="sticky bottom-0 z-30 bg-white/95 backdrop-blur-md border-t border-[#EAE5DF] px-4 py-3 pb-6">
+      <footer className="shrink-0 bg-white/95 backdrop-blur-md border-t border-[#EAE5DF] px-4 py-2.5 pb-5 z-30">
         <div className="grid grid-cols-2 gap-2.5 font-mono text-xs font-black">
           <motion.button
             whileTap={{ scale: 0.95 }}

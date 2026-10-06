@@ -359,10 +359,12 @@ group('All 16 manager screens — structural requirements', () => {
 
 // ─── GROUP 13: Design tokens — no prohibited dark backgrounds ─────────────────
 
-group('Design tokens — no prohibited dark backgrounds in manager screens', () => {
+group('Design tokens — no full-page dark backgrounds in manager screens (slate-900 is an allowed accent)', () => {
+  // The manager portal now uses a slate/stone light canvas with slate-900 accents
+  // (buttons, badges, occupied tables). Only genuinely dark page backgrounds are prohibited.
   const prohibitedPatterns = [
-    'bg-slate-900',
     'bg-slate-950',
+    'bg-stone-950',
     'bg-stone-900',
     'bg-stone-950',
     'bg-zinc-900',
@@ -385,16 +387,15 @@ group('Design tokens — no prohibited dark backgrounds in manager screens', () 
     ok(`${name} has no prohibited dark background`, !hasDark);
   }
 
-  // M1Login has intentional hardware terminal bg-[#1C1917] — that's NOT a Tailwind dark class, it's a hex
+  // M1Login keeps an intentional slate-900 hardware panel, but sits on white cards / stone canvas
   const m1 = read('components/manager/ScreenM1Login.tsx');
-  ok('ScreenM1Login intentional dark section uses custom hex (not slate/stone class)', !m1.includes('bg-slate-900') && !m1.includes('bg-stone-900'));
+  ok('ScreenM1Login dark hardware panel (bg-slate-900) sits on white cards and stone canvas', m1.includes('bg-slate-900') && m1.includes('bg-white') && m1.includes('bg-stone-'));
 });
 
 // ─── GROUP 14: Design tokens — brand colors present ──────────────────────────
 
-group('Design tokens — brand terracotta color usage', () => {
-  const brandColor = '#9C3D1E';
-  const altCta = '#8A4228';
+group('Design tokens — orange accent color usage', () => {
+  const accent = /orange-(500|600|700)/;
 
   const screens = [
     'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx', 'ScreenM4BillingPOS.tsx',
@@ -403,15 +404,15 @@ group('Design tokens — brand terracotta color usage', () => {
 
   for (const name of screens) {
     const c = read(`components/manager/${name}`);
-    ok(`${name} uses brand color ${brandColor} or ${altCta}`, c.includes(brandColor) || c.includes(altCta));
+    ok(`${name} uses orange accent (orange-500/600/700)`, accent.test(c));
   }
 });
 
 // ─── GROUP 15: Design tokens — card borders and backgrounds ───────────────────
 
 group('Design tokens — card borders and canvas backgrounds', () => {
-  const canvasColor = '#FAF8F5';
-  const borderColor = '#EAE5DF';
+  const canvasColor = /bg-(white|stone-50)/;
+  const borderColor = /border-slate-(200|300|900)/;
 
   const coreScreens = [
     'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx', 'ScreenM3FloorPlan.tsx',
@@ -420,8 +421,8 @@ group('Design tokens — card borders and canvas backgrounds', () => {
 
   for (const name of coreScreens) {
     const c = read(`components/manager/${name}`);
-    ok(`${name} uses card border ${borderColor}`, c.includes(borderColor));
-    ok(`${name} uses canvas/bg color ${canvasColor}`, c.includes(canvasColor));
+    ok(`${name} uses slate card border (200/300/900)`, borderColor.test(c));
+    ok(`${name} uses white/stone-50 surface`, canvasColor.test(c));
   }
 });
 
@@ -467,7 +468,7 @@ group('UX logic — ScreenM1Login.tsx (authentication flow)', () => {
   ok('M1 has CLR (clearPin) button', /clearPin/.test(s));
   ok('M1 has DEL (deletePinDigit) button', /deletePinDigit/.test(s));
   ok('M1 PIN indicators are 4 dots', /\[0, 1, 2, 3\]\.map/.test(s));
-  ok('M1 filled dot uses brand color #9C3D1E', /bg-\[#9C3D1E\]/.test(s));
+  ok('M1 filled dot uses slate-900 fill', /isFilled \? 'bg-slate-900/.test(s));
   ok('M1 shows openingFloat value', /openingFloat/.test(s));
   ok('M1 Unlock button navigates to screen 2', /setCurrentScreen\(2\)/.test(s));
   ok('M1 has authentication error state', /authError/.test(s));
@@ -578,7 +579,7 @@ group('UX logic — ScreenM7StaffRoster.tsx (staff management)', () => {
   ok('M7 shows STAFF ROSTER DESK header', /STAFF ROSTER DESK/.test(s));
   ok('M7 shows DINNER SERVICE SQUAD', /DINNER SERVICE SQUAD|DINNER SERVICE/.test(s));
   ok('M7 shows staff status badges (ACTIVE, ON BREAK)', /ACTIVE/.test(s) && /ON BREAK/.test(s));
-  ok('M7 uses brand color #9C3D1E', /\#9C3D1E/.test(s));
+  ok('M7 uses orange accent', /orange-(500|600|700)/.test(s));
   ok('M7 shows phone numbers for staff', /phone/.test(s));
   ok('M7 shows assigned section for each staff', /assignedSection/.test(s));
 });
@@ -702,14 +703,14 @@ group('UI components — M1Login PIN pad visual design', () => {
   ok('PIN pad buttons have h-12 height', /h-12/.test(s));
   ok('PIN dots filled state uses scale-110', /scale-110/.test(s));
   ok('PIN dots use rounded-full shape', /rounded-full/.test(s));
-  ok('PIN dots use border border-[#EAE5DF]', /border-\[#EAE5DF\]/.test(s));
-  ok('Filled PIN dot bg is brand terracotta', /bg-\[#9C3D1E\]/.test(s));
-  ok('Empty PIN dot bg is warm canvas', /bg-\[#FAF8F5\]/.test(s));
+  ok('PIN dots use border-2 border-slate-900', /border-2 border-slate-900/.test(s));
+  ok('Filled PIN dot bg is slate-900', /bg-slate-900 scale-110/.test(s));
+  ok('Empty PIN dot bg is stone-100', /bg-stone-100/.test(s));
   ok('Unlock button has shadow-xs', /shadow-xs/.test(s));
   ok('Shift selector has active orange-50 highlight', /bg-orange-50/.test(s));
-  ok('Profile select uses FAF8F5 bg', /bg-\[#FAF8F5\]/.test(s));
+  ok('Profile select uses stone-50 bg', /bg-stone-50/.test(s));
   ok('Opening float shown in large font (text-2xl)', /text-2xl/.test(s));
-  ok('Hardware panel uses brand bg-[#9C3D1E]', /bg-\[#9C3D1E\]/.test(s));
+  ok('Hardware panel uses bg-slate-900', /bg-slate-900 text-white/.test(s));
   ok('KeyRound icon used for auth', /KeyRound/.test(s));
 });
 
@@ -718,9 +719,9 @@ group('UI components — M1Login PIN pad visual design', () => {
 group('UI components — M2LiveOverview table grid visual', () => {
   const s = read('components/manager/ScreenM2LiveOverview.tsx');
   ok('Table grid uses grid-cols-2/8 responsive layout', /grid-cols-2.*md:grid-cols-8|grid-cols-2 sm:grid-cols-4 md:grid-cols-8/.test(s));
-  ok('OCCUPIED table has brand terracotta bg', /bg-\[#9C3D1E\].*OCCUPIED|OCCUPIED.*bg-\[#9C3D1E\]/.test(s));
+  ok('OCCUPIED table has slate-900 bg', /OCCUPIED[\s\S]*bg-slate-900 text-white border-slate-900/.test(s));
   ok('BILLING table has amber-50 bg with amber border', /bg-amber-50.*amber-500|amber.*BILLING/.test(s));
-  ok('VACANT table has white bg with hover border', /bg-white.*hover:border-\[#9C3D1E\]/.test(s));
+  ok('VACANT table has white bg with hover border', /bg-white[^']*hover:border-slate-900/.test(s));
   ok('Capacity shown with P suffix (4P, 2P)', /capacity.*P|capacity\}P/.test(s));
   ok('KOT count shown per table', /kotCount/.test(s));
   ok('Guest count shown per table', /guestCount/.test(s));

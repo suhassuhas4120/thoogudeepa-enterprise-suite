@@ -110,7 +110,7 @@ group('Group 3 — Chair-Level Ordering, Seat Isolation & Breakdown', () => {
   ok('M3 allows chair-specific order placement via OrderPad', hasText(m3Sheet, 'onGoToOrder(typeof selectedSeat === \'number\' ? selectedSeat : undefined)'));
   ok('M3 calculates per-chair itemized running subtotals', hasText(m3Sheet, 'item.seatNumber', 'price'));
   ok('Tablet table detail displays interactive chair matrix', hasText(tDetail, 'selectedChair', 'onSelectChair'));
-  ok('Tablet table detail supports chair item transfer and merging', hasText(tDetail, 'mergeChairs'));
+  ok('Tablet table detail supports chair item transfer and merging', hasText(tDetail, 'waiterMergeChairs', 'waiterMergeSeatGroup'));
   ok('Customer store supports seatNumber attribution on CartItem', hasText(customerTypes, 'seatNumber?: number'));
   ok('Customer store supports tableNumber attribution on CartItem', hasText(customerTypes, 'tableNumber?: string'));
 });

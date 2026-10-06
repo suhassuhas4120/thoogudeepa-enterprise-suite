@@ -188,28 +188,33 @@ export function ScreenM3TableSheet({
       });
     });
 
-    if (allTableOrderedItems.length === 0 && table.activeItems && table.activeItems.length > 0) {
-      table.activeItems.forEach((ai, idx) => {
-        const fallbackPrice =
-          INITIAL_MENU_ITEMS.find(
-            (m) =>
-              m.name.toLowerCase() === ai.name.toLowerCase() ||
-              m.name.toLowerCase().includes(ai.name.toLowerCase()) ||
-              ai.name.toLowerCase().includes(m.name.toLowerCase())
-          )?.price || 220;
-        const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
-        allTableOrderedItems.push({
-          id: ai.id || `ai-${idx}`,
-          name: ai.name,
-          quantity: ai.quantity,
-          price: unitPrice,
-          totalPrice: unitPrice * ai.quantity,
-          options: ai.options,
-          stage: ai.status || 'Placed',
-          seatNumber: ai.seatNumber,
-          ticketId: 'tbl-direct',
-          ticketNumber: 'TBL',
-        });
+    if (allTableOrderedItems.length === 0) {
+      // Pull activeItems from ALL group members (since each table keeps its own items now)
+      groupTables.forEach((gt) => {
+        if (gt.activeItems && gt.activeItems.length > 0) {
+          gt.activeItems.forEach((ai, idx) => {
+            const fallbackPrice =
+              INITIAL_MENU_ITEMS.find(
+                (m) =>
+                  m.name.toLowerCase() === ai.name.toLowerCase() ||
+                  m.name.toLowerCase().includes(ai.name.toLowerCase()) ||
+                  ai.name.toLowerCase().includes(m.name.toLowerCase())
+              )?.price || 220;
+            const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
+            allTableOrderedItems.push({
+              id: ai.id || `ai-${gt.number}-${idx}`,
+              name: ai.name,
+              quantity: ai.quantity,
+              price: unitPrice,
+              totalPrice: unitPrice * ai.quantity,
+              options: ai.options,
+              stage: ai.status || 'Placed',
+              seatNumber: ai.seatNumber,
+              ticketId: 'tbl-direct',
+              ticketNumber: 'TBL',
+            });
+          });
+        }
       });
     }
   }
@@ -222,18 +227,18 @@ export function ScreenM3TableSheet({
   // Dynamic capacity & bill calculations — sum across ALL group members
   const totalChairs = groupTables.reduce((sum, t) => sum + (t.capacity || 4), 0) || (table.capacity || 4);
   const itemsSubtotal = allTableOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
-  // currentBill on primary holds the combined total; use max with itemsSubtotal as fallback
-  const subtotal = isVacant ? 0 : Math.max(table.currentBill || 0, itemsSubtotal);
-  const occupiedChairsCount = isVacant
+  // Sum bills across ALL group members (each table keeps its own bill now)
+  const groupBill = isVacant ? 0 : groupTables.reduce((s, t) => s + (t.currentBill || 0), 0);
+  // Use the higher of aggregated group bill vs computed items total (handles rounding & GST-inclusive edge cases)
+  const subtotal = isVacant ? 0 : Math.max(groupBill, itemsSubtotal);
+  const occupiedChairsCount = (isVacant || allTableOrderedItems.length === 0)
     ? 0
     : Math.min(
         totalChairs,
         Math.max(
-          table.guestCount || 0,
-          partnerTable?.guestCount || 0,
           chairsWithOrders.size,
-          table.status === 'OCCUPIED' || table.status === 'BILLING' ? 2 : 0,
-          ...Array.from(chairsWithOrders)
+          table.guestCount || 0,
+          1
         )
       );
 
@@ -280,6 +285,7 @@ export function ScreenM3TableSheet({
         ? mergedSeatGroups[seat]
         : [];
 
+    const anyChairHasSpecificOrders = allTableOrderedItems.some((i) => !!i.seatNumber);
     const directItems = allTableOrderedItems.filter(
       (i) => i.seatNumber && seatsInTarget.includes(i.seatNumber)
     );
@@ -294,12 +300,22 @@ export function ScreenM3TableSheet({
           ? sharedItems.reduce((s, i) => s + i.totalPrice, 0) / occupiedChairsCount
           : 0;
       calculatedSub = directSub + sharedPerPerson * Math.max(1, seatsInTarget.length);
-    } else {
-      // Chair with no specific items shares the table bill equally
+    } else if (!anyChairHasSpecificOrders && sharedItems.length > 0) {
+      // ONLY when orders were placed by entire table (no chair-specific items on table)
+      // then table amount is split equally across occupied chairs
       calculatedSub =
         occupiedChairsCount > 0
           ? (subtotal / occupiedChairsCount) * Math.max(1, seatsInTarget.length)
           : 0;
+    } else if (sharedItems.length > 0) {
+      // General shared items exist alongside chair items, this chair shares only the shared portion
+      calculatedSub =
+        occupiedChairsCount > 0
+          ? (sharedItems.reduce((s, i) => s + i.totalPrice, 0) / occupiedChairsCount) * Math.max(1, seatsInTarget.length)
+          : 0;
+    } else {
+      // Chair with no specific items placed no orders
+      calculatedSub = 0;
     }
 
     const calculatedTax = Math.round(calculatedSub * 0.05);
@@ -972,12 +988,13 @@ export function ScreenM3TableSheet({
                         <div>
                           <div className="font-black text-stone-900">
                             {item.seatNumber ? (
-                              <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 text-[10px] mr-1.5 font-bold">
-                                Chair {item.seatNumber}
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-900 text-amber-200 text-[10px] mr-1.5 font-black font-mono shadow-2xs">
+                                <Armchair className="h-3 w-3 text-amber-300" />
+                                <span>Chair {item.seatNumber}</span>
                               </span>
                             ) : (
-                              <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-700 text-[10px] mr-1.5 font-bold">
-                                Table
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFF8F5] text-[#9C3D1E] border border-[#9C3D1E]/30 text-[10px] mr-1.5 font-black font-mono">
+                                <span>All Table</span>
                               </span>
                             )}
                             <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
@@ -1121,7 +1138,11 @@ export function ScreenM3TableSheet({
                 );
               }
 
-              if (isSeatOccupied && allTableOrderedItems.length > 0) {
+              const anyChairHasSpecificOrders = allTableOrderedItems.some((i) => !!i.seatNumber);
+              const tableSharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
+              const isEntireTableOrder = !anyChairHasSpecificOrders && tableSharedItems.length > 0;
+
+              if (isSeatOccupied && isEntireTableOrder) {
                 return (
                   <div className="flex-1 min-h-0 flex flex-col space-y-2 py-1">
                     <div className="flex-1 min-h-0 flex flex-col items-center justify-center py-6 text-center space-y-1">
@@ -1129,7 +1150,7 @@ export function ScreenM3TableSheet({
                         Seat {thisSeatNum} Guest
                       </p>
                       <p className="text-[11px] text-stone-500 max-w-[280px]">
-                        Chair {thisSeatNum} is sharing general table orders (no chair-specific items ordered yet).
+                        Chair {thisSeatNum} is sharing general table orders (order placed for entire table).
                       </p>
                     </div>
                     <div className="shrink-0 p-3 bg-stone-50 border border-stone-200 rounded-xl space-y-1.5 text-xs">

@@ -219,7 +219,7 @@ export default function WaiterMobilePage() {
           window.addEventListener('pointermove', onMove);
           window.addEventListener('pointerup', onUp);
         }}
-        className="flex-1 flex flex-col min-h-screen bg-[#FAF8F5] touch-pan-y"
+        className="flex-1 flex flex-col h-screen h-[100dvh] max-h-screen bg-[#FAF8F5] touch-pan-y overflow-hidden"
       >
         <ScreenM4OrderPad
           tableNum={view.tableNum}

@@ -158,7 +158,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
     // 1. Seat guests if vacant (ensure capacity fits this chair)
     const targetTable = tables.find((t) => t.number === targetTableNum);
     if (targetTable && targetTable.status === 'VACANT') {
-      waiterSeatsGuests(targetTableNum, effectiveSeatNum ? Math.max(1, effectiveSeatNum) : 1, captain);
+      waiterSeatsGuests(targetTableNum, 1, captain);
     }
 
     // 2. Fire KOT to Kitchen KDS tagged with chair/seat number
@@ -389,9 +389,16 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   // ── 1. WAITER DIRECT ORDERING MODE ──
   if (isWaiterMode) {
+    const currentTableObj = tables.find((t) => t.number === effectiveTableNum);
+    const tableCapacity = currentTableObj?.capacity || 2;
+    const allChairsLabel = Array.from({ length: tableCapacity }, (_, i) => i + 1).join(', ');
+    const bannerContextText = seatNum
+      ? `${effectiveTableNum} - Chair ${seatNum}`
+      : `${effectiveTableNum} - Chair ${allChairsLabel}`;
+
     return (
       <div className={`bg-[#FAF8F5] flex flex-col font-sans relative select-none overflow-hidden ${
-        tabletMode ? 'w-full h-full' : 'min-h-screen max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl'
+        tabletMode ? 'w-full h-full' : 'h-[100dvh] w-full'
       }`}>
         {/* Waiter Sticky Header */}
         <header className="sticky top-0 z-40 bg-white/95 border-b-2 border-stone-200 px-4 py-2.5 flex items-center justify-between shadow-2xs backdrop-blur-md">
@@ -408,10 +415,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-black uppercase text-[#9C3D1E] bg-[#FFF8F5] border-2 border-[#9C3D1E]/40 px-3 py-1 rounded-xl shadow-2xs flex items-center gap-1.5">
               <Armchair className="h-4 w-4 stroke-[2.4]" />
-              <span>{seatNum ? `Chair ${seatNum}` : 'All Table'}</span>
-            </span>
-            <span className="font-mono text-xs font-black text-stone-900 bg-stone-100 px-3 py-1 rounded-xl border-2 border-stone-200">
-              {effectiveTableNum}
+              <span>{seatNum ? `Chair-${seatNum}` : effectiveTableNum}</span>
             </span>
           </div>
 
@@ -430,10 +434,10 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
         <div className="bg-gradient-to-r from-amber-50 to-[#FFF8F5] border-b-2 border-amber-200/80 px-4 py-2 flex items-center justify-between font-mono text-xs shrink-0 shadow-2xs">
           <div className="flex items-center gap-2">
             <div className="h-6 w-6 rounded-lg bg-[#9C3D1E] text-white flex items-center justify-center font-black text-xs shadow-2xs">
-              {seatNum ? seatNum : 'T'}
+              {seatNum ? 'C' : 'T'}
             </div>
             <span className="font-black text-stone-900 text-xs">
-              {seatNum ? `Ordering for Chair ${seatNum}` : `Ordering for All Seats (${effectiveTableNum})`}
+              {bannerContextText}
             </span>
           </div>
           <span className="text-[11px] font-bold text-stone-600">
@@ -444,7 +448,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
         {/* Exact Menu Grid */}
         {menuBodyContent}
 
-        {/* Waiter Sticky Bottom Bar: Fire KOT with Live Sync */}
+        {/* Waiter Sticky Bottom Bar: Place Order */}
         {totalCartCount > 0 && (
           <div className="sticky bottom-0 z-40 p-3 bg-white/95 border-t-2 border-stone-200 shadow-xl backdrop-blur-md">
             <motion.button
@@ -453,8 +457,8 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
               className="flex w-full items-center justify-between rounded-2xl bg-[#9C3D1E] hover:bg-[#853216] px-5 py-4 text-xs font-black uppercase tracking-wider text-white shadow-md transition cursor-pointer"
             >
               <div className="flex items-center gap-2">
-                <Flame className="h-5 w-5 text-amber-300" />
-                <span className="text-sm">Fire KOT to Kitchen</span>
+                <span className="text-base">🍽️</span>
+                <span className="text-sm font-black tracking-wide">Place Order</span>
                 <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-black text-white font-mono">
                   {totalCartCount} Items
                 </span>

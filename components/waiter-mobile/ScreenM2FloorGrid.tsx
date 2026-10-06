@@ -15,9 +15,10 @@ import {
   Megaphone,
   Minus,
   Pencil,
+  RotateCcw,
 } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, animate } from 'framer-motion';
-import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable, SharedKDSTicket } from '../../store/useSharedBridge';
 
 interface Props {
   waiterName: string;
@@ -28,34 +29,110 @@ interface Props {
   // tables.length invariant
 }
 
-function getTableCardStyle(tbl: SharedTable, isFull: boolean) {
-  if (tbl.mergedWith) {
-    return 'border-indigo-400 bg-indigo-50/50 text-indigo-950 shadow-xs';
+function getOccupiedSeatsForTable(
+  table: SharedTable,
+  capacity: number,
+  kdsTickets: SharedKDSTicket[]
+): Set<number> {
+  const occupied = new Set<number>();
+
+  // Strict restaurant rule: If table has no running bill (₹0) and no active items, it is 100% VACANT!
+  const hasBill = typeof table.currentBill === 'number' && table.currentBill > 0;
+  const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
+
+  if (!hasBill && !hasActiveItems) {
+    return occupied;
   }
-  if (tbl.status === 'BILLING') {
+
+  // 1. Check table activeItems (live table order)
+  if (table.activeItems) {
+    for (const item of table.activeItems) {
+      if (item.seatNumber && item.seatNumber >= 1 && item.seatNumber <= capacity) {
+        occupied.add(item.seatNumber);
+      }
+    }
+  }
+
+  // 2. Check active KDS tickets only if running bill exists
+  if (hasBill) {
+    const tickets = kdsTickets.filter((tk) => tk.tableNumber === table.number && tk.status !== 'COMPLETED');
+    for (const tk of tickets) {
+      if (tk.seatNumber && tk.seatNumber >= 1 && tk.seatNumber <= capacity) {
+        occupied.add(tk.seatNumber);
+      }
+      for (const item of tk.items) {
+        if (item.seatNumber && item.seatNumber >= 1 && item.seatNumber <= capacity) {
+          occupied.add(item.seatNumber);
+        }
+      }
+    }
+  }
+
+  // If table has orders placed / running bill but no specific chair was tagged (whole-table order):
+  if (occupied.size === 0 && (hasBill || hasActiveItems)) {
+    occupied.add(1);
+  }
+
+  return occupied;
+}
+
+function getTableItemsPlacedCount(
+  table: SharedTable,
+  kdsTickets: SharedKDSTicket[]
+): number {
+  // Strict restaurant rule: If table has no running bill (₹0) and no active items, it has 0 items!
+  const hasBill = typeof table.currentBill === 'number' && table.currentBill > 0;
+  const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
+
+  if (!hasBill && !hasActiveItems) {
+    return 0;
+  }
+
+  // 1. Table activeItems (true source of truth for active items)
+  if (hasActiveItems && table.activeItems) {
+    return table.activeItems.reduce((s, it) => s + (it.quantity || 1), 0);
+  }
+
+  // 2. Active tickets if running bill exists
+  if (hasBill) {
+    const tickets = kdsTickets.filter((tk) => tk.tableNumber === table.number && tk.status !== 'COMPLETED');
+    const ticketItemsCount = tickets.reduce(
+      (sum, tk) => sum + tk.items.reduce((s, it) => s + (it.quantity || 1), 0),
+      0
+    );
+    if (ticketItemsCount > 0) return ticketItemsCount;
+  }
+
+  return 0;
+}
+
+function getTableCardStyle(status: SharedTable['status'], isFull: boolean, isMerged: boolean) {
+  if (status === 'BILLING') {
     return 'border-purple-300 bg-purple-50/60 text-purple-900 shadow-xs';
   }
-  if (tbl.status === 'CLEANING') {
+  if (status === 'CLEANING') {
     return 'border-stone-300 bg-[#FAF8F5] text-stone-700 shadow-xs';
   }
-  if (tbl.status === 'OCCUPIED') {
+  if (status === 'OCCUPIED') {
     if (isFull) {
       return 'border-amber-400 bg-amber-50/80 text-amber-950 shadow-xs ring-1 ring-amber-300/60';
     }
     return 'border-amber-300 bg-amber-50/60 text-amber-900 shadow-xs';
   }
   // VACANT
-  return 'border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-xs';
+  return isMerged
+    ? 'border-emerald-300 bg-emerald-50/40 text-emerald-900 shadow-xs'
+    : 'border-emerald-200 bg-emerald-50/40 text-emerald-800 shadow-xs';
 }
 
-function getTableBadge(tbl: SharedTable, isFull: boolean, occupiedChairs: number, totalChairs: number) {
-  if (tbl.status === 'BILLING') {
+function getTableBadge(status: SharedTable['status'], isFull: boolean, occupiedChairs: number, totalChairs: number) {
+  if (status === 'BILLING') {
     return { text: 'BILLING', style: 'bg-purple-100 text-purple-800 border-purple-300' };
   }
-  if (tbl.status === 'CLEANING') {
+  if (status === 'CLEANING') {
     return { text: 'CLEANING', style: 'bg-stone-200 text-stone-700 border-stone-300' };
   }
-  if (tbl.status === 'OCCUPIED') {
+  if (status === 'OCCUPIED') {
     if (isFull) {
       return { text: `FULL (${totalChairs}/${totalChairs})`, style: 'bg-amber-600 text-white border-amber-600 font-black' };
     }
@@ -163,10 +240,11 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
   }, [activePings.length]);
 
   // Floor Chair / Seat Statistics Calculation
-  const totalFloorChairs = tables.reduce((acc, t) => acc + (t.capacity || 0), 0);
+  const totalFloorChairs = tables.reduce((acc, t) => acc + (t.preMergeCapacity !== undefined ? t.preMergeCapacity : (t.capacity || 0)), 0);
   const totalOccupiedChairs = tables.reduce((acc, t) => {
     if (t.status === 'OCCUPIED' || t.status === 'BILLING') {
-      const occ = Math.min(t.capacity, Math.max(1, t.guestCount || (t.activeItems && t.activeItems.length > 0 ? 2 : 1)));
+      const cap = t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity;
+      const occ = Math.min(cap, Math.max(1, t.guestCount || 1));
       return acc + occ;
     }
     return acc;
@@ -209,7 +287,8 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
     occupiedChairs: number;
     availableChairs: number;
     totalBill: number;
-    kotCount: number;
+    totalItemsPlaced: number;
+    memberOccupiedSeats: Map<string, Set<number>>;
     status: SharedTable['status'];
     section: string;
     hasPing: boolean;
@@ -239,21 +318,32 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
         .map((num) => tables.find((t) => t.number === num))
         .filter(Boolean) as SharedTable[];
 
-      const totalChairs = allMembers.reduce((s, t) => {
-        const removed = t.removedChairs?.length || 0;
-        return s + Math.max(0, t.capacity - removed);
-      }, 0);
-      const occupiedChairs = allMembers.reduce((s, t) => {
-        if (t.status === 'OCCUPIED' || t.status === 'BILLING') {
-          return s + Math.min(t.capacity, Math.max(0, t.guestCount || (t.activeItems && t.activeItems.length > 0 ? 1 : 0)));
-        }
-        return s;
-      }, 0);
-      const kotCount = allMembers.reduce((s, t) => {
-        return s + kdsTickets.filter((tk) => tk.tableNumber === t.number).length;
-      }, 0);
+      const memberOccupiedSeats = new Map<string, Set<number>>();
+      let occupiedChairs = 0;
+      let totalItemsPlaced = 0;
+      let totalChairs = 0;
+
+      for (const member of allMembers) {
+        const cap = member.preMergeCapacity !== undefined ? member.preMergeCapacity : member.capacity;
+        const removed = member.removedChairs?.length || 0;
+        totalChairs += Math.max(0, cap - removed);
+
+        const occSeats = getOccupiedSeatsForTable(member, cap, kdsTickets);
+        memberOccupiedSeats.set(member.number, occSeats);
+        occupiedChairs += occSeats.size;
+
+        totalItemsPlaced += getTableItemsPlacedCount(member, kdsTickets);
+      }
+
+      // Sum bills across all members
+      const totalBill = allMembers.reduce((s, t) => s + (t.currentBill || 0), 0);
+      const hasOrders = totalBill > 0 && (totalItemsPlaced > 0 || occupiedChairs > 0);
+      const effectiveStatus: SharedTable['status'] = hasOrders
+        ? (primaryTbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
+        : 'VACANT';
+
       const hasPing = allMembers.some((t) => urgentPingTables.has(t.number));
-      const elapsedMins = calculateElapsedMinutes(primaryTbl.seatedTime);
+      const elapsedMins = hasOrders ? calculateElapsedMinutes(primaryTbl.seatedTime) : null;
 
       unifiedTables.push({
         id: peers.slice().sort().join('-'),
@@ -264,9 +354,10 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
         totalChairs,
         occupiedChairs,
         availableChairs: Math.max(0, totalChairs - occupiedChairs),
-        totalBill: primaryTbl.currentBill || 0,   // primary holds combined bill in store
-        kotCount,
-        status: primaryTbl.status,
+        totalBill,
+        totalItemsPlaced,
+        memberOccupiedSeats,
+        status: effectiveStatus,
         section: primaryTbl.section,
         hasPing,
         elapsedMins,
@@ -277,13 +368,24 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       if (seenGroupIds.has(tbl.number)) continue;
       seenGroupIds.add(tbl.number);
 
-      const totalChairs = tbl.capacity;
-      const occupiedChairs = (tbl.status === 'OCCUPIED' || tbl.status === 'BILLING')
-        ? Math.min(totalChairs, Math.max(1, tbl.guestCount || (tbl.activeItems && tbl.activeItems.length > 0 ? 2 : 1)))
-        : 0;
-      const kotCount = kdsTickets.filter((tk) => tk.tableNumber === tbl.number).length;
+      const memberOccupiedSeats = new Map<string, Set<number>>();
+      const cap = tbl.preMergeCapacity !== undefined ? tbl.preMergeCapacity : tbl.capacity;
+      const removed = tbl.removedChairs?.length || 0;
+      const totalChairs = Math.max(0, cap - removed);
+
+      const occSeats = getOccupiedSeatsForTable(tbl, cap, kdsTickets);
+      memberOccupiedSeats.set(tbl.number, occSeats);
+      const occupiedChairs = occSeats.size;
+
+      const totalItemsPlaced = getTableItemsPlacedCount(tbl, kdsTickets);
+      const totalBill = tbl.currentBill || 0;
+      const hasOrders = totalBill > 0 && (totalItemsPlaced > 0 || occupiedChairs > 0);
+      const effectiveStatus: SharedTable['status'] = hasOrders
+        ? (tbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
+        : 'VACANT';
+
       const hasPing = urgentPingTables.has(tbl.number);
-      const elapsedMins = calculateElapsedMinutes(tbl.seatedTime);
+      const elapsedMins = hasOrders ? calculateElapsedMinutes(tbl.seatedTime) : null;
 
       unifiedTables.push({
         id: tbl.id,
@@ -294,9 +396,10 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
         totalChairs,
         occupiedChairs,
         availableChairs: Math.max(0, totalChairs - occupiedChairs),
-        totalBill: tbl.currentBill || 0,
-        kotCount,
-        status: tbl.status,
+        totalBill,
+        totalItemsPlaced,
+        memberOccupiedSeats,
+        status: effectiveStatus,
         section: tbl.section,
         hasPing,
         elapsedMins,
@@ -549,12 +652,14 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
         <div className="grid grid-cols-2 gap-3">
           {unifiedTables.map((entry) => {
             const isFull = entry.occupiedChairs >= entry.totalChairs && entry.totalChairs > 0;
-            const badge = getTableBadge(entry.primary, isFull, entry.occupiedChairs, entry.totalChairs);
+            const badge = getTableBadge(entry.status, isFull, entry.occupiedChairs, entry.totalChairs);
             const isBeingHeld = holdingTable === entry.primary.number;
             const allMemberNums = entry.allMembers.map((m) => m.number);
-            const readyCount = kdsTickets.filter(
-              (tk) => tk.status === 'READY' && allMemberNums.includes(tk.tableNumber)
-            ).length;
+            const readyCount = entry.totalBill > 0
+              ? kdsTickets.filter(
+                  (tk) => tk.status === 'READY' && allMemberNums.includes(tk.tableNumber)
+                ).length
+              : 0;
             const pendingPingCount = pings.filter(
               (p) => p.status === 'PENDING' && allMemberNums.includes(p.tableNumber)
             ).length;
@@ -594,9 +699,9 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
                   // Only navigate if hold never fired
                   if (!holdingTableRef.current) onSelectTable(entry.primary.number);
                 }}
-                className={`p-3 rounded-2xl border-2 text-left flex flex-col justify-between min-h-[178px] relative touch-pan-y cursor-pointer select-none ${getTableCardStyle(entry.primary, isFull)} ${
+                className={`p-3 rounded-2xl border-2 text-left flex flex-col justify-between min-h-[178px] relative touch-pan-y cursor-pointer select-none ${getTableCardStyle(entry.status, isFull, entry.isMerged)} ${
                   isBeingHeld ? 'shadow-2xl' : ''
-                } ${entry.isMerged ? 'border-indigo-400 bg-indigo-50/60 col-span-2' : ''}`}
+                } ${entry.isMerged ? 'col-span-2' : ''}`}
               >
                 <div>
                   {/* Card Header: Table Number(s) (left) & Status Badge + Notification (right) */}
@@ -712,8 +817,9 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
                   {(() => {
                     const isEditing = entry.isMerged && (entry.primary.isMergeConfirmed === false || editingTables.has(entry.primary.number));
                     const effectiveChairs = entry.allMembers.reduce((sum, member) => {
+                      const cap = member.preMergeCapacity !== undefined ? member.preMergeCapacity : member.capacity;
                       const removedCount = member.removedChairs?.length || 0;
-                      return sum + Math.max(0, member.capacity - removedCount);
+                      return sum + Math.max(0, cap - removedCount);
                     }, 0);
 
                     const chairGridCols =
@@ -728,15 +834,14 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
                         <div className={`grid ${chairGridCols} gap-1.5 w-full`}>
                           {entry.allMembers.map((member, memberIdx) => {
                             const colors = memberColors[memberIdx % memberColors.length];
-                            const memberOccupied = (member.status === 'OCCUPIED' || member.status === 'BILLING')
-                              ? Math.min(member.capacity, Math.max(0, member.guestCount || 0))
-                              : 0;
+                            const occSeats = entry.memberOccupiedSeats.get(member.number) || new Set<number>();
+                            const cap = member.preMergeCapacity !== undefined ? member.preMergeCapacity : member.capacity;
 
-                            return Array.from({ length: member.capacity }).map((_, idx) => {
+                            return Array.from({ length: cap }).map((_, idx) => {
                               if (member.removedChairs?.includes(idx)) return null;
 
-                              const isOccupied = idx < memberOccupied;
                               const seatNum = idx + 1;
+                              const isOccupied = occSeats.has(seatNum);
                               return (
                                 <div key={`m${memberIdx}-s${idx}`} className="relative">
                                   <button
@@ -803,9 +908,19 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
 
                 {/* Footer */}
                 <div className="pt-1 border-t border-current/10 flex items-center justify-between font-mono text-[9.5px] text-stone-500">
-                  <span>{entry.totalChairs} Seats{entry.isMerged ? ' (Combined)' : ''}</span>
-                  <span className="flex items-center gap-1">
-                    {entry.kotCount > 0 && <span className="text-[#9C3D1E] font-bold">{entry.kotCount} KOT</span>}
+                  <span>
+                    {entry.status === 'VACANT'
+                      ? `Vacant · ${entry.totalChairs} Seats`
+                      : entry.status === 'BILLING'
+                      ? `Billing · ${entry.totalChairs} Seats`
+                      : `${entry.occupiedChairs} Occupied · ${entry.availableChairs} Free`}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    {entry.totalItemsPlaced > 0 && (
+                      <span className="text-[#9C3D1E] font-bold">
+                        {entry.totalItemsPlaced} {entry.totalItemsPlaced === 1 ? 'Item' : 'Items'}
+                      </span>
+                    )}
                     {entry.status === 'OCCUPIED' && entry.elapsedMins !== null && (
                       <span className="font-mono font-bold text-stone-600">{formatElapsed(entry.elapsedMins)}</span>
                     )}

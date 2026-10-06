@@ -303,6 +303,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   customerPlacesOrder: (tableNumber, guestName, guestCount, items) => {
+    const targetTable = get().tables.find((t) => t.number === tableNumber);
+    const assignedSeat = (guestCount && guestCount >= 1 && guestCount <= (targetTable?.capacity || 8)) ? guestCount : 1;
+
     const ticket: SharedKDSTicket = {
       id: makeTicketId(),
       tableNumber,
@@ -311,7 +314,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       elapsedMinutes: 0,
       status: 'NEW',
       source: 'CUSTOMER',
-      seatNumber: 1,
+      seatNumber: assignedSeat,
       items: items.map((i, idx) => ({
         id: `ki-c-${Date.now()}-${idx}`,
         name: i.item.name,
@@ -320,7 +323,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         prepMode: i.item.prepMode,
         options: i.selectedOption,
         addOns: i.addOns,
-        seatNumber: 1,
+        seatNumber: assignedSeat,
         price: i.item.price,
       })),
     };
@@ -350,7 +353,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           ? {
               ...t,
               status: 'OCCUPIED',
-              guestCount: guestCount || t.guestCount || 1,
+              guestCount: (() => {
+                const existingSeats = new Set<number>();
+                (t.activeItems || []).forEach((it) => {
+                  if (it.seatNumber) existingSeats.add(it.seatNumber);
+                });
+                existingSeats.add(assignedSeat);
+                return Math.min(t.capacity, Math.max(1, existingSeats.size));
+              })(),
               seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
               currentBill: t.currentBill + orderTotal,
               kotCount: t.kotCount + 1,
@@ -361,7 +371,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                   name: i.item.name,
                   quantity: i.quantity,
                   status: 'Placed',
-                  seatNumber: 1,
+                  seatNumber: assignedSeat,
                   price: i.item.price,
                   options: i.selectedOption,
                 })),
@@ -730,7 +740,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           ? {
               ...t,
               status: 'OCCUPIED',
-              guestCount: Math.max(t.guestCount || 0, seatNumber ? seatNumber : 1),
+              guestCount: (() => {
+                const existingSeats = new Set<number>();
+                (t.activeItems || []).forEach((it) => {
+                  if (it.seatNumber) existingSeats.add(it.seatNumber);
+                });
+                if (seatNumber) existingSeats.add(seatNumber);
+                return Math.min(t.capacity, Math.max(1, existingSeats.size));
+              })(),
               seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
               currentBill: t.currentBill + kotTotal,
               kotCount: t.kotCount + 1,
@@ -822,46 +839,29 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       // Primary = lowest table number in combined group (stable sort order)
       const primaryNum = combined[0];
 
-      // Combined capacity: sum of all members' capacities
-      const combinedCapacity = combined.reduce((sum, num) => {
+      const hasActiveOrders = combined.some((num) => {
         const t = state.tables.find((x) => x.number === num);
-        return sum + (t?.capacity || 2);
-      }, 0);
-
-      // Sum up all bills and guests from every table in the combined group
-      const combinedBill = combined.reduce((sum, num) => {
-        const t = state.tables.find((x) => x.number === num);
-        return sum + (t?.currentBill || 0);
-      }, 0);
-      const combinedGuests = combined.reduce((sum, num) => {
-        const t = state.tables.find((x) => x.number === num);
-        return sum + (t?.guestCount || 0);
-      }, 0);
-
-      // Collect all active items from every table
-      const combinedItems = combined.flatMap((num) => {
-        const t = state.tables.find((x) => x.number === num);
-        return t?.activeItems || [];
+        return (t?.currentBill || 0) > 0 || (t?.activeItems && t.activeItems.length > 0);
       });
+      const mergedStatus = hasActiveOrders ? ('OCCUPIED' as const) : ('VACANT' as const);
 
       return {
         tables: state.tables.map((t) => {
           if (!combined.includes(t.number)) return t;
 
-          const isPrimary = t.number === primaryNum;
+          const preCap = t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity;
+          // IMPORTANT: Each table keeps its own activeItems and currentBill.
+          // The floor grid aggregates them across members — do NOT consolidate onto primary.
+          // This prevents double-billing and ensures occupied-chair counts are correct per table.
           return {
             ...t,
-            status: 'OCCUPIED' as const,
-            // Primary holds combined capacity, bill + items
-            capacity: isPrimary ? combinedCapacity : t.capacity,
-            currentBill: isPrimary ? combinedBill : 0,
-            guestCount: isPrimary ? Math.max(combined.length * 2, combinedGuests) : 0,
-            activeItems: isPrimary ? combinedItems : [],
-            // mergedWith = primary's number for all (including primary itself so isMerged check works)
+            status: mergedStatus,
+            capacity: preCap,
+            // Preserve each table's own bill and items — do NOT move them to primary
             mergedWith: primaryNum,
             mergeGroupPeers: combined,
             isMergeConfirmed: false,
-            preMergeCapacity: t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity,
+            preMergeCapacity: preCap,
             preMergeBill: t.preMergeBill !== undefined ? t.preMergeBill : t.currentBill,
             preMergeGuests: t.preMergeGuests !== undefined ? t.preMergeGuests : t.guestCount,
             preMergeStatus: t.preMergeStatus !== undefined ? t.preMergeStatus : t.status,
@@ -986,18 +986,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       return {
         tables: state.tables.map((t) => {
           if (!group.includes(t.number)) return t;
-          // Restore each table to its pre-merge state individually
-          const restoredCapacity = t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity;
-          const restoredBill = t.preMergeBill !== undefined ? t.preMergeBill : 0;
-          const restoredGuests = t.preMergeGuests !== undefined ? t.preMergeGuests : 0;
-          const restoredStatus = t.preMergeStatus ?? (restoredBill === 0 && restoredGuests === 0 ? 'VACANT' : 'OCCUPIED');
+          // Each table kept its own bill/items during merge. Just restore pre-merge status.
+          const restoredBill = t.currentBill || 0;
+          const restoredGuests = t.guestCount || 0;
+          const restoredStatus = restoredBill > 0 || (t.activeItems && t.activeItems.length > 0)
+            ? 'OCCUPIED' as const
+            : 'VACANT' as const;
           return {
             ...t,
             status: restoredStatus,
-            capacity: restoredCapacity,
-            currentBill: restoredBill,
-            guestCount: restoredGuests,
-            activeItems: [],
+            capacity: t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity,
             mergedWith: undefined,
             mergeGroupPeers: undefined,
             mergedSeatGroups: undefined,
@@ -1046,46 +1044,40 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       }
 
       // 3+ member group — remove one, keep the rest merged
-      const oldPrimaryNum = [...peers].sort()[0];
-      const oldPrimary = state.tables.find((t) => t.number === oldPrimaryNum);
-
-      // The old combined bill lives on the primary. Subtract the removed table's preMergeBill.
-      const removedPreMerge = removedTable.preMergeBill ?? 0;
-      const removedPreGuests = removedTable.preMergeGuests ?? removedTable.guestCount;
-      const removedRestoredStatus = removedTable.preMergeStatus ?? (removedPreMerge === 0 && removedPreGuests === 0 ? 'VACANT' : 'OCCUPIED');
-      const oldCombinedBill = oldPrimary?.currentBill ?? 0;
-      const newCombinedBill = Math.max(0, oldCombinedBill - removedPreMerge);
-
       const newPeers = peers.filter((n) => n !== tableNumToRemove).sort();
       const newPrimaryNum = newPeers[0]; // lowest-numbered of the remaining group
+
+      // Removed table: keeps its own bill/items (already stored on it), just leaves the group
+      const restoredBill = removedTable.currentBill || 0;
+      const restoredGuests = removedTable.guestCount || 0;
+      const removedRestoredStatus = restoredBill > 0 || (removedTable.activeItems && removedTable.activeItems.length > 0)
+        ? 'OCCUPIED' as const
+        : 'VACANT' as const;
 
       return {
         tables: state.tables.map((t) => {
           if (t.number === tableNumToRemove) {
-            // This table leaves the group and gets its own bill + original status back
+            // This table leaves the group — its own bill/items are already on it
             return {
               ...t,
               status: removedRestoredStatus,
-              currentBill: removedPreMerge,
-              guestCount: removedPreGuests,
               mergedWith: undefined,
               mergeGroupPeers: undefined,
               isMergeConfirmed: undefined,
               removedChairs: undefined,
+              preMergeCapacity: undefined,
               preMergeBill: undefined,
               preMergeGuests: undefined,
               preMergeStatus: undefined,
             };
           }
           if (peers.includes(t.number)) {
-            // Remaining group member: update group peers + bill
-            const isNewPrimary = t.number === newPrimaryNum;
+            // Remaining group member: update group peers only — bill/items unchanged
             return {
               ...t,
               mergedWith: newPrimaryNum,
               mergeGroupPeers: newPeers,
               isMergeConfirmed: false, // allow review / edit
-              currentBill: isNewPrimary ? newCombinedBill : 0,
             };
           }
           return t;
@@ -1246,17 +1238,66 @@ if (typeof window !== 'undefined') {
   const applyPersistedState = (parsed: Record<string, unknown>, suppressBroadcast = false) => {
     if (!parsed || !Array.isArray(parsed.tables)) return;
     const cur = useSharedBridge.getState();
-    // Always filter COMPLETED tickets and sanitize any malformed/NaN IDs on incoming sync
+
+    const rawTables = parsed.tables as SharedTable[];
+    // Active tables must have running bill > 0 or active items
+    // Collect tables that have their own active bill or items
+    const tablesWithOrders = new Set(
+      rawTables
+        .filter((t) => (t.currentBill && t.currentBill > 0) || (t.activeItems && t.activeItems.length > 0))
+        .map((t) => t.number)
+    );
+
+    // Expand: if any member of a merge group has orders, ALL peers are considered active
+    const activeTableNums = new Set<string>(tablesWithOrders);
+    rawTables.forEach((t) => {
+      if (t.mergeGroupPeers && t.mergeGroupPeers.length > 1) {
+        const groupHasOrders = t.mergeGroupPeers.some((n) => tablesWithOrders.has(n));
+        if (groupHasOrders) {
+          t.mergeGroupPeers.forEach((n) => activeTableNums.add(n));
+        }
+      }
+    });
+
+    const sanitizedTables = rawTables.map((t) => {
+      // A table is safe to keep if: it has its own bill/items, OR it's a member of an active merge group
+      const isMergedAndGroupActive = t.mergeGroupPeers && t.mergeGroupPeers.length > 1 && activeTableNums.has(t.number);
+      const hasBillOrItems = (t.currentBill && t.currentBill > 0) || (t.activeItems && t.activeItems.length > 0);
+      if (!hasBillOrItems && !isMergedAndGroupActive) {
+        // Truly vacant table — wipe any leftover state
+        return {
+          ...t,
+          status: 'VACANT' as const,
+          currentBill: 0,
+          guestCount: 0,
+          activeItems: [],
+          seatedTime: '--',
+          kotCount: 0,
+          // Also clear any stale merge group metadata if the group has no orders
+          mergedWith: undefined,
+          mergeGroupPeers: undefined,
+          isMergeConfirmed: undefined,
+          preMergeCapacity: undefined,
+          preMergeBill: undefined,
+          preMergeGuests: undefined,
+          preMergeStatus: undefined,
+        };
+      }
+      return t;
+    });
+
+    // Always filter COMPLETED tickets and orphan tickets for vacant tables
     const liveTickets = Array.isArray(parsed.kdsTickets)
       ? (parsed.kdsTickets as SharedKDSTicket[])
-          .filter((tk) => tk && tk.status !== 'COMPLETED')
+          .filter((tk) => tk && tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber))
           .map((tk, idx) => {
             if (!tk.id || typeof tk.id !== 'string' || tk.id.includes('NaN')) {
               return { ...tk, id: `KDS-${Date.now().toString().slice(-4)}-${idx + 1}-${Math.floor(100 + Math.random() * 900)}` };
             }
             return tk;
           })
-      : cur.kdsTickets;
+      : cur.kdsTickets.filter((tk) => activeTableNums.has(tk.tableNumber));
+
     // Validate shiftStats shape before accepting
     const rawStats = parsed.shiftStats as Partial<typeof cur.shiftStats> | undefined;
     const safeShiftStats: typeof cur.shiftStats =
@@ -1267,7 +1308,7 @@ if (typeof window !== 'undefined') {
         : cur.shiftStats;
 
     const incoming: Partial<typeof cur> = {
-      tables: parsed.tables as typeof cur.tables,
+      tables: sanitizedTables,
       kdsTickets: liveTickets,
       pings: Array.isArray(parsed.pings) ? (parsed.pings as typeof cur.pings) : cur.pings,
       inventory86: Array.isArray(parsed.inventory86)
@@ -1298,10 +1339,51 @@ if (typeof window !== 'undefined') {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && Array.isArray(parsed.tables)) {
-        // Filter out COMPLETED tickets on rehydration so old orders don't persist & sanitize any NaN
+        const rawTables = parsed.tables as SharedTable[];
+        const tablesWithOrdersLocal = new Set(
+          rawTables
+            .filter((t) => (t.currentBill && t.currentBill > 0) || (t.activeItems && t.activeItems.length > 0))
+            .map((t) => t.number)
+        );
+        // Expand to include all merge group peers of any table with orders
+        const activeTableNums = new Set<string>(tablesWithOrdersLocal);
+        rawTables.forEach((t) => {
+          if (t.mergeGroupPeers && t.mergeGroupPeers.length > 1) {
+            const groupHasOrders = t.mergeGroupPeers.some((n) => tablesWithOrdersLocal.has(n));
+            if (groupHasOrders) {
+              t.mergeGroupPeers.forEach((n) => activeTableNums.add(n));
+            }
+          }
+        });
+
+        const sanitizedTables = rawTables.map((t) => {
+          const isMergedAndGroupActive = t.mergeGroupPeers && t.mergeGroupPeers.length > 1 && activeTableNums.has(t.number);
+          const hasBillOrItems = (t.currentBill && t.currentBill > 0) || (t.activeItems && t.activeItems.length > 0);
+          if (!hasBillOrItems && !isMergedAndGroupActive) {
+            return {
+              ...t,
+              status: 'VACANT' as const,
+              currentBill: 0,
+              guestCount: 0,
+              activeItems: [],
+              seatedTime: '--',
+              kotCount: 0,
+              mergedWith: undefined,
+              mergeGroupPeers: undefined,
+              isMergeConfirmed: undefined,
+              preMergeCapacity: undefined,
+              preMergeBill: undefined,
+              preMergeGuests: undefined,
+              preMergeStatus: undefined,
+            };
+          }
+          return t;
+        });
+
+        // Filter out COMPLETED tickets on rehydration and orphan tickets for tables with 0 bill
         const liveTickets = Array.isArray(parsed.kdsTickets)
           ? (parsed.kdsTickets as SharedKDSTicket[])
-              .filter((tk) => tk && tk.status !== 'COMPLETED')
+              .filter((tk) => tk && tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber))
               .map((tk, idx) => {
                 if (!tk.id || typeof tk.id !== 'string' || tk.id.includes('NaN')) {
                   return { ...tk, id: `KDS-${Date.now().toString().slice(-4)}-${idx + 1}-${Math.floor(100 + Math.random() * 900)}` };
@@ -1309,14 +1391,26 @@ if (typeof window !== 'undefined') {
                 return tk;
               })
           : [];
+
         isBroadcasting = true;
         useSharedBridge.setState({
           ...parsed,
+          tables: sanitizedTables,
           kdsTickets: liveTickets,
           // kitchenNotifications are session-only, don't persist them
           kitchenNotifications: [],
         });
         isBroadcasting = false;
+
+        // Immediately persist the sanitized clean state
+        try {
+          localStorage.setItem('thoogudeepa_bridge_v1', JSON.stringify({
+            ...parsed,
+            tables: sanitizedTables,
+            kdsTickets: liveTickets,
+          }));
+        } catch {}
+
         // Safely recover ticket counter
         if (liveTickets.length > 0) {
           const validNums = liveTickets

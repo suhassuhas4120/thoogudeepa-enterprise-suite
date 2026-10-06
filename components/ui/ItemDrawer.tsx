@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { MenuItem } from '../../types/customer';
-import { Plus, Minus, X, Check, Sparkles } from 'lucide-react';
+import { Plus, Minus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface ItemDrawerProps {
@@ -54,175 +54,154 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
   return (
     <AnimatePresence>
       {open && (
-        <div className="absolute inset-0 z-50 overflow-hidden flex flex-col justify-end">
-          {/* Backdrop Overlay (restricted to the phone chassis) */}
+        <div className="fixed inset-0 z-50 overflow-hidden flex flex-col justify-end">
+          {/* Backdrop Overlay */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             onClick={() => onOpenChange(false)}
-            className="absolute inset-0 bg-slate-900/50 backdrop-blur-[2px]"
+            className="absolute inset-0 bg-slate-900/60 backdrop-blur-[2px]"
           />
 
-          {/* In-Phone Bottom Sheet (locked strictly to phone container width) */}
+          {/* In-Phone Bottom Sheet */}
           <motion.div
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative z-10 flex max-h-[85%] w-full flex-col rounded-t-[28px] bg-white shadow-2xl border-t border-slate-200"
+            className="relative z-10 flex max-h-[60vh] w-full flex-col rounded-t-3xl bg-white shadow-2xl border-t border-stone-200"
           >
             {/* Pull Bar */}
-            <div className="flex justify-center pt-2.5 pb-1">
-              <div className="h-1.5 w-10 rounded-full bg-slate-300" />
+            <div className="flex justify-center pt-2 pb-0.5">
+              <div className="h-1.5 w-10 rounded-full bg-stone-300" />
             </div>
 
             {/* Sheet Header */}
-            <div className="flex items-center justify-between px-4 pb-2 pt-1 border-b border-slate-100">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-stone-100">
               <div className="min-w-0 pr-2">
-                <span className="text-[9.5px] font-bold uppercase tracking-wider text-orange-600 font-mono">
-                  {item.category} • {item.prepMode}
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#9C3D1E] font-mono">
+                  {item.category} • {item.prepMode || 'Special'}
                 </span>
-                <h3 className="truncate text-sm font-extrabold text-slate-900">
+                <h3 className="truncate text-sm font-black text-stone-900 leading-tight">
                   {item.name}
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => onOpenChange(false)}
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#FAF8F5] text-slate-500 hover:bg-slate-200"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-stone-100 text-stone-500 hover:bg-stone-200 transition"
                 title="Close"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             </div>
 
-            {/* Scrollable Sheet Content */}
-            <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5">
-              {/* Description */}
-              <p className="text-[11.5px] leading-relaxed text-slate-600">
-                {item.description}
-              </p>
-
-              {/* Option Group 1: Radio Choices */}
-              <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11.5px] font-extrabold text-slate-900">
-                    {item.optionsGroup1.title === 'Toss Style' ? 'Flavours' : item.optionsGroup1.title}
-                  </span>
-                  <span className="text-[9.5px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full font-mono">
-                    Choose 1
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {item.optionsGroup1.choices.map((choice) => {
-                    const isChecked = selectedOption === choice;
-                    return (
-                      <div
-                        key={choice}
-                        onClick={() => setSelectedOption(choice)}
-                        className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
-                          isChecked
-                            ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
-                            : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        <span className="font-bold text-slate-800">{choice}</span>
-                        <div
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+            {/* Compact Options Content */}
+            <div className="flex-1 overflow-y-auto px-4 py-2.5 space-y-2.5 scrollbar-none">
+              {/* Option Group 1: Radio Choices in 2-Col Grid */}
+              {item.optionsGroup1 && item.optionsGroup1.choices?.length > 0 && (
+                <div className="rounded-xl border border-stone-200 bg-[#FAF8F5] p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-stone-900 font-extrabold">
+                      {item.optionsGroup1.title === 'Toss Style' ? 'Spice Level' : item.optionsGroup1.title}
+                    </span>
+                    <span className="text-[9.5px] font-mono font-bold text-[#9C3D1E] bg-[#FFF8F5] border border-[#9C3D1E]/30 px-1.5 py-0.5 rounded">
+                      Choose 1
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {item.optionsGroup1.choices.map((choice) => {
+                      const isChecked = selectedOption === choice;
+                      return (
+                        <button
+                          key={choice}
+                          type="button"
+                          onClick={() => setSelectedOption(choice)}
+                          className={`px-2.5 py-2 rounded-lg text-xs font-bold text-left transition border flex items-center justify-between ${
                             isChecked
-                              ? 'border-[#8A4228] bg-white'
-                              : 'border-slate-300 bg-white'
+                              ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-2xs'
+                              : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
                           }`}
                         >
-                          {isChecked && (
-                            <div className="h-2.5 w-2.5 rounded-full bg-[#8A4228]" />
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
+                          <span className="truncate">{choice}</span>
+                          <div
+                            className={`h-3.5 w-3.5 rounded-full border-2 ml-1 shrink-0 flex items-center justify-center ${
+                              isChecked ? 'border-white bg-white' : 'border-stone-300'
+                            }`}
+                          >
+                            {isChecked && <div className="h-1.5 w-1.5 rounded-full bg-[#9C3D1E]" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              {/* Option Group 2: Add-Ons Checkboxes */}
-              <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11.5px] font-extrabold text-slate-900">
-                    {item.optionsGroup2.title}
-                  </span>
-                  <span className="text-[9.5px] font-bold text-slate-500 font-mono">
-                    Optional
-                  </span>
-                </div>
-                <div className="space-y-1.5">
-                  {item.optionsGroup2.addOns.map((addon) => {
-                    const isChecked = selectedAddOns.includes(addon.name);
-                    return (
-                      <div
-                        key={addon.name}
-                        onClick={() => toggleAddOn(addon.name)}
-                        className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
-                          isChecked
-                            ? 'border-[#8A4228] bg-[#F3DFCC]/80 text-[#8A4228] shadow-2xs'
-                            : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-slate-800">{addon.name}</span>
-                          <span className="font-mono text-xs font-black text-[#8A4228]">
+              {/* Option Group 2: Add-Ons in 2-Col Grid */}
+              {item.optionsGroup2 && item.optionsGroup2.addOns?.length > 0 && (
+                <div className="rounded-xl border border-stone-200 bg-[#FAF8F5] p-2.5 space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px] font-bold">
+                    <span className="text-stone-900 font-extrabold">{item.optionsGroup2.title}</span>
+                    <span className="text-[9.5px] font-mono text-stone-500">Optional</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {item.optionsGroup2.addOns.map((addon) => {
+                      const isChecked = selectedAddOns.includes(addon.name);
+                      return (
+                        <button
+                          key={addon.name}
+                          type="button"
+                          onClick={() => toggleAddOn(addon.name)}
+                          className={`px-2.5 py-2 rounded-lg text-xs font-bold text-left transition border flex items-center justify-between ${
+                            isChecked
+                              ? 'bg-[#9C3D1E]/10 text-[#9C3D1E] border-[#9C3D1E] font-black'
+                              : 'bg-white text-stone-700 border-stone-200 hover:border-stone-300'
+                          }`}
+                        >
+                          <span className="truncate">{addon.name}</span>
+                          <span className="font-mono text-[10px] font-black shrink-0 ml-1">
                             +₹{addon.extraPrice}
                           </span>
-                        </div>
-                        <div
-                          className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
-                            isChecked
-                              ? 'border-[#8A4228] bg-[#8A4228] text-white shadow-2xs'
-                              : 'border-slate-300 bg-white'
-                          }`}
-                        >
-                          {isChecked && <Check className="h-3.5 w-3.5 stroke-[3]" />}
-                        </div>
-                      </div>
-                    );
-                  })}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-
-              {/* Quantity Stepper */}
-              <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-2xs">
-                <span className="text-xs font-extrabold text-slate-900">Quantity</span>
-                <div className="flex items-center gap-2.5">
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  >
-                    <Minus className="h-3 w-3" />
-                  </motion.button>
-                  <span className="min-w-5 text-center font-mono text-xs font-black text-slate-900">
-                    {quantity}
-                  </span>
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
-                    onClick={() => setQuantity(quantity + 1)}
-                  >
-                    <Plus className="h-3 w-3" />
-                  </motion.button>
-                </div>
-              </div>
+              )}
             </div>
 
-            {/* Sheet Bottom Action CTA */}
-            <div className="border-t border-slate-100 bg-white p-3.5 shadow-md">
+            {/* Pinned Bottom CTA Bar: Quantity + Add */}
+            <div className="shrink-0 border-t border-stone-200 bg-white px-4 py-2.5 flex items-center gap-2.5 shadow-lg">
+              <div className="flex items-center gap-1 rounded-xl border-2 border-stone-200 bg-stone-50 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                  className="h-7 w-7 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-stone-700 hover:bg-stone-100 font-bold active:scale-95 transition"
+                >
+                  <Minus className="h-3.5 w-3.5" />
+                </button>
+                <span className="w-5 text-center font-mono text-xs font-black text-stone-900">
+                  {quantity}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setQuantity(quantity + 1)}
+                  className="h-7 w-7 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-stone-700 hover:bg-stone-100 font-bold active:scale-95 transition"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 onClick={handleConfirmAdd}
-                className="flex w-full items-center justify-between rounded-xl bg-orange-600 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-white shadow-md shadow-orange-600/30 hover:bg-orange-700 transition"
+                className="flex-1 flex items-center justify-between rounded-xl bg-[#9C3D1E] hover:bg-[#853216] px-4 py-2.5 text-xs font-black uppercase tracking-wider text-white shadow-md active:scale-98 transition"
               >
-                <span>Add • {quantity} Item{quantity > 1 ? 's' : ''}</span>
-                <span className="font-mono text-sm font-black">₹ {totalAmount}</span>
+                <span>Add • {quantity} {quantity > 1 ? 'Items' : 'Item'}</span>
+                <span className="font-mono text-sm font-black text-amber-200">₹{totalAmount}</span>
               </motion.button>
             </div>
           </motion.div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { Wifi, Battery } from 'lucide-react';
@@ -42,7 +42,7 @@ export const ScreenHousing: React.FC<ScreenHousingProps> = ({
         </div>
 
         {/* Screen Content */}
-        <div className="flex-1 overflow-y-auto bg-[#FAF8F5]/70 text-slate-900 flex flex-col relative">
+        <div className="flex-1 overflow-y-auto bg-stone-50/70 text-slate-900 flex flex-col relative">
           {children}
         </div>
       </div>

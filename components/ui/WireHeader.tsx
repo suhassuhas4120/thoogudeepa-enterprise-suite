@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React from 'react';
 import { useCustomer } from '../../context/CustomerContext';
@@ -56,7 +56,7 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
           <motion.button
             whileTap={{ scale: 0.9 }}
             className="flex h-8 w-8 items-center justify-center rounded-full border border-orange-200 bg-orange-50 text-orange-600 shadow-sm transition hover:bg-orange-100"
-            onClick={() => navigateTo(9)}
+            onClick={() => navigateTo(10)}
             title="Call Waiter"
           >
             <Bell className="h-4 w-4 stroke-[2.2]" />
@@ -66,7 +66,7 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
         {showCart && (
           <motion.button
             whileTap={{ scale: 0.9 }}
-            className="relative flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-[#9C3D1E] text-white shadow-sm transition hover:bg-[#7c3018]"
+            className="relative flex h-8 w-8 items-center justify-center rounded-full border border-slate-200 bg-slate-900 text-white shadow-sm transition hover:bg-slate-800"
             onClick={() => navigateTo(4)}
             title="View Cart"
           >

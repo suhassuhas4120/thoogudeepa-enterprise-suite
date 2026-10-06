@@ -11,15 +11,7 @@ import { Droplets, Scroll, Utensils, Sparkles, Send, CheckCircle2, ArrowRight } 
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Screen10WaiterCall: React.FC = () => {
-  const {
-    navigateTo,
-    previousScreen,
-    pingWaiter,
-    waiterNotification,
-    tableNumber,
-    seatNumber,
-    venueName,
-  } = useCustomer();
+  const { navigateTo, previousScreen, pingWaiter, waiterNotification, tableNumber } = useCustomer();
   const { pings } = useSharedBridge();
   const activePing = pings?.find((p) => p.tableNumber === tableNumber);
   const [customText, setCustomText] = useState('');
@@ -57,21 +49,13 @@ export const Screen10WaiterCall: React.FC = () => {
     },
   ];
 
-  const returnTarget = previousScreen && previousScreen !== 10 && previousScreen !== 9 ? previousScreen : 2;
+  const returnTarget = previousScreen && previousScreen !== 10 ? previousScreen : 2;
 
   return (
-    <ScreenHousing screenNumber={9} screenTitle="CALL WAITER">
+    <ScreenHousing screenNumber={10} screenTitle="Call Waiter">
       {/* Header */}
       <WireHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span>Call Waiter</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
-              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
-            </span>
-          </span>
-        }
-        leftSubtitle={venueName?.toUpperCase()}
+        title="Call Waiter"
         showBack={true}
         onBack={() => navigateTo(returnTarget)}
         showCallWaiter={false}

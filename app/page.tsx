@@ -14,8 +14,6 @@ import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGate
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
 import { Screen9DigitalBill } from '../components/customer/Screen9DigitalBill';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
-import { Screen11Loyalty } from '../components/customer/Screen11Loyalty';
-import { Screen12Feedback } from '../components/customer/Screen12Feedback';
 import {
   Smartphone,
   LayoutGrid,
@@ -34,7 +32,6 @@ import {
   Briefcase,
   QrCode,
   Tablet,
-  Receipt,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -42,15 +39,16 @@ export default function CustomerJourneyPage() {
   const { currentScreen, setCurrentScreen, viewMode, setViewMode } = useCustomer();
 
   const screens = [
-    { id: 1 as ScreenId, name: '1. Welcome & Connect', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },
-    { id: 2 as ScreenId, name: '2. Authentic Menu', icon: <UtensilsCrossed className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen2Menu /> },
+    { id: 1 as ScreenId, name: '1. Welcome & Wi-Fi', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },
+    { id: 2 as ScreenId, name: '2. Menu (2-Col Grid)', icon: <UtensilsCrossed className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen2Menu /> },
     { id: 3 as ScreenId, name: '3. Item Details', icon: <Sparkles className="h-3.5 w-3.5 text-amber-500" />, comp: <Screen3ItemDetail /> },
-    { id: 4 as ScreenId, name: '4. Cart & Review', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
+    { id: 4 as ScreenId, name: '4. Cart & Stepper', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
     { id: 5 as ScreenId, name: '5. Live Tracking', icon: <Clock className="h-3.5 w-3.5 text-indigo-500" />, comp: <Screen5LiveTracking /> },
-    { id: 6 as ScreenId, name: '6. Order Summary & Bill', icon: <Receipt className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
-    { id: 7 as ScreenId, name: '7. Payment Options', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
-    { id: 8 as ScreenId, name: '8. Confirmed & Tax Bill', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
-    { id: 9 as ScreenId, name: '9. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
+    { id: 6 as ScreenId, name: '6. Payment Breakdown', icon: <CreditCard className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
+    { id: 7 as ScreenId, name: '7. Payment Gateway (QR)', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
+    { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
+    { id: 9 as ScreenId, name: '9. Digital Tax Bill', icon: <FileText className="h-3.5 w-3.5 text-slate-700" />, comp: <Screen9DigitalBill /> },
+    { id: 10 as ScreenId, name: '10. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
   ];
 
   const renderActiveScreen = () => {
@@ -63,32 +61,30 @@ export default function CustomerJourneyPage() {
       case 6: return <Screen6PaymentBreakdown />;
       case 7: return <Screen7PaymentGateway />;
       case 8: return <Screen8Confirmation />;
-      case 9: return <Screen10WaiterCall />;
+      case 9: return <Screen9DigitalBill />;
       case 10: return <Screen10WaiterCall />;
-      case 11: return <Screen11Loyalty />;
-      case 12: return <Screen12Feedback />;
       default: return <Screen1Welcome />;
     }
   };
 
   return (
-    <main className="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <main className="min-h-screen bg-stone-100 flex flex-col">
       {/* Top Console Header */}
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
+      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-sm shadow-[#9C3D1E]/20">
+          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-sm shadow-orange-500/30">
             <UtensilsCrossed className="h-5 w-5" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-[#9C3D1E] bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-wider text-orange-700 bg-orange-50 border border-orange-200 rounded px-1.5 py-0.5">
                 Table Ordering
               </span>
-              <span className="font-mono text-[10px] text-stone-500 font-semibold">
+              <span className="font-mono text-[10px] text-slate-500 font-semibold">
                 Thoogudeepa Donne Biryani Mane
               </span>
             </div>
-            <h1 className="text-sm font-bold tracking-tight text-stone-900 mt-0.5">
+            <h1 className="text-sm font-bold tracking-tight text-slate-900 mt-0.5">
               Customer Ordering Portal
             </h1>
           </div>
@@ -96,10 +92,10 @@ export default function CustomerJourneyPage() {
 
         {/* Multi-Portal Switcher */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-[#EAE5DF] bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
-            <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs font-mono text-xs font-bold">
+            <span className="rounded-xl bg-orange-600 text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (9)</span>
+              <span>CUSTOMER (10)</span>
             </span>
             <Link
               href="/kitchen"
@@ -139,12 +135,12 @@ export default function CustomerJourneyPage() {
           </div>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs">
             <button
               onClick={() => setViewMode('single')}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 viewMode === 'single'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -155,12 +151,12 @@ export default function CustomerJourneyPage() {
               onClick={() => setViewMode('all')}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 viewMode === 'all'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 9 SCREENS</span>
+              <span>ALL 10 SCREENS</span>
             </button>
           </div>
         </div>

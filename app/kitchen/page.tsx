@@ -70,7 +70,7 @@ export default function KitchenKDSPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FAF8F5] flex flex-col">
+    <main className="min-h-screen bg-stone-100 flex flex-col">
       {/* Top Console Header */}
       <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -80,14 +80,14 @@ export default function KitchenKDSPage() {
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-black uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200 rounded-md px-1.5 py-0.5">
-                KITCHEN DISPLAY SYSTEM
+                KITCHEN KDS TABLET FRAMEWORK • REACT 19 • NEXT.JS
               </span>
               <span className="font-mono text-[10px] font-bold text-slate-400">
                 THOOGUDEEPA DONNE BIRYANI MANE
               </span>
             </div>
             <h1 className="text-sm font-black tracking-tight text-slate-900 mt-0.5">
-              ORDERS & PASS CONTROL •{' '}
+              KITCHEN DISPLAY SYSTEM (3 TABLET SCREENS) •{' '}
               <span className="text-orange-600">
                 {STATION_LABELS[activeStation]}
               </span>
@@ -97,7 +97,7 @@ export default function KitchenKDSPage() {
 
         {/* Global Multi-Portal Switcher */}
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs font-mono text-xs font-bold">
             <Link
               href="/"
               className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-slate-600 hover:text-slate-900 transition"
@@ -126,12 +126,12 @@ export default function KitchenKDSPage() {
           </div>
 
           {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
+          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-stone-50 p-1 shadow-xs">
             <button
               onClick={() => setViewMode('single')}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 viewMode === 'single'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -142,7 +142,7 @@ export default function KitchenKDSPage() {
               onClick={() => setViewMode('all')}
               className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
                 viewMode === 'all'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
+                  ? 'bg-slate-900 text-white shadow-sm'
                   : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -165,7 +165,7 @@ export default function KitchenKDSPage() {
                 className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold transition ${
                   isActive
                     ? 'bg-orange-600 text-white shadow-sm shadow-orange-600/20'
-                    : 'bg-slate-50 text-slate-600 hover:bg-[#FAF8F5] hover:text-slate-900'
+                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
                 {screen.icon}

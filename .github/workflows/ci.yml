@@ -137,7 +137,7 @@ jobs:
             *dwjjprzyyjmunhdxvkuo*) echo "::error::Live tests must not target the production Supabase project."; exit 1;;
           esac
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: next-build
           path: .next

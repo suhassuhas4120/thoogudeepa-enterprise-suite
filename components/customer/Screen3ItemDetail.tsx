@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -18,6 +19,8 @@ export const Screen3ItemDetail: React.FC = () => {
     tableNumber,
     seatNumber,
   } = useCustomer();
+
+  const { currentTheme } = useCustomerTheme();
   const { inventory86 } = useSharedBridge();
 
   const item = selectedDetailItem;
@@ -55,7 +58,14 @@ export const Screen3ItemDetail: React.FC = () => {
         title={
           <span className="inline-flex items-center gap-2">
             <span>Item Details</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
               {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
             </span>
           </span>
@@ -67,20 +77,38 @@ export const Screen3ItemDetail: React.FC = () => {
         showCart={false}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#FFFCF7]">
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.colors.bgApp }}
+      >
         {/* Dish Showcase Card */}
-        <div className="relative flex h-52 w-full flex-col items-center justify-center rounded-[28px] overflow-hidden border border-[#E8D5C3] bg-[#F3DFCC]/60 p-4 shadow-sm text-center">
+        <div
+          className="relative flex h-52 w-full flex-col items-center justify-center rounded-[28px] overflow-hidden border p-4 shadow-sm text-center"
+          style={{
+            backgroundColor: currentTheme.colors.bgElevated,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
           {isSoldOut ? (
             <Ban className="h-16 w-16 text-stone-400" />
           ) : (
-            <UtensilsCrossed className="h-16 w-16 text-[#8A4228]" />
+            <UtensilsCrossed className="h-16 w-16" style={{ color: currentTheme.colors.primary }} />
           )}
-          <span className="mt-2 font-mono text-xs font-black uppercase tracking-wider text-[#8A4228]">
+          <span
+            className="mt-2 font-mono text-xs font-black uppercase tracking-wider"
+            style={{ color: currentTheme.colors.primary }}
+          >
             {item.prepMode || 'Traditional Military Dum'}
           </span>
 
           {item.badge && !isSoldOut && (
-            <div className="absolute top-3 right-3 rounded-full bg-[#8A4228] px-3 py-1 text-[9px] font-black uppercase tracking-wider text-[#FFFCF7] shadow-xs">
+            <div
+              className="absolute top-3 right-3 rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-wider shadow-xs"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                color: currentTheme.colors.primaryFg,
+              }}
+            >
               {item.badge}
             </div>
           )}
@@ -93,31 +121,73 @@ export const Screen3ItemDetail: React.FC = () => {
         </div>
 
         {/* Item Title & Pricing */}
-        <div className="rounded-[24px] border border-[#E8D5C3] bg-[#FFFCF7] p-4 shadow-xs">
+        <div
+          className="rounded-[24px] border p-4 shadow-xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2 className="text-base font-black text-[#5B5049]">{item.name}</h2>
-              <span className="mt-1 inline-block rounded-md border border-[#E8D5C3] bg-[#F3DFCC]/80 px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wide text-[#8A4228]">
+              <h2
+                className="text-base font-black"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                {item.name}
+              </h2>
+              <span
+                className="mt-1 inline-block rounded-md border px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wide"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  color: currentTheme.colors.secondaryFg,
+                  borderColor: currentTheme.colors.border,
+                }}
+              >
                 {item.category}
               </span>
             </div>
             <div className="text-right">
-              <span className="font-mono text-lg font-black text-[#8A4228]">₹{item.price}</span>
+              <span
+                className="font-mono text-lg font-black"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                ₹{item.price}
+              </span>
             </div>
           </div>
-          <p className="mt-2 text-xs font-medium text-[#5B5049]/80 leading-relaxed">
+          <p
+            className="mt-2 text-xs font-medium leading-relaxed"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
             {item.description}
           </p>
         </div>
 
-        {/* Flavours / Preparation Option (Exact match with Drawer) */}
+        {/* Flavours / Preparation Option */}
         {item.optionsGroup1?.choices?.length > 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3 shadow-2xs">
+          <div
+            className="rounded-2xl border p-3 shadow-2xs"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11.5px] font-extrabold text-slate-900">
+              <span
+                className="text-[11.5px] font-extrabold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
                 {item.optionsGroup1.title === 'Toss Style' ? 'Flavours' : item.optionsGroup1.title}
               </span>
-              <span className="text-[9.5px] font-bold text-orange-800 bg-orange-100 border border-orange-200 px-2 py-0.5 rounded-full font-mono">
+              <span
+                className="text-[9.5px] font-bold border px-2 py-0.5 rounded-full font-mono"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  color: currentTheme.colors.secondaryFg,
+                  borderColor: currentTheme.colors.border,
+                }}
+              >
                 Choose 1
               </span>
             </div>
@@ -128,22 +198,31 @@ export const Screen3ItemDetail: React.FC = () => {
                   <div
                     key={choice}
                     onClick={() => setSelectedOption(choice)}
-                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
+                    className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition"
+                    style={
                       isSelected
-                        ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
-                        : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
-                    }`}
+                        ? {
+                            borderColor: currentTheme.colors.pillActiveBorder,
+                            backgroundColor: currentTheme.colors.pillActiveBg,
+                            color: currentTheme.colors.pillActiveFg,
+                          }
+                        : {
+                            borderColor: currentTheme.colors.pillInactiveBorder,
+                            backgroundColor: currentTheme.colors.pillInactiveBg,
+                            color: currentTheme.colors.pillInactiveFg,
+                          }
+                    }
                   >
-                    <span className="font-bold text-slate-800">{choice}</span>
+                    <span className="font-bold">{choice}</span>
                     <div
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
-                        isSelected
-                          ? 'border-orange-600 bg-white'
-                          : 'border-slate-300 bg-white'
-                      }`}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition"
+                      style={{
+                        borderColor: isSelected ? currentTheme.colors.pillActiveBorder : '#94A3B8',
+                        backgroundColor: isSelected ? currentTheme.colors.pillActiveBorder : 'transparent',
+                      }}
                     >
                       {isSelected && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-orange-600" />
+                        <div className="h-2.5 w-2.5 rounded-full bg-white" />
                       )}
                     </div>
                   </div>
@@ -153,14 +232,26 @@ export const Screen3ItemDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Add-ons (Exact match with Drawer) */}
+        {/* Add-ons */}
         {item.optionsGroup2?.addOns?.length > 0 && (
-          <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3 shadow-2xs">
+          <div
+            className="rounded-2xl border p-3 shadow-2xs"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[11.5px] font-extrabold text-slate-900">
+              <span
+                className="text-[11.5px] font-extrabold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
                 {item.optionsGroup2.title || 'Popular Add-Ons'}
               </span>
-              <span className="text-[9.5px] font-bold text-slate-500 font-mono">
+              <span
+                className="text-[9.5px] font-bold font-mono"
+                style={{ color: currentTheme.colors.textMuted }}
+              >
                 Optional
               </span>
             </div>
@@ -171,26 +262,38 @@ export const Screen3ItemDetail: React.FC = () => {
                   <div
                     key={addon.name}
                     onClick={() => handleToggleAddOn(addon.name)}
-                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition ${
+                    className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition"
+                    style={
                       isSelected
-                        ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
-                        : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
-                    }`}
+                        ? {
+                            borderColor: currentTheme.colors.pillActiveBorder,
+                            backgroundColor: currentTheme.colors.pillActiveBg,
+                            color: currentTheme.colors.pillActiveFg,
+                          }
+                        : {
+                            borderColor: currentTheme.colors.pillInactiveBorder,
+                            backgroundColor: currentTheme.colors.pillInactiveBg,
+                            color: currentTheme.colors.pillInactiveFg,
+                          }
+                    }
                   >
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-800">{addon.name}</span>
-                      <span className="font-mono text-xs font-bold text-orange-600">
+                      <span className="font-bold">{addon.name}</span>
+                      <span
+                        className="font-mono text-xs font-bold"
+                        style={{ color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textSecondary }}
+                      >
                         (+₹ {addon.extraPrice})
                       </span>
                     </div>
                     <div
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition ${
-                        isSelected
-                          ? 'border-orange-600 bg-orange-600 text-white shadow-2xs'
-                          : 'border-slate-300 bg-white'
-                      }`}
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition"
+                      style={{
+                        borderColor: isSelected ? currentTheme.colors.pillActiveBorder : '#94A3B8',
+                        backgroundColor: isSelected ? currentTheme.colors.pillActiveBorder : 'transparent',
+                      }}
                     >
-                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3] text-white" />}
                     </div>
                   </div>
                 );
@@ -199,28 +302,50 @@ export const Screen3ItemDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Quantity Stepper (Exact match with Drawer) */}
-        <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-2xs">
-          <span className="text-xs font-extrabold text-slate-900">Quantity</span>
+        {/* Quantity Stepper */}
+        <div
+          className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <span
+            className="text-xs font-extrabold"
+            style={{ color: currentTheme.colors.textPrimary }}
+          >
+            Quantity
+          </span>
           <div className="flex items-center gap-2.5">
             <motion.button
               whileTap={{ scale: 0.9 }}
               type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
+              className="flex h-7 w-7 items-center justify-center rounded-lg font-bold transition active:scale-95 shadow-2xs"
+              style={{
+                backgroundColor: currentTheme.colors.buttonBg,
+                color: currentTheme.colors.buttonFg,
+              }}
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
             >
-              <Minus className="h-3 w-3" />
+              <Minus className="h-3 w-3 stroke-[3]" />
             </motion.button>
-            <span className="min-w-5 text-center font-mono text-xs font-black text-slate-900">
+            <span
+              className="min-w-5 text-center font-mono text-xs font-black"
+              style={{ color: currentTheme.colors.textPrimary }}
+            >
               {quantity}
             </span>
             <motion.button
               whileTap={{ scale: 0.9 }}
               type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
+              className="flex h-7 w-7 items-center justify-center rounded-lg font-bold transition active:scale-95 shadow-2xs"
+              style={{
+                backgroundColor: currentTheme.colors.buttonBg,
+                color: currentTheme.colors.buttonFg,
+              }}
               onClick={() => setQuantity(quantity + 1)}
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-3 w-3 stroke-[3]" />
             </motion.button>
           </div>
         </div>
@@ -232,15 +357,26 @@ export const Screen3ItemDetail: React.FC = () => {
           whileTap={{ scale: 0.98 }}
           onClick={handleAddAndGoToCart}
           disabled={isSoldOut}
-          className={`flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition ${
+          className="flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
+          style={
             isSoldOut
-              ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
-              : 'bg-[#8A4228] text-[#FFFCF7] hover:bg-[#71351F]'
-          }`}
+              ? {
+                  backgroundColor: '#CBD5E1',
+                  color: '#64748B',
+                  cursor: 'not-allowed',
+                }
+              : {
+                  backgroundColor: currentTheme.colors.buttonBg,
+                  color: currentTheme.colors.buttonFg,
+                  boxShadow: currentTheme.colors.buttonShadow,
+                }
+          }
         >
           <span>{isSoldOut ? 'Item Sold Out' : 'Add to Cart & Review'}</span>
           <div className="flex items-center gap-2">
-            <span className="font-mono text-sm font-bold text-[#F3DFCC]">
+            <span
+              className="font-mono text-sm font-bold opacity-90"
+            >
               ₹{currentTotal * quantity}
             </span>
             <ArrowRight className="h-4 w-4 stroke-[2.5]" />

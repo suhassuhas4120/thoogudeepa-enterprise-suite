@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -21,6 +22,7 @@ import {
 import { motion } from 'framer-motion';
 
 export const Screen8Confirmation: React.FC = () => {
+  const { currentTheme } = useCustomerTheme();
   const {
     setCurrentScreen,
     payment,
@@ -120,11 +122,19 @@ export const Screen8Confirmation: React.FC = () => {
   return (
     <ScreenHousing screenNumber={8} screenTitle="CONFIRMATION & DIGITAL TAX INVOICE">
       {/* Header */}
+      {/* Header */}
       <WireHeader
         title={
           <span className="inline-flex items-center gap-2">
             <span>Payment Confirmed</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
               {effectiveTable} • C-{String(seatNumber).padStart(2, '0')}
             </span>
           </span>
@@ -135,14 +145,21 @@ export const Screen8Confirmation: React.FC = () => {
         showCart={false}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#FFFCF7]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Success Card */}
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="flex flex-col items-center rounded-[28px] border border-[#E8D5C3] bg-[#FFFCF7] p-5 text-center shadow-md"
+          className="flex flex-col items-center rounded-[28px] border p-5 text-center shadow-md"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
         >
-          <div className="text-[9.5px] font-black uppercase tracking-[0.22em] text-[#5B5049]/70 font-mono">
+          <div
+            className="text-[9.5px] font-black uppercase tracking-[0.22em] font-mono"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
             Payment Confirmed
           </div>
 
@@ -150,85 +167,136 @@ export const Screen8Confirmation: React.FC = () => {
             <CheckCircle2 className="h-8 w-8 stroke-[2.5]" />
           </div>
 
-          <h3 className="text-base font-black text-[#5B5049]">Payment Successful</h3>
+          <h3
+            className="text-base font-black"
+            style={{ color: currentTheme.colors.textPrimary }}
+          >
+            Payment Successful
+          </h3>
           <div className="font-mono text-xl font-black text-[#198754] mt-1">
             Amount Paid: ₹{paidAmount}
           </div>
 
           {/* 12-Digit Bank UTR Proof */}
-          <div className="mt-3 w-full rounded-2xl border border-[#E8D5C3] bg-[#F3DFCC]/50 p-2.5 text-center font-mono text-[11px] text-[#5B5049]">
-            <div className="font-bold text-[#8A4228] text-xs">BANK UTR (RRN): {bankUtr}</div>
-            <div className="text-[10px] font-semibold text-[#5B5049]/80 mt-0.5">
+          <div
+            className="mt-3 w-full rounded-2xl border p-2.5 text-center font-mono text-[11px]"
+            style={{
+              backgroundColor: currentTheme.colors.bgElevated,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
+            <div className="font-bold text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+              BANK UTR (RRN): {bankUtr}
+            </div>
+            <div className="text-[10px] font-semibold mt-0.5" style={{ color: currentTheme.colors.textMuted }}>
               TXN ID: {txnId} • TABLE {effectiveTable} • SEAT C-{String(seatNumber).padStart(2, '0')}
             </div>
           </div>
 
           <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-emerald-800">
             <ShieldCheck className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
-            <span>Attended by <strong className="font-bold text-[#2A2522]">{captainName}</strong> • Console Acknowledged</span>
+            <span>Attended by <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{captainName}</strong> • Console Acknowledged</span>
           </div>
         </motion.div>
 
         {/* OFFICIAL DIGITAL TAX INVOICE (RECEIPT) */}
-        <div className="rounded-[28px] border border-[#E8D5C3] bg-white p-5 shadow-xs space-y-3.5">
-          <div className="text-center pb-3 border-b border-dashed border-[#E8D5C3]">
-            <h3 className="text-sm font-black text-[#2A2522] tracking-wider uppercase">
+        <div
+          className="rounded-[28px] border p-5 shadow-xs space-y-3.5"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div
+            className="text-center pb-3 border-b border-dashed"
+            style={{ borderColor: currentTheme.colors.borderLight }}
+          >
+            <h3
+              className="text-sm font-black tracking-wider uppercase"
+              style={{ color: currentTheme.colors.textPrimary }}
+            >
               {venueName || 'Thoogudeepa Donne Biryani Mane'}
             </h3>
-            <p className="font-mono text-[10px] font-semibold text-[#5B5049]/75 mt-0.5">
+            <p
+              className="font-mono text-[10px] font-semibold mt-0.5"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
               GSTIN: 29AABCT1332L1Z9 • FSSAI: 11223334000182
             </p>
-            <div className="mt-1.5 inline-block rounded-md bg-[#8A4228]/10 px-2.5 py-0.5 font-mono text-[10.5px] font-black text-[#8A4228]">
+            <div
+              className="mt-1.5 inline-block rounded-md px-2.5 py-0.5 font-mono text-[10.5px] font-black border"
+              style={{
+                backgroundColor: currentTheme.colors.pillActiveBg,
+                color: currentTheme.colors.pillActiveFg,
+                borderColor: currentTheme.colors.pillActiveBorder,
+              }}
+            >
               TAX INVOICE #{invoiceNumber}
             </div>
 
             {/* Structured Table, Captain & Diner Metadata */}
-            <div className="space-y-1.5 text-[10.5px] font-mono text-[#5B5049] mt-3 pt-2.5 border-t border-dashed border-[#E8D5C3]">
+            <div
+              className="space-y-1.5 text-[10.5px] font-mono mt-3 pt-2.5 border-t border-dashed"
+              style={{
+                borderColor: currentTheme.colors.borderLight,
+                color: currentTheme.colors.textSecondary,
+              }}
+            >
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <span className="text-[#5B5049]/70 font-semibold">DATE:</span>{' '}
-                  <strong className="font-bold text-[#2A2522]">{formattedDate}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>DATE:</span>{' '}
+                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{formattedDate}</strong>
                 </div>
                 <div className="text-right whitespace-nowrap">
-                  <span className="text-[#5B5049]/70 font-semibold">TIME:</span>{' '}
-                  <strong className="font-bold text-[#2A2522] whitespace-nowrap">{formattedTime}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>TIME:</span>{' '}
+                  <strong className="font-bold whitespace-nowrap" style={{ color: currentTheme.colors.textPrimary }}>{formattedTime}</strong>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <span className="text-[#5B5049]/70 font-semibold">TABLE:</span>{' '}
-                  <strong className="font-bold text-[#2A2522]">{effectiveTable} (Seat C-{String(seatNumber).padStart(2, '0')})</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>TABLE:</span>{' '}
+                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{effectiveTable} (Seat C-{String(seatNumber).padStart(2, '0')})</strong>
                 </div>
                 <div className="text-right">
-                  <span className="text-[#5B5049]/70 font-semibold">CAPTAIN:</span>{' '}
-                  <strong className="font-bold text-[#8A4228]">{captainName}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>CAPTAIN:</span>{' '}
+                  <strong className="font-bold" style={{ color: currentTheme.colors.buttonBg }}>{captainName}</strong>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <span className="text-[#5B5049]/70 font-semibold">GUEST:</span>{' '}
-                  <strong className="font-bold text-[#2A2522]">{guestName || 'Valued Diner'}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>GUEST:</span>{' '}
+                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{guestName || 'Valued Diner'}</strong>
                 </div>
                 <div className="text-right">
-                  <span className="text-[#5B5049]/70 font-semibold">MODE:</span>{' '}
-                  <strong className="font-bold text-[#2A2522]">DINE-IN</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>MODE:</span>{' '}
+                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>DINE-IN</strong>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Itemized Table */}
-          <div className="space-y-2 border-b border-dashed border-[#E8D5C3] pb-3 text-xs">
-            <div className="flex justify-between items-center text-[10px] font-mono font-black text-[#5B5049]/60 uppercase tracking-wider pb-1">
+          <div
+            className="space-y-2 border-b border-dashed pb-3 text-xs"
+            style={{ borderColor: currentTheme.colors.borderLight }}
+          >
+            <div
+              className="flex justify-between items-center text-[10px] font-mono font-black uppercase tracking-wider pb-1"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
               <span>ITEM DESCRIPTION</span>
               <span>AMOUNT</span>
             </div>
             {activeItems.map((ci) => (
-              <div key={ci.cartItemId} className="flex justify-between items-center text-[#2A2522]">
+              <div
+                key={ci.cartItemId}
+                className="flex justify-between items-center"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
                 <span className="font-semibold text-xs">
-                  {ci.menuItem.name} <span className="text-[#8A4228] font-bold">× {ci.quantity}</span>
+                  {ci.menuItem.name} <span className="font-bold" style={{ color: currentTheme.colors.buttonBg }}>× {ci.quantity}</span>
                 </span>
                 <span className="font-mono font-bold text-xs">₹{ci.totalPrice}</span>
               </div>
@@ -236,21 +304,24 @@ export const Screen8Confirmation: React.FC = () => {
           </div>
 
           {/* Statutory Tax Breakdown */}
-          <div className="space-y-1.5 border-b border-[#E8D5C3] pb-3 text-xs font-mono">
-            <div className="flex justify-between text-[#5B5049] font-sans">
+          <div
+            className="space-y-1.5 border-b pb-3 text-xs font-mono"
+            style={{ borderColor: currentTheme.colors.borderLight }}
+          >
+            <div className="flex justify-between font-sans" style={{ color: currentTheme.colors.textSecondary }}>
               <span className="font-semibold">Item Subtotal</span>
-              <span className="font-mono font-bold text-[#2A2522]">₹{subtotal}</span>
+              <span className="font-mono font-bold" style={{ color: currentTheme.colors.textPrimary }}>₹{subtotal}</span>
             </div>
-            <div className="flex justify-between text-[#5B5049]/80 font-sans">
+            <div className="flex justify-between font-sans" style={{ color: currentTheme.colors.textSecondary }}>
               <span className="font-medium">CGST (2.5%)</span>
-              <span className="font-mono font-semibold text-[#2A2522]">₹{cgst}</span>
+              <span className="font-mono font-semibold" style={{ color: currentTheme.colors.textPrimary }}>₹{cgst}</span>
             </div>
-            <div className="flex justify-between text-[#5B5049]/80 font-sans">
+            <div className="flex justify-between font-sans" style={{ color: currentTheme.colors.textSecondary }}>
               <span className="font-medium">SGST (2.5%)</span>
-              <span className="font-mono font-semibold text-[#2A2522]">₹{sgst}</span>
+              <span className="font-mono font-semibold" style={{ color: currentTheme.colors.textPrimary }}>₹{sgst}</span>
             </div>
             {payment.tipAmount > 0 && (
-              <div className="flex justify-between font-bold text-[#8A4228] font-sans">
+              <div className="flex justify-between font-bold font-sans" style={{ color: currentTheme.colors.buttonBg }}>
                 <span className="font-semibold">Staff Tip (Captain & Team)</span>
                 <span className="font-mono font-black">+₹{payment.tipAmount}</span>
               </div>
@@ -261,9 +332,12 @@ export const Screen8Confirmation: React.FC = () => {
                 <span className="font-mono font-black">-₹{discount}</span>
               </div>
             )}
-            <div className="flex items-center justify-between border-t-2 border-[#2A2522]/10 pt-2 text-sm font-black text-[#2A2522]">
+            <div
+              className="flex items-center justify-between border-t-2 pt-2 text-sm font-black"
+              style={{ borderColor: currentTheme.colors.border, color: currentTheme.colors.textPrimary }}
+            >
               <span className="font-sans font-black tracking-tight">TOTAL AMOUNT PAID</span>
-              <span className="font-mono text-base font-black text-[#8A4228]">₹{paidAmount}</span>
+              <span className="font-mono text-base font-black">₹{paidAmount}</span>
             </div>
           </div>
 
@@ -277,9 +351,12 @@ export const Screen8Confirmation: React.FC = () => {
           </div>
 
           {/* Captain Thank-you Note */}
-          <div className="text-center pt-1 border-t border-dashed border-[#E8D5C3] text-[10.5px] text-[#5B5049] space-y-0.5">
-            <p className="font-bold text-[#8A4228]">Served with care by {captainName} • Floor Captain</p>
-            <p className="font-medium text-[#5B5049]/70 text-[10px]">Thank you for dining with us! Please visit again.</p>
+          <div
+            className="text-center pt-1 border-t border-dashed text-[10.5px] space-y-0.5"
+            style={{ borderColor: currentTheme.colors.borderLight }}
+          >
+            <p className="font-bold" style={{ color: currentTheme.colors.buttonBg }}>Served with care by {captainName} • Floor Captain</p>
+            <p className="font-medium text-[10px]" style={{ color: currentTheme.colors.textMuted }}>Thank you for dining with us! Please visit again.</p>
           </div>
         </div>
 
@@ -288,9 +365,14 @@ export const Screen8Confirmation: React.FC = () => {
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={handleDownload}
-            className="flex items-center justify-center gap-1.5 rounded-2xl border border-[#E8D5C3] bg-white py-3 px-2 text-xs font-black text-[#5B5049] hover:bg-[#F3DFCC]/40 transition shadow-xs"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+              color: currentTheme.colors.textPrimary,
+            }}
+            className="flex items-center justify-center gap-1.5 rounded-2xl border py-3 px-2 text-xs font-black hover:brightness-95 transition shadow-xs"
           >
-            <Download className="h-4 w-4 text-[#8A4228]" />
+            <Download className="h-4 w-4" style={{ color: currentTheme.colors.buttonBg }} />
             <span className="font-bold">{downloadMsg ? 'Downloaded!' : 'Download PDF Bill'}</span>
           </motion.button>
 
@@ -305,13 +387,22 @@ export const Screen8Confirmation: React.FC = () => {
         </div>
 
         {/* Quick 1-Tap Experience Rating */}
-        <div className="rounded-[28px] border border-[#E8D5C3] bg-white p-4 shadow-xs space-y-3">
+        <div
+          className="rounded-[28px] border p-4 shadow-xs space-y-3"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-[10px] font-black uppercase tracking-wider text-[#5B5049]/70 font-mono">
+              <div
+                className="text-[10px] font-black uppercase tracking-wider font-mono"
+                style={{ color: currentTheme.colors.textMuted }}
+              >
                 Rate Experience
               </div>
-              <div className="text-xs font-bold text-[#8A4228] mt-0.5 font-mono">
+              <div className="text-xs font-bold mt-0.5 font-mono" style={{ color: currentTheme.colors.buttonBg }}>
                 {rating > 0 ? `${rating} / 5 Stars` : 'Tap stars to rate'}
               </div>
             </div>
@@ -345,7 +436,8 @@ export const Screen8Confirmation: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="pt-2.5 border-t border-dashed border-[#E8D5C3] flex items-center justify-center"
+              className="pt-2.5 border-t border-dashed flex items-center justify-center"
+              style={{ borderColor: currentTheme.colors.borderLight }}
             >
               <div className="flex items-center justify-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-3.5 py-1 text-xs font-bold text-emerald-800 shadow-2xs">
                 <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 stroke-[2.5]" />
@@ -361,7 +453,12 @@ export const Screen8Confirmation: React.FC = () => {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={handleDineAgain}
-          className="flex w-full items-center justify-center gap-2 rounded-[20px] bg-[#8A4228] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] text-[#FFFCF7] shadow-lg transition hover:bg-[#71351F]"
+          style={{
+            backgroundColor: currentTheme.colors.buttonBg,
+            color: currentTheme.colors.buttonFg,
+            boxShadow: currentTheme.colors.buttonShadow,
+          }}
+          className="flex w-full items-center justify-center gap-2 rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
         >
           <RotateCcw className="h-4 w-4" />
           <span>Start New Order / Dine Again</span>

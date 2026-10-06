@@ -2,6 +2,7 @@
 
 import React, { useMemo, useEffect } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useOrderTrackingQuery } from '../../hooks/useOrderTrackingQuery';
 import { ScreenHousing } from '../ui/ScreenHousing';
@@ -24,6 +25,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Screen5LiveTracking: React.FC = () => {
+  const { currentTheme } = useCustomerTheme();
   const {
     setCurrentScreen,
     orderStage,
@@ -245,7 +247,14 @@ export const Screen5LiveTracking: React.FC = () => {
         title={
           <span className="inline-flex items-center gap-2">
             <span>Live Order Tracking</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
               {effectiveTable} • C-{String(effectiveSeat).padStart(2, '0')}
             </span>
           </span>
@@ -257,18 +266,36 @@ export const Screen5LiveTracking: React.FC = () => {
       />
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#FFFCF7]">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Table Connection Status Bar */}
-        <div className="flex items-center justify-between rounded-2xl border border-[#E8D5C3] bg-white p-3 shadow-2xs">
+        <div
+          className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3DFCC] text-[#8A4228]">
+            <div
+              className="flex h-8 w-8 items-center justify-center rounded-xl"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.buttonBg,
+              }}
+            >
               <CookingPot className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-[11px] font-black text-[#5B5049]">
+              <div
+                className="text-[11px] font-black"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
                 {effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`} • C-{String(effectiveSeat).padStart(2, '0')}
               </div>
-              <div className="text-[9.5px] font-bold text-[#8A4228] font-mono">
+              <div
+                className="text-[9.5px] font-bold font-mono"
+                style={{ color: currentTheme.colors.buttonBg }}
+              >
                 {trackedDishes.length} {trackedDishes.length === 1 ? 'Dish' : 'Dishes'} in Active Preparation
               </div>
             </div>
@@ -281,22 +308,39 @@ export const Screen5LiveTracking: React.FC = () => {
         </div>
 
         {/* Overall Order Stage Progress Card */}
-        <div className="rounded-3xl border border-[#E8D5C3] bg-white p-4 shadow-xs">
+        <div
+          className="rounded-3xl border p-4 shadow-xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
           <div className="flex items-center justify-between mb-4">
-            <span className="text-[9.5px] font-black uppercase tracking-[0.2em] text-[#5B5049]/70 font-mono">
+            <span
+              className="text-[9.5px] font-black uppercase tracking-[0.2em] font-mono"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
               Overall Kitchen Status
             </span>
-            <span className="rounded-full bg-orange-100 border border-orange-200 px-2.5 py-0.5 text-[9.5px] font-black text-orange-900 font-mono">
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[9.5px] font-black font-mono border"
+              style={{
+                backgroundColor: currentTheme.colors.pillActiveBg,
+                color: currentTheme.colors.pillActiveFg,
+                borderColor: currentTheme.colors.pillActiveBorder,
+              }}
+            >
               {stages[currentIdx]?.label}
             </span>
           </div>
 
           <div className="relative flex justify-between px-2 pt-2 pb-1">
             {/* Background Line */}
-            <div className="absolute top-6 left-6 right-6 h-1 bg-[#F3DFCC]/70 -z-0" />
+            <div className="absolute top-6 left-6 right-6 h-1 bg-slate-100 -z-0" />
             {/* Active Progress Line */}
             <motion.div
-              className="absolute top-6 left-6 h-1 bg-[#8A4228] -z-0"
+              className="absolute top-6 left-6 h-1 -z-0"
+              style={{ backgroundColor: currentTheme.colors.buttonBg }}
               initial={false}
               animate={{ width: `${(currentIdx / (stages.length - 1)) * 82}%` }}
               transition={{ duration: 0.5, ease: 'easeInOut' }}
@@ -309,23 +353,29 @@ export const Screen5LiveTracking: React.FC = () => {
                 <div key={st.key} className="relative z-10 flex flex-col items-center gap-1.5">
                   <motion.div
                     whileHover={{ scale: 1.08 }}
+                    style={
+                      isCurrent
+                        ? { backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }
+                        : {}
+                    }
                     className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black transition-all shadow-xs ${
                       isPast
                         ? 'bg-emerald-600 text-white ring-4 ring-emerald-50'
                         : isCurrent
-                        ? 'bg-[#8A4228] text-white ring-4 ring-orange-200 animate-pulse'
-                        : 'border-2 border-[#E8D5C3] bg-white text-[#5B5049]/50'
+                        ? 'ring-4 ring-black/10 animate-pulse'
+                        : 'border-2 border-slate-200 bg-white text-slate-400'
                     }`}
                   >
                     {isPast ? <Check className="h-4 w-4 stroke-[3]" /> : st.icon}
                   </motion.div>
                   <span
+                    style={isCurrent ? { color: currentTheme.colors.buttonBg } : {}}
                     className={`text-[9px] font-mono tracking-tight font-extrabold text-center leading-tight ${
                       isCurrent
-                        ? 'text-[#8A4228]'
+                        ? ''
                         : isPast
                         ? 'text-emerald-700'
-                        : 'text-[#5B5049]/50'
+                        : 'text-slate-400'
                     }`}
                   >
                     {st.short}
@@ -336,18 +386,34 @@ export const Screen5LiveTracking: React.FC = () => {
           </div>
 
           {/* Current stage description */}
-          <div className="mt-4 text-center font-mono text-[10.5px] text-[#5B5049] font-medium bg-[#FFFCF7] rounded-xl py-2.5 px-3 border border-[#E8D5C3]">
+          <div
+            className="mt-4 text-center font-mono text-[10.5px] font-medium rounded-xl py-2.5 px-3 border"
+            style={{
+              backgroundColor: currentTheme.colors.bgElevated,
+              borderColor: currentTheme.colors.border,
+              color: currentTheme.colors.textSecondary,
+            }}
+          >
             {stages[currentIdx]?.desc}
           </div>
         </div>
 
         {/* Particular Dish Status Section (At Down) */}
-        <div className="rounded-3xl border border-[#E8D5C3] bg-white p-4 shadow-xs space-y-3">
+        <div
+          className="rounded-3xl border p-4 shadow-xs space-y-3"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
           <div className="flex items-center justify-between">
-            <div className="text-[9.5px] font-black uppercase tracking-[0.2em] text-[#5B5049]/70 font-mono">
+            <div
+              className="text-[9.5px] font-black uppercase tracking-[0.2em] font-mono"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
               Particular Dish Status
             </div>
-            <span className="text-[10px] font-bold text-[#8A4228] font-mono">
+            <span className="text-[10px] font-bold font-mono" style={{ color: currentTheme.colors.buttonBg }}>
               Live Dish Tracking
             </span>
           </div>
@@ -365,7 +431,11 @@ export const Screen5LiveTracking: React.FC = () => {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="rounded-2xl border border-[#E8D5C3] bg-[#FFFCF7] p-3.5 shadow-2xs space-y-2"
+                      className="rounded-2xl border p-3.5 shadow-2xs space-y-2"
+                      style={{
+                        backgroundColor: currentTheme.colors.bgSurface,
+                        borderColor: currentTheme.colors.borderLight,
+                      }}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5">
@@ -386,23 +456,26 @@ export const Screen5LiveTracking: React.FC = () => {
                           </div>
 
                           <div>
-                            <h4 className="text-xs font-black text-[#5B5049]">
+                            <h4
+                              className="text-xs font-black"
+                              style={{ color: currentTheme.colors.textPrimary }}
+                            >
                               {it.quantity}× {it.name}
                             </h4>
                             {(it.prepMode || it.options || (it.addOns && it.addOns.length > 0)) && (
                               <div className="mt-0.5 flex flex-wrap gap-1">
                                 {it.prepMode && (
-                                  <span className="text-[9.5px] font-bold text-[#8A4228] font-mono">
+                                  <span className="text-[9.5px] font-bold font-mono" style={{ color: currentTheme.colors.buttonBg }}>
                                     {it.prepMode}
                                   </span>
                                 )}
                                 {it.options && (
-                                  <span className="text-[9.5px] font-medium text-[#5B5049]/70">
+                                  <span className="text-[9.5px] font-medium" style={{ color: currentTheme.colors.textMuted }}>
                                     • {it.options}
                                   </span>
                                 )}
                                 {it.addOns?.map((addon) => (
-                                  <span key={addon} className="text-[9.5px] font-medium text-[#8A4228]">
+                                  <span key={addon} className="text-[9.5px] font-medium" style={{ color: currentTheme.colors.buttonBg }}>
                                     • +{addon}
                                   </span>
                                 ))}
@@ -414,7 +487,7 @@ export const Screen5LiveTracking: React.FC = () => {
                         {/* Live Status Badge */}
                         <div className="shrink-0">
                           {it.stage === 'PLACED' && (
-                            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-[#FAF8F5] px-2.5 py-1 text-[9.5px] font-bold text-slate-700 font-mono">
+                            <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[9.5px] font-bold text-slate-700 font-mono">
                               <ClipboardList className="h-3 w-3 text-slate-500" />
                               <span>Received</span>
                             </span>
@@ -442,13 +515,17 @@ export const Screen5LiveTracking: React.FC = () => {
 
                       {/* Quick Action when dish is Ready to Collect */}
                       {it.stage === 'PLATED' && (
-                        <div className="flex items-center justify-between border-t border-[#E8D5C3]/60 pt-2 text-[10.5px]">
+                        <div
+                          className="flex items-center justify-between border-t pt-2 text-[10.5px]"
+                          style={{ borderColor: currentTheme.colors.borderLight }}
+                        >
                           <span className="text-[10px] font-bold text-emerald-800">
                             Dishes waiting at kitchen pass
                           </span>
                           <button
                             onClick={() => handleMarkCollected(it.ticketId, it.id, it.cartItemId)}
-                            className="flex items-center gap-1 rounded-xl bg-[#8A4228] px-2.5 py-1 text-[10px] font-black text-white hover:bg-[#71351F] transition shadow-xs"
+                            style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
+                            className="flex items-center gap-1 rounded-xl px-2.5 py-1 text-[10px] font-black transition shadow-xs hover:brightness-105 active:scale-95"
                           >
                             <Check className="h-3 w-3 stroke-[3]" />
                             <span>Mark as Collected</span>
@@ -459,10 +536,16 @@ export const Screen5LiveTracking: React.FC = () => {
                   );
                 })
               ) : (
-                <div className="flex flex-col items-center justify-center p-6 text-center text-slate-400 bg-[#FAF8F5]/50 rounded-2xl border border-dashed border-slate-200">
-                  <Clock className="h-8 w-8 text-slate-300 mb-2 stroke-[1.5]" />
-                  <p className="text-xs font-bold text-[#5B5049]">No active orders for this table</p>
-                  <p className="text-[10.5px] text-[#5B5049]/70 mt-0.5">
+                <div
+                  className="flex flex-col items-center justify-center p-6 text-center rounded-2xl border border-dashed"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgElevated,
+                    borderColor: currentTheme.colors.border,
+                  }}
+                >
+                  <Clock className="h-8 w-8 mb-2 stroke-[1.5]" style={{ color: currentTheme.colors.textMuted }} />
+                  <p className="text-xs font-bold" style={{ color: currentTheme.colors.textPrimary }}>No active orders for this table</p>
+                  <p className="text-[10.5px] mt-0.5" style={{ color: currentTheme.colors.textMuted }}>
                     Order items from the menu to see live kitchen preparation stages.
                   </p>
                 </div>
@@ -475,7 +558,12 @@ export const Screen5LiveTracking: React.FC = () => {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setCurrentScreen(2)}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#E8D5C3] bg-white py-3 text-xs font-black text-[#8A4228] hover:border-[#8A4228] hover:bg-[#F3DFCC]/30 transition shadow-2xs"
+          style={{
+            borderColor: currentTheme.colors.border,
+            backgroundColor: currentTheme.colors.bgSurface,
+            color: currentTheme.colors.buttonBg,
+          }}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-3 text-xs font-black transition shadow-2xs hover:brightness-105"
         >
           <Plus className="h-4 w-4 stroke-[2.5]" />
           <span>Add More Dishes to Same Bill</span>
@@ -487,7 +575,12 @@ export const Screen5LiveTracking: React.FC = () => {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setCurrentScreen(6)}
-          className="flex w-full items-center justify-between rounded-[20px] bg-[#8A4228] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#FFFCF7] shadow-lg transition hover:bg-[#71351F]"
+          style={{
+            backgroundColor: currentTheme.colors.buttonBg,
+            color: currentTheme.colors.buttonFg,
+            boxShadow: currentTheme.colors.buttonShadow,
+          }}
+          className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105"
         >
           <span>Proceed to Payment</span>
           <ArrowRight className="h-4 w-4 stroke-[2.5]" />

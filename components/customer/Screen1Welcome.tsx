@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
-// Thoogudeepa Donne Biryani Mane #8A4228 #9C3D1E
+import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import {
@@ -31,6 +31,7 @@ export const Screen1Welcome: React.FC = () => {
     setSeatNumber,
   } = useCustomer();
 
+  const { currentTheme } = useCustomerTheme();
   const { tables } = useSharedBridge();
 
   // Dynamic time-based human greeting
@@ -98,61 +99,117 @@ export const Screen1Welcome: React.FC = () => {
 
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
-      <div className="flex flex-col min-h-full bg-gradient-to-b from-[#fffaf4] via-white to-[#fff8f2] p-4 space-y-3 pb-6">
+      <div
+        className="flex flex-col min-h-full p-4 space-y-3 pb-6 transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.colors.bgApp }}
+      >
         {/* Card 1: Restaurant Brand Header - Logo in Row 1, Hotel Name in Row 2 */}
         <motion.div
           initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border border-orange-200/90 bg-gradient-to-b from-orange-50/80 via-white to-amber-50/60 p-4 shadow-xs text-center flex flex-col items-center"
+          className="rounded-3xl border p-4 shadow-xs text-center flex flex-col items-center transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
         >
-          {/* Row 1: Dedicated Hotel Logo Icon (Crafted Culinary Crest with Biryani Pot & Royal Crown) */}
+          {/* Row 1: Dedicated Hotel Logo Icon */}
           <div className="relative mb-2">
-            <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 text-white shadow-md shadow-orange-500/25 ring-2 ring-orange-400/30">
+            <div
+              className="relative flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md ring-2"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                boxShadow: currentTheme.colors.primaryShadow,
+                borderColor: currentTheme.colors.primaryBorder,
+              }}
+            >
               <CookingPot className="h-7 w-7 stroke-[2]" />
-              <div className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-amber-950 shadow-xs ring-2 ring-white">
-                <Crown className="h-3 w-3 fill-amber-950 stroke-[2.2]" />
+              <div
+                className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full shadow-xs ring-2 ring-white"
+                style={{
+                  backgroundColor: currentTheme.colors.accent,
+                  color: currentTheme.colors.accentFg,
+                }}
+              >
+                <Crown className="h-3 w-3 fill-current stroke-[2.2]" />
               </div>
             </div>
           </div>
 
           {/* Row 2: Human Time Greeting, Hotel Name & Tagline */}
-          <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100/90 border border-orange-200/80 px-2.5 py-0.5 text-[9.5px] font-bold text-orange-800 mb-1">
+          <div
+            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[9.5px] font-bold mb-1 border"
+            style={{
+              backgroundColor: currentTheme.colors.secondaryBg,
+              color: currentTheme.colors.secondaryFg,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
             <span>{timeGreeting}</span>
           </div>
 
-          <h1 className="text-sm font-black tracking-tight text-slate-900 uppercase">
+          <h1
+            className="text-sm font-black tracking-tight uppercase"
+            style={{ color: currentTheme.colors.textPrimary }}
+          >
             {venueName}
           </h1>
 
-          <div className="flex items-center justify-center gap-1.5 mt-0.5 text-[10.5px] font-semibold text-slate-600">
-            <Flame className="h-3 w-3 text-orange-600" />
+          <div
+            className="flex items-center justify-center gap-1.5 mt-0.5 text-[10.5px] font-semibold"
+            style={{ color: currentTheme.colors.textSecondary }}
+          >
+            <Flame className="h-3 w-3" style={{ color: currentTheme.colors.primary }} />
             <span>Authentic Military Donne Biryani</span>
           </div>
         </motion.div>
 
-        {/* Card 2: Scanned Table Information (Clean, Highlighted, Professional) */}
+        {/* Card 2: Scanned Table Information */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.05 }}
-          className="rounded-2xl border border-emerald-200 bg-emerald-50/70 p-3 shadow-xs"
+          className="rounded-2xl border p-3 shadow-xs transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-xs"
+                style={{ backgroundColor: currentTheme.colors.primary }}
+              >
                 <QrCode className="h-4 w-4" />
               </div>
               <div>
-                <div className="text-xs font-black text-slate-900 font-mono">
+                <div
+                  className="text-xs font-black font-mono"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
                   {activeTable.number} • C-{String(currentSeat).padStart(2, '0')}
                 </div>
-                <div className="text-[10px] font-bold text-emerald-700">
+                <div
+                  className="text-[10px] font-bold"
+                  style={{ color: currentTheme.colors.primary }}
+                >
                   {activeTable.section} • Dine-In Verified
                 </div>
               </div>
             </div>
-            <span className="flex items-center gap-1.5 rounded-full bg-emerald-100 border border-emerald-300 px-3 py-1 text-[10px] font-black text-emerald-800 font-mono shadow-2xs">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-ping" />
+            <span
+              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black font-mono shadow-2xs border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full animate-ping"
+                style={{ backgroundColor: currentTheme.colors.primary }}
+              />
               VERIFIED
             </span>
           </div>
@@ -163,16 +220,30 @@ export const Screen1Welcome: React.FC = () => {
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-2.5"
+          className="rounded-2xl border p-3.5 shadow-xs space-y-2.5 transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <Armchair className="h-4 w-4 text-orange-600" />
-              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-800">
+              <Armchair className="h-4 w-4" style={{ color: currentTheme.colors.primary }} />
+              <span
+                className="font-mono text-[10px] font-black uppercase tracking-wider"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
                 SELECT YOUR CHAIR
               </span>
             </div>
-            <span className="rounded-full bg-orange-100 border border-orange-200 px-2.5 py-0.5 font-mono text-[10px] font-black text-orange-800">
+            <span
+              className="rounded-full px-2.5 py-0.5 font-mono text-[10px] font-black border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
               C-{String(currentSeat).padStart(2, '0')}
             </span>
           </div>
@@ -188,19 +259,37 @@ export const Screen1Welcome: React.FC = () => {
                   whileTap={{ scale: 0.92 }}
                   type="button"
                   onClick={() => handleSelectSeat(chairNum)}
-                  className={`flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all text-center relative ${
+                  className="flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all text-center relative"
+                  style={
                     isSelected
-                      ? 'border-orange-500 bg-gradient-to-b from-orange-50 to-orange-100/90 ring-2 ring-orange-500/25 shadow-xs text-orange-950 font-bold'
-                      : 'border-slate-200 bg-white hover:border-orange-200 hover:bg-orange-50/30 text-slate-700'
-                  }`}
+                      ? {
+                          borderColor: currentTheme.colors.pillActiveBorder,
+                          backgroundColor: currentTheme.colors.pillActiveBg,
+                          color: currentTheme.colors.pillActiveFg,
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                        }
+                      : {
+                          borderColor: currentTheme.colors.pillInactiveBorder,
+                          backgroundColor: currentTheme.colors.pillInactiveBg,
+                          color: currentTheme.colors.pillInactiveFg,
+                        }
+                  }
                 >
                   <span className="text-base">🪑</span>
-                  <span className={`font-mono text-[11px] font-black mt-0.5 ${isSelected ? 'text-orange-950' : 'text-slate-800'}`}>
+                  <span
+                    className="font-mono text-[11px] font-black mt-0.5"
+                    style={{
+                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textPrimary,
+                    }}
+                  >
                     C-{String(chairNum).padStart(2, '0')}
                   </span>
-                  <span className={`text-[9.5px] font-bold mt-0.5 ${
-                    isSelected ? 'text-orange-700 font-mono' : 'text-emerald-600'
-                  }`}>
+                  <span
+                    className="text-[9.5px] font-bold mt-0.5 font-mono"
+                    style={{
+                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textMuted,
+                    }}
+                  >
                     {isSelected ? '✓ Your Seat' : 'Available'}
                   </span>
                 </motion.button>
@@ -209,16 +298,23 @@ export const Screen1Welcome: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Card 4: Diner Name (Clean, Placed Above Connections, NO 'Optional' on right side) */}
+        {/* Card 4: Diner Name */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
-          className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-2"
+          className="rounded-2xl border p-3.5 shadow-xs space-y-2 transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
         >
           <div className="flex items-center gap-1.5">
-            <User className="h-4 w-4 text-orange-600" />
-            <label className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-800">
+            <User className="h-4 w-4" style={{ color: currentTheme.colors.buttonBg }} />
+            <label
+              className="font-mono text-[10px] font-black uppercase tracking-wider"
+              style={{ color: currentTheme.colors.textPrimary }}
+            >
               YOUR NAME
             </label>
           </div>
@@ -229,17 +325,28 @@ export const Screen1Welcome: React.FC = () => {
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
               placeholder="Enter your name (Optional)"
-              className="w-full rounded-xl border border-slate-200 bg-stone-50/70 px-3.5 py-2.5 text-xs font-semibold text-slate-900 placeholder:text-slate-400 focus:border-orange-500 focus:bg-white focus:outline-none transition shadow-2xs"
+              className="w-full rounded-xl border px-3.5 py-2.5 text-xs font-semibold placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
+              style={{
+                backgroundColor: currentTheme.colors.bgApp,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.textPrimary,
+              }}
             />
             {guestName.trim() && (
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold">
+              <span
+                className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold"
+                style={{
+                  backgroundColor: currentTheme.colors.pillActiveBg,
+                  color: currentTheme.colors.pillActiveFg,
+                }}
+              >
                 ✓
               </span>
             )}
           </div>
         </motion.div>
 
-        {/* Card 5: Connections (Tactile, High-Conversion Action Cards that directly advance to Cart, NO subtext) */}
+        {/* Card 5: Connections (Action Button + Secondary Option) */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -251,17 +358,27 @@ export const Screen1Welcome: React.FC = () => {
             whileHover={{ y: -1 }}
             type="button"
             onClick={handleConnectWifi}
-            className="flex w-full items-center justify-between rounded-2xl border border-orange-200 bg-gradient-to-r from-orange-50 via-white to-amber-50/80 p-3.5 shadow-xs hover:border-orange-300 hover:shadow-sm transition-all text-left group"
+            className="flex w-full items-center justify-between rounded-2xl p-4 shadow-md transition-all text-left group"
+            style={{
+              backgroundColor: currentTheme.colors.buttonBg,
+              color: currentTheme.colors.buttonFg,
+              boxShadow: currentTheme.colors.buttonShadow,
+            }}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-sm shadow-orange-500/25 group-hover:scale-105 transition">
-                <Wifi className="h-5 w-5 stroke-[2.2]" />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
+                <Wifi className="h-5 w-5 stroke-[2.4]" />
               </div>
-              <span className="text-xs font-black text-slate-900">
-                Connect With Free Restaurant Wi-Fi
-              </span>
+              <div>
+                <div className="text-xs font-black tracking-wide">
+                  Connect With Free Restaurant Wi-Fi
+                </div>
+                <div className="text-[10px] font-medium opacity-90 mt-0.5">
+                  High-Speed Dine-In Network • Instant Menu Access
+                </div>
+              </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-orange-600 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition shrink-0" />
           </motion.button>
 
           <motion.button
@@ -269,26 +386,51 @@ export const Screen1Welcome: React.FC = () => {
             whileHover={{ y: -1 }}
             type="button"
             onClick={handleContinueMobileData}
-            className="flex w-full items-center justify-between rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs hover:border-slate-300 hover:bg-slate-50/70 hover:shadow-sm transition-all text-left group"
+            className="flex w-full items-center justify-between rounded-2xl border p-3.5 shadow-2xs transition-all text-left group"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+              color: currentTheme.colors.textPrimary,
+            }}
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#8A4228] text-white shadow-sm group-hover:scale-105 transition">
-                <Smartphone className="h-5 w-5 stroke-[2.2]" />
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                style={{
+                  backgroundColor: currentTheme.colors.bgElevated,
+                  color: currentTheme.colors.textSecondary,
+                }}
+              >
+                <Smartphone className="h-5 w-5 stroke-[2]" />
               </div>
-              <span className="text-xs font-black text-slate-900">
-                Continue With Mobile Data
-              </span>
+              <div>
+                <div className="text-xs font-bold">
+                  Continue With Mobile Data
+                </div>
+                <div className="text-[10px]" style={{ color: currentTheme.colors.textMuted }}>
+                  Browse using 4G / 5G cellular connection
+                </div>
+              </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-slate-700 group-hover:translate-x-0.5 transition shrink-0" />
+            <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition shrink-0" style={{ color: currentTheme.colors.textMuted }} />
           </motion.button>
         </motion.div>
 
         {/* Footer: Properly Enclosed Badge Container for "Powered by Nelja" */}
         <div className="flex items-center justify-center pt-3 pb-2">
-          <div className="inline-flex items-center gap-2 rounded-full border border-stone-200 bg-white/95 px-4 py-1.5 shadow-xs backdrop-blur-md">
-            <Sparkles className="h-3 w-3 text-orange-500 animate-pulse" />
-            <span className="text-[10px] font-bold text-slate-600 font-mono tracking-wider">
-              Powered by <span className="font-black text-orange-600">Nelja</span>
+          <div
+            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 shadow-xs backdrop-blur-md"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
+            <Sparkles className="h-3 w-3 animate-pulse" style={{ color: currentTheme.colors.primary }} />
+            <span
+              className="text-[10px] font-bold font-mono tracking-wider"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
+              Powered by <span className="font-black" style={{ color: currentTheme.colors.primary }}>Nelja</span>
             </span>
           </div>
         </div>

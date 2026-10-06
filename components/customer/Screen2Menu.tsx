@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -37,6 +38,7 @@ export const Screen2Menu: React.FC = () => {
     seatNumber,
   } = useCustomer();
 
+  const { currentTheme } = useCustomerTheme();
   const { inventory86 } = useSharedBridge();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -47,30 +49,30 @@ export const Screen2Menu: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerItem, setDrawerItem] = useState<MenuItem | null>(null);
 
-  // Dynamically derive categories from live menu items (no hardcoding)
+  // Dynamically derive categories from live menu items
   const categories = useMemo(() => {
     const uniqueCats = Array.from(new Set(menuItems.map((item) => item.category))).filter(Boolean);
     return ['All', ...uniqueCats, 'Chef Special'];
   }, [menuItems]);
 
-  // Helper to determine Veg vs Non-Veg for Indian FSSAI dietary badge
+  // Helper to determine Veg vs Non-Veg
   const isVegItem = (item: MenuItem) => {
     const name = item.name.toLowerCase();
     return item.category === 'Desserts' || name.includes('paneer') || name.includes('veg');
   };
 
-  // Helper to select an evocative icon for each culinary item
+  // Helper to select icon
   const getItemIcon = (item: MenuItem) => {
     if (item.category === 'Rice & Bowls') {
-      return <CookingPot className="h-8 w-8 text-[#8A4228]" />;
+      return <CookingPot className="h-8 w-8 text-amber-700/80" />;
     }
     if (item.category === 'Desserts') {
-      return <Sparkles className="h-8 w-8 text-[#8A4228]" />;
+      return <Sparkles className="h-8 w-8 text-amber-600/80" />;
     }
-    return <Flame className="h-8 w-8 text-[#8A4228]" />;
+    return <Flame className="h-8 w-8 text-orange-600/80" />;
   };
 
-  // Reactive filtering across name, description, category, and cooking mode
+  // Reactive filtering
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return menuItems.filter((item) => {
@@ -101,11 +103,7 @@ export const Screen2Menu: React.FC = () => {
 
   const handleOpenDetail = (item: MenuItem) => {
     const stockInfo = inventory86?.find((e) => e.id === item.id);
-    if (stockInfo?.is86) {
-      setToastNotice(`${item.name} is currently SOLD OUT!`);
-      setTimeout(() => setToastNotice(null), 2500);
-      return;
-    }
+    if (stockInfo?.is86) return;
     setSelectedDetailItem(item);
     setCurrentScreen(3);
   };
@@ -113,9 +111,11 @@ export const Screen2Menu: React.FC = () => {
   const handleOpenDrawer = (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
     const stockInfo = inventory86?.find((e) => e.id === item.id);
-    if (stockInfo?.is86) {
-      setToastNotice(`${item.name} is SOLD OUT!`);
-      setTimeout(() => setToastNotice(null), 2500);
+    if (stockInfo?.is86) return;
+    if (item.optionsGroup1?.choices?.length <= 1 && item.optionsGroup2?.addOns?.length === 0) {
+      addToCart(item);
+      setToastNotice(`Added ${item.name}!`);
+      setTimeout(() => setToastNotice(null), 1800);
       return;
     }
     setDrawerItem(item);
@@ -146,9 +146,16 @@ export const Screen2Menu: React.FC = () => {
       <WireHeader
         title={
           <span className="inline-flex items-center gap-2">
-            <UtensilsCrossed className="h-4 w-4 stroke-[2.2] text-[#D08A52]" />
+            <UtensilsCrossed className="h-4 w-4 stroke-[2.2]" style={{ color: currentTheme.colors.primary }} />
             <span>Menu</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
               {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
             </span>
           </span>
@@ -160,17 +167,25 @@ export const Screen2Menu: React.FC = () => {
         showCart={false}
       />
 
-      <div className="bg-[#FFFCF7] flex-1 overflow-y-auto flex flex-col">
+      <div
+        className="flex-1 overflow-y-auto flex flex-col transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.colors.bgApp }}
+      >
         {/* Search Bar + Cart Action Button Row */}
         <div className="px-4 pt-3 pb-2 flex items-center gap-2">
           <div className="relative flex-1 flex items-center">
-            <Search className="absolute left-3.5 h-4 w-4 text-[#8A4228]" />
+            <Search className="absolute left-3.5 h-4 w-4" style={{ color: currentTheme.colors.primary }} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search Biryanis, Kebabs..."
-              className="w-full rounded-2xl border border-[#E8D5C3] bg-white pl-10 pr-9 py-2.5 text-xs font-semibold text-[#5B5049] placeholder:text-[#5B5049]/50 shadow-2xs focus:border-[#8A4228] focus:outline-none transition"
+              className="w-full rounded-2xl border pl-10 pr-9 py-2.5 text-xs font-semibold shadow-2xs focus:outline-none transition"
+              style={{
+                backgroundColor: currentTheme.colors.bgSurface,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.textPrimary,
+              }}
             />
             {searchTerm && (
               <button
@@ -184,17 +199,28 @@ export const Screen2Menu: React.FC = () => {
             )}
           </div>
 
-          {/* Cart Icon Button Beside Search (Contains Red Item Count Badge) */}
+          {/* Cart Icon Button Beside Search */}
           <motion.button
             whileTap={{ scale: 0.92 }}
             type="button"
             onClick={() => setCurrentScreen(4)}
-            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-xs hover:bg-[#853116] transition"
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-xs transition"
+            style={{
+              backgroundColor: currentTheme.colors.primary,
+              color: currentTheme.colors.primaryFg,
+              boxShadow: currentTheme.colors.primaryShadow,
+            }}
             title="View Cart"
           >
             <ShoppingCart className="h-5 w-5 stroke-[2.2]" />
             {totalCartCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-600 text-[10px] font-black text-white ring-2 ring-white shadow-xs">
+              <span
+                className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full text-[10px] font-black ring-2 ring-white shadow-xs"
+                style={{
+                  backgroundColor: currentTheme.colors.accent,
+                  color: currentTheme.colors.accentFg,
+                }}
+              >
                 {totalCartCount}
               </span>
             )}
@@ -202,22 +228,40 @@ export const Screen2Menu: React.FC = () => {
         </div>
 
         {/* Dynamic Categories Bar */}
-        <div className="border-b border-[#E8D5C3] bg-[#FFFCF7] px-4 py-2">
-          <div className="mb-1 text-[9.5px] font-black tracking-[0.2em] text-[#5B5049]/70 uppercase font-mono">
+        <div
+          className="border-b px-4 py-2 transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div
+            className="mb-1.5 text-[9.5px] font-black tracking-[0.2em] uppercase font-mono"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
             Explore Categories
           </div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1.5 scrollbar-none">
+          <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none">
             {categories.map((cat) => {
               const isActive = selectedCategory === cat;
               return (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`whitespace-nowrap rounded-full px-3.5 py-1.5 text-[11px] font-black tracking-[0.06em] transition ${
+                  className="whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-black tracking-wide transition-all border shadow-2xs active:scale-95"
+                  style={
                     isActive
-                      ? 'bg-[#8A4228] text-[#FFFCF7] shadow-xs'
-                      : 'bg-[#F3DFCC]/80 text-[#5B5049] hover:bg-[#E8D5C3]'
-                  }`}
+                      ? {
+                          backgroundColor: currentTheme.colors.pillActiveBg,
+                          color: currentTheme.colors.pillActiveFg,
+                          borderColor: currentTheme.colors.pillActiveBorder,
+                        }
+                      : {
+                          backgroundColor: currentTheme.colors.pillInactiveBg,
+                          color: currentTheme.colors.pillInactiveFg,
+                          borderColor: currentTheme.colors.pillInactiveBorder,
+                        }
+                  }
                 >
                   {cat}
                 </button>
@@ -233,7 +277,11 @@ export const Screen2Menu: React.FC = () => {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mx-4 mt-2 flex items-center justify-center gap-1.5 rounded-2xl bg-[#8A4228] px-3.5 py-2 text-center text-xs font-bold text-[#FFFCF7] shadow-sm"
+              className="mx-4 mt-2 flex items-center justify-center gap-1.5 rounded-2xl px-3.5 py-2 text-center text-xs font-bold shadow-sm"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                color: currentTheme.colors.primaryFg,
+              }}
             >
               <CheckCircle2 className="h-3.5 w-3.5 text-amber-200" />
               <span>{toastNotice}</span>
@@ -244,11 +292,25 @@ export const Screen2Menu: React.FC = () => {
         {/* Menu Items Container */}
         {filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center my-auto space-y-2.5">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F3DFCC] text-[#8A4228]">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-2xl"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.primary,
+              }}
+            >
               <Search className="h-6 w-6 stroke-[1.8]" />
             </div>
-            <h4 className="text-sm font-black text-slate-800">No Dishes Found</h4>
-            <p className="text-xs text-slate-500 max-w-[220px]">
+            <h4
+              className="text-sm font-black"
+              style={{ color: currentTheme.colors.textPrimary }}
+            >
+              No Dishes Found
+            </h4>
+            <p
+              className="text-xs max-w-[220px]"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
               We couldn&#39;t find any items matching &quot;{searchTerm}&quot;.
             </p>
             <button
@@ -257,7 +319,12 @@ export const Screen2Menu: React.FC = () => {
                 setSearchTerm('');
                 setSelectedCategory('All');
               }}
-              className="mt-2 rounded-xl border border-[#8A4228] bg-white px-3 py-1.5 text-xs font-bold text-[#8A4228] hover:bg-[#F3DFCC]"
+              className="mt-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition"
+              style={{
+                borderColor: currentTheme.colors.primary,
+                color: currentTheme.colors.primary,
+                backgroundColor: currentTheme.colors.bgSurface,
+              }}
             >
               Show All Items
             </button>
@@ -279,45 +346,35 @@ export const Screen2Menu: React.FC = () => {
                   key={item.id}
                   whileHover={{ y: is86 ? 0 : -2 }}
                   onClick={() => handleOpenDetail(item)}
-                  className={`flex cursor-pointer flex-col justify-between rounded-[22px] border p-2.5 shadow-2xs transition ${
+                  className={`group relative flex flex-col justify-between rounded-3xl border p-2.5 shadow-xs transition-all ${
                     is86
-                      ? 'border-[#E8D5C3] bg-[#FAF8F5] opacity-60'
-                      : 'border-[#E8D5C3] bg-white hover:border-[#8A4228] hover:shadow-md'
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'cursor-pointer hover:shadow-md'
                   }`}
+                  style={{
+                    backgroundColor: currentTheme.colors.bgSurface,
+                    borderColor: currentTheme.colors.border,
+                  }}
                 >
-                  {/* Dish Graphic / Image Area */}
-                  <div className="relative flex h-28 w-full flex-col items-center justify-center rounded-[18px] overflow-hidden border border-[#E8D5C3] bg-[#F3DFCC]/40">
-                    {/* FSSAI Veg / Non-Veg Indicator */}
-                    <div
-                      className={`absolute top-2 left-2 flex h-3.5 w-3.5 items-center justify-center rounded-[3px] border bg-white shadow-2xs z-10 ${
-                        isVeg ? 'border-emerald-600' : 'border-rose-600'
-                      }`}
-                      title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
-                    >
+                  {/* Photo / Illustration Container */}
+                  <div
+                    className="relative flex h-28 w-full items-center justify-center overflow-hidden rounded-2xl"
+                    style={{
+                      backgroundColor: currentTheme.colors.bgElevated,
+                    }}
+                  >
+                    <div className="transition-transform duration-300 group-hover:scale-105">
+                      {getItemIcon(item)}
+                    </div>
+
+                    {/* Veg / Non-Veg Indicator */}
+                    <div className="absolute top-1.5 left-1.5 flex h-4 w-4 items-center justify-center rounded-sm bg-white/95 p-0.5 shadow-2xs">
                       <div
-                        className={`h-1.5 w-1.5 rounded-full ${
-                          isVeg ? 'bg-emerald-600' : 'bg-rose-600'
+                        className={`h-2.5 w-2.5 rounded-full ${
+                          isVeg ? 'bg-emerald-600' : 'bg-rose-700'
                         }`}
                       />
                     </div>
-
-                    {/* Culinary Icon */}
-                    {is86 ? (
-                      <Ban className="h-8 w-8 text-stone-400" />
-                    ) : (
-                      getItemIcon(item)
-                    )}
-
-                    <span className="mt-1 font-mono text-[9px] font-black text-[#8A4228] line-clamp-1 px-2 text-center">
-                      {item.prepMode || 'Authentic Handi'}
-                    </span>
-
-                    {/* Sold Out Overlay */}
-                    {is86 && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-mono text-[10px] font-black uppercase tracking-wider text-rose-300">
-                        Sold Out
-                      </div>
-                    )}
 
                     {/* Kitchen Prep Delay Badge */}
                     {prepDelay > 0 && !is86 && (
@@ -327,9 +384,15 @@ export const Screen2Menu: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Badge (Bestseller, Chef Special, Signature) */}
+                    {/* Badge */}
                     {item.badge && !is86 && (
-                      <div className="absolute top-1.5 right-1.5 rounded-full bg-[#8A4228] px-2 py-0.5 text-[8px] font-black uppercase tracking-wider text-[#FFFCF7] shadow-2xs">
+                      <div
+                        className="absolute top-1.5 right-1.5 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider shadow-2xs"
+                        style={{
+                          backgroundColor: currentTheme.colors.primary,
+                          color: currentTheme.colors.primaryFg,
+                        }}
+                      >
                         {item.badge}
                       </div>
                     )}
@@ -337,17 +400,29 @@ export const Screen2Menu: React.FC = () => {
 
                   {/* Dish Info */}
                   <div className="mt-2 flex-1">
-                    <h3 className="line-clamp-2 text-xs font-black text-[#5B5049] leading-snug">
+                    <h3
+                      className="line-clamp-2 text-xs font-black leading-snug"
+                      style={{ color: currentTheme.colors.textPrimary }}
+                    >
                       {item.name}
                     </h3>
-                    <p className="mt-0.5 line-clamp-1 text-[10px] text-[#5B5049]/70 font-medium">
+                    <p
+                      className="mt-0.5 line-clamp-1 text-[10px] font-medium"
+                      style={{ color: currentTheme.colors.textMuted }}
+                    >
                       {item.description}
                     </p>
                   </div>
 
-                  {/* Price & Cart Controls */}
-                  <div className="mt-2.5 flex items-center justify-between gap-1 pt-1.5 border-t border-[#E8D5C3]/60">
-                    <span className="font-mono text-xs font-extrabold text-[#8A4228]">
+                  {/* Price & Cart Controls (Harmonized with Theme Button Color) */}
+                  <div
+                    className="mt-2.5 flex items-center justify-between gap-1 pt-1.5 border-t"
+                    style={{ borderColor: currentTheme.colors.borderLight }}
+                  >
+                    <span
+                      className="font-mono text-sm font-black"
+                      style={{ color: currentTheme.colors.textPrimary }}
+                    >
                       ₹{item.price}
                     </span>
 
@@ -357,21 +432,32 @@ export const Screen2Menu: React.FC = () => {
                         Sold Out
                       </span>
                     ) : quantityInCart > 0 ? (
-                      <div className="flex items-center gap-1 rounded-full border border-[#8A4228] bg-[#F3DFCC] p-0.5 shadow-2xs">
+                      <div
+                        className="flex items-center gap-1.5 rounded-xl border p-0.5 shadow-2xs"
+                        style={{
+                          backgroundColor: currentTheme.colors.bgElevated,
+                          borderColor: currentTheme.colors.border,
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={(e) => handleDecrement(e, item.id)}
-                          className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F] transition"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
+                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
                         >
                           <Minus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
-                        <span className="px-1 text-xs font-black text-[#8A4228] font-mono">
+                        <span
+                          className="px-1.5 text-xs font-black font-mono"
+                          style={{ color: currentTheme.colors.textPrimary }}
+                        >
                           {quantityInCart}
                         </span>
                         <button
                           type="button"
                           onClick={(e) => handleIncrement(e, item)}
-                          className="flex h-5 w-5 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F] transition"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
+                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
                         >
                           <Plus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
@@ -380,10 +466,16 @@ export const Screen2Menu: React.FC = () => {
                       <button
                         type="button"
                         onClick={(e) => handleOpenDrawer(e, item)}
-                        className="flex items-center gap-1 rounded-full border border-[#8A4228] bg-[#8A4228] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#FFFCF7] shadow-xs hover:bg-[#71351F] transition"
+                        className="flex items-center gap-1 rounded-xl border px-3 py-1.5 text-[11px] font-black uppercase tracking-wider shadow-xs transition hover:brightness-105 active:scale-95"
+                        style={{
+                          backgroundColor: currentTheme.colors.buttonBg,
+                          borderColor: currentTheme.colors.primaryBorder,
+                          color: currentTheme.colors.buttonFg,
+                          boxShadow: currentTheme.colors.buttonShadow,
+                        }}
                       >
-                        <Plus className="h-3 w-3 stroke-[3]" />
-                        <span>Add</span>
+                        <span>ADD</span>
+                        <Plus className="h-3.5 w-3.5 stroke-[3]" />
                       </button>
                     )}
                   </div>
@@ -394,7 +486,7 @@ export const Screen2Menu: React.FC = () => {
         )}
       </div>
 
-      {/* Floating Animated Cart Checkout Bar (Only displays when diner has items in cart) */}
+      {/* Floating Animated Cart Checkout Bar */}
       <AnimatePresence>
         {totalCartCount > 0 && (
           <motion.div
@@ -406,7 +498,11 @@ export const Screen2Menu: React.FC = () => {
             <motion.button
               whileTap={{ scale: 0.98 }}
               onClick={() => setCurrentScreen(4)}
-              className="flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-[#9C3D1E] via-[#8A361A] to-[#712A12] px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg shadow-orange-950/20 transition hover:brightness-105"
+              className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg transition hover:brightness-105"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                boxShadow: currentTheme.colors.primaryShadow,
+              }}
             >
               <div className="flex items-center gap-2.5">
                 <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
@@ -416,7 +512,7 @@ export const Screen2Menu: React.FC = () => {
                   <div className="text-xs font-black text-white">
                     VIEW CART
                   </div>
-                  <div className="text-[9.5px] font-medium text-orange-200">
+                  <div className="text-[9.5px] font-medium opacity-90">
                     {totalCartCount} {totalCartCount === 1 ? 'item' : 'items'} selected
                   </div>
                 </div>

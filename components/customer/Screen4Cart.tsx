@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
+import { useCustomerTheme } from '../../context/ThemeContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
@@ -31,6 +32,7 @@ export const Screen4Cart: React.FC = () => {
     venueName,
   } = useCustomer();
 
+  const { currentTheme } = useCustomerTheme();
   const [notice, setNotice] = useState<string | null>(null);
 
   const handleSeparateOrder = (cartItemId: string, name: string) => {
@@ -56,7 +58,14 @@ export const Screen4Cart: React.FC = () => {
         title={
           <span className="inline-flex items-center gap-2">
             <span>Order Cart</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
               {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
             </span>
           </span>
@@ -68,7 +77,10 @@ export const Screen4Cart: React.FC = () => {
         showCart={false}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-[#FFFCF7]">
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-3 transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.colors.bgApp }}
+      >
         {/* Notice Banner */}
         <AnimatePresence>
           {notice && (
@@ -76,9 +88,13 @@ export const Screen4Cart: React.FC = () => {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-2 rounded-2xl bg-[#8A4228] px-3.5 py-2.5 text-xs font-black text-[#FFFCF7] shadow-md"
+              className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs font-black shadow-md"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                color: currentTheme.colors.primaryFg,
+              }}
             >
-              <CheckCircle2 className="h-4 w-4 text-[#F3DFCC]" />
+              <CheckCircle2 className="h-4 w-4 text-amber-200" />
               <span>{notice}</span>
             </motion.div>
           )}
@@ -86,50 +102,91 @@ export const Screen4Cart: React.FC = () => {
 
         {/* Dine-In Order Context Banner */}
         {cart.length > 0 && (
-          <div className="flex items-center justify-between rounded-2xl border border-[#E8D5C3] bg-white p-3 shadow-2xs">
+          <div
+            className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
             <div className="flex items-center gap-2.5">
-              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#F3DFCC] text-[#8A4228]">
+              <div
+                className="flex h-8 w-8 items-center justify-center rounded-xl"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  color: currentTheme.colors.primary,
+                }}
+              >
                 <UtensilsCrossed className="h-4 w-4" />
               </div>
               <div>
-                <div className="text-[11px] font-black text-[#5B5049]">
+                <div
+                  className="text-[11px] font-black"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
                   Dine-In ({tableNumber} • Chair C-{String(seatNumber || 1).padStart(2, '0')})
                 </div>
-                <div className="text-[9.5px] font-bold text-[#8A4228] font-mono">
+                <div
+                  className="text-[9.5px] font-bold font-mono"
+                  style={{ color: currentTheme.colors.primary }}
+                >
                   {totalItemCount} {totalItemCount === 1 ? 'Dish' : 'Dishes'} in Your Selection
                 </div>
               </div>
             </div>
-            <span className="flex items-center gap-1 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[9.5px] font-black text-emerald-800 font-mono">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-              Live Table
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[9.5px] font-bold font-mono border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
+              Table Ready
             </span>
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Cart Items List */}
         {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-[28px] border border-[#E8D5C3] bg-[#FFFCF7] p-8 text-center shadow-xs">
-            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-[#F3DFCC]/50 text-[#8A4228] mb-3">
-              <ShoppingBag className="h-10 w-10 stroke-[1.6]" />
-            </div>
-            <div className="text-sm font-extrabold text-[#5B5049]">Your Cart Is Empty</div>
-            <p className="mt-1 text-xs text-[#5B5049]/70 max-w-[240px]">
-              Explore our authentic Donne Biryanis, military sides, and refreshing starters.
-            </p>
-            <motion.button
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setCurrentScreen(2)}
-              className="mt-4 flex items-center gap-2 rounded-2xl bg-[#8A4228] px-5 py-2.5 text-xs font-black uppercase tracking-wider text-[#FFFCF7] shadow-sm hover:bg-[#71351F] transition"
+          <div className="flex flex-col items-center justify-center p-12 text-center my-auto space-y-3">
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-3xl"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.primary,
+              }}
             >
-              <UtensilsCrossed className="h-3.5 w-3.5" />
-              <span>Browse Authentic Menu</span>
-            </motion.button>
+              <ShoppingBag className="h-8 w-8 stroke-[1.8]" />
+            </div>
+            <h4
+              className="text-sm font-black"
+              style={{ color: currentTheme.colors.textPrimary }}
+            >
+              Your Cart is Empty
+            </h4>
+            <p
+              className="text-xs max-w-[200px]"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
+              Discover authentic Donne Dum Biryanis and nati military dishes.
+            </p>
+            <button
+              onClick={() => setCurrentScreen(2)}
+              className="mt-2 rounded-2xl px-4 py-2 text-xs font-black shadow-sm transition"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                color: currentTheme.colors.primaryFg,
+                boxShadow: currentTheme.colors.primaryShadow,
+              }}
+            >
+              Browse Menu
+            </button>
           </div>
         ) : (
           <AnimatePresence>
             {cart.map((ci) => {
-              const isOrdered = !!ci.isOrdered;
+              const isOrdered = ci.isOrdered;
               const isVeg = isVegItem(ci.menuItem.name, ci.menuItem.category);
 
               return (
@@ -139,96 +196,139 @@ export const Screen4Cart: React.FC = () => {
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
-                  className={`flex flex-col gap-2.5 rounded-[22px] border p-3.5 shadow-xs transition ${
-                    isOrdered
-                      ? 'border-[#E8D5C3] bg-[#FAF8F5]/80 opacity-80'
-                      : 'border-[#E8D5C3] bg-[#FFFCF7]'
-                  }`}
+                  className="rounded-2xl border p-3.5 shadow-xs space-y-2.5 transition-colors duration-200"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgSurface,
+                    borderColor: currentTheme.colors.border,
+                  }}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        {/* FSSAI Veg / Non-Veg Indicator */}
-                        <div
-                          className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-xs border p-0.5 ${
-                            isVeg
-                              ? 'border-emerald-600 bg-emerald-50/50'
-                              : 'border-rose-600 bg-rose-50/50'
-                          }`}
-                          title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
-                        >
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-xs bg-white p-0.5 shadow-2xs border border-slate-200">
                           <div
-                            className={`h-1.5 w-1.5 rounded-full ${
-                              isVeg ? 'bg-emerald-600' : 'bg-rose-600'
+                            className={`h-2 w-2 rounded-full ${
+                              isVeg ? 'bg-emerald-600' : 'bg-rose-700'
                             }`}
                           />
                         </div>
-
-                        <span className="text-xs font-black text-[#5B5049]">
+                        <h4
+                          className="truncate text-xs font-black"
+                          style={{ color: currentTheme.colors.textPrimary }}
+                        >
                           {ci.menuItem.name}
-                        </span>
-
-                        {isOrdered && (
-                          <span className="rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 font-mono text-[9px] font-black text-emerald-800">
-                            Sent To Kitchen
-                          </span>
-                        )}
+                        </h4>
                       </div>
 
-                      {/* Options & Addons */}
-                      {(ci.selectedOption || (ci.selectedAddOns && ci.selectedAddOns.length > 0)) && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {ci.selectedOption && (
-                            <span className="rounded-md border border-[#E8D5C3] bg-[#F3DFCC]/60 px-1.5 py-0.5 text-[9.5px] font-bold text-[#8A4228]">
-                              {ci.selectedOption}
-                            </span>
-                          )}
-                          {ci.selectedAddOns?.map((addon) => (
-                            <span
-                              key={addon}
-                              className="rounded-md border border-[#E8D5C3] bg-[#F3DFCC]/60 px-1.5 py-0.5 text-[9.5px] font-bold text-[#8A4228]"
-                            >
-                              +{addon}
-                            </span>
-                          ))}
-                        </div>
-                      )}
+                      {/* Flavour & Add-ons Badges */}
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {ci.selectedOption && (
+                          <span
+                            className="rounded px-1.5 py-0.5 text-[9px] font-bold font-mono border"
+                            style={{
+                              backgroundColor: currentTheme.colors.secondaryBg,
+                              color: currentTheme.colors.secondaryFg,
+                              borderColor: currentTheme.colors.borderLight,
+                            }}
+                          >
+                            {ci.selectedOption}
+                          </span>
+                        )}
+                        {ci.selectedAddOns?.map((add) => (
+                          <span
+                            key={add}
+                            className="rounded px-1.5 py-0.5 text-[9px] font-bold border"
+                            style={{
+                              backgroundColor: currentTheme.colors.bgElevated,
+                              color: currentTheme.colors.primary,
+                              borderColor: currentTheme.colors.borderLight,
+                            }}
+                          >
+                            + {add}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
 
-                      <div className="mt-1.5 flex items-baseline gap-1.5">
-                        <span className="font-mono text-xs font-black text-[#8A4228]">
+                    {isOrdered ? (
+                      <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9.5px] font-black text-emerald-800 font-mono">
+                        Sent to Kitchen
+                      </span>
+                    ) : (
+                      <span
+                        className="rounded-full px-2 py-0.5 text-[9.5px] font-bold font-mono border"
+                        style={{
+                          backgroundColor: currentTheme.colors.secondaryBg,
+                          color: currentTheme.colors.secondaryFg,
+                          borderColor: currentTheme.colors.border,
+                        }}
+                      >
+                        Ready to Fire
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quantity and Price Bar */}
+                  <div
+                    className="flex items-center justify-between border-t pt-2"
+                    style={{ borderColor: currentTheme.colors.borderLight }}
+                  >
+                    <div>
+                      <div className="flex items-baseline gap-1.5">
+                        <span
+                          className="font-mono text-sm font-black"
+                          style={{ color: currentTheme.colors.textPrimary }}
+                        >
                           ₹{ci.totalPrice}
                         </span>
                         {ci.quantity > 1 && (
-                          <span className="font-mono text-[10px] text-[#5B5049]/60">
+                          <span
+                            className="font-mono text-[10px]"
+                            style={{ color: currentTheme.colors.textMuted }}
+                          >
                             (₹{Math.round(ci.totalPrice / ci.quantity)} each)
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Stepper or Ordered Badge */}
+                    {/* Stepper or Ordered Badge (Harmonized with Theme Button Color) */}
                     {!isOrdered ? (
-                      <div className="flex items-center gap-1 rounded-full border border-[#8A4228] bg-[#F3DFCC] p-0.5 shadow-xs">
+                      <div
+                        className="flex items-center gap-1 rounded-xl border p-0.5 shadow-2xs"
+                        style={{
+                          backgroundColor: currentTheme.colors.bgElevated,
+                          borderColor: currentTheme.colors.border,
+                        }}
+                      >
                         <button
                           onClick={() => updateCartQuantity(ci.cartItemId, -1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F] transition"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
+                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
                           title="Decrease quantity"
                         >
-                          <Minus className="h-3 w-3 stroke-[3]" />
+                          <Minus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
-                        <span className="px-2 text-xs font-black text-[#8A4228] font-mono">
+                        <span
+                          className="px-1.5 text-xs font-black font-mono"
+                          style={{ color: currentTheme.colors.textPrimary }}
+                        >
                           {ci.quantity}
                         </span>
                         <button
                           onClick={() => updateCartQuantity(ci.cartItemId, 1)}
-                          className="flex h-6 w-6 items-center justify-center rounded-full bg-[#8A4228] text-white hover:bg-[#71351F] transition"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
+                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
                           title="Increase quantity"
                         >
-                          <Plus className="h-3 w-3 stroke-[3]" />
+                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
                       </div>
                     ) : (
-                      <span className="font-mono text-xs font-black text-[#5B5049]">
+                      <span
+                        className="font-mono text-xs font-black"
+                        style={{ color: currentTheme.colors.textPrimary }}
+                      >
                         Qty: {ci.quantity}
                       </span>
                     )}
@@ -236,10 +336,14 @@ export const Screen4Cart: React.FC = () => {
 
                   {/* Actions for unplaced items */}
                   {!isOrdered && (
-                    <div className="flex items-center justify-between border-t border-[#E8D5C3]/60 pt-2 text-[10px]">
+                    <div
+                      className="flex items-center justify-between border-t pt-2 text-[10px]"
+                      style={{ borderColor: currentTheme.colors.borderLight }}
+                    >
                       <button
                         onClick={() => handleSeparateOrder(ci.cartItemId, ci.menuItem.name)}
-                        className="font-bold text-[#D08A52] hover:underline flex items-center gap-1"
+                        className="font-bold hover:underline flex items-center gap-1"
+                        style={{ color: currentTheme.colors.buttonBg }}
                       >
                         <Flame className="h-3 w-3" />
                         <span>Serve as Priority Starter</span>
@@ -264,7 +368,12 @@ export const Screen4Cart: React.FC = () => {
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => setCurrentScreen(2)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#E8D5C3] bg-white py-3 text-xs font-black text-[#8A4228] hover:border-[#8A4228] hover:bg-[#F3DFCC]/30 transition shadow-2xs"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-3 text-xs font-black transition shadow-2xs hover:brightness-105"
+            style={{
+              borderColor: currentTheme.colors.border,
+              backgroundColor: currentTheme.colors.bgSurface,
+              color: currentTheme.colors.buttonBg,
+            }}
           >
             <Plus className="h-4 w-4 stroke-[2.5]" />
             <span>Add More Dishes from Menu</span>
@@ -272,13 +381,18 @@ export const Screen4Cart: React.FC = () => {
         )}
       </div>
 
-      {/* Sticky Bottom Bar (Cart Subtotal Removed) */}
+      {/* Sticky Bottom Bar */}
       {cart.length > 0 && (
         <StickyBottomBar>
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={placeAllOrders}
-            className="flex w-full items-center justify-between rounded-[20px] bg-[#8A4228] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] text-[#FFFCF7] shadow-lg transition hover:bg-[#71351F]"
+            className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105"
+            style={{
+              backgroundColor: currentTheme.colors.buttonBg,
+              color: currentTheme.colors.buttonFg,
+              boxShadow: currentTheme.colors.buttonShadow,
+            }}
           >
             <div className="flex items-center gap-2">
               <CookingPot className="h-4 w-4 stroke-[2.2]" />

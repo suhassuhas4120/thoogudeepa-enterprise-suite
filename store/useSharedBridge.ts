@@ -42,6 +42,8 @@ export interface SharedTable {
   kotCount: number;
   mergedWith?: string;           // primary table's number (for the non-primary members)
   mergeGroupPeers?: string[];    // ALL table numbers in the group including self (set on every member)
+  isMergeConfirmed?: boolean;
+  removedChairs?: number[];
   preMergeCapacity?: number;
   preMergeBill?: number;
   preMergeGuests?: number;
@@ -211,6 +213,12 @@ interface SharedBridgeState {
 
   /** Waiter merges two tables — combines bills */
   waiterMergeTables: (targetTable: string, sourceTable: string) => void;
+
+  /** Waiter confirms merge configuration for a table group */
+  waiterConfirmMerge: (tableNumber: string) => void;
+
+  /** Waiter removes a specific chair from a table */
+  waiterRemoveChair: (tableNumber: string, chairIdx: number) => void;
 
   /** Waiter merges two chairs on a table — combines items/orders */
   waiterMergeChairs: (tableNumber: string, fromChair: number, toChair: number) => void;
@@ -852,6 +860,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             // mergedWith = primary's number for all (including primary itself so isMerged check works)
             mergedWith: primaryNum,
             mergeGroupPeers: combined,
+            isMergeConfirmed: false,
             preMergeCapacity: t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity,
             preMergeBill: t.preMergeBill !== undefined ? t.preMergeBill : t.currentBill,
             preMergeGuests: t.preMergeGuests !== undefined ? t.preMergeGuests : t.guestCount,
@@ -860,6 +869,32 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         }),
       };
     });
+  },
+
+  waiterConfirmMerge: (tableNumber) => {
+    set((state) => {
+      const target = state.tables.find((t) => t.number === tableNumber);
+      const peers = target?.mergeGroupPeers || [tableNumber];
+      return {
+        tables: state.tables.map((t) =>
+          peers.includes(t.number) ? { ...t, isMergeConfirmed: true } : t
+        ),
+      };
+    });
+  },
+
+  waiterRemoveChair: (tableNumber, chairIdx) => {
+    set((state) => ({
+      tables: state.tables.map((t) => {
+        if (t.number !== tableNumber) return t;
+        const currentRemoved = t.removedChairs || [];
+        if (currentRemoved.includes(chairIdx)) return t;
+        return {
+          ...t,
+          removedChairs: [...currentRemoved, chairIdx],
+        };
+      }),
+    }));
   },
 
   waiterMergeChairs: (tableNumber, fromChair, toChair) => {
@@ -966,6 +1001,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             mergedWith: undefined,
             mergeGroupPeers: undefined,
             mergedSeatGroups: undefined,
+            isMergeConfirmed: undefined,
+            removedChairs: undefined,
             preMergeCapacity: undefined,
             preMergeBill: undefined,
             preMergeGuests: undefined,
@@ -998,6 +1035,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             activeItems: [],
             mergedWith: undefined,
             mergeGroupPeers: undefined,
+            isMergeConfirmed: undefined,
+            removedChairs: undefined,
             preMergeBill: undefined,
             preMergeGuests: undefined,
             preMergeStatus: undefined,
@@ -1031,6 +1070,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               guestCount: removedPreGuests,
               mergedWith: undefined,
               mergeGroupPeers: undefined,
+              isMergeConfirmed: undefined,
+              removedChairs: undefined,
               preMergeBill: undefined,
               preMergeGuests: undefined,
               preMergeStatus: undefined,
@@ -1043,6 +1084,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               ...t,
               mergedWith: newPrimaryNum,
               mergeGroupPeers: newPeers,
+              isMergeConfirmed: false, // allow review / edit
               currentBill: isNewPrimary ? newCombinedBill : 0,
             };
           }

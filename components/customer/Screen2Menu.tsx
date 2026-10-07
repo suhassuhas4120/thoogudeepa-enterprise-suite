@@ -24,6 +24,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { TabletMenuPanel } from '../waiter-tablet/TabletMenuPanel';
 
 interface Screen2MenuProps {
   isWaiterMode?: boolean;
@@ -36,7 +37,16 @@ interface Screen2MenuProps {
   onSwitchToPayment?: () => void;
 }
 
-export const Screen2Menu: React.FC<Screen2MenuProps> = () => {
+export const Screen2Menu: React.FC<Screen2MenuProps> = ({
+  isWaiterMode = false,
+  tabletMode = false,
+  tableNum,
+  seatNum,
+  waiterName,
+  onBack,
+  onKOTFired,
+  onSwitchToPayment,
+}) => {
   const {
     setCurrentScreen,
     menuItems,
@@ -48,6 +58,19 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = () => {
     tableNumber,
     seatNumber,
   } = useCustomer();
+
+  if (isWaiterMode) {
+    return (
+      <TabletMenuPanel
+        tableNum={tableNum || tableNumber || 'T-01'}
+        seatNum={seatNum}
+        captainName={waiterName || 'Floor Captain'}
+        onBack={onBack || (() => setCurrentScreen(2))}
+        onKOTFired={onKOTFired || (() => {})}
+        onSwitchToPayment={onSwitchToPayment}
+      />
+    );
+  }
 
   const { currentTheme } = useCustomerTheme();
   const { inventory86 } = useSharedBridge();

@@ -96,7 +96,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   previousScreen: 1,
   viewMode: 'single',
   guestName: '',
-  tableNumber: 'A-04',
+  tableNumber: 'T-01',
   seatNumber: 1,
   venueName: 'Thoogudeepa donne biryani mane',
   selectedDetailItem: INITIAL_MENU_ITEMS[0],

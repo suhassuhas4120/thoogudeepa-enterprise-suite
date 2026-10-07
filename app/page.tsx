@@ -4,7 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import { useCustomer } from '../context/CustomerContext';
 import { CustomerThemeProvider, useCustomerTheme } from '../context/ThemeContext';
-import { ThemeSwitcherBar } from '../components/ui/ThemeSwitcherBar';
 import { ScreenId } from '../types/customer';
 import { Screen1Welcome } from '../components/customer/Screen1Welcome';
 import { Screen2Menu } from '../components/customer/Screen2Menu';
@@ -94,7 +93,7 @@ function CustomerJourneyContent() {
               </span>
             </div>
             <h1 className="text-sm font-bold tracking-tight text-stone-900 mt-0.5">
-              Customer Ordering Portal • <span className="font-extrabold" style={{ color: currentTheme.colors.primary }}>{currentTheme.name}</span>
+              Customer Ordering Portal
             </h1>
           </div>
         </div>
@@ -212,9 +211,6 @@ function CustomerJourneyContent() {
           );
         })}
       </nav>
-
-      {/* UI Design Switcher Bar (Placed right below Screen tabs) */}
-      <ThemeSwitcherBar />
 
       {/* Main Container */}
       <div className="flex-1 py-4 px-4">

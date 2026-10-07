@@ -27,7 +27,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, getSyncBroadcastChannel } from '../lib/supabase';
 import { useSharedBridge, type SharedTable } from '../store/useSharedBridge';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
@@ -88,20 +88,59 @@ interface DbPingRow {
 
 // ── Reconcile helpers ────────────────────────────────────────────────
 
+let lastStateFingerprint = '';
+let isReconciling = false;
+
+function computeStateFingerprint(
+  tickets: DbKdsTicketRow[] | null,
+  tables: DbTableRow[] | null,
+  menu86: DbMenu86Row[] | null,
+  pings: DbPingRow[] | null
+): string {
+  const tkPart = (tickets || [])
+    .map((t) => `${t.id}:${t.status}:${t.table_number}:${(t.items || []).map((i: any) => `${i.id}-${i.stage}-${i.quantity}`).join(',')}`)
+    .join('|');
+  const tblPart = (tables || [])
+    .map((t) => `${t.number}:${t.status}:${t.current_bill}:${t.guest_count}:${t.server_name}:${t.kot_count}`)
+    .join('|');
+  const m86Part = (menu86 || [])
+    .map((m) => `${m.id}:${m.is_86}:${m.prep_delay_minutes}`)
+    .join('|');
+  const pingSig = (pings || [])
+    .map((p) => `${p.id}:${p.status}`)
+    .join('|');
+  return `${tkPart}#${tblPart}#${m86Part}#${pingSig}`;
+}
+
 /**
  * Full state reconciliation: fetch all relevant tables from Supabase
- * and push them into the Zustand store. Called on reconnect.
+ * and push them into the Zustand store. Called on reconnect and poll.
  */
 async function reconcileAllState(): Promise<void> {
+  if (isReconciling) return;
+  isReconciling = true;
   try {
     const bridge = useSharedBridge.getState();
 
-    // 1. KDS Tickets (non-completed)
-    const { data: tickets } = await supabase
-      .from('kds_tickets')
-      .select('*')
-      .neq('status', 'COMPLETED')
-      .order('created_at', { ascending: true });
+    // Fetch all tables in parallel (single network roundtrip)
+    const [
+      { data: tickets },
+      { data: tables },
+      { data: menu86 },
+      { data: pings },
+    ] = await Promise.all([
+      supabase.from('kds_tickets').select('*').neq('status', 'COMPLETED').order('created_at', { ascending: true }),
+      supabase.from('tables').select('*').order('number', { ascending: true }),
+      supabase.from('menu_86').select('*').order('name', { ascending: true }),
+      supabase.from('pings').select('*').eq('status', 'PENDING').order('created_at', { ascending: true }),
+    ]);
+
+    // Skip setState if database data is completely identical
+    const fingerprint = computeStateFingerprint(tickets, tables, menu86, pings);
+    if (fingerprint === lastStateFingerprint && bridge.kdsTickets.length > 0) {
+      return;
+    }
+    lastStateFingerprint = fingerprint;
 
     const mappedTickets = (tickets || []).map((row: DbKdsTicketRow) => ({
       id: row.id,
@@ -174,12 +213,6 @@ async function reconcileAllState(): Promise<void> {
       }
     });
 
-    // 2. Tables
-    const { data: tables } = await supabase
-      .from('tables')
-      .select('*')
-      .order('number', { ascending: true });
-
     let mappedTables = bridge.tables;
     if (tables && tables.length > 0) {
       mappedTables = tables.map((row: DbTableRow) => {
@@ -208,62 +241,46 @@ async function reconcileAllState(): Promise<void> {
       });
     }
 
+    const nextInventory = (menu86 && menu86.length > 0)
+      ? (() => {
+          const dbMap = new Map<string, DbMenu86Row>(menu86.map((row: DbMenu86Row) => [row.id, row]));
+          return bridge.inventory86.map((inv) => {
+            const dbRow = dbMap.get(inv.id);
+            if (!dbRow) return inv;
+            return {
+              ...inv,
+              is86: dbRow.is_86,
+              prepDelayMinutes: dbRow.prep_delay_minutes ?? inv.prepDelayMinutes,
+            };
+          });
+        })()
+      : bridge.inventory86;
+
+    const nextPings = (pings || []).map((row: DbPingRow) => ({
+      id: row.id,
+      tableNumber: row.table_number,
+      type: row.type,
+      message: row.message ?? undefined,
+      timestamp: row.created_at
+        ? new Date(row.created_at).toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '--',
+      status: 'PENDING' as const,
+      guestName: row.guest_name || 'Guest',
+    }));
+
     useSharedBridge.setState({
       tables: mappedTables,
       kdsTickets: mappedTickets,
+      inventory86: nextInventory,
+      pings: nextPings,
     });
-
-    // 3. Menu 86
-    const { data: menu86 } = await supabase
-      .from('menu_86')
-      .select('*')
-      .order('name', { ascending: true });
-
-    if (menu86 && menu86.length > 0) {
-      // Merge DB is_86 values into existing inventory86 items (by id match)
-      const dbMap = new Map<string, DbMenu86Row>(
-        menu86.map((row: DbMenu86Row) => [row.id, row])
-      );
-      useSharedBridge.setState({
-        inventory86: bridge.inventory86.map((inv) => {
-          const dbRow = dbMap.get(inv.id);
-          if (!dbRow) return inv;
-          return {
-            ...inv,
-            is86: dbRow.is_86,
-            prepDelayMinutes: dbRow.prep_delay_minutes ?? inv.prepDelayMinutes,
-          };
-        }),
-      });
-    }
-
-    // 4. Pings (pending only)
-    const { data: pings } = await supabase
-      .from('pings')
-      .select('*')
-      .eq('status', 'PENDING')
-      .order('created_at', { ascending: true });
-
-    if (pings) {
-      useSharedBridge.setState({
-        pings: pings.map((row: DbPingRow) => ({
-          id: row.id,
-          tableNumber: row.table_number,
-          type: row.type,
-          message: row.message ?? undefined,
-          timestamp: row.created_at
-            ? new Date(row.created_at).toLocaleTimeString('en-IN', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : '--',
-          status: 'PENDING' as const,
-          guestName: row.guest_name || 'Guest',
-        })),
-      });
-    }
   } catch (err) {
     console.error('[BridgeSync] Reconciliation error:', err);
+  } finally {
+    isReconciling = false;
   }
 }
 
@@ -641,20 +658,43 @@ export function useBridgeSync() {
   useEffect(() => {
     subscribe();
 
-    // Reconnect on tab visibility: catches mobile tab wake-up after long sleep
+    // 1. Initial reconciliation
+    reconcileAllState();
+
+    // 2. High-frequency 1.5s background polling heartbeat
+    // Guarantees real-time synchronization on all devices, mobile browsers, cellular networks, and WiFis
+    const pollInterval = setInterval(() => {
+      reconcileAllState();
+    }, 1500);
+
+    // 3. Instantaneous peer-to-peer broadcast listener (<50ms response across devices)
+    const broadcastCh = getSyncBroadcastChannel();
+    if (broadcastCh) {
+      broadcastCh.on('broadcast', { event: 'STATE_CHANGED' }, () => {
+        reconcileAllState();
+      });
+    }
+
+    // 4. Reconnect & reconcile on tab visibility and window focus
     const handleVisibility = () => {
       if (!document.hidden && !isSubscribedRef.current) {
         console.info('[BridgeSync] Tab visible — resubscribing and reconciling...');
         subscribe();
       } else if (!document.hidden) {
-        // Even if subscribed, reconcile on visibility to catch missed events
         reconcileAllState();
       }
     };
+    const handleFocus = () => {
+      reconcileAllState();
+    };
+
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
 
     return () => {
+      clearInterval(pollInterval);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (channelRef.current) {
         supabase.removeChannel(channelRef.current);

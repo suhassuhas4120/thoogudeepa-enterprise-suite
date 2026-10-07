@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { INITIAL_MENU_ITEMS } from '../data/menuItems';
 import { MenuItem } from '../types/customer';
 import { OrderStage } from '../types/customer';
+import { broadcastStateChange } from '../lib/supabase';
 
 
 export interface SharedKDSItem {
@@ -283,8 +284,11 @@ function bridgePost(
         return;
       }
       res.json().then((data) => {
+        broadcastStateChange(url);
         onSuccess?.(data as Record<string, unknown>);
-      }).catch(() => {});
+      }).catch(() => {
+        broadcastStateChange(url);
+      });
     })
     .catch((err) => {
       console.error(`[Bridge] API ${url} network error:`, err);
@@ -652,6 +656,22 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
+
+    // Persist each matching item to Supabase and broadcast
+    const matchingItems: { ticketId: string; itemId: string }[] = [];
+    get().kdsTickets.forEach((tk) => {
+      tk.items.forEach((it) => {
+        const itemKey = getCanonicalDishKey(it.name);
+        if (itemKey === targetKey || itemKey.includes(targetKey) || targetKey.includes(itemKey)) {
+          matchingItems.push({ ticketId: tk.id, itemId: it.id });
+        }
+      });
+    });
+
+    matchingItems.forEach(({ ticketId, itemId }) => {
+      bridgePost('/api/kds/bump-item', { ticketId, itemId, stage });
+    });
+    broadcastStateChange('BULK_STAGE_UPDATE');
   },
 
   

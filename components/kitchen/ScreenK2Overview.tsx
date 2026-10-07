@@ -283,7 +283,7 @@ export const ScreenK2Overview: React.FC = () => {
         ? 'PREP'
         : newStage === 'READY'
         ? 'PLATED'
-        : 'PLACED';
+        : 'RECEIVED';
 
     if (kitchenSetBulkItemStage) {
       kitchenSetBulkItemStage(bulkItemName, bridgeStage);

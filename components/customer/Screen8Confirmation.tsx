@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo } from 'react';
-import { useCustomer } from '../../context/CustomerContext';
-import { useCustomerTheme } from '../../context/ThemeContext';
-import { useSharedBridge } from '../../store/useSharedBridge';
-import { ScreenHousing } from '../ui/ScreenHousing';
-import { WireHeader } from '../ui/WireHeader';
-import { StickyBottomBar } from '../ui/StickyBottomBar';
+import React, { useState, useMemo } from "react";
+import { useCustomer } from "../../context/CustomerContext";
+import { useCustomerTheme } from "../../context/ThemeContext";
+import { useSharedBridge } from "../../store/useSharedBridge";
+import { ScreenHousing } from "../ui/ScreenHousing";
+import { WireHeader } from "../ui/WireHeader";
+import { StickyBottomBar } from "../ui/StickyBottomBar";
 import {
   CheckCircle2,
   Star,
@@ -18,8 +18,8 @@ import {
   RotateCcw,
   Receipt,
   Check,
-} from 'lucide-react';
-import { motion } from 'framer-motion';
+} from "lucide-react";
+import { motion } from "framer-motion";
 
 export const Screen8Confirmation: React.FC = () => {
   const { currentTheme } = useCustomerTheme();
@@ -33,36 +33,41 @@ export const Screen8Confirmation: React.FC = () => {
     resetSession,
   } = useCustomer();
 
-  const [selectedChips, setSelectedChips] = useState<string[]>(['Super Quick Service']);
-  const [customFeedback, setCustomFeedback] = useState('');
+  const [selectedChips, setSelectedChips] = useState<string[]>([
+    "Super Quick Service",
+  ]);
+  const [customFeedback, setCustomFeedback] = useState("");
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState(false);
   const [shareMsg, setShareMsg] = useState(false);
   const [rating, setRating] = useState(0);
 
   // Read seat from URL
-  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const seatNumber = parseInt(params.get('seat') || '1', 10);
-  const effectiveTable = tableNumber || 'T-01';
+  const params =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search)
+      : new URLSearchParams();
+  const seatNumber = parseInt(params.get("seat") || "1", 10);
+  const effectiveTable = tableNumber || "T-01";
 
   // Floor Captain details from shared bridge
   const { tables } = useSharedBridge();
   const currentTable = tables.find((t) => t.number === effectiveTable);
   const captainName =
-    currentTable?.serverName && currentTable.serverName !== 'Floor Captain'
+    currentTable?.serverName && currentTable.serverName !== "Floor Captain"
       ? currentTable.serverName
-      : 'Captain Suresh';
+      : "Suresh";
 
   const { formattedDate, formattedTime } = useMemo(() => {
     const d = new Date();
-    const formattedDate = d.toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
+    const formattedDate = d.toLocaleDateString("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
     });
-    const formattedTime = d.toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
+    const formattedTime = d.toLocaleTimeString("en-IN", {
+      hour: "2-digit",
+      minute: "2-digit",
       hour12: true,
     });
     return { formattedDate, formattedTime };
@@ -70,37 +75,63 @@ export const Screen8Confirmation: React.FC = () => {
 
   // Calculations (Use live cart or authentic preview dishes)
   const previewDishes = [
-    { cartItemId: 'sample-1', menuItem: { name: 'Special Mutton Donne Biryani' }, quantity: 2, totalPrice: 680 },
-    { cartItemId: 'sample-2', menuItem: { name: 'Chicken Ghee Roast' }, quantity: 1, totalPrice: 280 },
-    { cartItemId: 'sample-3', menuItem: { name: 'Mutton Nalli Fry' }, quantity: 1, totalPrice: 220 },
+    {
+      cartItemId: "sample-1",
+      menuItem: { name: "Special Mutton Donne Biryani" },
+      quantity: 2,
+      totalPrice: 680,
+    },
+    {
+      cartItemId: "sample-2",
+      menuItem: { name: "Chicken Ghee Roast" },
+      quantity: 1,
+      totalPrice: 280,
+    },
+    {
+      cartItemId: "sample-3",
+      menuItem: { name: "Mutton Nalli Fry" },
+      quantity: 1,
+      totalPrice: 220,
+    },
   ];
   const activeItems = cart.length > 0 ? cart : previewDishes;
-  const subtotal = cart.length > 0
-    ? cart.reduce((s, i) => s + i.totalPrice, 0)
-    : (payment.subtotal > 0 ? payment.subtotal : 1180);
+  const subtotal =
+    cart.length > 0
+      ? cart.reduce((s, i) => s + i.totalPrice, 0)
+      : payment.subtotal > 0
+        ? payment.subtotal
+        : 1180;
   const cgst = Math.round(subtotal * 0.025);
   const sgst = Math.round(subtotal * 0.025);
   const totalTax = cgst + sgst;
-  const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + totalTax) : 0);
-  const calculatedGrandTotal = Math.max(0, subtotal + totalTax + payment.tipAmount - discount);
-  const paidAmount = payment.totalAmount > 0 ? payment.totalAmount : calculatedGrandTotal;
+  const discount =
+    payment.discount ||
+    (payment.redeemPoints ? Math.min(50, subtotal + totalTax) : 0);
+  const calculatedGrandTotal = Math.max(
+    0,
+    subtotal + totalTax + payment.tipAmount - discount,
+  );
+  const paidAmount =
+    payment.totalAmount > 0 ? payment.totalAmount : calculatedGrandTotal;
 
   // Verified 12-digit bank reference number & Tax invoice ID
-  const bankUtr = '4281' + Math.floor(10000000 + Math.random() * 90000000);
-  const txnId = payment.transactionId || '#TXN-' + Math.floor(100000 + Math.random() * 900000);
-  const invoiceNumber = `INV-${effectiveTable.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString().slice(-6)}`;
+  const bankUtr = "4281" + Math.floor(10000000 + Math.random() * 90000000);
+  const txnId =
+    payment.transactionId ||
+    "#TXN-" + Math.floor(100000 + Math.random() * 900000);
+  const invoiceNumber = `INV-${effectiveTable.replace(/[^a-zA-Z0-9]/g, "")}-${Date.now().toString().slice(-6)}`;
 
   const chips = [
-    'Super Quick Service',
-    'Delicious Military Dum',
-    'Authentic Donne Aroma',
-    'Courteous Staff',
-    'Great Ambience',
+    "Super Quick Service",
+    "Delicious Military Dum",
+    "Authentic Donne Aroma",
+    "Courteous Staff",
+    "Great Ambience",
   ];
 
   const toggleChip = (chip: string) => {
     setSelectedChips((prev) =>
-      prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip]
+      prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip],
     );
   };
 
@@ -120,7 +151,10 @@ export const Screen8Confirmation: React.FC = () => {
   };
 
   return (
-    <ScreenHousing screenNumber={8} screenTitle="CONFIRMATION & DIGITAL TAX INVOICE">
+    <ScreenHousing
+      screenNumber={8}
+      screenTitle="CONFIRMATION & DIGITAL TAX INVOICE"
+    >
       {/* Header */}
       {/* Header */}
       <WireHeader
@@ -135,7 +169,7 @@ export const Screen8Confirmation: React.FC = () => {
                 borderColor: currentTheme.colors.border,
               }}
             >
-              {effectiveTable} • C-{String(seatNumber).padStart(2, '0')}
+              {effectiveTable} • C-{String(seatNumber).padStart(2, "0")}
             </span>
           </span>
         }
@@ -145,7 +179,10 @@ export const Screen8Confirmation: React.FC = () => {
         showCart={false}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4"
+        style={{ backgroundColor: currentTheme.colors.bgApp }}
+      >
         {/* Success Card */}
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
@@ -185,17 +222,33 @@ export const Screen8Confirmation: React.FC = () => {
               borderColor: currentTheme.colors.border,
             }}
           >
-            <div className="font-bold text-xs" style={{ color: currentTheme.colors.textPrimary }}>
+            <div
+              className="font-bold text-xs"
+              style={{ color: currentTheme.colors.textPrimary }}
+            >
               BANK UTR (RRN): {bankUtr}
             </div>
-            <div className="text-[10px] font-semibold mt-0.5" style={{ color: currentTheme.colors.textMuted }}>
-              TXN ID: {txnId} • TABLE {effectiveTable} • SEAT C-{String(seatNumber).padStart(2, '0')}
+            <div
+              className="text-[10px] font-semibold mt-0.5"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
+              TXN ID: {txnId} • TABLE {effectiveTable} • SEAT C-
+              {String(seatNumber).padStart(2, "0")}
             </div>
           </div>
 
           <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-emerald-800">
             <ShieldCheck className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
-            <span>Attended by <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{captainName}</strong> • Console Acknowledged</span>
+            <span>
+              Attended by{" "}
+              <strong
+                className="font-bold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                {captainName}
+              </strong>{" "}
+              • Console Acknowledged
+            </span>
           </div>
         </motion.div>
 
@@ -215,7 +268,7 @@ export const Screen8Confirmation: React.FC = () => {
               className="text-sm font-black tracking-wider uppercase"
               style={{ color: currentTheme.colors.textPrimary }}
             >
-              {venueName || 'Thoogudeepa Donne Biryani Mane'}
+              {venueName || "Thoogudeepa Donne Biryani Mane"}
             </h3>
             <p
               className="font-mono text-[10px] font-semibold mt-0.5"
@@ -244,34 +297,77 @@ export const Screen8Confirmation: React.FC = () => {
             >
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <span style={{ color: currentTheme.colors.textMuted }}>DATE:</span>{' '}
-                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{formattedDate}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>
+                    DATE:
+                  </span>{" "}
+                  <strong
+                    className="font-bold"
+                    style={{ color: currentTheme.colors.textPrimary }}
+                  >
+                    {formattedDate}
+                  </strong>
                 </div>
                 <div className="text-right whitespace-nowrap">
-                  <span style={{ color: currentTheme.colors.textMuted }}>TIME:</span>{' '}
-                  <strong className="font-bold whitespace-nowrap" style={{ color: currentTheme.colors.textPrimary }}>{formattedTime}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>
+                    TIME:
+                  </span>{" "}
+                  <strong
+                    className="font-bold whitespace-nowrap"
+                    style={{ color: currentTheme.colors.textPrimary }}
+                  >
+                    {formattedTime}
+                  </strong>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <span style={{ color: currentTheme.colors.textMuted }}>TABLE:</span>{' '}
-                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{effectiveTable} (Seat C-{String(seatNumber).padStart(2, '0')})</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>
+                    TABLE:
+                  </span>{" "}
+                  <strong
+                    className="font-bold"
+                    style={{ color: currentTheme.colors.textPrimary }}
+                  >
+                    {effectiveTable} • C-
+                    {String(seatNumber).padStart(2, "0")}
+                  </strong>
                 </div>
                 <div className="text-right">
-                  <span style={{ color: currentTheme.colors.textMuted }}>CAPTAIN:</span>{' '}
-                  <strong className="font-bold" style={{ color: currentTheme.colors.buttonBg }}>{captainName}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>
+                    CAPTAIN:
+                  </span>{" "}
+                  <strong
+                    className="font-bold"
+                    style={{ color: currentTheme.colors.buttonBg }}
+                  >
+                    {captainName}
+                  </strong>
                 </div>
               </div>
 
               <div className="flex items-center justify-between">
                 <div className="text-left">
-                  <span style={{ color: currentTheme.colors.textMuted }}>GUEST:</span>{' '}
-                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{guestName || 'Valued Diner'}</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>
+                    GUEST:
+                  </span>{" "}
+                  <strong
+                    className="font-bold"
+                    style={{ color: currentTheme.colors.textPrimary }}
+                  >
+                    {guestName || "Valued Diner"}
+                  </strong>
                 </div>
                 <div className="text-right">
-                  <span style={{ color: currentTheme.colors.textMuted }}>MODE:</span>{' '}
-                  <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>DINE-IN</strong>
+                  <span style={{ color: currentTheme.colors.textMuted }}>
+                    MODE:
+                  </span>{" "}
+                  <strong
+                    className="font-bold"
+                    style={{ color: currentTheme.colors.textPrimary }}
+                  >
+                    DINE-IN
+                  </strong>
                 </div>
               </div>
             </div>
@@ -296,9 +392,17 @@ export const Screen8Confirmation: React.FC = () => {
                 style={{ color: currentTheme.colors.textPrimary }}
               >
                 <span className="font-semibold text-xs">
-                  {ci.menuItem.name} <span className="font-bold" style={{ color: currentTheme.colors.buttonBg }}>× {ci.quantity}</span>
+                  {ci.menuItem.name}{" "}
+                  <span
+                    className="font-bold"
+                    style={{ color: currentTheme.colors.buttonBg }}
+                  >
+                    × {ci.quantity}
+                  </span>
                 </span>
-                <span className="font-mono font-bold text-xs">₹{ci.totalPrice}</span>
+                <span className="font-mono font-bold text-xs">
+                  ₹{ci.totalPrice}
+                </span>
               </div>
             ))}
           </div>
@@ -308,22 +412,53 @@ export const Screen8Confirmation: React.FC = () => {
             className="space-y-1.5 border-b pb-3 text-xs font-mono"
             style={{ borderColor: currentTheme.colors.borderLight }}
           >
-            <div className="flex justify-between font-sans" style={{ color: currentTheme.colors.textSecondary }}>
+            <div
+              className="flex justify-between font-sans"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
               <span className="font-semibold">Item Subtotal</span>
-              <span className="font-mono font-bold" style={{ color: currentTheme.colors.textPrimary }}>₹{subtotal}</span>
+              <span
+                className="font-mono font-bold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                ₹{subtotal}
+              </span>
             </div>
-            <div className="flex justify-between font-sans" style={{ color: currentTheme.colors.textSecondary }}>
+            <div
+              className="flex justify-between font-sans"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
               <span className="font-medium">CGST (2.5%)</span>
-              <span className="font-mono font-semibold" style={{ color: currentTheme.colors.textPrimary }}>₹{cgst}</span>
+              <span
+                className="font-mono font-semibold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                ₹{cgst}
+              </span>
             </div>
-            <div className="flex justify-between font-sans" style={{ color: currentTheme.colors.textSecondary }}>
+            <div
+              className="flex justify-between font-sans"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
               <span className="font-medium">SGST (2.5%)</span>
-              <span className="font-mono font-semibold" style={{ color: currentTheme.colors.textPrimary }}>₹{sgst}</span>
+              <span
+                className="font-mono font-semibold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                ₹{sgst}
+              </span>
             </div>
             {payment.tipAmount > 0 && (
-              <div className="flex justify-between font-bold font-sans" style={{ color: currentTheme.colors.buttonBg }}>
-                <span className="font-semibold">Staff Tip (Captain & Team)</span>
-                <span className="font-mono font-black">+₹{payment.tipAmount}</span>
+              <div
+                className="flex justify-between font-bold font-sans"
+                style={{ color: currentTheme.colors.buttonBg }}
+              >
+                <span className="font-semibold">
+                  Staff Tip (Captain & Team)
+                </span>
+                <span className="font-mono font-black">
+                  +₹{payment.tipAmount}
+                </span>
               </div>
             )}
             {discount > 0 && (
@@ -334,10 +469,17 @@ export const Screen8Confirmation: React.FC = () => {
             )}
             <div
               className="flex items-center justify-between border-t-2 pt-2 text-sm font-black"
-              style={{ borderColor: currentTheme.colors.border, color: currentTheme.colors.textPrimary }}
+              style={{
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.textPrimary,
+              }}
             >
-              <span className="font-sans font-black tracking-tight">TOTAL AMOUNT PAID</span>
-              <span className="font-mono text-base font-black">₹{paidAmount}</span>
+              <span className="font-sans font-black tracking-tight">
+                TOTAL AMOUNT PAID
+              </span>
+              <span className="font-mono text-base font-black">
+                ₹{paidAmount}
+              </span>
             </div>
           </div>
 
@@ -345,9 +487,16 @@ export const Screen8Confirmation: React.FC = () => {
           <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200/90 p-2.5 text-xs">
             <div className="flex items-center gap-1.5 font-bold text-emerald-900">
               <CheckCircle2 className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
-              <span>Paid via <span className="font-black">{payment.paymentMethod || 'UPI'}</span></span>
+              <span>
+                Paid via{" "}
+                <span className="font-black">
+                  {payment.paymentMethod || "UPI"}
+                </span>
+              </span>
             </div>
-            <span className="font-mono text-[10px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs">PAID &amp; SETTLED</span>
+            <span className="font-mono text-[10px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs">
+              PAID &amp; SETTLED
+            </span>
           </div>
 
           {/* Captain Thank-you Note */}
@@ -355,8 +504,18 @@ export const Screen8Confirmation: React.FC = () => {
             className="text-center pt-1 border-t border-dashed text-[10.5px] space-y-0.5"
             style={{ borderColor: currentTheme.colors.borderLight }}
           >
-            <p className="font-bold" style={{ color: currentTheme.colors.buttonBg }}>Served with care by {captainName} • Floor Captain</p>
-            <p className="font-medium text-[10px]" style={{ color: currentTheme.colors.textMuted }}>Thank you for dining with us! Please visit again.</p>
+            <p
+              className="font-bold"
+              style={{ color: currentTheme.colors.buttonBg }}
+            >
+              Served with care by {captainName} • Floor Captain
+            </p>
+            <p
+              className="font-medium text-[10px]"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
+              Thank you for dining with us! Please visit again.
+            </p>
           </div>
         </div>
 
@@ -372,8 +531,13 @@ export const Screen8Confirmation: React.FC = () => {
             }}
             className="flex items-center justify-center gap-1.5 rounded-2xl border py-3 px-2 text-xs font-black hover:brightness-95 transition shadow-xs"
           >
-            <Download className="h-4 w-4" style={{ color: currentTheme.colors.buttonBg }} />
-            <span className="font-bold">{downloadMsg ? 'Downloaded!' : 'Download PDF Bill'}</span>
+            <Download
+              className="h-4 w-4"
+              style={{ color: currentTheme.colors.buttonBg }}
+            />
+            <span className="font-bold">
+              {downloadMsg ? "Downloaded!" : "Download PDF Bill"}
+            </span>
           </motion.button>
 
           <motion.button
@@ -382,7 +546,9 @@ export const Screen8Confirmation: React.FC = () => {
             className="flex items-center justify-center gap-1.5 rounded-2xl border border-emerald-300 bg-emerald-50 py-3 px-2 text-xs font-black text-emerald-800 hover:bg-emerald-100 transition shadow-xs"
           >
             <Share2 className="h-4 w-4 text-emerald-700" />
-            <span className="font-bold">{shareMsg ? 'Sent on WhatsApp!' : 'Share WhatsApp'}</span>
+            <span className="font-bold">
+              {shareMsg ? "Sent on WhatsApp!" : "Share WhatsApp"}
+            </span>
           </motion.button>
         </div>
 
@@ -402,8 +568,11 @@ export const Screen8Confirmation: React.FC = () => {
               >
                 Rate Experience
               </div>
-              <div className="text-xs font-bold mt-0.5 font-mono" style={{ color: currentTheme.colors.buttonBg }}>
-                {rating > 0 ? `${rating} / 5 Stars` : 'Tap stars to rate'}
+              <div
+                className="text-xs font-bold mt-0.5 font-mono"
+                style={{ color: currentTheme.colors.buttonBg }}
+              >
+                {rating > 0 ? `${rating} / 5 Stars` : "Tap stars to rate"}
               </div>
             </div>
 
@@ -422,8 +591,8 @@ export const Screen8Confirmation: React.FC = () => {
                   <Star
                     className={`h-5 w-5 transition-colors ${
                       star <= rating
-                        ? 'fill-amber-400 text-amber-400 stroke-amber-400'
-                        : 'fill-none text-slate-300 stroke-[1.75]'
+                        ? "fill-amber-400 text-amber-400 stroke-amber-400"
+                        : "fill-none text-slate-300 stroke-[1.75]"
                     }`}
                   />
                 </button>

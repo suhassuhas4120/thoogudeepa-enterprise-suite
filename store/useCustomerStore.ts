@@ -91,12 +91,26 @@ const initialEmptyPayment: PaymentDetails = {
   transactionId: '',
 };
 
+// Helper to normalize table numbers to the official schema format (T-01 to T-34)
+export function normalizeTableNumber(rawTable?: string | null): string {
+  if (!rawTable) return 'T-01';
+  const trimmed = rawTable.trim().toUpperCase();
+  const match = trimmed.match(/^(?:TABLE\s*|T-?|TBL-?)?0*(\d+)$/i);
+  if (match) {
+    const num = parseInt(match[1], 10);
+    if (num >= 1 && num <= 34) {
+      return `T-${String(num).padStart(2, '0')}`;
+    }
+  }
+  return trimmed.startsWith('T-') ? trimmed : 'T-01';
+}
+
 export const useCustomerStore = create<CustomerStoreState>((set) => ({
   currentScreen: 1,
   previousScreen: 1,
   viewMode: 'single',
   guestName: '',
-  tableNumber: 'A-04',
+  tableNumber: 'T-01',
   seatNumber: 1,
   venueName: 'Thoogudeepa donne biryani mane',
   selectedDetailItem: INITIAL_MENU_ITEMS[0],
@@ -120,7 +134,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
   setViewMode: (mode) => set({ viewMode: mode }),
   setGuestName: (guestName) => set({ guestName }),
-  setTableNumber: (tableNumber) => set({ tableNumber }),
+  setTableNumber: (tableNumber) => set({ tableNumber: normalizeTableNumber(tableNumber) }),
   setSeatNumber: (seatNumber) => set({ seatNumber }),
   setSelectedDetailItem: (selectedDetailItem) => set({ selectedDetailItem }),
 
@@ -242,12 +256,13 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const params = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search)
         : new URLSearchParams();
-      const seatNumber = parseInt(params.get('seat') || '1', 10);
-      const tableId = (params.get('table') || state.tableNumber || 'A-01').toUpperCase();
+      const seatNumber = parseInt(params.get('seat') || String(state.seatNumber || 1), 10);
+      const rawTable = params.get('table') || params.get('t') || params.get('tableNumber') || state.tableNumber || 'T-01';
+      const tableId = normalizeTableNumber(rawTable);
 
       // Build a stable ticket ID
       const ts = Date.now();
-      const tblTag = tableId.replace('-', '');
+      const tblTag = tableId.replace(/[^a-zA-Z0-9]/g, '');
       const ticketId = `KDS-${tblTag}-${ts}-001`;
 
       // Fire-and-forget to Supabase (async, non-blocking)

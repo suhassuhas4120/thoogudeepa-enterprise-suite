@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { useCustomer } from '../../context/CustomerContext';
-import { useCustomerTheme } from '../../context/ThemeContext';
-import { useSharedBridge } from '../../store/useSharedBridge';
-import { ScreenHousing } from '../ui/ScreenHousing';
+import React, { useEffect, useMemo, useState } from "react";
+import { useCustomer } from "../../context/CustomerContext";
+import { useCustomerTheme } from "../../context/ThemeContext";
+import { useSharedBridge } from "../../store/useSharedBridge";
+import { ScreenHousing } from "../ui/ScreenHousing";
 import {
   Crown,
   Wifi,
@@ -16,8 +16,10 @@ import {
   Smartphone,
   Flame,
   CookingPot,
-} from 'lucide-react';
-import { motion } from 'framer-motion';
+} from "lucide-react";
+import { motion } from "framer-motion";
+
+import { normalizeTableNumber } from "../../store/useCustomerStore";
 
 export const Screen1Welcome: React.FC = () => {
   const {
@@ -37,24 +39,28 @@ export const Screen1Welcome: React.FC = () => {
   // Dynamic time-based human greeting
   const timeGreeting = useMemo(() => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning ☀️';
-    if (hour < 17) return 'Good Afternoon 🍛';
-    return 'Good Evening 🌙';
+    if (hour < 12) return "Good Morning ☀️";
+    if (hour < 17) return "Good Afternoon 🍛";
+    return "Good Evening 🌙";
   }, []);
 
   // 1. Read ?table=T-01&seat=1 from URL on mount
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const tblParam = params.get('table') || params.get('t') || tableNumber || 'T-01';
-    const seatParam = params.get('seat') || params.get('chair') || params.get('s') || String(seatNumber || 1);
+    const tblParam =
+      params.get("table") ||
+      params.get("t") ||
+      params.get("tableNumber") ||
+      tableNumber ||
+      "T-01";
+    const seatParam =
+      params.get("seat") ||
+      params.get("chair") ||
+      params.get("s") ||
+      String(seatNumber || 1);
 
-    // Normalize table string (e.g. T-1, T1 -> T-01)
-    let cleanTable = tblParam.trim().toUpperCase();
-    const match = cleanTable.match(/^T-?(\d+)$/);
-    if (match) {
-      cleanTable = `T-${String(parseInt(match[1], 10)).padStart(2, '0')}`;
-    }
+    const cleanTable = normalizeTableNumber(tblParam);
     setTableNumber(cleanTable);
 
     const parsedSeat = parseInt(seatParam, 10);
@@ -64,28 +70,29 @@ export const Screen1Welcome: React.FC = () => {
   // Dynamically resolve real table data from the shared bridge
   const activeTable = useMemo(() => {
     return (
-      tables.find((t) => t.number.toUpperCase() === tableNumber.toUpperCase()) ||
+      tables.find(
+        (t) => t.number.toUpperCase() === tableNumber.toUpperCase(),
+      ) ||
       tables[0] || {
-        id: 'tbl-1',
-        number: tableNumber || 'T-01',
-        section: 'Ground Floor',
-        capacity: 4,
-        serverName: 'Floor Captain',
+        id: "tbl-01",
+        number: "T-01",
+        section: "Express / Couple Hall",
+        capacity: 2,
+        serverName: "Floor Captain",
       }
     );
   }, [tables, tableNumber]);
 
   const currentSeat = seatNumber || 1;
-  const cleanTableNum = (tableNumber || 'T-01').replace(/^T-?0*/, '') || '1';
-  const tableCapacity = activeTable?.capacity || 4;
+  const tableCapacity = activeTable?.capacity || 2;
 
   const handleSelectSeat = (newSeat: number) => {
     setSeatNumber(newSeat);
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
-      url.searchParams.set('table', activeTable.number);
-      url.searchParams.set('seat', newSeat.toString());
-      window.history.replaceState({}, '', url.toString());
+      url.searchParams.set("table", activeTable.number);
+      url.searchParams.set("seat", newSeat.toString());
+      window.history.replaceState({}, "", url.toString());
     }
   };
 
@@ -160,7 +167,10 @@ export const Screen1Welcome: React.FC = () => {
             className="flex items-center justify-center gap-1.5 mt-0.5 text-[10.5px] font-semibold"
             style={{ color: currentTheme.colors.textSecondary }}
           >
-            <Flame className="h-3 w-3" style={{ color: currentTheme.colors.primary }} />
+            <Flame
+              className="h-3 w-3"
+              style={{ color: currentTheme.colors.primary }}
+            />
             <span>Authentic Military Donne Biryani</span>
           </div>
         </motion.div>
@@ -189,7 +199,7 @@ export const Screen1Welcome: React.FC = () => {
                   className="text-xs font-black font-mono"
                   style={{ color: currentTheme.colors.textPrimary }}
                 >
-                  Table {cleanTableNum} • Chair {currentSeat}
+                  Table {activeTable.number} • Chair {currentSeat}
                 </div>
                 <div
                   className="text-[10px] font-bold"
@@ -229,7 +239,10 @@ export const Screen1Welcome: React.FC = () => {
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
-              <Armchair className="h-4 w-4" style={{ color: currentTheme.colors.primary }} />
+              <Armchair
+                className="h-4 w-4"
+                style={{ color: currentTheme.colors.primary }}
+              />
               <span
                 className="font-mono text-[10px] font-black uppercase tracking-wider"
                 style={{ color: currentTheme.colors.textPrimary }}
@@ -245,7 +258,7 @@ export const Screen1Welcome: React.FC = () => {
                 borderColor: currentTheme.colors.border,
               }}
             >
-              Table {cleanTableNum} • Chair {currentSeat}
+              Table {activeTable.number} • Chair {currentSeat}
             </span>
           </div>
 
@@ -261,9 +274,9 @@ export const Screen1Welcome: React.FC = () => {
               <span className="text-lg">🪑</span>
               <div>
                 <span className="font-mono text-xs font-black block">
-                  Table {cleanTableNum} • Chair {currentSeat}
+                  Table {activeTable.number} • Chair {currentSeat}
                 </span>
-                <span className="text-[10px] font-bold opacity-80 font-mono">
+                <span className="text-[10px] font-bold opacity-90 font-mono">
                   Dine-In Verified
                 </span>
               </div>
@@ -276,9 +289,56 @@ export const Screen1Welcome: React.FC = () => {
                 borderColor: currentTheme.colors.pillActiveBorder,
               }}
             >
-              ✓ Scanned
+              Scanned ✓
             </span>
           </div>
+
+          {/* Chair Selector if table has multiple chairs */}
+          {tableCapacity > 1 && (
+            <div
+              className="mt-3 pt-2.5 border-t"
+              style={{ borderColor: currentTheme.colors.border }}
+            >
+              <div
+                className="text-[10px] font-mono font-bold uppercase tracking-wider mb-2"
+                style={{ color: currentTheme.colors.textMuted }}
+              >
+                Select Chair ({tableCapacity} seats at {activeTable.number}):
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
+                {Array.from({ length: tableCapacity }, (_, i) => i + 1).map(
+                  (chairNum) => {
+                    const isSelected = chairNum === currentSeat;
+                    return (
+                      <button
+                        key={chairNum}
+                        type="button"
+                        onClick={() => handleSelectSeat(chairNum)}
+                        className="px-3 py-1.5 rounded-xl font-mono text-xs font-bold border transition-all active:scale-95 flex items-center gap-1.5 shadow-2xs"
+                        style={{
+                          backgroundColor: isSelected
+                            ? currentTheme.colors.pillActiveBg
+                            : currentTheme.colors.pillInactiveBg,
+                          borderColor: isSelected
+                            ? currentTheme.colors.pillActiveBorder
+                            : currentTheme.colors.pillInactiveBorder,
+                          color: isSelected
+                            ? currentTheme.colors.pillActiveFg
+                            : currentTheme.colors.pillInactiveFg,
+                        }}
+                      >
+                        <Armchair className="h-3 w-3" />
+                        <span>Chair {chairNum}</span>
+                        {isSelected && (
+                          <span className="text-[10px] font-black">✓</span>
+                        )}
+                      </button>
+                    );
+                  },
+                )}
+              </div>
+            </div>
+          )}
         </motion.div>
 
         {/* Card 4: Diner Name */}
@@ -293,7 +353,10 @@ export const Screen1Welcome: React.FC = () => {
           }}
         >
           <div className="flex items-center gap-1.5">
-            <User className="h-4 w-4" style={{ color: currentTheme.colors.buttonBg }} />
+            <User
+              className="h-4 w-4"
+              style={{ color: currentTheme.colors.buttonBg }}
+            />
             <label
               className="font-mono text-[10px] font-black uppercase tracking-wider"
               style={{ color: currentTheme.colors.textPrimary }}
@@ -385,7 +448,10 @@ export const Screen1Welcome: React.FC = () => {
                 Continue With Mobile Data
               </span>
             </div>
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition shrink-0" style={{ color: currentTheme.colors.textMuted }} />
+            <ArrowRight
+              className="h-4 w-4 group-hover:translate-x-0.5 transition shrink-0"
+              style={{ color: currentTheme.colors.textMuted }}
+            />
           </motion.button>
         </motion.div>
 
@@ -398,12 +464,21 @@ export const Screen1Welcome: React.FC = () => {
               borderColor: currentTheme.colors.border,
             }}
           >
-            <Sparkles className="h-3 w-3 animate-pulse" style={{ color: currentTheme.colors.primary }} />
+            <Sparkles
+              className="h-3 w-3 animate-pulse"
+              style={{ color: currentTheme.colors.primary }}
+            />
             <span
               className="text-[10px] font-bold font-mono tracking-wider"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              Powered by <span className="font-black" style={{ color: currentTheme.colors.primary }}>Nelja</span>
+              Powered by{" "}
+              <span
+                className="font-black"
+                style={{ color: currentTheme.colors.primary }}
+              >
+                Nelja
+              </span>
             </span>
           </div>
         </div>

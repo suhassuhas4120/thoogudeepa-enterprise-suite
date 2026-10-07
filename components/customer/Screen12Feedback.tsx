@@ -3,13 +3,12 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
-import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { Star, Heart, CheckCircle2, MessageSquare, UtensilsCrossed, ArrowLeft, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Screen12Feedback: React.FC = () => {
-  const { navigateTo, tableNumber, seatNumber, venueName } = useCustomer();
+  const { navigateTo, tableNumber } = useCustomer();
   const [tasteRating, setTasteRating] = useState(5);
   const [speedRating, setSpeedRating] = useState(5);
   const [serviceRating, setServiceRating] = useState(5);
@@ -56,21 +55,6 @@ export const Screen12Feedback: React.FC = () => {
       screenNumber={12}
       screenTitle="DINING FEEDBACK & DISH REVIEW"
     >
-      <WireHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span>Dining Feedback</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
-              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
-            </span>
-          </span>
-        }
-        leftSubtitle={venueName?.toUpperCase()}
-        showBack={true}
-        onBack={() => navigateTo(11)}
-        showCallWaiter={true}
-        showCart={false}
-      />
       <div className="p-4 space-y-4 pb-28 text-slate-800">
         {!submitted ? (
           <>
@@ -81,7 +65,7 @@ export const Screen12Feedback: React.FC = () => {
               </div>
               <h2 className="text-sm font-black text-slate-900">How was your meal today?</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Table {tableNumber} • Chef Manjunath would love your feedback!
+                Table {tableNumber} &bull; Chef Manjunath would love your feedback!
               </p>
             </div>
 
@@ -89,7 +73,7 @@ export const Screen12Feedback: React.FC = () => {
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Donne Biryani Taste & Aroma</div>
+                  <div className="text-xs font-bold text-slate-900">Donne Biryani Taste &amp; Aroma</div>
                   <div className="text-[10px] text-slate-400">Authentic seeraga samba flavour</div>
                 </div>
                 {renderStars(tasteRating, setTasteRating)}
@@ -97,7 +81,7 @@ export const Screen12Feedback: React.FC = () => {
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Kitchen Speed & Prep Time</div>
+                  <div className="text-xs font-bold text-slate-900">Kitchen Speed &amp; Prep Time</div>
                   <div className="text-[10px] text-slate-400">Fresh and piping hot service</div>
                 </div>
                 {renderStars(speedRating, setSpeedRating)}
@@ -105,7 +89,7 @@ export const Screen12Feedback: React.FC = () => {
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Table Service & Courtesy</div>
+                  <div className="text-xs font-bold text-slate-900">Table Service &amp; Courtesy</div>
                   <div className="text-[10px] text-slate-400">Attentive captain care</div>
                 </div>
                 {renderStars(serviceRating, setServiceRating)}
@@ -128,7 +112,7 @@ export const Screen12Feedback: React.FC = () => {
                       className={`px-2.5 py-1 rounded-full text-xs font-bold transition ${
                         active
                           ? 'bg-orange-600 text-white shadow-xs'
-                          : 'bg-[#FAF8F5] text-slate-600 hover:bg-slate-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
                       {chip}
@@ -195,7 +179,7 @@ export const Screen12Feedback: React.FC = () => {
           ) : (
             <button
               onClick={() => navigateTo(1)}
-              className="flex-1 py-3 bg-[#9C3D1E] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800"
+              className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800"
             >
               <span>Done (Back to Start)</span>
             </button>

@@ -37,3 +37,6 @@ next-env.d.ts
 
 # local task tracking
 CHECKLIST.md
+
+# Local AI assistant rules (private)
+.clinerules

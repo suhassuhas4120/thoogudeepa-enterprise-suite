@@ -42,9 +42,6 @@ export function ScreenM6WaitingQueue() {
             <h3 className="text-sm font-black font-mono text-slate-900">
               ACTIVE DINING QUEUE TOKENS
             </h3>
-            <p className="text-xs text-slate-500 font-mono">
-              Live guest waitlist • SMS paged alerts
-            </p>
           </div>
           <span className="bg-orange-100 text-orange-800 font-mono text-xs font-bold px-2 py-0.5 rounded">
             {queueTokens.filter((q) => q.status !== 'SEATED').length} WAITING
@@ -172,9 +169,6 @@ export function ScreenM6WaitingQueue() {
           </form>
         </div>
 
-        <div className="mt-4 p-3 bg-[#FAF8F5] rounded-xl border border-slate-300 font-mono text-[11px] text-slate-500">
-          Tokens automatically notify guests 5 minutes before estimated seating.
-        </div>
       </div>
     </div>
   );

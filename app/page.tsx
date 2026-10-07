@@ -14,10 +14,7 @@ import { Screen5LiveTracking } from '../components/customer/Screen5LiveTracking'
 import { Screen6PaymentBreakdown } from '../components/customer/Screen6PaymentBreakdown';
 import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGateway';
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
-import { Screen9DigitalBill } from '../components/customer/Screen9DigitalBill';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
-import { Screen11Loyalty } from '../components/customer/Screen11Loyalty';
-import { Screen12Feedback } from '../components/customer/Screen12Feedback';
 import {
   Smartphone,
   LayoutGrid,
@@ -29,14 +26,11 @@ import {
   Clock,
   CreditCard,
   CheckCircle2,
-  FileText,
   Flame,
-  UserCheck,
   Utensils,
   Briefcase,
   QrCode,
   Tablet,
-  Receipt,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -45,15 +39,15 @@ function CustomerJourneyContent() {
   const { currentTheme } = useCustomerTheme();
 
   const screens = [
-    { id: 1 as ScreenId, name: '1. Welcome & Connect', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },
-    { id: 2 as ScreenId, name: '2. Authentic Menu', icon: <UtensilsCrossed className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen2Menu /> },
+    { id: 1 as ScreenId, name: '1. Welcome & Wi-Fi', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },
+    { id: 2 as ScreenId, name: '2. Menu (2-Col Grid)', icon: <UtensilsCrossed className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen2Menu /> },
     { id: 3 as ScreenId, name: '3. Item Details', icon: <Sparkles className="h-3.5 w-3.5 text-amber-500" />, comp: <Screen3ItemDetail /> },
-    { id: 4 as ScreenId, name: '4. Cart & Review', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
+    { id: 4 as ScreenId, name: '4. Cart & Stepper', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
     { id: 5 as ScreenId, name: '5. Live Tracking', icon: <Clock className="h-3.5 w-3.5 text-indigo-500" />, comp: <Screen5LiveTracking /> },
-    { id: 6 as ScreenId, name: '6. Order Summary & Bill', icon: <Receipt className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
-    { id: 7 as ScreenId, name: '7. Payment Options', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
-    { id: 8 as ScreenId, name: '8. Confirmed & Tax Bill', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
-    { id: 9 as ScreenId, name: '9. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
+    { id: 6 as ScreenId, name: '6. Payment Breakdown', icon: <CreditCard className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
+    { id: 7 as ScreenId, name: '7. Payment Gateway (QR)', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
+    { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
+    { id: 10 as ScreenId, name: '9. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
   ];
 
   const renderActiveScreen = () => {
@@ -66,10 +60,8 @@ function CustomerJourneyContent() {
       case 6: return <Screen6PaymentBreakdown />;
       case 7: return <Screen7PaymentGateway />;
       case 8: return <Screen8Confirmation />;
-      case 9: return <Screen10WaiterCall />;
+      case 9:
       case 10: return <Screen10WaiterCall />;
-      case 11: return <Screen11Loyalty />;
-      case 12: return <Screen12Feedback />;
       default: return <Screen1Welcome />;
     }
   };
@@ -221,7 +213,7 @@ function CustomerJourneyContent() {
         })}
       </nav>
 
-      {/* UI Design Switcher Bar (Placed right below Screen 1-9 tabs as requested) */}
+      {/* UI Design Switcher Bar (Placed right below Screen tabs) */}
       <ThemeSwitcherBar />
 
       {/* Main Container */}
@@ -241,7 +233,7 @@ function CustomerJourneyContent() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-[1680px] px-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 justify-items-center pb-20">
+          <div className="mx-auto w-full max-w-[1680px] px-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center pb-20">
             {screens.map((sc) => (
               <div key={sc.id} className="flex flex-col items-center w-[380px] shrink-0">
                 {sc.comp}

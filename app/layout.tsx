@@ -7,6 +7,12 @@ import { BridgeSyncProvider } from '../providers/BridgeSyncProvider';
 export const metadata: Metadata = {
   title: 'Thoogudeepa Donne Biryani Mane',
   description: 'Authentic Donne Biryani - Dine-in, Takeaway & Table Ordering',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Thoogudeepa',
+  },
 };
 
 export default function RootLayout({

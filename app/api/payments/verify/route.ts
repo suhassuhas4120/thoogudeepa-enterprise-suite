@@ -84,11 +84,35 @@ export async function POST(req: NextRequest) {
     const txnRef = body.txnRef || body.gateway_ref;
     const targetStatus = body.status === 'FAILED' ? 'FAILED' : 'CONFIRMED';
 
-    if (!orderId && !paymentId && !txnRef) {
+    if (!orderId && !paymentId && !txnRef && !body.razorpay_payment_id) {
       return NextResponse.json(
         { error: 'orderId, paymentId, or txnRef is required for verification' },
         { status: 400 }
       );
+    }
+
+    // Optional: Cryptographic Razorpay HMAC SHA256 signature verification
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    const rzPaymentId = body.razorpay_payment_id;
+    const rzOrderId = body.razorpay_order_id;
+    const rzSignature = body.razorpay_signature;
+
+    if (
+      rzSignature &&
+      razorpayKeySecret &&
+      !razorpayKeySecret.includes('placeholder') &&
+      rzOrderId &&
+      rzPaymentId
+    ) {
+      const crypto = await import('crypto');
+      const expectedSignature = crypto
+        .createHmac('sha256', razorpayKeySecret)
+        .update(`${rzOrderId}|${rzPaymentId}`)
+        .digest('hex');
+
+      if (expectedSignature !== rzSignature) {
+        return NextResponse.json({ error: 'Invalid payment signature' }, { status: 400 });
+      }
     }
 
     // 1. Locate existing payment record

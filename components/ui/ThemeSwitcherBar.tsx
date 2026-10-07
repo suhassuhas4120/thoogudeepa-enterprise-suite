@@ -18,15 +18,15 @@ export const ThemeSwitcherBar: React.FC = () => {
               <Palette className="h-3.5 w-3.5" />
             </div>
             <span className="font-mono text-[11px] font-black uppercase tracking-wider text-slate-800">
-              SELECT CUSTOMER UI DESIGN (7 CURATED LIGHT THEMES)
+              CUSTOMER UI DESIGN (TERRACOTTA DUM)
             </span>
             <span className="rounded-full bg-emerald-100 border border-emerald-200 px-2 py-0.5 text-[9px] font-extrabold text-emerald-800 font-mono">
-              Live Color & Button Sync
+              Signature Theme
             </span>
           </div>
           <div className="flex items-center gap-1.5 text-[10.5px] font-semibold text-slate-500 font-mono">
             <Sparkles className="h-3 w-3 text-amber-500" />
-            <span>Harmonious Screen & Button Palettes • 100% Unique Design System</span>
+            <span>Donne Biryani Mane • Authentic Warm Terracotta Design System</span>
           </div>
         </div>
 

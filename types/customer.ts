@@ -29,6 +29,8 @@ export interface CartItem {
   prepMode: string;
   orderSeparately?: boolean;
   isOrdered?: boolean;
+  tableNumber?: string;
+  seatNumber?: number;
 }
 
 export type OrderStage = 'PLACED' | 'PREP' | 'PLATED' | 'SERVED';

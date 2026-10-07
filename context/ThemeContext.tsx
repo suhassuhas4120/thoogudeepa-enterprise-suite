@@ -13,7 +13,7 @@ interface CustomerThemeContextType {
 const CustomerThemeContext = createContext<CustomerThemeContextType | undefined>(undefined);
 
 export function CustomerThemeProvider({ children }: { children: React.ReactNode }) {
-  const [currentThemeId, setCurrentThemeId] = useState<CustomerThemeId>('royal-saffron');
+  const [currentThemeId, setCurrentThemeId] = useState<CustomerThemeId>('terracotta-dum');
 
   // Load persisted theme on mount if available
   useEffect(() => {
@@ -21,6 +21,8 @@ export function CustomerThemeProvider({ children }: { children: React.ReactNode 
       const saved = localStorage.getItem('thoogudeepa_customer_theme') as CustomerThemeId;
       if (saved && CUSTOMER_THEMES.some((t) => t.id === saved)) {
         setCurrentThemeId(saved);
+      } else {
+        setCurrentThemeId('terracotta-dum');
       }
     }
   }, []);
@@ -54,7 +56,7 @@ export function useCustomerTheme() {
   if (!context) {
     // Graceful fallback to default theme if used outside provider
     return {
-      currentThemeId: 'royal-saffron' as CustomerThemeId,
+      currentThemeId: 'terracotta-dum' as CustomerThemeId,
       currentTheme: CUSTOMER_THEMES[0],
       setTheme: () => {},
       themes: CUSTOMER_THEMES,

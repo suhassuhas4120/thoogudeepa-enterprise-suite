@@ -408,6 +408,24 @@ export function useBridgeSync() {
         }
       )
 
+      // ── payments (live shift revenue & settlement cascade) ────────
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'payments' },
+        (payload) => {
+          const row = payload.new as { status?: string; amount?: number } | undefined;
+          if (row && row.status === 'CONFIRMED') {
+            useSharedBridge.setState((state) => ({
+              shiftStats: {
+                ...state.shiftStats,
+                totalRevenue: state.shiftStats.totalRevenue + Number(row.amount || 0),
+                tablesServed: state.shiftStats.tablesServed + 1,
+              },
+            }));
+          }
+        }
+      )
+
       // ── subscription lifecycle ────────────────────────────────────
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') {

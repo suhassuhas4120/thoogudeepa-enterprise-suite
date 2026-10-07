@@ -26,8 +26,7 @@ export const Screen9DigitalBill: React.FC = () => {
   const cgst = Math.round(subtotal * 0.025);
   const sgst = Math.round(subtotal * 0.025);
   const totalTax = cgst + sgst;
-  const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + totalTax) : 0);
-  const paidTotal = Math.max(0, subtotal + totalTax + payment.tipAmount - discount);
+  const paidTotal = subtotal + totalTax + payment.tipAmount;
 
   // Read seat from URL
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
@@ -50,18 +49,10 @@ export const Screen9DigitalBill: React.FC = () => {
   };
 
   return (
-    <ScreenHousing screenNumber={9} screenTitle="DIGITAL TAX INVOICE">
+    <ScreenHousing screenNumber={9} screenTitle="Bill Page">
       {/* Header */}
       <WireHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span>Tax Invoice</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
-              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
-            </span>
-          </span>
-        }
-        leftSubtitle={venueName?.toUpperCase()}
+        title="Detailed Bill & Invoice"
         showBack={true}
         onBack={() => setCurrentScreen(8)}
         showCallWaiter={true}
@@ -118,12 +109,6 @@ export const Screen9DigitalBill: React.FC = () => {
                 <span>+₹{payment.tipAmount}</span>
               </div>
             )}
-            {discount > 0 && (
-              <div className="flex justify-between font-bold text-emerald-700">
-                <span className="font-sans">Loyalty Discount</span>
-                <span>-₹{discount}</span>
-              </div>
-            )}
             <div className="flex items-center justify-between border-t border-[#E8D5C3] pt-2 text-sm font-black text-[#5B5049]">
               <span className="font-sans">Grand Total Paid</span>
               <span className="font-mono text-base font-black text-[#8A4228]">₹{paidTotal}</span>
@@ -158,27 +143,6 @@ export const Screen9DigitalBill: React.FC = () => {
           >
             <Share2 className="h-4 w-4 text-emerald-700" />
             <span>{shareMsg ? 'Bill Sent via WhatsApp!' : 'Share Bill via WhatsApp'}</span>
-          </motion.button>
-        </div>
-
-        {/* Post-Dine Engagement: Loyalty Club & Review */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setCurrentScreen(11)}
-            className="flex flex-col items-center justify-center rounded-2xl border border-amber-300 bg-amber-50/80 p-3 text-center transition hover:bg-amber-100/80 shadow-xs"
-          >
-            <span className="text-[10px] font-mono font-black uppercase text-amber-800">VIP Club</span>
-            <span className="text-xs font-extrabold text-amber-950 mt-0.5">Scratch Card &amp; Points</span>
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setCurrentScreen(12)}
-            className="flex flex-col items-center justify-center rounded-2xl border border-orange-300 bg-orange-50/80 p-3 text-center transition hover:bg-orange-100/80 shadow-xs"
-          >
-            <span className="text-[10px] font-mono font-black uppercase text-orange-800">Chef Review</span>
-            <span className="text-xs font-extrabold text-orange-950 mt-0.5">Rate Meal &amp; Staff</span>
           </motion.button>
         </div>
       </div>

@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 
@@ -7,7 +7,7 @@ import { useEffect, useState, useCallback } from 'react';
  * Falls back to defaults when running on the server (SSR) or if params missing.
  */
 export function useTableSeat() {
-  const [tableId, setTableId] = useState<string>('T-01');
+  const [tableId, setTableId] = useState<string>('A-01');
   const [seatNumber, setSeatNumber] = useState<number>(1);
   const [isReady, setIsReady] = useState(false);
 

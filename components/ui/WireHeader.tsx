@@ -80,7 +80,7 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
               borderColor: currentTheme.colors.border,
               color: currentTheme.colors.textPrimary,
             }}
-            onClick={() => navigateTo(9)}
+            onClick={() => navigateTo(10)}
             title="Call Waiter"
           >
             <Bell className="h-4 w-4 stroke-[2.2]" />

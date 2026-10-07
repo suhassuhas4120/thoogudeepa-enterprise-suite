@@ -514,6 +514,11 @@ export const ScreenK2Overview: React.FC = () => {
                       <div className="grid grid-cols-3 gap-1 font-mono text-[9px] font-black">
                         {STAGE_STEPS.map((stg, sIdx) => {
                           const isActive = currentBulkStage === stg;
+                          const stgIdx = STAGE_STEPS.indexOf(stg);
+                          const curIdx = STAGE_STEPS.indexOf(
+                            currentBulkStage as any
+                          );
+                          const isPast = stgIdx < curIdx;
                           return (
                             <button
                               key={stg}
@@ -525,6 +530,8 @@ export const ScreenK2Overview: React.FC = () => {
                               className={`py-1.5 rounded text-center transition border ${
                                 isActive
                                   ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-xs'
+                                  : isPast
+                                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
                                   : 'bg-[#FBF7F0] text-slate-700 border-[#EFE6DA] hover:bg-[#FFF4EC] hover:text-[#B85A1F]'
                               }`}
                             >
@@ -608,6 +615,11 @@ export const ScreenK2Overview: React.FC = () => {
                               <div className="grid grid-cols-3 gap-1 pt-0.5 font-mono text-[9px] font-black">
                                 {STAGE_STEPS.map((stg, sIdx) => {
                                   const isActive = it.stage === stg;
+                                  const stgIdx = STAGE_STEPS.indexOf(stg);
+                                  const curIdx = STAGE_STEPS.indexOf(
+                                    it.stage as any
+                                  );
+                                  const isPast = stgIdx < curIdx;
                                   return (
                                     <button
                                       key={stg}
@@ -618,6 +630,8 @@ export const ScreenK2Overview: React.FC = () => {
                                       className={`py-1.5 rounded text-center transition border ${
                                         isActive
                                           ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-2xs'
+                                          : isPast
+                                          ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
                                           : 'bg-white text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
                                       }`}
                                     >

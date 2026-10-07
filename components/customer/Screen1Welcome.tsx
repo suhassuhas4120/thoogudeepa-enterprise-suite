@@ -215,12 +215,12 @@ export const Screen1Welcome: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Card 3: Interactive Chair / Seat Matrix */}
+        {/* Card 3: Scanned Seat */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="rounded-2xl border p-3.5 shadow-xs space-y-2.5 transition-colors duration-200"
+          className="rounded-2xl border p-3.5 shadow-xs transition-colors duration-200"
           style={{
             backgroundColor: currentTheme.colors.bgSurface,
             borderColor: currentTheme.colors.border,
@@ -233,7 +233,7 @@ export const Screen1Welcome: React.FC = () => {
                 className="font-mono text-[10px] font-black uppercase tracking-wider"
                 style={{ color: currentTheme.colors.textPrimary }}
               >
-                SELECT YOUR CHAIR
+                YOUR SEAT
               </span>
             </div>
             <span
@@ -248,53 +248,35 @@ export const Screen1Welcome: React.FC = () => {
             </span>
           </div>
 
-          {/* Interactive Chair Buttons */}
-          <div className={`grid gap-2 pt-0.5 ${tableCapacity <= 3 ? 'grid-cols-3' : tableCapacity <= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-            {Array.from({ length: tableCapacity }, (_, i) => i + 1).map((chairNum) => {
-              const isSelected = currentSeat === chairNum;
-
-              return (
-                <motion.button
-                  key={chairNum}
-                  whileTap={{ scale: 0.92 }}
-                  type="button"
-                  onClick={() => handleSelectSeat(chairNum)}
-                  className="flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all text-center relative"
-                  style={
-                    isSelected
-                      ? {
-                          borderColor: currentTheme.colors.pillActiveBorder,
-                          backgroundColor: currentTheme.colors.pillActiveBg,
-                          color: currentTheme.colors.pillActiveFg,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        }
-                      : {
-                          borderColor: currentTheme.colors.pillInactiveBorder,
-                          backgroundColor: currentTheme.colors.pillInactiveBg,
-                          color: currentTheme.colors.pillInactiveFg,
-                        }
-                  }
-                >
-                  <span className="text-base">🪑</span>
-                  <span
-                    className="font-mono text-[11px] font-black mt-0.5"
-                    style={{
-                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textPrimary,
-                    }}
-                  >
-                    C-{String(chairNum).padStart(2, '0')}
-                  </span>
-                  <span
-                    className="text-[9.5px] font-bold mt-0.5 font-mono"
-                    style={{
-                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textMuted,
-                    }}
-                  >
-                    {isSelected ? '✓ Your Seat' : 'Available'}
-                  </span>
-                </motion.button>
-              );
-            })}
+          <div
+            className="mt-2.5 flex items-center justify-between rounded-xl border px-3.5 py-2.5 transition-all"
+            style={{
+              borderColor: currentTheme.colors.pillActiveBorder,
+              backgroundColor: currentTheme.colors.pillActiveBg,
+              color: currentTheme.colors.pillActiveFg,
+            }}
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="text-lg">🪑</span>
+              <div>
+                <span className="font-mono text-xs font-black block">
+                  Seat {currentSeat} • Chair-{String(currentSeat).padStart(2, '0')}
+                </span>
+                <span className="text-[10px] font-bold opacity-80 font-mono">
+                  Dine-In Seat Verified
+                </span>
+              </div>
+            </div>
+            <span
+              className="rounded-full px-2.5 py-0.5 text-[10px] font-black font-mono border"
+              style={{
+                backgroundColor: currentTheme.colors.bgSurface,
+                color: currentTheme.colors.pillActiveFg,
+                borderColor: currentTheme.colors.pillActiveBorder,
+              }}
+            >
+              ✓ Scanned
+            </span>
           </div>
         </motion.div>
 
@@ -369,14 +351,9 @@ export const Screen1Welcome: React.FC = () => {
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
                 <Wifi className="h-5 w-5 stroke-[2.4]" />
               </div>
-              <div>
-                <div className="text-xs font-black tracking-wide">
-                  Connect With Free Restaurant Wi-Fi
-                </div>
-                <div className="text-[10px] font-medium opacity-90 mt-0.5">
-                  High-Speed Dine-In Network • Instant Menu Access
-                </div>
-              </div>
+              <span className="text-xs font-black tracking-wide">
+                Connect With Free Restaurant Wi-Fi
+              </span>
             </div>
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition shrink-0" />
           </motion.button>
@@ -403,14 +380,9 @@ export const Screen1Welcome: React.FC = () => {
               >
                 <Smartphone className="h-5 w-5 stroke-[2]" />
               </div>
-              <div>
-                <div className="text-xs font-bold">
-                  Continue With Mobile Data
-                </div>
-                <div className="text-[10px]" style={{ color: currentTheme.colors.textMuted }}>
-                  Browse using 4G / 5G cellular connection
-                </div>
-              </div>
+              <span className="text-xs font-bold">
+                Continue With Mobile Data
+              </span>
             </div>
             <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition shrink-0" style={{ color: currentTheme.colors.textMuted }} />
           </motion.button>

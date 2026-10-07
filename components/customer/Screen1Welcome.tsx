@@ -76,6 +76,7 @@ export const Screen1Welcome: React.FC = () => {
   }, [tables, tableNumber]);
 
   const currentSeat = seatNumber || 1;
+  const cleanTableNum = (tableNumber || 'T-01').replace(/^T-?0*/, '') || '1';
   const tableCapacity = activeTable?.capacity || 4;
 
   const handleSelectSeat = (newSeat: number) => {
@@ -188,13 +189,13 @@ export const Screen1Welcome: React.FC = () => {
                   className="text-xs font-black font-mono"
                   style={{ color: currentTheme.colors.textPrimary }}
                 >
-                  {activeTable.number} • C-{String(currentSeat).padStart(2, '0')}
+                  Table {cleanTableNum} • Chair {currentSeat}
                 </div>
                 <div
                   className="text-[10px] font-bold"
                   style={{ color: currentTheme.colors.primary }}
                 >
-                  {activeTable.section} • Dine-In Verified
+                  {activeTable.section} • Dine-In QR Verified
                 </div>
               </div>
             </div>
@@ -215,7 +216,7 @@ export const Screen1Welcome: React.FC = () => {
           </div>
         </motion.div>
 
-        {/* Card 3: Scanned Seat */}
+        {/* Card 3: Table & Chair */}
         <motion.div
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
@@ -233,7 +234,7 @@ export const Screen1Welcome: React.FC = () => {
                 className="font-mono text-[10px] font-black uppercase tracking-wider"
                 style={{ color: currentTheme.colors.textPrimary }}
               >
-                YOUR SEAT
+                YOUR TABLE & CHAIR
               </span>
             </div>
             <span
@@ -244,7 +245,7 @@ export const Screen1Welcome: React.FC = () => {
                 borderColor: currentTheme.colors.border,
               }}
             >
-              C-{String(currentSeat).padStart(2, '0')}
+              Table {cleanTableNum} • Chair {currentSeat}
             </span>
           </div>
 
@@ -260,10 +261,10 @@ export const Screen1Welcome: React.FC = () => {
               <span className="text-lg">🪑</span>
               <div>
                 <span className="font-mono text-xs font-black block">
-                  Seat {currentSeat} • Chair-{String(currentSeat).padStart(2, '0')}
+                  Table {cleanTableNum} • Chair {currentSeat}
                 </span>
                 <span className="text-[10px] font-bold opacity-80 font-mono">
-                  Dine-In Seat Verified
+                  Dine-In Verified
                 </span>
               </div>
             </div>

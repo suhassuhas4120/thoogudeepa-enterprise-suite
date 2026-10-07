@@ -159,12 +159,13 @@ export function ScreenM3TableSheet({
   const inMergeGroup = groupPeers.length > 1;
   const mergePeerLabel = groupPeers.filter((n) => n !== tableNum).join(', ');
 
-  // Tickets for table — vacant tables have NO active tickets
+  // Tickets for table — exclude COMPLETED (settled/archived) and vacant table tickets
   const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
   const tickets = isVacant
     ? []
     : kdsTickets.filter((tk) =>
-        groupPeers.some((peer) => cleanTableNum(peer) === cleanTableNum(tk.tableNumber))
+        groupPeers.some((peer) => cleanTableNum(peer) === cleanTableNum(tk.tableNumber)) &&
+        tk.status !== 'COMPLETED'
       );
 
   // Unified collection of all ordered items on this table (from KDS tickets and table.activeItems)

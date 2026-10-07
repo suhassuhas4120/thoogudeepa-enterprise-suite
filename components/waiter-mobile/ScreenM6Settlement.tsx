@@ -37,7 +37,7 @@ interface Props {
 type PayMethod = 'UPI' | 'CASH';
 
 export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterName, onBack, onDone }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable } = useSharedBridge();
+  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment } = useSharedBridge();
   const { activeCaptain } = useWaiterStore();
   const table = tables.find((t) => t.number === tableNum);
 
@@ -55,13 +55,14 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
 
   const isVacant = table?.status === 'VACANT';
 
-  // Tickets for this table and all merge-group partners (vacant tables have NO active tickets)
+  // Tickets for this table — exclude COMPLETED (already settled chairs) and vacant tables
   const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
   const groupPeers: string[] = table?.mergeGroupPeers ?? [tableNum];
   const tickets = isVacant
     ? []
     : kdsTickets.filter((tk) =>
-        groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
+        groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber)) &&
+        tk.status !== 'COMPLETED'
       );
 
   // Captain Name from ticket (who actually took the order), table record, or fallback
@@ -242,9 +243,14 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
   };
 
   const handleSettle = () => {
-    waiterRecordsPayment(tableNum, method, grandTotal);
-    if (vacateAfter) {
-      setTimeout(() => waiterVacatesTable(tableNum), 300);
+    // Pass seatNumber so store keeps table OCCUPIED and only reduces that chair's bill amount
+    waiterRecordsPayment(tableNum, method, grandTotal, splitSeatNumber ?? undefined);
+    if (splitSeatNumber) {
+      // Single-chair settle — archive only that chair's tickets and free the seat
+      setTimeout(() => waiterClearsChairAfterPayment(tableNum, splitSeatNumber), 800);
+    } else if (vacateAfter) {
+      // Full-table settle with vacate confirmed
+      setTimeout(() => waiterVacatesTable(tableNum), 600);
     }
     setSettled(true);
   };
@@ -807,50 +813,109 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
               </span>
             </div>
 
-            {/* Dynamic QR Code Card — Supports Tap to Beam / Enlarge */}
+            {/* QR Card — blurred until customer confirms, reveals on verification */}
             <div
-              onClick={() => setQrZoomed(true)}
-              className="p-4 bg-white rounded-xl border border-indigo-100 flex flex-col items-center justify-center text-center space-y-2 shadow-2xs cursor-pointer hover:border-indigo-300 transition group"
+              onClick={() => isUpiVerified && setQrZoomed(true)}
+              className={`p-4 bg-white rounded-xl border flex flex-col items-center justify-center text-center space-y-2 shadow-2xs transition ${
+                isUpiVerified
+                  ? 'border-indigo-200 cursor-pointer hover:border-indigo-300 group'
+                  : 'border-stone-200 cursor-default'
+              }`}
             >
               <div className="flex items-center justify-between w-full px-1">
                 <span className="text-[11px] font-black text-stone-800">
                   Scan to Pay ₹{grandTotal}
                 </span>
-                                <span className="text-[9.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full group-hover:bg-indigo-100 flex items-center gap-1">
-                  <Search className="h-3.5 w-3.5" />
-                  <span>Tap to Enlarge</span>
-                </span>
+                {isUpiVerified && (
+                  <span className="text-[9.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full group-hover:bg-indigo-100 flex items-center gap-1">
+                    <Search className="h-3.5 w-3.5" />
+                    <span>Tap to Enlarge</span>
+                  </span>
+                )}
               </div>
-              {qrCodeUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={qrCodeUrl}
-                  alt="Dynamic UPI QR"
-                  className="w-44 h-44 rounded-xl border border-stone-200 shadow-xs group-hover:scale-102 transition"
-                />
-              ) : (
-                <div className="w-44 h-44 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 text-xs">
-                  Generating UPI QR...
-                </div>
-              )}
-              <div className="pt-1 text-[10.5px] text-stone-600 font-bold">
+
+              {/* QR with blur-reveal */}
+              <div className="relative w-44 h-44">
+                {qrCodeUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={qrCodeUrl}
+                      alt="Dynamic UPI QR"
+                      className={`w-44 h-44 rounded-xl border border-stone-200 shadow-xs transition-all duration-500 ${
+                        isUpiVerified
+                          ? 'blur-none scale-100 opacity-100'
+                          : 'blur-md scale-95 opacity-50'
+                      }`}
+                    />
+                    {/* Lock overlay — shown until customer confirms */}
+                    {!isUpiVerified && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/40 backdrop-blur-xs space-y-1.5 pointer-events-none">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center">
+                          <QrCode className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        <p className="text-[10px] font-black text-indigo-800 px-3 text-center leading-tight">
+                          QR reveals after customer confirms
+                        </p>
+                        <p className="text-[9px] text-stone-500 px-3 text-center">
+                          Tick the checkbox below
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-44 h-44 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 text-xs">
+                    Generating QR...
+                  </div>
+                )}
+              </div>
+
+              <div className="pt-0.5 text-[10.5px] text-stone-600 font-bold">
                 UPI ID: <span className="text-indigo-800 select-all">thoogudeepa@okicici</span>
               </div>
-              <div className="flex items-center gap-1.5 text-[9px] text-stone-400">
-                <span>Google Pay • PhonePe • Paytm • BHIM • Cred</span>
+
+              {/* Real UPI deep-link app buttons */}
+              <div className="flex flex-wrap gap-1.5 justify-center pt-0.5">
+                {[
+                  { label: 'GPay',    bg: 'bg-blue-600',    url: `tez://upi/pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
+                  { label: 'PhonePe', bg: 'bg-purple-700',  url: `phonepe://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
+                  { label: 'Paytm',   bg: 'bg-sky-600',     url: `paytmmp://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
+                  { label: 'BHIM',    bg: 'bg-orange-600',  url: `upi://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
+                  { label: 'CRED',    bg: 'bg-stone-800',   url: `cred://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
+                ].map((app) => (
+                  <a
+                    key={app.label}
+                    href={app.url}
+                    className={`${app.bg} text-white text-[9.5px] font-black px-2.5 py-1 rounded-lg shadow-xs active:scale-95 transition-transform`}
+                  >
+                    {app.label}
+                  </a>
+                ))}
               </div>
             </div>
 
-            <label className="flex items-center gap-2.5 p-2.5 bg-white border border-indigo-200 rounded-xl cursor-pointer">
+            {/* Customer confirmation — reveals QR and unlocks settle */}
+            <label className={`flex items-center gap-2.5 p-3 rounded-xl cursor-pointer border transition ${
+              isUpiVerified
+                ? 'bg-indigo-100 border-indigo-400'
+                : 'bg-white border-indigo-200'
+            }`}>
               <input
                 type="checkbox"
                 checked={isUpiVerified}
                 onChange={(e) => setIsUpiVerified(e.target.checked)}
-                className="h-4 w-4 rounded accent-indigo-700"
+                className="h-4 w-4 rounded accent-indigo-700 shrink-0"
               />
-              <span className="text-xs font-bold text-indigo-950">
-                Customer confirmed UPI transfer on phone
-              </span>
+              <div>
+                <span className="text-xs font-black text-indigo-950 block">
+                  Customer confirmed UPI transfer on phone
+                </span>
+                {!isUpiVerified && (
+                  <span className="text-[10px] text-indigo-600 block">
+                    QR will reveal after confirmation
+                  </span>
+                )}
+              </div>
             </label>
           </div>
         )}
@@ -939,33 +1004,52 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           </div>
         )}
 
-        {/* Vacate Table Guard */}
-        <label className="flex items-center gap-3 p-3 bg-white border border-[#EAE5DF] rounded-2xl cursor-pointer font-mono shadow-2xs">
+        {/* Vacate / Free-Chair Guard — must be checked before settling */}
+        <label className={`flex items-start gap-3 p-3.5 rounded-2xl cursor-pointer font-mono shadow-2xs border transition ${
+          vacateAfter
+            ? 'bg-emerald-50 border-emerald-300'
+            : 'bg-white border-[#EAE5DF]'
+        }`}>
           <input
             type="checkbox"
             checked={vacateAfter}
             onChange={(e) => setVacateAfter(e.target.checked)}
-            className="h-4 w-4 rounded accent-[#9C3D1E]"
+            className="mt-0.5 h-4 w-4 rounded accent-emerald-600 shrink-0"
           />
-          <span className="text-xs font-bold text-stone-700">
-            Vacate &amp; reset table {tableNum} after settlement
-          </span>
+          <div className="space-y-0.5">
+            <span className="text-xs font-black text-stone-800 block">
+              {splitSeatNumber
+                ? `Free Chair ${splitSeatNumber} after settlement`
+                : `Vacate & reset Table ${tableNum} after settlement`}
+            </span>
+            <span className="text-[10px] text-stone-500 block">
+              {splitSeatNumber
+                ? `Chair ${splitSeatNumber} will show available for new guests`
+                : 'All chairs will be released and table marked clean'}
+            </span>
+          </div>
         </label>
 
         {/* ── SETTLEMENT CONFIRMATION ACTION ── */}
         <div className="pt-1 pb-6 space-y-2">
           {hasUnservedDishes && (
             <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-center text-amber-900 text-xs font-mono font-bold">
-              ⚠️ Note: All dishes must be served to the table before finalizing payment.
+              ⚠️ All dishes must be served before finalizing payment.
+            </div>
+          )}
+          {!vacateAfter && !hasUnservedDishes && grandTotal > 0 && (
+            <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-center text-stone-600 text-xs font-mono font-bold">
+              ☝️ {splitSeatNumber ? `Confirm freeing Chair ${splitSeatNumber}` : 'Confirm vacate'} above to enable settlement
             </div>
           )}
           <motion.button
-            whileTap={!hasUnservedDishes ? { scale: 0.98 } : undefined}
+            whileTap={(!hasUnservedDishes && vacateAfter) ? { scale: 0.98 } : undefined}
             type="button"
             onClick={handleSettle}
             disabled={
               grandTotal === 0 ||
               hasUnservedDishes ||
+              !vacateAfter ||
               (method === 'UPI' && !isUpiVerified) ||
               (method === 'CASH' &&
                 typeof cashTendered === 'number' &&
@@ -973,7 +1057,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                 cashTendered < grandTotal)
             }
             className={`w-full py-4 text-white rounded-2xl font-mono text-sm font-black flex items-center justify-center gap-2 shadow-md transition ${
-              hasUnservedDishes || grandTotal === 0
+              hasUnservedDishes || grandTotal === 0 || !vacateAfter
                 ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
                 : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 cursor-pointer'
             }`}
@@ -982,6 +1066,8 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
             <span>
               {hasUnservedDishes
                 ? 'Serve All Dishes to Settle'
+                : !vacateAfter
+                ? 'Confirm above to enable'
                 : `Confirm & Settle ₹${grandTotal} via ${method}`}
             </span>
           </motion.button>

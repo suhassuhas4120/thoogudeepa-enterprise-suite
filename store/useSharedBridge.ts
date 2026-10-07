@@ -240,10 +240,13 @@ interface SharedBridgeState {
   waiterResolvePing: (pingId: string) => void;
 
   /** Waiter records payment */
-  waiterRecordsPayment: (tableNumber: string, method: string, amount: number) => void;
+  waiterRecordsPayment: (tableNumber: string, method: string, amount: number, seatNumber?: number) => void;
 
   /** Waiter vacates table → sets to CLEANING then VACANT */
   waiterVacatesTable: (tableNumber: string) => void;
+
+  /** Waiter clears a specific chair's tickets after single-chair payment — frees that seat */
+  waiterClearsChairAfterPayment: (tableNumber: string, seatNumber: number) => void;
 
   /** Waiter marks a kitchen-ready item as served → removes from waiter feed + updates table item status */
   waiterMarkKitchenItemServed: (ticketId: string, itemId: string) => void;
@@ -1249,27 +1252,35 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   
-  waiterRecordsPayment: (tableNumber, method, amount) => {
+  waiterRecordsPayment: (tableNumber, method, amount, seatNumber) => {
     set((state) => {
       const targetTbl = state.tables.find((t) => t.number === tableNumber);
-      // Use mergeGroupPeers to cover ALL tables in a 3-4 member group (not just mergedWith partner)
       const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [tableNumber]);
+
+      // For single-chair settle: keep table OCCUPIED, reduce its bill by that chair's share.
+      // For full-table settle: mark entire group as BILLING (pre-vacate status).
+      const isChairSettle = typeof seatNumber === 'number';
+
       return {
-        tables: state.tables.map((t) =>
-          groupNums.has(t.number)
-            ? { ...t, status: 'BILLING' }
-            : t
-        ),
+        tables: state.tables.map((t) => {
+          if (!groupNums.has(t.number)) return t;
+          if (isChairSettle) {
+            // Reduce currentBill by the chair's settled amount only; keep OCCUPIED
+            const newBill = Math.max(0, (t.currentBill || 0) - amount);
+            return { ...t, currentBill: newBill };
+          }
+          return { ...t, status: 'BILLING' };
+        }),
         shiftStats: {
           ...state.shiftStats,
           totalRevenue: state.shiftStats.totalRevenue + amount,
-          tablesServed: state.shiftStats.tablesServed + 1,
+          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1),
         },
       };
     });
   },
 
-  
+
   waiterVacatesTable: (tableNumber) => {
     // Snapshot for rollback (vacate is destructive — save full state)
     const prevTables = get().tables;
@@ -1316,7 +1327,43 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  
+  waiterClearsChairAfterPayment: (tableNumber, seatNumber) => {
+    set((state) => {
+      const newTickets = state.kdsTickets.map((tk) => {
+        if (tk.tableNumber !== tableNumber) return tk;
+        // Archive only SERVED tickets belonging to this specific seat
+        const hasSeatItems = tk.items.some((it) => it.seatNumber === seatNumber);
+        if (!hasSeatItems) return tk;
+        const allThisSeatServed = tk.items
+          .filter((it) => it.seatNumber === seatNumber)
+          .every((it) => it.stage === 'SERVED');
+        if (!allThisSeatServed) return tk;
+        // Mark the whole ticket COMPLETED only if every item is this seat's (single-seat KOT)
+        const allItemsAreSeat = tk.items.every((it) => it.seatNumber === seatNumber);
+        if (allItemsAreSeat) {
+          return { ...tk, status: 'COMPLETED' as const };
+        }
+        // Mixed KOT — mark just that seat's items as COMPLETED stage
+        return {
+          ...tk,
+          items: tk.items.map((it) =>
+            it.seatNumber === seatNumber ? { ...it, stage: 'SERVED' as OrderStage } : it
+          ),
+        };
+      });
+      const newTables = state.tables.map((t) => {
+        if (t.number !== tableNumber) return t;
+        return {
+          ...t,
+          activeItems: (t.activeItems || []).filter(
+            (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
+          ),
+        };
+      });
+      return { kdsTickets: newTickets, tables: newTables };
+    });
+  },
+
   waiterMarkKitchenItemServed: (ticketId, itemId) => {
     const prevTickets = get().kdsTickets;
     const prevTables = get().tables;

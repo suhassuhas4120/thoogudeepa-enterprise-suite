@@ -519,11 +519,29 @@ export const ScreenK2Overview: React.FC = () => {
                                     : 'NEW ORDER'}
                                 </span>
                               </div>
-                              {(it.options || (it.addOns && it.addOns.length > 0) || it.notes) && (
-                                <div className="text-[9.5px] text-amber-900 font-mono truncate">
-                                  {it.options ? `[${it.options}] ` : ''}
-                                  {it.addOns && it.addOns.length > 0 ? `+${it.addOns.join(', ')} ` : ''}
-                                  {it.notes ? `(${it.notes})` : ''}
+                              {it.options && (
+                                <div className="text-[9.5px] text-stone-500 font-mono">
+                                  [{it.options}]
+                                </div>
+                              )}
+                              {it.addOns && it.addOns.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  <span className="text-[8px] font-black text-amber-700 uppercase tracking-wide self-center">
+                                    Add-ons:
+                                  </span>
+                                  {it.addOns.map((ao, aoIdx) => (
+                                    <span
+                                      key={aoIdx}
+                                      className="px-1.5 py-0.5 rounded-md bg-amber-200 border border-amber-400 text-[8.5px] font-black text-amber-900"
+                                    >
+                                      + {ao}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {it.notes && (
+                                <div className="text-[9px] text-stone-400 font-mono italic">
+                                  ({it.notes})
                                 </div>
                               )}
 

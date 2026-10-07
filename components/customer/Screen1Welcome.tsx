@@ -292,53 +292,6 @@ export const Screen1Welcome: React.FC = () => {
               Scanned ✓
             </span>
           </div>
-
-          {/* Chair Selector if table has multiple chairs */}
-          {tableCapacity > 1 && (
-            <div
-              className="mt-3 pt-2.5 border-t"
-              style={{ borderColor: currentTheme.colors.border }}
-            >
-              <div
-                className="text-[10px] font-mono font-bold uppercase tracking-wider mb-2"
-                style={{ color: currentTheme.colors.textMuted }}
-              >
-                Select Chair ({tableCapacity} seats at {activeTable.number}):
-              </div>
-              <div className="flex items-center gap-2 flex-wrap">
-                {Array.from({ length: tableCapacity }, (_, i) => i + 1).map(
-                  (chairNum) => {
-                    const isSelected = chairNum === currentSeat;
-                    return (
-                      <button
-                        key={chairNum}
-                        type="button"
-                        onClick={() => handleSelectSeat(chairNum)}
-                        className="px-3 py-1.5 rounded-xl font-mono text-xs font-bold border transition-all active:scale-95 flex items-center gap-1.5 shadow-2xs"
-                        style={{
-                          backgroundColor: isSelected
-                            ? currentTheme.colors.pillActiveBg
-                            : currentTheme.colors.pillInactiveBg,
-                          borderColor: isSelected
-                            ? currentTheme.colors.pillActiveBorder
-                            : currentTheme.colors.pillInactiveBorder,
-                          color: isSelected
-                            ? currentTheme.colors.pillActiveFg
-                            : currentTheme.colors.pillInactiveFg,
-                        }}
-                      >
-                        <Armchair className="h-3 w-3" />
-                        <span>Chair {chairNum}</span>
-                        {isSelected && (
-                          <span className="text-[10px] font-black">✓</span>
-                        )}
-                      </button>
-                    );
-                  },
-                )}
-              </div>
-            </div>
-          )}
         </motion.div>
 
         {/* Card 4: Diner Name */}

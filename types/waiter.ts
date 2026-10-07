@@ -1,4 +1,4 @@
-﻿import { WaiterPingType, MenuItem, CartItem } from './customer';
+import { WaiterPingType, MenuItem, CartItem } from './customer';
 
 export type WaiterScreenId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
@@ -16,7 +16,15 @@ export interface FloorTable {
   serverName: string;
   kotCount: number;
   mergedWith?: string;
-  activeItems?: { name: string; quantity: number; status: string }[];
+  activeItems?: {
+    id?: string;
+    name: string;
+    quantity: number;
+    status: string;
+    seatNumber?: number;
+    price?: number;
+    options?: string;
+  }[];
 }
 
 export interface WaiterCustomerPing {

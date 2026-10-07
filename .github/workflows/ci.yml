@@ -1,0 +1,199 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      run_live:
+        description: 'Run live integration suites against the Supabase TEST project'
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22
+  NEXT_TELEMETRY_DISABLED: 1
+  CI: true
+
+jobs:
+  type-check:
+    name: TypeScript Static Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Validate TypeScript Types
+        run: npm run type-check
+
+  static-tests:
+    name: Static Test Suites (offline)
+    needs: type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # No secrets, no network: safe for forks. CI=true makes the runner keep going,
+      # so one red suite can never hide the results of the others.
+      - name: Run static suites
+        run: npm run test:static
+
+  quarantined-tests:
+    name: Quarantined Suites (non-blocking)
+    needs: type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      # Phase 5 and Phase 7 currently have stale assertions. Kept visible, not blocking.
+      # Fix them, then move them to group 'static' in scripts/run-all-tests.ts.
+      - name: Run quarantined suites
+        run: npm run test:quarantine
+
+  build-validation:
+    name: Production Build Verification
+    needs: type-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - uses: actions/cache@v5
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ hashFiles('app/**', 'components/**', 'store/**', 'lib/**', 'hooks/**', 'types/**', 'data/**') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+      - run: npm ci
+      - name: Build Next.js Production Bundle
+        run: npm run build
+      - name: Upload build for live tests
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: .next
+          include-hidden-files: true
+          retention-days: 1
+
+  live-tests:
+    name: Live Integration Suites (Supabase TEST project)
+    needs: [static-tests, build-validation]
+    # Never runs on fork PRs (no secrets) and never against production.
+    # Enable by setting repo variable LIVE_TESTS_ENABLED=true, or run manually.
+    if: >-
+      (vars.LIVE_TESTS_ENABLED == 'true' || inputs.run_live == true) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL }}
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY }}
+      TEST_BASE_URL: http://localhost:3001
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+
+      - name: Guard - refuse to run against production project
+        run: |
+          if [ -z "$NEXT_PUBLIC_SUPABASE_URL" ] || [ -z "$NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::TEST_SUPABASE_URL / TEST_SUPABASE_PUBLISHABLE_KEY secrets are not set."; exit 1
+          fi
+          case "$NEXT_PUBLIC_SUPABASE_URL" in
+            *dwjjprzyyjmunhdxvkuo*) echo "::error::Live tests must not target the production Supabase project."; exit 1;;
+          esac
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: next-build
+          path: .next
+
+      - name: Start app
+        run: |
+          nohup npm start > server.log 2>&1 &
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3001/api/health || true)
+            if [ "$code" = "200" ]; then echo "App healthy after ${i} tries"; exit 0; fi
+            sleep 3
+          done
+          echo "::error::App did not become healthy"; cat server.log; exit 1
+
+      - name: Run live suites
+        run: npm run test:live
+
+      - name: Upload server log
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: server-log
+          path: server.log
+          if-no-files-found: ignore
+
+  security:
+    name: Dependency & Secret Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: npm audit (production deps, high+)
+        run: npm audit --omit=dev --audit-level=high
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  ci-gate:
+    name: CI Gate
+    if: ${{ always() }}
+    needs: [type-check, static-tests, build-validation, live-tests, security]
+    runs-on: ubuntu-latest
+    steps:
+      # Single required status check for branch protection.
+      # Skipped live-tests is fine; failed or cancelled anything is not.
+      - name: Evaluate results
+        run: |
+          echo '${{ toJSON(needs) }}'
+          if [ "${{ contains(needs.*.result, 'failure') }}" = "true" ] || [ "${{ contains(needs.*.result, 'cancelled') }}" = "true" ]; then
+            exit 1
+          fi

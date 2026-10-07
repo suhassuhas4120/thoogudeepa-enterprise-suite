@@ -18,14 +18,13 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
   item,
   onAddToCart,
 }) => {
-  const [selectedOption, setSelectedOption] = useState<string>('Standard');
+  const [selectedOption, setSelectedOption] = useState('');
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
-  const [quantity, setQuantity] = useState<number>(1);
+  const [quantity, setQuantity] = useState(1);
 
-  // Sync state whenever active item changes
   useEffect(() => {
     if (item) {
-      setSelectedOption(item.optionsGroup1?.choices?.[0] || 'Standard');
+      setSelectedOption(item.optionsGroup1?.choices?.[0] ?? '');
       setSelectedAddOns([]);
       setQuantity(1);
     }
@@ -33,17 +32,19 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
 
   if (!item) return null;
 
-  const toggleAddOn = (addonName: string) => {
+  const toggleAddOn = (name: string) => {
     setSelectedAddOns((prev) =>
-      prev.includes(addonName) ? prev.filter((a) => a !== addonName) : [...prev, addonName]
+      prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]
     );
   };
 
-  let unitPrice = item.price;
-  selectedAddOns.forEach((addonName) => {
-    const found = item.optionsGroup2?.addOns?.find((a) => a.name === addonName);
-    if (found) unitPrice += found.extraPrice;
-  });
+  const unitPrice =
+    item.price +
+    selectedAddOns.reduce((sum, name) => {
+      const found = item.optionsGroup2?.addOns?.find((a) => a.name === name);
+      return sum + (found?.extraPrice ?? 0);
+    }, 0);
+
   const totalAmount = unitPrice * quantity;
 
   const handleConfirmAdd = () => {
@@ -82,7 +83,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
             <div className="flex items-center justify-between px-4 pb-2 pt-1 border-b border-slate-100">
               <div className="min-w-0 pr-2">
                 <span className="text-[9.5px] font-bold uppercase tracking-wider text-orange-600 font-mono">
-                  {item.category} • {item.prepMode}
+                  {item.category} &bull; {item.prepMode}
                 </span>
                 <h3 className="truncate text-sm font-extrabold text-slate-900">
                   {item.name}
@@ -90,7 +91,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
               </div>
               <button
                 onClick={() => onOpenChange(false)}
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-[#FAF8F5] text-slate-500 hover:bg-slate-200"
+                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
                 title="Close"
               >
                 <X className="h-3.5 w-3.5" />
@@ -105,7 +106,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
               </p>
 
               {/* Option Group 1: Radio Choices */}
-              <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3">
+              <div className="rounded-2xl border border-slate-200 bg-stone-50/70 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11.5px] font-extrabold text-slate-900">
                     {item.optionsGroup1.title}
@@ -139,7 +140,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
               </div>
 
               {/* Option Group 2: Add-Ons Checkboxes */}
-              <div className="rounded-2xl border border-slate-200 bg-[#FAF8F5]/70 p-3">
+              <div className="rounded-2xl border border-slate-200 bg-stone-50/70 p-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-[11.5px] font-extrabold text-slate-900">
                     {item.optionsGroup2.title}
@@ -161,7 +162,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                         <div className="flex items-center gap-1.5">
                           <span>{addon.name}</span>
                           <span className="font-mono text-orange-600 font-bold">
-                            (+₹ {addon.extraPrice})
+                            (+&#8377; {addon.extraPrice})
                           </span>
                         </div>
                         <input
@@ -182,7 +183,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                 <div className="flex items-center gap-2.5">
                   <motion.button
                     whileTap={{ scale: 0.9 }}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-stone-50 font-bold text-slate-800 hover:bg-stone-100"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   >
                     <Minus className="h-3 w-3" />
@@ -192,7 +193,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                   </span>
                   <motion.button
                     whileTap={{ scale: 0.9 }}
-                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-[#FAF8F5] font-bold text-slate-800 hover:bg-[#FAF8F5]"
+                    className="flex h-7 w-7 items-center justify-center rounded-lg border border-slate-200 bg-stone-50 font-bold text-slate-800 hover:bg-stone-100"
                     onClick={() => setQuantity(quantity + 1)}
                   >
                     <Plus className="h-3 w-3" />
@@ -208,8 +209,8 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                 onClick={handleConfirmAdd}
                 className="flex w-full items-center justify-between rounded-xl bg-orange-600 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-white shadow-md shadow-orange-600/30 hover:bg-orange-700 transition"
               >
-                <span>Add • {quantity} Item{quantity > 1 ? 's' : ''}</span>
-                <span className="font-mono text-sm font-black">₹ {totalAmount}</span>
+                <span>Add &bull; {quantity} Item{quantity > 1 ? 's' : ''}</span>
+                <span className="font-mono text-sm font-black">&#8377; {totalAmount}</span>
               </motion.button>
             </div>
           </motion.div>

@@ -3,7 +3,6 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
-import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { Crown, Sparkles, Gift, ArrowRight, ArrowLeft, CheckCircle2, Award, Zap, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,13 +23,6 @@ export const Screen11Loyalty: React.FC = () => {
       screenNumber={11}
       screenTitle="LOYALTY CLUB & REWARDS"
     >
-      <WireHeader
-        title="Loyalty & Rewards"
-        showBack={true}
-        onBack={() => navigateTo(9)}
-        showCallWaiter={true}
-        showCart={false}
-      />
       <div className="p-4 space-y-4 pb-28 text-slate-800">
         {/* VIP Gold Membership Card */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-500 via-orange-600 to-amber-700 p-5 text-white shadow-xl shadow-orange-500/20">
@@ -41,7 +33,7 @@ export const Screen11Loyalty: React.FC = () => {
             <div className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-amber-200 fill-amber-200" />
               <span className="font-mono text-xs font-black tracking-widest text-amber-100 uppercase">
-                BIRYANI RAJA • LEVEL 3
+                BIRYANI RAJA &bull; LEVEL 3
               </span>
             </div>
             <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-[10px] font-bold backdrop-blur-sm">
@@ -53,7 +45,7 @@ export const Screen11Loyalty: React.FC = () => {
             <div className="text-[11px] font-medium text-amber-100/90">AVAILABLE REWARD POINTS</div>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-black tracking-tight">1,450</span>
-              <span className="text-xs font-bold text-amber-200">PTS (Worth ₹145)</span>
+              <span className="text-xs font-bold text-amber-200">PTS (Worth &#8377;145)</span>
             </div>
           </div>
 
@@ -78,7 +70,7 @@ export const Screen11Loyalty: React.FC = () => {
               className="w-full h-24 rounded-xl border-2 border-dashed border-amber-400 bg-amber-100 flex flex-col items-center justify-center gap-1.5 text-amber-800 hover:bg-amber-200/70 transition cursor-pointer"
             >
               <Sparkles className="h-6 w-6 text-amber-600 animate-bounce" />
-              <span className="text-xs font-black uppercase tracking-wider">TAP TO SCRATCH & REVEAL</span>
+              <span className="text-xs font-black uppercase tracking-wider">TAP TO SCRATCH &amp; REVEAL</span>
             </button>
           ) : (
             <motion.div
@@ -122,7 +114,7 @@ export const Screen11Loyalty: React.FC = () => {
                     className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
                       isRedeemed
                         ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                        : 'bg-[#9C3D1E] text-white hover:bg-[#7c3018]'
+                        : 'bg-slate-900 text-white hover:bg-orange-600'
                     }`}
                   >
                     {isRedeemed ? 'REDEEMED' : 'REDEEM'}
@@ -137,11 +129,11 @@ export const Screen11Loyalty: React.FC = () => {
       <StickyBottomBar>
         <div className="flex gap-2">
           <button
-            onClick={() => navigateTo(9)}
+            onClick={() => navigateTo(10)}
             className="flex-1 py-3 border border-slate-300 rounded-xl font-bold text-xs text-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
-            <span>Back to Digital Bill (9)</span>
+            <span>Back to Call Waiter</span>
           </button>
           <button
             onClick={() => navigateTo(12)}

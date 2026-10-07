@@ -145,27 +145,6 @@ export const Screen9DigitalBill: React.FC = () => {
             <span>{shareMsg ? 'Bill Sent via WhatsApp!' : 'Share Bill via WhatsApp'}</span>
           </motion.button>
         </div>
-
-        {/* Post-Dine Engagement: Loyalty Club & Review */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setCurrentScreen(11)}
-            className="flex flex-col items-center justify-center rounded-2xl border border-amber-300 bg-amber-50/80 p-3 text-center transition hover:bg-amber-100/80 shadow-xs"
-          >
-            <span className="text-[10px] font-mono font-black uppercase text-amber-800">VIP Club</span>
-            <span className="text-xs font-extrabold text-amber-950 mt-0.5">Scratch Card &amp; Points</span>
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setCurrentScreen(12)}
-            className="flex flex-col items-center justify-center rounded-2xl border border-orange-300 bg-orange-50/80 p-3 text-center transition hover:bg-orange-100/80 shadow-xs"
-          >
-            <span className="text-[10px] font-mono font-black uppercase text-orange-800">Chef Review</span>
-            <span className="text-xs font-extrabold text-orange-950 mt-0.5">Rate Meal &amp; Staff</span>
-          </motion.button>
-        </div>
       </div>
 
       {/* Sticky Bottom Bar: Dine Again */}

@@ -77,6 +77,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
       price: number;
       totalPrice: number;
       options?: string;
+      stage?: string;
       seatNumber?: number;
       ticketNumber: string;
     }[] = [];
@@ -98,6 +99,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           price: unitPrice,
           totalPrice: unitPrice * it.quantity,
           options: it.options,
+          stage: it.stage,
           seatNumber: it.seatNumber || tk.seatNumber,
           ticketNumber: tk.id.slice(-4),
         });
@@ -121,6 +123,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           price: unitPrice,
           totalPrice: unitPrice * ai.quantity,
           options: ai.options,
+          stage: ai.status || 'Placed',
           seatNumber: ai.seatNumber,
           ticketNumber: 'TBL',
         });
@@ -131,8 +134,36 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
   }, [tickets, table?.activeItems]);
 
   const itemsSubtotal = allOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
-  const baseSubtotal = Math.max(table?.currentBill || 0, itemsSubtotal);
-  const baseTax = Math.round(baseSubtotal * 0.05);
+
+  // Detect if this is a single-chair settle (splitLabel = "Chair N")
+  const splitSeatNumber = useMemo(() => {
+    if (!splitLabel) return null;
+    const m = splitLabel.match(/^Chair\s+(\d+)$/i);
+    return m ? Number(m[1]) : null;
+  }, [splitLabel]);
+
+  // When settling a specific chair, show only that chair's items
+  const displayedItems = useMemo(() => {
+    if (splitSeatNumber !== null) {
+      return allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
+    }
+    return allOrderedItems;
+  }, [allOrderedItems, splitSeatNumber]);
+
+  const baseSubtotal = isVacant
+    ? 0
+    : splitAmount
+    ? Math.round(splitAmount / 1.05)
+    : itemsSubtotal > 0
+    ? itemsSubtotal
+    : Math.round((table?.currentBill || 0) / 1.05);
+  const baseTax = isVacant
+    ? 0
+    : splitAmount
+    ? splitAmount - Math.round(splitAmount / 1.05)
+    : itemsSubtotal > 0
+    ? Math.round(baseSubtotal * 0.05)
+    : (table?.currentBill || 0) - baseSubtotal;
   const fullGrandTotal = isVacant ? 0 : baseSubtotal + baseTax;
 
   // If a specific split check amount is being settled, use that amount
@@ -142,14 +173,19 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
   const cgst = totalTax / 2;
   const sgst = totalTax / 2;
 
+  const hasUnservedDishes =
+    displayedItems.length > 0 &&
+    displayedItems.some((it) => it.stage !== 'SERVED' && it.stage !== 'Served');
+
   const invoiceNumber = useMemo(() => {
     const cleanTbl = tableNum.replace(/[^a-zA-Z0-9]/g, '');
     const stamp = Date.now().toString().slice(-4);
     return `INV-${cleanTbl}-${stamp}`;
   }, [tableNum]);
 
-  // Unique seat numbers allocated to this table / orders
+  // Unique seat numbers — for single-chair settle, show only that chair
   const seatNumbers = useMemo(() => {
+    if (splitSeatNumber !== null) return [splitSeatNumber];
     const seatsSet = new Set<number>();
     allOrderedItems.forEach((it) => {
       if (it.seatNumber) seatsSet.add(it.seatNumber);
@@ -159,7 +195,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
     }
     const count = table?.guestCount || table?.capacity || 1;
     return Array.from({ length: count }, (_, i) => i + 1);
-  }, [allOrderedItems, table]);
+  }, [allOrderedItems, splitSeatNumber, table]);
 
   const seatNumbersLabel =
     seatNumbers.length === 1
@@ -617,7 +653,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
               </span>
             </div>
             <span className="text-xs font-bold text-stone-500">
-              {allOrderedItems.reduce((s, i) => s + i.quantity, 0)} Items
+              {displayedItems.reduce((s, i) => s + i.quantity, 0)} Items
             </span>
           </div>
 
@@ -637,14 +673,14 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           </div>
 
           {/* Collapsible toggle to inspect dishes */}
-          {allOrderedItems.length > 0 && (
+          {displayedItems.length > 0 && (
             <div className="pt-1 border-t border-stone-100">
               <button
                 type="button"
                 onClick={() => setShowOrderSummary(!showOrderSummary)}
                 className="w-full flex items-center justify-between text-[11px] font-bold text-stone-600 hover:text-[#9C3D1E] py-1 cursor-pointer transition"
               >
-                <span>{showOrderSummary ? 'Hide Ordered Items' : `View Ordered Items (${allOrderedItems.length})`}</span>
+                <span>{showOrderSummary ? 'Hide Ordered Items' : `View Ordered Items (${displayedItems.length})`}</span>
                 {showOrderSummary ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
 
@@ -656,11 +692,11 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden space-y-1.5 pt-2 max-h-48 overflow-y-auto"
                   >
-                    {allOrderedItems.map((item, idx) => (
+                    {displayedItems.map((item, idx) => (
                       <div key={item.id || idx} className="flex justify-between text-[11px] text-stone-700 py-0.5">
                         <div>
                           <span>{item.quantity}× {item.name}</span>
-                          {item.seatNumber && (
+                          {!splitSeatNumber && item.seatNumber && (
                             <span className="text-[9.5px] text-[#9C3D1E] ml-1.5 font-bold">[Chair {item.seatNumber}]</span>
                           )}
                         </div>
@@ -917,23 +953,37 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
         </label>
 
         {/* ── SETTLEMENT CONFIRMATION ACTION ── */}
-        <div className="pt-1 pb-6">
+        <div className="pt-1 pb-6 space-y-2">
+          {hasUnservedDishes && (
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-center text-amber-900 text-xs font-mono font-bold">
+              ⚠️ Note: All dishes must be served to the table before finalizing payment.
+            </div>
+          )}
           <motion.button
-            whileTap={{ scale: 0.98 }}
+            whileTap={!hasUnservedDishes ? { scale: 0.98 } : undefined}
             type="button"
             onClick={handleSettle}
             disabled={
               grandTotal === 0 ||
+              hasUnservedDishes ||
               (method === 'UPI' && !isUpiVerified) ||
               (method === 'CASH' &&
                 typeof cashTendered === 'number' &&
                 cashTendered > 0 &&
                 cashTendered < grandTotal)
             }
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-2xl font-mono text-sm font-black flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+            className={`w-full py-4 text-white rounded-2xl font-mono text-sm font-black flex items-center justify-center gap-2 shadow-md transition ${
+              hasUnservedDishes || grandTotal === 0
+                ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
+                : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 cursor-pointer'
+            }`}
           >
             <CheckCircle2 className="h-5 w-5" />
-            <span>Confirm &amp; Settle ₹{grandTotal} via {method}</span>
+            <span>
+              {hasUnservedDishes
+                ? 'Serve All Dishes to Settle'
+                : `Confirm & Settle ₹${grandTotal} via ${method}`}
+            </span>
           </motion.button>
         </div>
       </div>

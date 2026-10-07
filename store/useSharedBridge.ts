@@ -24,7 +24,7 @@ export interface SharedKDSTicket {
   serverName: string;
   timestamp: string;
   elapsedMinutes: number;
-  status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED';
+  status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED' | 'SERVED';
   items: SharedKDSItem[];
   source: 'CUSTOMER' | 'WAITER'; // who originated the order
   seatNumber?: number;
@@ -205,7 +205,7 @@ interface SharedBridgeState {
   waiterFiresKOT: (
     tableNumber: string,
     captainName: string,
-    items: Array<{ item: MenuItem; selectedOption: string; quantity: number }>,
+    items: Array<{ item: MenuItem; selectedOption: string; quantity: number; addOns?: string[] }>,
     seatNumber?: number
   ) => void;
 
@@ -488,7 +488,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -801,17 +801,25 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       status: 'NEW',
       source: 'WAITER',
       seatNumber,
-      items: items.map((i, idx) => ({
-        id: `ki-w-${Date.now()}-${idx}`,
-        name: i.item.name,
-        quantity: i.quantity,
-        stage: 'PLACED',
-        prepMode: i.item.prepMode,
-        options: i.selectedOption,
-        addOns: (i as any).addOns || [],
-        price: i.item.price,
-        seatNumber,
-      })),
+      items: items.map((i, idx) => {
+        const addOns = i.addOns || [];
+        const addOnExtra = addOns.reduce((s, ao) => {
+          const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+          return s + (found?.extraPrice || 0);
+        }, 0);
+        const unitPrice = i.item.price + addOnExtra;
+        return {
+          id: `ki-w-${Date.now()}-${idx}`,
+          name: i.item.name,
+          quantity: i.quantity,
+          stage: 'PLACED',
+          prepMode: i.item.prepMode,
+          options: i.selectedOption,
+          addOns,
+          price: unitPrice,
+          seatNumber,
+        };
+      }),
     };
 
     const notif = {
@@ -823,7 +831,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       dismissed: false,
     };
 
-    const kotTotal = items.reduce((s, i) => s + i.item.price * i.quantity, 0);
+    const kotTotal = items.reduce((s, i) => {
+      const addOns = i.addOns || [];
+      const addOnExtra = addOns.reduce((ao_s, ao) => {
+        const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+        return ao_s + (found?.extraPrice || 0);
+      }, 0);
+      return s + (i.item.price + addOnExtra) * i.quantity;
+    }, 0);
 
     // Snapshot for rollback
     const prevState = {
@@ -854,15 +869,23 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               kotCount: t.kotCount + 1,
               activeItems: [
                 ...(t.activeItems || []),
-                ...items.map((i, idx) => ({
-                  id: `ai-w-${Date.now()}-${idx}`,
-                  name: i.item.name,
-                  quantity: i.quantity,
-                  status: 'Placed',
-                  seatNumber,
-                  price: i.item.price,
-                  options: i.selectedOption,
-                })),
+                ...items.map((i, idx) => {
+                  const addOns = i.addOns || [];
+                  const addOnExtra = addOns.reduce((s, ao) => {
+                    const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+                    return s + (found?.extraPrice || 0);
+                  }, 0);
+                  return {
+                    id: `ai-w-${Date.now()}-${idx}`,
+                    name: i.item.name,
+                    quantity: i.quantity,
+                    status: 'Placed',
+                    seatNumber,
+                    price: i.item.price + addOnExtra,
+                    options: i.selectedOption,
+                    addOns,
+                  };
+                }),
               ],
             }
           : t
@@ -878,18 +901,26 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         guestName: captainName,
         guestCount: 1,
         source: 'WAITER',
-        items: items.map((i) => ({
-          name: i.item.name,
-          quantity: i.quantity,
-          price: i.item.price,
-          unitPrice: i.item.price,
-          prepMode: i.item.prepMode || 'Regular',
-          selectedOption: i.selectedOption || null,
-          addOns: (i as any).addOns || [],
-          seatNumber: seatNumber || 1,
-          seat_number: seatNumber || 1,
-          notes: seatNumber ? `Seat ${seatNumber}` : '',
-        })),
+        items: items.map((i) => {
+          const addOns = i.addOns || [];
+          const addOnExtra = addOns.reduce((s, ao) => {
+            const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+            return s + (found?.extraPrice || 0);
+          }, 0);
+          const unitPrice = i.item.price + addOnExtra;
+          return {
+            name: i.item.name,
+            quantity: i.quantity,
+            price: unitPrice,
+            unitPrice,
+            prepMode: i.item.prepMode || 'Regular',
+            selectedOption: i.selectedOption || null,
+            addOns,
+            seatNumber: seatNumber || 1,
+            seat_number: seatNumber || 1,
+            notes: seatNumber ? `Seat ${seatNumber}` : '',
+          };
+        }),
       },
       () => {
         console.error('[Bridge] waiterFiresKOT rollback');
@@ -1304,7 +1335,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        return { ...t, items: newItems, status: allServed ? ('COMPLETED' as const) : t.status };
+        return { ...t, items: newItems, status: allServed ? ('SERVED' as const) : t.status };
       });
 
       if (!targetTableNumber) {

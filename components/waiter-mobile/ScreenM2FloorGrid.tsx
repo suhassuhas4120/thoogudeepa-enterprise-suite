@@ -333,12 +333,12 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
         (tk) => memberCleanNums.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED'
       );
       const ticketTotal = matchingTickets.reduce((sum, tk) =>
-        sum + (tk.items || []).filter((i) => i.stage !== 'SERVED').reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 1), 0),
+        sum + (tk.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 1), 0),
         0
       );
       const ticketBillWithTax = Math.round(ticketTotal * 1.05);
       const rawBill = allMembers.reduce((s, t) => s + (t.currentBill || 0), 0);
-      const totalBill = rawBill > 0 ? rawBill : ticketBillWithTax;
+      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : rawBill;
       const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || allMembers.some((m) => m.status === 'OCCUPIED' || m.status === 'BILLING');
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (primaryTbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
@@ -385,11 +385,11 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
         (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tbl.number) && tk.status !== 'COMPLETED'
       );
       const ticketTotal = matchingTickets.reduce((sum, tk) =>
-        sum + (tk.items || []).filter((i) => i.stage !== 'SERVED').reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 1), 0),
+        sum + (tk.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 1), 0),
         0
       );
       const ticketBillWithTax = Math.round(ticketTotal * 1.05);
-      const totalBill = (tbl.currentBill && tbl.currentBill > 0) ? tbl.currentBill : ticketBillWithTax;
+      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : (tbl.currentBill || 0);
       const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || tbl.status === 'OCCUPIED' || tbl.status === 'BILLING';
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (tbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')

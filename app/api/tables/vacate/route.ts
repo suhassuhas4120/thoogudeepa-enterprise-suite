@@ -53,6 +53,15 @@ export async function POST(req: NextRequest) {
       })
       .eq('table_number', tableNumber);
 
+    // 4. Archive all tickets for this table as COMPLETED
+    await supabase
+      .from('kds_tickets')
+      .update({
+        status: 'COMPLETED',
+        updated_at: now,
+      })
+      .eq('table_number', tableNumber);
+
     return NextResponse.json({
       success: true,
       tableNumber,

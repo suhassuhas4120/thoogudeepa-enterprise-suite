@@ -50,7 +50,7 @@ interface DbKdsTicketRow {
   table_number: string;
   seat_number?: number;
   server_name: string;
-  status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED';
+  status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED' | 'SERVED';
   elapsed_minutes: number;
   source: 'CUSTOMER' | 'WAITER';
   items: Array<{

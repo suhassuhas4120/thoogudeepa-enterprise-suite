@@ -38,7 +38,7 @@ export const ScreenK3Detail: React.FC = () => {
   const [pendingDelays, setPendingDelays] = useState<Record<string, number>>({});
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
-  const allTickets = bridgeTickets.filter((t) => t.status !== 'COMPLETED');
+  const allTickets = bridgeTickets.filter((t) => t.status !== 'COMPLETED' && t.status !== 'SERVED');
 
   const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
 

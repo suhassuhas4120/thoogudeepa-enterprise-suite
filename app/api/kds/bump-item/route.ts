@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       const anyActive = updatedTicketItems.some((it: any) => it.stage === 'PREP' || it.stage === 'PLATED' || it.stage === 'RECEIVED');
 
       if (allServed) {
-        ticketStatus = 'COMPLETED';
+        ticketStatus = 'SERVED';
       } else if (allPlated) {
         ticketStatus = 'READY';
       } else if (anyActive) {
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
         const allPlated = siblingItems.every((it) => it.stage === 'PLATED' || it.stage === 'SERVED');
         const anyActive = siblingItems.some((it) => it.stage === 'PREP' || it.stage === 'PREPARING' || it.stage === 'RECEIVED' || it.stage === 'PLATED');
 
-        const resolvedStatus = allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW';
+        const resolvedStatus = allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW';
 
         await supabase
           .from('kds_tickets')

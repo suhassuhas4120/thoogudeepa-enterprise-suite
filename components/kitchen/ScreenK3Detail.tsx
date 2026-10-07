@@ -20,6 +20,7 @@ export const ScreenK3Detail: React.FC = () => {
   const {
     setCurrentScreen,
     selectedTableNumber,
+    selectedTicketId,
     tickets: localTickets,
   } = useKitchenStore();
 
@@ -37,17 +38,20 @@ export const ScreenK3Detail: React.FC = () => {
   const [pendingDelays, setPendingDelays] = useState<Record<string, number>>({});
   const [updateSuccess, setUpdateSuccess] = useState(false);
 
-  const allTickets =
-    bridgeTickets.length > 0
-      ? bridgeTickets
-      : localTickets.map((t) => ({ ...t, source: 'WAITER' as const }));
+  const allTickets = bridgeTickets.filter((t) => t.status !== 'COMPLETED');
+
+  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
 
   const currentTicket =
+    (selectedTicketId ? allTickets.find((t) => t.id === selectedTicketId) : null) ||
     allTickets.find(
-      (t) => t.tableNumber === selectedTableNumber.replace('TABLE ', '')
+      (t) => cleanNum(t.tableNumber) === cleanNum(selectedTableNumber)
     ) ||
-    allTickets.find((t) => t.tableNumber === selectedTableNumber) ||
     allTickets[0];
+
+  const activeTicketItems = (currentTicket?.items || []).filter(
+    (it) => it.stage !== 'SERVED'
+  );
 
   const handlePendingToggle = (itemId: string, currentIs86: boolean) => {
     if (inventoryLocked) return;
@@ -85,9 +89,9 @@ export const ScreenK3Detail: React.FC = () => {
     Object.keys(pendingChanges).length > 0 ||
     Object.keys(pendingDelays).length > 0;
 
-  const stageOrder: OrderStage[] = ['PLACED', 'PREP', 'PLATED'];
+  const stageOrder: OrderStage[] = ['RECEIVED', 'PREP', 'PLATED'];
   const stageLabels: Record<string, string> = {
-    PLACED: '1.REC',
+    RECEIVED: '1.REC',
     PREP: '2.PREP',
     PLATED: '3.READY',
   };
@@ -143,7 +147,7 @@ export const ScreenK3Detail: React.FC = () => {
                   <div className="rounded-2xl border border-[#EFE6DA] bg-white p-4 shadow-xs flex items-center justify-between">
                     <div>
                       <div className="text-base font-black text-slate-900 mt-0.5">
-                        Table [{currentTicket?.tableNumber}] •{' '}
+                        Table [{currentTicket?.tableNumber}]{currentTicket?.seatNumber ? ` • Chair ${currentTicket.seatNumber}` : ''} •{' '}
                         {currentTicket?.items.length} Dishes
                       </div>
                       <div className="text-[10px] font-mono text-slate-500 mt-0.5">
@@ -163,7 +167,12 @@ export const ScreenK3Detail: React.FC = () => {
 
                   {/* Items List */}
                   <div className="space-y-3">
-                    {currentTicket?.items.map((it) => (
+                    {activeTicketItems.length === 0 ? (
+                      <div className="p-6 text-center text-slate-400 font-mono text-xs bg-white rounded-2xl border border-[#EFE6DA]">
+                        All items for this order have been served to the floor.
+                      </div>
+                    ) : (
+                      activeTicketItems.map((it) => (
                       <div
                         key={it.id}
                         className="rounded-2xl border border-[#EFE6DA] bg-white p-3.5 shadow-xs space-y-2.5"
@@ -177,6 +186,11 @@ export const ScreenK3Detail: React.FC = () => {
                               <span className="text-xs font-black text-slate-900 truncate">
                                 {it.name}
                               </span>
+                              {(it.seatNumber || currentTicket?.seatNumber) && (
+                                <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-mono text-[11px] font-black border border-amber-300 shrink-0">
+                                  Chair {it.seatNumber || currentTicket?.seatNumber}
+                                </span>
+                              )}
                             </div>
                             <div className="text-[10.5px] text-slate-500 mt-1 font-mono">
                               Prep: {it.prepMode}
@@ -194,6 +208,8 @@ export const ScreenK3Detail: React.FC = () => {
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : it.stage === 'PREP'
                                 ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : it.stage === 'RECEIVED'
+                                ? 'bg-sky-50 text-sky-700 border-sky-200'
                                 : 'bg-[#FBF7F0] text-slate-600 border-[#EFE6DA]'
                             }`}
                           >
@@ -232,7 +248,8 @@ export const ScreenK3Detail: React.FC = () => {
                           })}
                         </div>
                       </div>
-                    ))}
+                    ))
+                    )}
                   </div>
                 </>
               )}

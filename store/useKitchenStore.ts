@@ -9,6 +9,7 @@ interface KitchenStoreState {
   viewMode: 'single' | 'all';
   activeStation: KitchenStation;
   selectedTableNumber: string;
+  selectedTicketId: string;
   soundAlertsEnabled: boolean;
   tickets: KDSTicket[];
   waiterAlertNotice: string | null;
@@ -17,6 +18,7 @@ interface KitchenStoreState {
   setViewMode: (mode: 'single' | 'all') => void;
   setActiveStation: (station: KitchenStation) => void;
   setSelectedTableNumber: (table: string) => void;
+  setSelectedTicketId: (ticketId: string) => void;
   toggleSoundAlerts: () => void;
   bumpItemStage: (ticketId: string, itemId: string) => void;
   bumpTable: (ticketId: string) => void;
@@ -31,6 +33,7 @@ export const useKitchenStore = create<KitchenStoreState>((set) => ({
   viewMode: 'single',
   activeStation: 'MASTER_DISPATCH',
   selectedTableNumber: '',
+  selectedTicketId: '',
   soundAlertsEnabled: true,
   // Real orders are populated through the shared bridge
   tickets: [],
@@ -45,6 +48,7 @@ export const useKitchenStore = create<KitchenStoreState>((set) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
   setActiveStation: (station) => set({ activeStation: station }),
   setSelectedTableNumber: (table) => set({ selectedTableNumber: table }),
+  setSelectedTicketId: (ticketId) => set({ selectedTicketId: ticketId }),
   toggleSoundAlerts: () =>
     set((state) => ({ soundAlertsEnabled: !state.soundAlertsEnabled })),
 

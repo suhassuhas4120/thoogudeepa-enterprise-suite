@@ -28,7 +28,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
-import { useSharedBridge } from '../store/useSharedBridge';
+import { useSharedBridge, type SharedTable } from '../store/useSharedBridge';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // ── Supabase row shapes (only fields we need) ────────────────────────
@@ -48,6 +48,7 @@ interface DbTableRow {
 interface DbKdsTicketRow {
   id: string;
   table_number: string;
+  seat_number?: number;
   server_name: string;
   status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED';
   elapsed_minutes: number;
@@ -59,6 +60,10 @@ interface DbKdsTicketRow {
     stage: string;
     prepMode?: string;
     options?: string;
+    seat_number?: number;
+    seatNumber?: number;
+    price?: number;
+    unit_price?: number;
   }>;
   created_at: string;
 }
@@ -91,65 +96,122 @@ async function reconcileAllState(): Promise<void> {
   try {
     const bridge = useSharedBridge.getState();
 
-    // 1. Tables
-    const { data: tables } = await supabase
-      .from('tables')
-      .select('*')
-      .order('number', { ascending: true });
-
-    if (tables && tables.length > 0) {
-      useSharedBridge.setState({
-        tables: tables.map((row: DbTableRow) => ({
-          id: row.number,            // use number as id (matches freshTables)
-          number: row.number,
-          section: row.section,
-          capacity: row.capacity,
-          status: row.status,
-          guestCount: row.guest_count ?? 0,
-          seatedTime: '--',          // not stored in DB
-          currentBill: Number(row.current_bill) || 0,
-          serverName: row.server_name || 'Floor Captain',
-          kotCount: row.kot_count ?? 0,
-          mergedWith: row.merged_with ?? undefined,
-        })),
-      });
-    }
-
-    // 2. KDS Tickets (non-completed)
+    // 1. KDS Tickets (non-completed)
     const { data: tickets } = await supabase
       .from('kds_tickets')
       .select('*')
       .neq('status', 'COMPLETED')
       .order('created_at', { ascending: true });
 
-    if (tickets) {
-      useSharedBridge.setState({
-        kdsTickets: tickets.map((row: DbKdsTicketRow) => ({
-          id: row.id,
-          tableNumber: row.table_number,
-          serverName: row.server_name || '',
-          timestamp: row.created_at
-            ? new Date(row.created_at).toLocaleTimeString('en-IN', {
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            : '--',
-          elapsedMinutes: row.elapsed_minutes ?? 0,
-          status: row.status,
-          source: row.source,
-          items: Array.isArray(row.items)
-            ? row.items.map((it) => ({
-                id: it.id || `it-${Math.random()}`,
-                name: it.name,
-                quantity: it.quantity,
-                stage: (it.stage as 'PLACED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
-                prepMode: it.prepMode || '',
-                options: it.options,
-              }))
-            : [],
-        })),
+    const mappedTickets = (tickets || []).map((row: DbKdsTicketRow) => ({
+      id: row.id,
+      tableNumber: row.table_number,
+      seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
+      serverName: row.server_name || '',
+      timestamp: row.created_at
+        ? new Date(row.created_at).toLocaleTimeString('en-IN', {
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'Asia/Kolkata',
+          })
+        : '--',
+      elapsedMinutes: row.elapsed_minutes ?? 0,
+      status: row.status,
+      source: row.source,
+      items: Array.isArray(row.items)
+        ? row.items.map((it) => ({
+            id: it.id || `it-${Math.random()}`,
+            name: it.name,
+            quantity: it.quantity,
+            stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
+            prepMode: it.prepMode || '',
+            options: it.options,
+            seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
+              ? Number(it.seat_number || it.seatNumber || row.seat_number)
+              : undefined,
+            price: Number(it.price || it.unit_price || 0),
+          }))
+        : [],
+    }));
+
+    // Group active items by table number
+    const itemsByTable = new Map<
+      string,
+      Array<{
+        id: string;
+        name: string;
+        quantity: number;
+        status: string;
+        options?: string;
+        seatNumber?: number;
+        price?: number;
+      }>
+    >();
+    mappedTickets.forEach((tk) => {
+      if (tk.status !== 'COMPLETED') {
+        const list = itemsByTable.get(tk.tableNumber) || [];
+        tk.items.forEach((it) => {
+          list.push({
+            id: it.id,
+            name: it.name,
+            quantity: it.quantity,
+            status:
+              it.stage === 'SERVED'
+                ? 'Served'
+                : it.stage === 'PLATED'
+                ? 'Ready'
+                : it.stage === 'PREP'
+                ? 'Cooking'
+                : it.stage === 'RECEIVED'
+                ? 'Received'
+                : 'Placed',
+            options: it.options,
+            seatNumber: it.seatNumber,
+            price: it.price,
+          });
+        });
+        itemsByTable.set(tk.tableNumber, list);
+      }
+    });
+
+    // 2. Tables
+    const { data: tables } = await supabase
+      .from('tables')
+      .select('*')
+      .order('number', { ascending: true });
+
+    let mappedTables = bridge.tables;
+    if (tables && tables.length > 0) {
+      mappedTables = tables.map((row: DbTableRow) => {
+        const tableActiveItems = itemsByTable.get(row.number) || [];
+        const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
+        const computedBill = Math.round(activeItemsSum * 1.05);
+        const dbBill = Number(row.current_bill || 0);
+        const effectiveBill = dbBill > 0 ? dbBill : computedBill;
+        const hasRunningBill = effectiveBill > 0;
+        const hasOrders = tableActiveItems.length > 0 || hasRunningBill || row.status === 'OCCUPIED' || row.status === 'BILLING';
+
+        return {
+          id: row.number,
+          number: row.number,
+          section: row.section,
+          capacity: row.capacity,
+          status: hasOrders ? (row.status === 'BILLING' ? 'BILLING' : 'OCCUPIED') : (row.status || 'VACANT'),
+          guestCount: hasOrders ? (row.guest_count ?? 1) : 0,
+          seatedTime: '--',
+          currentBill: effectiveBill,
+          serverName: row.server_name || 'Floor Captain',
+          kotCount: hasOrders ? (row.kot_count ?? 1) : 0,
+          mergedWith: row.merged_with ?? undefined,
+          activeItems: tableActiveItems,
+        };
       });
     }
+
+    useSharedBridge.setState({
+      tables: mappedTables,
+      kdsTickets: mappedTickets,
+    });
 
     // 3. Menu 86
     const { data: menu86 } = await supabase
@@ -261,9 +323,38 @@ export function useBridgeSync() {
 
           // Only add if not already in memory (optimistic may have added it)
           const existing = useSharedBridge.getState().kdsTickets;
-          // Check by id OR by table+source+timestamp proximity (optimistic dedup)
-          const alreadyPresent = existing.some((tk) => tk.id === row.id);
-          if (alreadyPresent) return;
+
+          // Primary check: exact ID match (works after onSuccess ID reconciliation)
+          const byId = existing.some((tk) => tk.id === row.id);
+          if (byId) return;
+
+          // Fallback: same table + same source within a 10-second burst window
+          // Guards against edge cases where onSuccess hasn't fired yet
+          const rowAge = row.created_at
+            ? (Date.now() - new Date(row.created_at).getTime()) / 1000
+            : 999;
+          const byProximity =
+            rowAge < 10 &&
+            existing.some(
+              (tk) =>
+                tk.tableNumber === row.table_number &&
+                tk.source === row.source &&
+                tk.status === row.status
+            );
+          if (byProximity) {
+            // Still make sure the in-memory ticket carries the real DB id
+            useSharedBridge.setState((state) => ({
+              kdsTickets: state.kdsTickets.map((tk) =>
+                tk.tableNumber === row.table_number &&
+                tk.source === row.source &&
+                tk.status === row.status &&
+                tk.id !== row.id
+                  ? { ...tk, id: row.id }
+                  : tk
+              ),
+            }));
+            return;
+          }
 
           useSharedBridge.setState((state) => ({
             kdsTickets: [
@@ -271,11 +362,13 @@ export function useBridgeSync() {
               {
                 id: row.id,
                 tableNumber: row.table_number,
+                seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
                 serverName: row.server_name || '',
                 timestamp: row.created_at
                   ? new Date(row.created_at).toLocaleTimeString('en-IN', {
                       hour: '2-digit',
                       minute: '2-digit',
+                      timeZone: 'Asia/Kolkata',
                     })
                   : '--',
                 elapsedMinutes: row.elapsed_minutes ?? 0,
@@ -286,9 +379,13 @@ export function useBridgeSync() {
                       id: it.id || `it-${Math.random()}`,
                       name: it.name,
                       quantity: it.quantity,
-                      stage: (it.stage as 'PLACED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
+                      stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
                       prepMode: it.prepMode || '',
                       options: it.options,
+                      seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
+                        ? Number(it.seat_number || it.seatNumber || row.seat_number)
+                        : undefined,
+                      price: Number(it.price || it.unit_price || 0),
                     }))
                   : [],
               },
@@ -302,30 +399,69 @@ export function useBridgeSync() {
         (payload) => {
           const row = payload.new as DbKdsTicketRow;
           if (!row?.id) return;
-          useSharedBridge.setState((state) => ({
-            kdsTickets:
+          const parsedItems = Array.isArray(row.items) && row.items.length > 0
+            ? row.items.map((it) => ({
+                id: it.id || `it-${Math.random()}`,
+                name: it.name,
+                quantity: it.quantity,
+                stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
+                prepMode: it.prepMode || '',
+                options: it.options,
+                seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
+                  ? Number(it.seat_number || it.seatNumber || row.seat_number)
+                  : undefined,
+                price: Number(it.price || it.unit_price || 0),
+              }))
+            : undefined;
+
+          useSharedBridge.setState((state) => {
+            const nextTickets =
               row.status === 'COMPLETED'
                 ? state.kdsTickets.filter((tk) => tk.id !== row.id)
                 : state.kdsTickets.map((tk) =>
                     tk.id === row.id
                       ? {
                           ...tk,
+                          seatNumber: row.seat_number ? Number(row.seat_number) : tk.seatNumber,
                           status: row.status,
                           elapsedMinutes: row.elapsed_minutes ?? tk.elapsedMinutes,
-                          items: Array.isArray(row.items) && row.items.length > 0
-                            ? row.items.map((it) => ({
-                                id: it.id || `it-${Math.random()}`,
-                                name: it.name,
-                                quantity: it.quantity,
-                                stage: (it.stage as 'PLACED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
-                                prepMode: it.prepMode || '',
-                                options: it.options,
-                              }))
-                            : tk.items,
+                          items: parsedItems ?? tk.items,
                         }
                       : tk
-                  ),
-          }));
+                  );
+
+            const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+            // Keep tables activeItems in sync with updated ticket items
+            const nextTables = parsedItems && row.table_number
+              ? state.tables.map((tbl) => {
+                  if (cleanNum(tbl.number) !== cleanNum(row.table_number)) return tbl;
+                  return {
+                    ...tbl,
+                    activeItems: (tbl.activeItems || []).map((ai) => {
+                      const matched = parsedItems.find(
+                        (pi) => pi.id === ai.id || (pi.name === ai.name && pi.seatNumber === ai.seatNumber)
+                      );
+                      if (!matched) return ai;
+                      return {
+                        ...ai,
+                        status:
+                          matched.stage === 'SERVED'
+                            ? 'Served'
+                            : matched.stage === 'PLATED'
+                            ? 'Ready'
+                            : matched.stage === 'PREP'
+                            ? 'Cooking'
+                            : matched.stage === 'RECEIVED'
+                            ? 'Received'
+                            : 'Placed',
+                      };
+                    }),
+                  };
+                })
+              : state.tables;
+
+            return { kdsTickets: nextTickets, tables: nextTables };
+          });
         }
       )
       .on(
@@ -425,6 +561,54 @@ export function useBridgeSync() {
           }
         }
       )
+      // ── tables (floor status, bills, captain, occupancy) ─────────
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tables' },
+        (payload) => {
+          const row = payload.new as DbTableRow;
+          if (!row?.number) return;
+          const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+
+          useSharedBridge.setState((state) => {
+            const existingIdx = state.tables.findIndex(
+              (t) => cleanNum(t.number) === cleanNum(row.number)
+            );
+            const tableActiveItems = state.kdsTickets
+              .filter((tk) => cleanNum(tk.tableNumber) === cleanNum(row.number) && tk.status !== 'COMPLETED')
+              .flatMap((tk) => (tk.items || []).filter((it) => it.stage !== 'SERVED'));
+
+            const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
+            const computedBill = Math.round(activeItemsSum * 1.05);
+            const dbBill = Number(row.current_bill || 0);
+            const effectiveBill = dbBill > 0 ? dbBill : computedBill;
+            const hasOrders = tableActiveItems.length > 0 || effectiveBill > 0 || row.status === 'OCCUPIED' || row.status === 'BILLING';
+
+            const updatedTable: SharedTable = {
+              id: row.number,
+              number: row.number,
+              section: row.section || (existingIdx >= 0 ? state.tables[existingIdx].section : 'Main AC Hall'),
+              capacity: row.capacity || (existingIdx >= 0 ? state.tables[existingIdx].capacity : 4),
+              status: hasOrders ? (row.status === 'BILLING' ? 'BILLING' : 'OCCUPIED') : (row.status || 'VACANT'),
+              guestCount: hasOrders ? (row.guest_count ?? (existingIdx >= 0 ? state.tables[existingIdx].guestCount : 1)) : 0,
+              seatedTime: existingIdx >= 0 ? state.tables[existingIdx].seatedTime : '--',
+              currentBill: effectiveBill,
+              serverName: row.server_name || (existingIdx >= 0 ? state.tables[existingIdx].serverName : 'Floor Captain'),
+              kotCount: hasOrders ? (row.kot_count ?? (existingIdx >= 0 ? state.tables[existingIdx].kotCount : 1)) : 0,
+              mergedWith: row.merged_with ?? undefined,
+              activeItems: existingIdx >= 0 ? state.tables[existingIdx].activeItems : [],
+            };
+
+            if (existingIdx >= 0) {
+              const next = [...state.tables];
+              next[existingIdx] = { ...next[existingIdx], ...updatedTable };
+              return { tables: next };
+            } else {
+              return { tables: [...state.tables, updatedTable] };
+            }
+          });
+        }
+      )
 
       // ── subscription lifecycle ────────────────────────────────────
       .subscribe((status) => {
@@ -478,4 +662,19 @@ export function useBridgeSync() {
       }
     };
   }, [subscribe]);
+
+  // Elapsed-minutes ticker — increments every 60 s for all active KDS tickets
+  useEffect(() => {
+    const tick = setInterval(() => {
+      useSharedBridge.setState((state) => ({
+        kdsTickets: state.kdsTickets.map((tk) =>
+          tk.status === 'COMPLETED'
+            ? tk
+            : { ...tk, elapsedMinutes: (tk.elapsedMinutes ?? 0) + 1 }
+        ),
+      }));
+    }, 60_000);
+
+    return () => clearInterval(tick);
+  }, []);
 }

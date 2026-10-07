@@ -41,32 +41,47 @@ function statusBadge(status: string) {
   }
 }
 
-function StagePill({ stage }: { stage: string }) {
-  if (stage === 'Cooking') {
+function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) {
+  if (stage === 'Received') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 animate-pulse">
-        Cooking
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
+        Received
       </span>
     );
   }
-  if (stage === 'Ready') {
+  if (stage === 'Cooking' || stage === 'PREP' || stage === 'Preparing') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
-        <span className="text-emerald-600">●</span>
-        Ready
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+        Preparing
       </span>
     );
   }
-  if (stage === 'Served') {
+  if (stage === 'Ready' || stage === 'PLATED') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-blue-50 text-blue-600 line-through opacity-60">
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onServe?.();
+        }}
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95"
+      >
+        <span className="text-white">●</span>
+        <span>Serve</span>
+      </motion.button>
+    );
+  }
+  if (stage === 'Served' || stage === 'SERVED') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-500 line-through opacity-70 border border-stone-200">
         Served
       </span>
     );
   }
   return (
-    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600">
-      {stage}
+    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600 border border-stone-200">
+      Placed
     </span>
   );
 }
@@ -144,7 +159,12 @@ export function ScreenM3TableSheet({
   const mergePeerLabel = groupPeers.filter((n) => n !== tableNum).join(', ');
 
   // Tickets for table — vacant tables have NO active tickets
-  const tickets = isVacant ? [] : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+  const tickets = isVacant
+    ? []
+    : kdsTickets.filter((tk) =>
+        groupPeers.some((peer) => cleanTableNum(peer) === cleanTableNum(tk.tableNumber))
+      );
 
   // Unified collection of all ordered items on this table (from KDS tickets and table.activeItems)
   const allTableOrderedItems: {
@@ -172,7 +192,15 @@ export function ScreenM3TableSheet({
           )?.price || 220;
         const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
         const stageLabel =
-          it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed';
+          it.stage === 'SERVED'
+            ? 'Served'
+            : it.stage === 'PLATED'
+            ? 'Ready'
+            : it.stage === 'PREP'
+            ? 'Cooking'
+            : it.stage === 'RECEIVED'
+            ? 'Received'
+            : 'Placed';
         allTableOrderedItems.push({
           id: it.id,
           name: it.name,
@@ -332,12 +360,17 @@ export function ScreenM3TableSheet({
   };
 
   // Check if any items are ready to serve
-  const readyTickets = tickets.filter((tk) => tk.status === 'READY');
-  const hasReadyFood = readyTickets.length > 0 || table.activeItems?.some((it) => it.status === 'Ready');
+  const readyOrderedItems = allTableOrderedItems.filter((i) => i.stage === 'Ready');
+  const hasReadyFood = readyOrderedItems.length > 0 || (table.activeItems || []).some((it) => it.status === 'Ready');
 
   const handleServeReadyFood = () => {
-    readyTickets.forEach((tk) => {
-      tk.items.forEach((it) => waiterMarkKitchenItemServed(tk.id, it.id));
+    readyOrderedItems.forEach((it) => {
+      waiterMarkKitchenItemServed(it.ticketId, it.id);
+    });
+    (table.activeItems || []).forEach((ai) => {
+      if (ai.status === 'Ready' && ai.id) {
+        waiterMarkKitchenItemServed('tbl-direct', ai.id);
+      }
     });
     setNotice('✓ Ready dishes marked as served to table');
     setTimeout(() => setNotice(null), 2000);
@@ -728,7 +761,7 @@ export function ScreenM3TableSheet({
               const isSelected = selectedSeat === seatNum;
               const chairBreakdown = getChairBillBreakdown(seatNum);
               const hasOrders = chairBreakdown.directItems.length > 0;
-              const isSeated = hasOrders || seatNum <= occupiedChairsCount;
+              const isSeated = hasOrders || chairsWithOrders.has(seatNum) || (chairsWithOrders.size === 0 && seatNum <= occupiedChairsCount);
               const seatCardTotal = chairBreakdown.totalDue;
               const isSelectedForMerge = selectedChairsForMerge.includes(seatNum);
               const seatHasReady = allTableOrderedItems.some(
@@ -884,7 +917,7 @@ export function ScreenM3TableSheet({
                     : 'UNPAID'
                   : allTableOrderedItems.some((i) => i.seatNumber === Number(selectedSeat))
                   ? 'Active Orders'
-                  : Number(selectedSeat) <= occupiedChairsCount
+                  : chairsWithOrders.size === 0 && Number(selectedSeat) <= occupiedChairsCount
                   ? 'Seated'
                   : 'Available'}
               </span>
@@ -940,7 +973,10 @@ export function ScreenM3TableSheet({
                             </div>
                             <div className="flex items-center justify-between pt-1 border-t border-indigo-100 text-[10px]">
                               <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <StagePill stage={item.stage} />
+                              <StagePill
+                                stage={item.stage}
+                                onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                              />
                             </div>
                           </div>
                         ))}
@@ -978,6 +1014,29 @@ export function ScreenM3TableSheet({
             // All Table KOT Tickets & Items
             allTableOrderedItems.length > 0 ? (
               <div className="flex-1 min-h-0 flex flex-col space-y-2.5 py-1">
+                {(() => {
+                  const readyToServeItems = allTableOrderedItems.filter((i) => i.stage === 'Ready');
+                  if (readyToServeItems.length <= 1) return null;
+                  return (
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-mono text-xs shadow-2xs shrink-0">
+                      <div className="flex items-center gap-1.5 font-black">
+                        <span className="text-emerald-600 animate-pulse text-sm">●</span>
+                        <span>{readyToServeItems.length} Dishes Ready at Pass</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          readyToServeItems.forEach((it) =>
+                            waiterMarkKitchenItemServed(it.ticketId, it.id)
+                          );
+                        }}
+                        className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black shadow-xs transition active:scale-95 cursor-pointer"
+                      >
+                        Serve All ({readyToServeItems.length}) ✓
+                      </button>
+                    </div>
+                  );
+                })()}
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
                   {allTableOrderedItems.map((item, idx) => (
                     <div
@@ -1014,7 +1073,10 @@ export function ScreenM3TableSheet({
                       </div>
                       <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
                         <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                        <StagePill stage={item.stage} />
+                        <StagePill
+                          stage={item.stage}
+                          onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                        />
                       </div>
                     </div>
                   ))}
@@ -1057,7 +1119,7 @@ export function ScreenM3TableSheet({
               const thisSeatNum = Number(selectedSeat);
               const thisSeatItems = allTableOrderedItems.filter((i) => i.seatNumber === thisSeatNum);
               const hasSeatItems = thisSeatItems.length > 0;
-              const isSeatOccupied = hasSeatItems || thisSeatNum <= occupiedChairsCount;
+              const isSeatOccupied = hasSeatItems || chairsWithOrders.has(thisSeatNum) || (chairsWithOrders.size === 0 && thisSeatNum <= occupiedChairsCount);
               const thisSeatSubtotal = thisSeatItems.reduce((sum, i) => sum + i.totalPrice, 0);
               const thisSeatTax = Math.round(thisSeatSubtotal * 0.05);
               const thisSeatCgst = thisSeatTax / 2;
@@ -1104,7 +1166,10 @@ export function ScreenM3TableSheet({
                             </div>
                             <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
                               <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <StagePill stage={item.stage} />
+                              <StagePill
+                                stage={item.stage}
+                                onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                              />
                             </div>
                           </div>
                         ))}

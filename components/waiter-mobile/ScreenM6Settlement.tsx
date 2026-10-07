@@ -53,14 +53,20 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showOrderSummary, setShowOrderSummary] = useState(true);
 
-  // Captain Name from prop, store, or table
-  const captainName = waiterName || activeCaptain || table?.serverName || 'Floor Captain';
-
   const isVacant = table?.status === 'VACANT';
 
   // Tickets for this table and all merge-group partners (vacant tables have NO active tickets)
+  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
   const groupPeers: string[] = table?.mergeGroupPeers ?? [tableNum];
-  const tickets = isVacant ? [] : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const tickets = isVacant
+    ? []
+    : kdsTickets.filter((tk) =>
+        groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
+      );
+
+  // Captain Name from ticket (who actually took the order), table record, or fallback
+  const ticketCaptain = tickets.find((t) => t.serverName && t.serverName !== 'Floor Captain')?.serverName;
+  const captainName = ticketCaptain || table?.serverName || waiterName || activeCaptain || 'Floor Captain';
 
   // Gather all ordered items
   const allOrderedItems = useMemo(() => {

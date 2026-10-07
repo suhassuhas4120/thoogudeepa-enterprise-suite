@@ -87,6 +87,8 @@ export async function placeSeatOrder(params: {
   const ticketId = `KOT-${params.tableNumber.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString().slice(-4)}`;
 
   try {
+    const nowIso = new Date().toISOString();
+
     // 1. Insert order
     await supabase.from('orders').insert({
       id: orderId,
@@ -99,6 +101,8 @@ export async function placeSeatOrder(params: {
       total: params.total,
       status: 'UNPAID',
       device_token: params.deviceToken,
+      created_at: nowIso,
+      updated_at: nowIso,
     });
 
     // 2. Insert line items
@@ -107,6 +111,7 @@ export async function placeSeatOrder(params: {
       order_id: orderId,
       table_number: params.tableNumber,
       seat_number: params.seatNumber,
+      seatNumber: params.seatNumber,
       name: it.name,
       quantity: it.quantity,
       price: it.price,
@@ -115,6 +120,8 @@ export async function placeSeatOrder(params: {
       options: it.options,
       add_ons: it.addOns,
       notes: it.notes,
+      created_at: nowIso,
+      updated_at: nowIso,
     }));
     await supabase.from('order_items').insert(lineItems);
 
@@ -123,22 +130,25 @@ export async function placeSeatOrder(params: {
       id: ticketId,
       order_id: orderId,
       table_number: params.tableNumber,
+      seat_number: params.seatNumber,
       server_name: params.guestName,
       status: 'NEW',
       source: 'CUSTOMER',
       items: lineItems,
+      created_at: nowIso,
+      updated_at: nowIso,
     });
 
     // 4. Update Seat & Table status to OCCUPIED
     await supabase
       .from('table_seats')
-      .update({ status: 'OCCUPIED', active_order_id: orderId })
+      .update({ status: 'OCCUPIED', active_order_id: orderId, updated_at: nowIso })
       .eq('table_number', params.tableNumber)
       .eq('seat_number', params.seatNumber);
 
     await supabase
       .from('tables')
-      .update({ status: 'OCCUPIED' })
+      .update({ status: 'OCCUPIED', updated_at: nowIso })
       .eq('number', params.tableNumber);
 
     return { orderId, ticketId };

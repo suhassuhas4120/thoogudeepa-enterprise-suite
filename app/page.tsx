@@ -14,10 +14,7 @@ import { Screen5LiveTracking } from '../components/customer/Screen5LiveTracking'
 import { Screen6PaymentBreakdown } from '../components/customer/Screen6PaymentBreakdown';
 import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGateway';
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
-import { Screen9DigitalBill } from '../components/customer/Screen9DigitalBill';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
-import { Screen11Loyalty } from '../components/customer/Screen11Loyalty';
-import { Screen12Feedback } from '../components/customer/Screen12Feedback';
 import {
   Smartphone,
   LayoutGrid,
@@ -29,10 +26,7 @@ import {
   Clock,
   CreditCard,
   CheckCircle2,
-  FileText,
   Flame,
-  Award,
-  Star,
   Utensils,
   Briefcase,
   QrCode,
@@ -53,10 +47,7 @@ function CustomerJourneyContent() {
     { id: 6 as ScreenId, name: '6. Payment Breakdown', icon: <CreditCard className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
     { id: 7 as ScreenId, name: '7. Payment Gateway (QR)', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
     { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
-    { id: 9 as ScreenId, name: '9. Digital Tax Bill', icon: <FileText className="h-3.5 w-3.5 text-slate-700" />, comp: <Screen9DigitalBill /> },
-    { id: 10 as ScreenId, name: '10. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
-    { id: 11 as ScreenId, name: '11. Loyalty Club', icon: <Award className="h-3.5 w-3.5 text-amber-600" />, comp: <Screen11Loyalty /> },
-    { id: 12 as ScreenId, name: '12. Review & Rating', icon: <Star className="h-3.5 w-3.5 text-yellow-500" />, comp: <Screen12Feedback /> },
+    { id: 10 as ScreenId, name: '9. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
   ];
 
   const renderActiveScreen = () => {
@@ -69,10 +60,8 @@ function CustomerJourneyContent() {
       case 6: return <Screen6PaymentBreakdown />;
       case 7: return <Screen7PaymentGateway />;
       case 8: return <Screen8Confirmation />;
-      case 9: return <Screen9DigitalBill />;
+      case 9:
       case 10: return <Screen10WaiterCall />;
-      case 11: return <Screen11Loyalty />;
-      case 12: return <Screen12Feedback />;
       default: return <Screen1Welcome />;
     }
   };
@@ -118,7 +107,7 @@ function CustomerJourneyContent() {
               style={{ backgroundColor: currentTheme.colors.primary }}
             >
               <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (12)</span>
+              <span>CUSTOMER (9)</span>
             </span>
             <Link
               href="/kitchen"
@@ -185,7 +174,7 @@ function CustomerJourneyContent() {
               }}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 12 SCREENS</span>
+              <span>ALL 9 SCREENS</span>
             </button>
           </div>
         </div>
@@ -244,7 +233,7 @@ function CustomerJourneyContent() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-[1680px] px-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8 justify-items-center pb-20">
+          <div className="mx-auto w-full max-w-[1680px] px-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center pb-20">
             {screens.map((sc) => (
               <div key={sc.id} className="flex flex-col items-center w-[380px] shrink-0">
                 {sc.comp}

@@ -630,30 +630,32 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         };
       });
 
-      // Update activeItems on all matching tables
+      // Update activeItems on all matching tables without erasing other tickets' items
       const updatedTables = state.tables.map((tbl) => {
-        const ticket = newTickets.find((tk) => tk.tableNumber === tbl.number);
-        if (!ticket) return tbl;
+        const tableTickets = newTickets.filter((tk) => tk.tableNumber === tbl.number);
+        if (tableTickets.length === 0) return tbl;
+        const allTicketItems = tableTickets.flatMap((tk) => tk.items);
         return {
           ...tbl,
-          activeItems: ticket.items.map((it) => ({
-            id: it.id,
-            name: it.name,
-            quantity: it.quantity,
-            status:
-              it.stage === 'SERVED'
-                ? 'Served'
-                : it.stage === 'PLATED'
-                ? 'Ready'
-                : it.stage === 'PREP'
-                ? 'Cooking'
-                : it.stage === 'RECEIVED'
-                ? 'Received'
-                : 'Placed',
-            seatNumber: it.seatNumber,
-            price: it.price,
-            options: it.options,
-          })),
+          activeItems: (tbl.activeItems || []).map((ai) => {
+            const matchedTicketItem = allTicketItems.find(
+              (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+            );
+            if (!matchedTicketItem) return ai;
+            return {
+              ...ai,
+              status:
+                matchedTicketItem.stage === 'SERVED'
+                  ? 'Served'
+                  : matchedTicketItem.stage === 'PLATED'
+                  ? 'Ready'
+                  : matchedTicketItem.stage === 'PREP'
+                  ? 'Cooking'
+                  : matchedTicketItem.stage === 'RECEIVED'
+                  ? 'Received'
+                  : 'Placed',
+            };
+          }),
         };
       });
 
@@ -1434,13 +1436,17 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     set((state) => {
       let targetTableNumber: string | undefined;
       let targetItemName: string | undefined;
+      let targetSeatNumber: number | undefined;
 
       const newTickets = state.kdsTickets.map((t) => {
         const isMatch = t.id === ticketId || t.items.some((i) => i.id === itemId);
         if (!isMatch) return t;
         targetTableNumber = t.tableNumber;
         const target = t.items.find((i) => i.id === itemId);
-        if (target) targetItemName = target.name;
+        if (target) {
+          targetItemName = target.name;
+          targetSeatNumber = target.seatNumber || t.seatNumber;
+        }
         const newItems = t.items.map((it) =>
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
@@ -1458,11 +1464,17 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             if (tbl.number !== targetTableNumber) return tbl;
             return {
               ...tbl,
-              activeItems: (tbl.activeItems || []).map((ai) =>
-                ai.id === itemId || (targetItemName && ai.name === targetItemName && ai.status !== 'Served')
+              activeItems: (tbl.activeItems || []).map((ai) => {
+                const matchesItem = ai.id === itemId;
+                const matchesFallback =
+                  Boolean(targetItemName) &&
+                  ai.name === targetItemName &&
+                  (targetSeatNumber !== undefined ? ai.seatNumber === targetSeatNumber : true) &&
+                  ai.status === 'Ready';
+                return matchesItem || matchesFallback
                   ? { ...ai, status: 'Served' }
-                  : ai
-              ),
+                  : ai;
+              }),
             };
           })
         : state.tables;

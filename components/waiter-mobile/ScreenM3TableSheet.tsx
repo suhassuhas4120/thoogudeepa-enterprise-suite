@@ -74,8 +74,7 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
   }
   if (stage === 'Served' || stage === 'SERVED') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-50 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1 shadow-2xs">
-        <span className="text-emerald-600 font-bold">✓</span>
+      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
         <span>Served</span>
       </span>
     );
@@ -1005,50 +1004,57 @@ export function ScreenM3TableSheet({
                         <span>{groupItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
                       <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
-                        {groupItems.map((item, idx) => (
-                          <div
-                            key={item.id || idx}
-                            className="p-2.5 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-1 text-xs"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-black text-stone-900">
-                                  <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-900 text-[10px] mr-1.5 font-bold">
-                                    Chair {item.seatNumber}
-                                  </span>
-                                  <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
-                                  <span>{item.name}</span>
+                        {groupItems.map((item, idx) => {
+                          const isServed = item.stage === 'Served' || item.stage === 'SERVED';
+                          return (
+                            <div
+                              key={item.id || idx}
+                              className={`p-2.5 rounded-xl space-y-1 text-xs transition border ${
+                                isServed
+                                  ? 'bg-stone-50/70 border-stone-200 opacity-60'
+                                  : 'bg-indigo-50/50 border-indigo-200'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-900 text-[10px] mr-1.5 font-bold">
+                                      Chair {item.seatNumber}
+                                    </span>
+                                    <span className={isServed ? 'text-stone-400 mr-1' : 'text-[#9C3D1E] mr-1'}>{item.quantity}×</span>
+                                    <span>{item.name}</span>
+                                  </div>
+                                  {item.options && (
+                                    <div className="text-[10px] text-stone-500 mt-0.5">
+                                      {item.options}
+                                    </div>
+                                  )}
+                                  {item.addOns && item.addOns.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.addOns.map((ao, aIdx) => (
+                                        <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
+                                          + {ao}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                                {item.options && (
-                                  <div className="text-[10px] text-stone-500 mt-0.5">
-                                    {item.options}
-                                  </div>
-                                )}
-                                {item.addOns && item.addOns.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {item.addOns.map((ao, aIdx) => (
-                                      <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
-                                        + {ao}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
+                                <div className="text-right shrink-0">
+                                  <span className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    ₹{item.totalPrice.toFixed(2)}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="text-right shrink-0">
-                                <span className="font-black text-stone-900">
-                                  ₹{item.totalPrice.toFixed(2)}
-                                </span>
+                              <div className="flex items-center justify-between pt-1 border-t border-indigo-100 text-[10px]">
+                                <span className="text-stone-400">KOT #{item.ticketNumber}</span>
+                                <StagePill
+                                  stage={item.stage}
+                                  onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                                />
                               </div>
                             </div>
-                            <div className="flex items-center justify-between pt-1 border-t border-indigo-100 text-[10px]">
-                              <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <StagePill
-                                stage={item.stage}
-                                onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (
@@ -1107,57 +1113,64 @@ export function ScreenM3TableSheet({
                   );
                 })()}
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
-                  {allTableOrderedItems.map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="p-2.5 bg-[#FAF8F5] border border-stone-200 rounded-xl space-y-1 text-xs"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="font-black text-stone-900">
-                            {item.seatNumber ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-900 text-amber-200 text-[10px] mr-1.5 font-black font-mono shadow-2xs">
-                                <Armchair className="h-3 w-3 text-amber-300" />
-                                <span>Chair {item.seatNumber}</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFF8F5] text-[#9C3D1E] border border-[#9C3D1E]/30 text-[10px] mr-1.5 font-black font-mono">
-                                <span>All Table</span>
-                              </span>
-                            )}
-                            <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
-                            <span>{item.name}</span>
-                          </div>
-                          {item.options && (
-                            <div className="text-[10px] text-stone-500 mt-0.5">
-                              {item.options}
-                            </div>
-                          )}
-                          {item.addOns && item.addOns.length > 0 && (
-                            <div className="flex flex-wrap gap-1 mt-1">
-                              {item.addOns.map((ao, aIdx) => (
-                                <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
-                                  + {ao}
+                  {allTableOrderedItems.map((item, idx) => {
+                    const isServed = item.stage === 'Served' || item.stage === 'SERVED';
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className={`p-2.5 rounded-xl space-y-1 text-xs transition border ${
+                          isServed
+                            ? 'bg-stone-50/70 border-stone-200 opacity-60'
+                            : 'bg-[#FAF8F5] border-stone-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                              {item.seatNumber ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-900 text-amber-200 text-[10px] mr-1.5 font-black font-mono shadow-2xs">
+                                  <Armchair className="h-3 w-3 text-amber-300" />
+                                  <span>Chair {item.seatNumber}</span>
                                 </span>
-                              ))}
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFF8F5] text-[#9C3D1E] border border-[#9C3D1E]/30 text-[10px] mr-1.5 font-black font-mono">
+                                  <span>All Table</span>
+                                </span>
+                              )}
+                              <span className={isServed ? 'text-stone-400 mr-1' : 'text-[#9C3D1E] mr-1'}>{item.quantity}×</span>
+                              <span>{item.name}</span>
                             </div>
-                          )}
+                            {item.options && (
+                              <div className="text-[10px] text-stone-500 mt-0.5">
+                                {item.options}
+                              </div>
+                            )}
+                            {item.addOns && item.addOns.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {item.addOns.map((ao, aIdx) => (
+                                  <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
+                                    + {ao}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                              ₹{item.totalPrice.toFixed(2)}
+                            </span>
+                          </div>
                         </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-black text-stone-900">
-                            ₹{item.totalPrice.toFixed(2)}
-                          </span>
+                        <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
+                          <span className="text-stone-400">KOT #{item.ticketNumber}</span>
+                          <StagePill
+                            stage={item.stage}
+                            onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                          />
                         </div>
                       </div>
-                      <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
-                        <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                        <StagePill
-                          stage={item.stage}
-                          onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
 
                 {/* Table Cost Summary */}
@@ -1214,52 +1227,59 @@ export function ScreenM3TableSheet({
                         <span>{thisSeatItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
                       <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
-                        {thisSeatItems.map((item, idx) => (
-                          <div
-                            key={item.id || idx}
-                            className="p-3 bg-white border border-stone-200 rounded-xl shadow-2xs space-y-1.5 text-xs"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-black text-stone-900">
-                                  <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
-                                  <span>{item.name}</span>
+                        {thisSeatItems.map((item, idx) => {
+                          const isServed = item.stage === 'Served' || item.stage === 'SERVED';
+                          return (
+                            <div
+                              key={item.id || idx}
+                              className={`p-3 rounded-xl shadow-2xs space-y-1.5 text-xs transition border ${
+                                isServed
+                                  ? 'bg-stone-50/70 border-stone-200 opacity-60'
+                                  : 'bg-white border-stone-200'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    <span className={isServed ? 'text-stone-400 mr-1' : 'text-[#9C3D1E] mr-1'}>{item.quantity}×</span>
+                                    <span>{item.name}</span>
+                                  </div>
+                                  {item.options && (
+                                    <div className="text-[10px] text-stone-500 mt-0.5">
+                                      {item.options}
+                                    </div>
+                                  )}
+                                  {item.addOns && item.addOns.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.addOns.map((ao, aIdx) => (
+                                        <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
+                                          + {ao}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
-                                {item.options && (
-                                  <div className="text-[10px] text-stone-500 mt-0.5">
-                                    {item.options}
+                                <div className="text-right shrink-0">
+                                  <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    ₹{item.totalPrice.toFixed(2)}
                                   </div>
-                                )}
-                                {item.addOns && item.addOns.length > 0 && (
-                                  <div className="flex flex-wrap gap-1 mt-1">
-                                    {item.addOns.map((ao, aIdx) => (
-                                      <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
-                                        + {ao}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
+                                  {item.quantity > 1 && (
+                                    <div className="text-[9.5px] text-stone-400">
+                                      ₹{item.price} each
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-right shrink-0">
-                                <div className="font-black text-stone-900">
-                                  ₹{item.totalPrice.toFixed(2)}
-                                </div>
-                                {item.quantity > 1 && (
-                                  <div className="text-[9.5px] text-stone-400">
-                                    ₹{item.price} each
-                                  </div>
-                                )}
+                              <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
+                                <span className="text-stone-400">KOT #{item.ticketNumber}</span>
+                                <StagePill
+                                  stage={item.stage}
+                                  onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                                />
                               </div>
                             </div>
-                            <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
-                              <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <StagePill
-                                stage={item.stage}
-                                onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 

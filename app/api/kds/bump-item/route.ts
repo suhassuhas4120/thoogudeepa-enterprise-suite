@@ -141,30 +141,6 @@ export async function POST(req: NextRequest) {
         .eq('id', targetTicket.id);
     }
 
-    const orderId = item?.order_id || targetTicket?.order_id;
-    if (orderId) {
-      const { data: siblingItems } = await supabase
-        .from('order_items')
-        .select('*')
-        .eq('order_id', orderId);
-
-      if (siblingItems && siblingItems.length > 0) {
-        const allServed = siblingItems.every((it) => it.stage === 'SERVED');
-        const allPlated = siblingItems.every((it) => it.stage === 'PLATED' || it.stage === 'SERVED');
-        const anyActive = siblingItems.some((it) => it.stage === 'PREP' || it.stage === 'PREPARING' || it.stage === 'RECEIVED' || it.stage === 'PLATED');
-
-        const resolvedStatus = allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW';
-
-        await supabase
-          .from('kds_tickets')
-          .update({
-            status: resolvedStatus,
-            items: siblingItems,
-            updated_at: nowIso,
-          })
-          .eq('order_id', orderId);
-      }
-    }
 
     return NextResponse.json({
       success: true,

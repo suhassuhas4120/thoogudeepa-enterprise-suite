@@ -112,7 +112,10 @@ export function ScreenM4OrderPad({
 
     setCart((prev) => {
       const existingIdx = prev.findIndex(
-        (c) => c.menuItem.id === item.id && c.selectedOption === chosenOpt
+        (c) =>
+          c.menuItem.id === item.id &&
+          c.selectedOption === chosenOpt &&
+          (c.addOns || []).slice().sort().join(',') === addOns.slice().sort().join(',')
       );
       if (existingIdx >= 0) {
         const copy = [...prev];

@@ -195,11 +195,23 @@ export const ScreenK3Detail: React.FC = () => {
                             <div className="text-[10.5px] text-slate-500 mt-1 font-mono">
                               Prep: {it.prepMode}
                               {it.options ? ` • Option: ${it.options}` : ''}
-                              {it.addOns && it.addOns.length > 0
-                                ? ` • Add-ons: ${it.addOns.join(', ')}`
-                                : ''}
                               {it.notes ? ` • Note: ${it.notes}` : ''}
                             </div>
+                            {it.addOns && it.addOns.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-1 mt-1">
+                                <span className="text-[9px] font-black text-amber-800 uppercase tracking-wide">
+                                  Add-ons:
+                                </span>
+                                {it.addOns.map((ao, aoIdx) => (
+                                  <span
+                                    key={aoIdx}
+                                    className="px-1.5 py-0.5 rounded-md bg-amber-100 border border-amber-300 text-[9px] font-black text-amber-900"
+                                  >
+                                    + {ao}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           <span

@@ -52,6 +52,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
   const [isUpiVerified, setIsUpiVerified] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showOrderSummary, setShowOrderSummary] = useState(true);
+  const [settledItemsSnapshot, setSettledItemsSnapshot] = useState<any[]>([]);
 
   const isVacant = table?.status === 'VACANT';
 
@@ -126,6 +127,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           price: unitPrice,
           totalPrice: unitPrice * ai.quantity,
           options: ai.options,
+          addOns: (ai as any).addOns || [],
           stage: ai.status || 'Placed',
           seatNumber: ai.seatNumber,
           ticketNumber: 'TBL',
@@ -138,10 +140,10 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
 
   const itemsSubtotal = allOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
 
-  // Detect if this is a single-chair settle (splitLabel = "Chair N")
+  // Detect if this is a single-chair settle (splitLabel = "Chair N" or "Seat N")
   const splitSeatNumber = useMemo(() => {
     if (!splitLabel) return null;
-    const m = splitLabel.match(/^Chair\s+(\d+)$/i);
+    const m = splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i);
     return m ? Number(m[1]) : null;
   }, [splitLabel]);
 
@@ -244,7 +246,58 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
     setTimeout(() => setToastMessage(null), 2500);
   };
 
+  const handleOpenUpiApp = (appName: string) => {
+    const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
+    const upiParams = `pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}`;
+
+    try {
+      if (appName === 'PhonePe') {
+        if (isAndroid) {
+          window.location.href = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.phonepe.app;end`;
+        } else {
+          window.location.href = `phonepe://pay?${upiParams}`;
+        }
+      } else if (appName === 'GPay') {
+        if (isAndroid) {
+          window.location.href = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end`;
+        } else {
+          window.location.href = `tez://upi/pay?${upiParams}`;
+        }
+      } else if (appName === 'Paytm') {
+        if (isAndroid) {
+          window.location.href = `intent://pay?${upiParams}#Intent;scheme=upi;package=net.one97.paytm;end`;
+        } else {
+          window.location.href = `paytmmp://pay?${upiParams}`;
+        }
+      } else if (appName === 'BHIM') {
+        if (isAndroid) {
+          window.location.href = `intent://pay?${upiParams}#Intent;scheme=upi;package=in.org.npci.upiapp;end`;
+        } else {
+          window.location.href = `upi://pay?${upiParams}`;
+        }
+      } else if (appName === 'CRED') {
+        if (isAndroid) {
+          window.location.href = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.dreamplug.androidapp;end`;
+        } else {
+          window.location.href = `cred://pay?${upiParams}`;
+        }
+      } else {
+        window.location.href = `upi://pay?${upiParams}`;
+      }
+    } catch {
+      window.location.href = `upi://pay?${upiParams}`;
+    }
+  };
+
   const handleSettle = () => {
+    // Snapshot the EXACT items being settled for this chair/bill before any store mutation
+    const itemsToRecord = splitSeatNumber !== null
+      ? (displayedItems.length > 0
+          ? displayedItems.filter((it) => it.seatNumber === splitSeatNumber)
+          : allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber))
+      : allOrderedItems;
+    setSettledItemsSnapshot(itemsToRecord);
+
     // Pass seatNumber so store keeps table OCCUPIED and only reduces that chair's bill amount
     waiterRecordsPayment(tableNum, method, grandTotal, splitSeatNumber ?? undefined);
     if (splitSeatNumber) {
@@ -364,13 +417,13 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                   <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Assigned Seats</span>
                   <span className="font-bold text-stone-800 flex items-center gap-1">
                     <Armchair className="h-3 w-3 text-stone-500" />
-                    <span>{seatNumbersLabel}</span>
+                    <span>{splitSeatNumber !== null ? `Chair ${splitSeatNumber}` : seatNumbersLabel}</span>
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Guest Count</span>
                   <span className="font-bold text-stone-800">
-                    {table.guestCount || table.capacity || 1} Guests
+                    {splitSeatNumber !== null ? '1 Guest' : `${table.guestCount || table.capacity || 1} Guests`}
                   </span>
                 </div>
               </div>
@@ -383,7 +436,12 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                 <span>Amount (₹)</span>
               </div>
               {(() => {
-                const receiptItems = splitSeatNumber !== null ? displayedItems : allOrderedItems;
+                const receiptItems = splitSeatNumber !== null
+                  ? (settledItemsSnapshot.length > 0
+                      ? settledItemsSnapshot.filter((it) => it.seatNumber === splitSeatNumber)
+                      : displayedItems.filter((it) => it.seatNumber === splitSeatNumber))
+                  : (settledItemsSnapshot.length > 0 ? settledItemsSnapshot : allOrderedItems);
+
                 return receiptItems.length > 0 ? (
                   receiptItems.map((item, idx) => (
                     <div key={item.id || idx} className="flex justify-between text-stone-800 text-[11.5px] py-0.5">
@@ -403,7 +461,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                         </div>
                         {item.addOns && item.addOns.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-0.5">
-                            {item.addOns.map((ao, aoIdx) => (
+                            {item.addOns.map((ao: string, aoIdx: number) => (
                               <span
                                 key={aoIdx}
                                 className="px-1 py-0.2 rounded bg-amber-100 border border-amber-300 text-[8px] font-black text-amber-900"
@@ -419,7 +477,9 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                   ))
                 ) : (
                   <div className="flex justify-between text-stone-800 text-[11.5px]">
-                    <span className="font-bold">1× Dine-in Food Orders</span>
+                    <span className="font-bold">
+                      {splitSeatNumber ? `1× Chair ${splitSeatNumber} Food Order` : '1× Dine-in Food Orders'}
+                    </span>
                     <span className="font-bold">₹{subtotal.toFixed(2)}</span>
                   </div>
                 );
@@ -429,7 +489,17 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
             {/* ── TAXES & CHARGES BREAKDOWN ── */}
             <div className="space-y-1.5 pb-3 border-b border-stone-200 text-xs text-stone-600">
               <div className="flex justify-between">
-                <span>Items Subtotal ({(splitSeatNumber !== null ? displayedItems : allOrderedItems).reduce((s, i) => s + i.quantity, 0) || 1} items):</span>
+                <span>
+                  Items Subtotal (
+                  {(() => {
+                    const rItems = splitSeatNumber !== null
+                      ? (settledItemsSnapshot.length > 0
+                          ? settledItemsSnapshot.filter((it) => it.seatNumber === splitSeatNumber)
+                          : displayedItems.filter((it) => it.seatNumber === splitSeatNumber))
+                      : (settledItemsSnapshot.length > 0 ? settledItemsSnapshot : allOrderedItems);
+                    return rItems.length > 0 ? rItems.reduce((s, i) => s + i.quantity, 0) : 1;
+                  })()} items):
+                </span>
                 <span className="font-bold text-stone-900">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[11px] text-stone-500">
@@ -729,7 +799,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                           )}
                           {item.addOns && item.addOns.length > 0 && (
                             <div className="flex flex-wrap gap-1 mt-0.5">
-                              {item.addOns.map((ao, aIdx) => (
+                              {item.addOns.map((ao: string, aIdx: number) => (
                                 <span
                                   key={aIdx}
                                   className="px-1 py-0.2 rounded bg-amber-100 border border-amber-300 text-[8px] font-black text-amber-900"
@@ -911,19 +981,20 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
               {/* Real UPI deep-link app buttons */}
               <div className="flex flex-wrap gap-1.5 justify-center pt-0.5">
                 {[
-                  { label: 'GPay',    bg: 'bg-blue-600',    url: `tez://upi/pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
-                  { label: 'PhonePe', bg: 'bg-purple-700',  url: `phonepe://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
-                  { label: 'Paytm',   bg: 'bg-sky-600',     url: `paytmmp://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
-                  { label: 'BHIM',    bg: 'bg-orange-600',  url: `upi://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
-                  { label: 'CRED',    bg: 'bg-stone-800',   url: `cred://pay?pa=thoogudeepa@okicici&pn=Thoogudeepa%20Donne%20Biryani&am=${grandTotal}&cu=INR&tn=Table_${tableNum}` },
+                  { label: 'GPay',    bg: 'bg-blue-600' },
+                  { label: 'PhonePe', bg: 'bg-purple-700' },
+                  { label: 'Paytm',   bg: 'bg-sky-600' },
+                  { label: 'BHIM',    bg: 'bg-orange-600' },
+                  { label: 'CRED',    bg: 'bg-stone-800' },
                 ].map((app) => (
-                  <a
+                  <button
                     key={app.label}
-                    href={app.url}
-                    className={`${app.bg} text-white text-[9.5px] font-black px-2.5 py-1 rounded-lg shadow-xs active:scale-95 transition-transform`}
+                    type="button"
+                    onClick={() => handleOpenUpiApp(app.label)}
+                    className={`${app.bg} text-white text-[9.5px] font-black px-2.5 py-1 rounded-lg shadow-xs active:scale-95 transition-transform cursor-pointer`}
                   >
                     {app.label}
-                  </a>
+                  </button>
                 ))}
               </div>
             </div>

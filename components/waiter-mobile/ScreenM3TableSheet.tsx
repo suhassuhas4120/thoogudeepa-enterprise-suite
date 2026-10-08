@@ -240,6 +240,7 @@ export function ScreenM3TableSheet({
               price: unitPrice,
               totalPrice: unitPrice * ai.quantity,
               options: ai.options,
+              addOns: (ai as any).addOns || [],
               stage: ai.status || 'Placed',
               seatNumber: ai.seatNumber,
               ticketId: 'tbl-direct',

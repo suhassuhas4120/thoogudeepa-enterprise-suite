@@ -165,6 +165,7 @@ async function reconcileAllState(): Promise<void> {
             stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
             prepMode: it.prepMode || '',
             options: it.options,
+            addOns: (it as any).addOns || (it as any).add_ons || [],
             seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
               ? Number(it.seat_number || it.seatNumber || row.seat_number)
               : undefined,
@@ -182,6 +183,7 @@ async function reconcileAllState(): Promise<void> {
         quantity: number;
         status: string;
         options?: string;
+        addOns?: string[];
         seatNumber?: number;
         price?: number;
       }>
@@ -205,6 +207,7 @@ async function reconcileAllState(): Promise<void> {
                 ? 'Received'
                 : 'Placed',
             options: it.options,
+            addOns: it.addOns || [],
             seatNumber: it.seatNumber,
             price: it.price,
           });
@@ -399,6 +402,7 @@ export function useBridgeSync() {
                       stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
                       prepMode: it.prepMode || '',
                       options: it.options,
+                      addOns: (it as any).addOns || (it as any).add_ons || [],
                       seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
                         ? Number(it.seat_number || it.seatNumber || row.seat_number)
                         : undefined,
@@ -424,6 +428,7 @@ export function useBridgeSync() {
                 stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
                 prepMode: it.prepMode || '',
                 options: it.options,
+                addOns: (it as any).addOns || (it as any).add_ons || [],
                 seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
                   ? Number(it.seat_number || it.seatNumber || row.seat_number)
                   : undefined,

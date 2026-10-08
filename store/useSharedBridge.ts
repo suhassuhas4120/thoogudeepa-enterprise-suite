@@ -1416,6 +1416,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return { kdsTickets: newTickets, tables: newTables };
     });
+
+    // Persist to Supabase
+    bridgePost(
+      '/api/tables/vacate',
+      { tableNumber, seatNumber },
+      () => {
+        console.error('[Bridge] waiterClearsChairAfterPayment rollback');
+      }
+    );
   },
 
   waiterMarkKitchenItemServed: (ticketId, itemId) => {

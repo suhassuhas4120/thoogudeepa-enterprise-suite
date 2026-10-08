@@ -7,6 +7,7 @@ import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 import { MenuItem } from '../../types/customer';
 import {
   Search,
+  ShoppingCart,
   Plus,
   Minus,
   ArrowRight,
@@ -52,6 +53,7 @@ export function ScreenM4OrderPad({
   const [toastNotice, setToastNotice] = useState<string | null>(null);
   const [cart, setCart] = useState<OrderPadItem[]>([]);
   const [kotFired, setKotFired] = useState(false);
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
 
   // Quick Customize Bottom Sheet State
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -153,6 +155,27 @@ export function ScreenM4OrderPad({
           : c
       );
     });
+  };
+
+  const adjustCartItemQty = (cartItemId: string, delta: number) => {
+    setCart((prev) => {
+      const existing = prev.find((c) => c.cartItemId === cartItemId);
+      if (!existing) return prev;
+      const newQty = existing.quantity + delta;
+      if (newQty <= 0) {
+        return prev.filter((c) => c.cartItemId !== cartItemId);
+      }
+      const unitPrice = existing.totalPrice / existing.quantity;
+      return prev.map((c) =>
+        c.cartItemId === cartItemId
+          ? { ...c, quantity: newQty, totalPrice: newQty * unitPrice }
+          : c
+      );
+    });
+  };
+
+  const clearCart = () => {
+    setCart([]);
   };
 
   const handleOpenItem = (item: MenuItem) => {
@@ -269,9 +292,9 @@ export function ScreenM4OrderPad({
 
       {/* Scrollable Content Container */}
       <div className="flex-1 overflow-y-auto pb-24 bg-[#FAF8F5]">
-        {/* Search Input - Large, High Contrast with Quick Clear (X) Icon */}
-        <div className="px-4 pt-3.5 pb-2.5">
-          <div className="relative flex items-center">
+        {/* Search Input & Cart Button - Exactly beside Search Input */}
+        <div className="px-4 pt-3.5 pb-2.5 flex items-center gap-2.5">
+          <div className="relative flex-1 flex items-center">
             <Search className="absolute left-3.5 h-5 w-5 text-[#9C3D1E]" />
             <input
               type="text"
@@ -291,6 +314,22 @@ export function ScreenM4OrderPad({
               </button>
             )}
           </div>
+
+          {/* Cart Icon Button directly beside Search Bar */}
+          <button
+            type="button"
+            onClick={() => setIsCartDrawerOpen(true)}
+            className="relative h-12 w-12 rounded-2xl bg-white border-2 border-stone-300 hover:border-[#9C3D1E] active:scale-95 text-[#9C3D1E] flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer group"
+            title="View Order Cart"
+            aria-label="View Order Cart"
+          >
+            <ShoppingCart className="h-5 w-5 stroke-[2.4] group-hover:scale-110 transition-transform" />
+            {totalCartCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-[#9C3D1E] text-white text-[10.5px] font-mono font-black rounded-full flex items-center justify-center shadow-xs border-2 border-white animate-scale-in">
+                {totalCartCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Categories Bar - High Contrast Pills */}
@@ -627,6 +666,198 @@ export function ScreenM4OrderPad({
                     ₹{drawerUnitPrice * quantity}
                   </span>
                 </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── TOP CART DRAWER (HALF PAGE DRAWER SLIDING DOWN FROM THE TOP) ── */}
+      <AnimatePresence>
+        {isCartDrawerOpen && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-start">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsCartDrawerOpen(false)}
+              className="absolute inset-0 bg-stone-950/60 backdrop-blur-xs"
+            />
+
+            {/* Top Sheet - sliding down from top, half page height */}
+            <motion.div
+              initial={{ y: '-100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '-100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+              className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-b-3xl border-b-4 border-[#9C3D1E] shadow-2xl flex flex-col max-h-[58vh] overflow-hidden font-sans"
+            >
+              {/* Drawer Top Header */}
+              <div className="p-4 bg-stone-50 border-b border-stone-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="h-9 w-9 rounded-xl bg-[#9C3D1E] text-white flex items-center justify-center shadow-2xs shrink-0">
+                    <ShoppingCart className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-stone-900 font-mono tracking-tight flex items-center gap-2">
+                      <span>Order Cart</span>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-100 text-[#9C3D1E] border border-amber-300">
+                        {seatNum ? `Chair ${seatNum}` : 'All Seats'}
+                      </span>
+                    </h3>
+                    <p className="text-[11px] font-mono text-stone-500">
+                      Table {tableNum} • {totalCartCount} {totalCartCount === 1 ? 'item' : 'items'} selected
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  {cart.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearCart}
+                      className="px-2.5 py-1 text-[10px] font-mono font-bold text-stone-500 hover:text-rose-600 bg-white hover:bg-rose-50 border border-stone-200 hover:border-rose-200 rounded-lg transition cursor-pointer"
+                    >
+                      Clear
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsCartDrawerOpen(false)}
+                    className="p-1.5 rounded-xl bg-white border border-stone-200 text-stone-500 hover:text-stone-900 hover:bg-stone-100 transition cursor-pointer"
+                    title="Close Cart"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Scrollable Cart Items List */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                {cart.length === 0 ? (
+                  <div className="py-8 text-center space-y-2">
+                    <div className="h-12 w-12 rounded-2xl bg-amber-50 border border-amber-200 text-[#9C3D1E] flex items-center justify-center mx-auto shadow-2xs">
+                      <ShoppingCart className="h-6 w-6 stroke-[1.8]" />
+                    </div>
+                    <p className="text-xs font-black text-stone-800 font-mono">
+                      Your order cart is empty
+                    </p>
+                    <p className="text-[11px] text-stone-500 max-w-xs mx-auto">
+                      Tap the &quot;Add&quot; button on any menu item below to build the table order.
+                    </p>
+                  </div>
+                ) : (
+                  cart.map((cartItem) => (
+                    <div
+                      key={cartItem.cartItemId}
+                      className="p-3 bg-stone-50 border border-stone-200 rounded-2xl flex items-center justify-between gap-3 shadow-2xs"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-black text-stone-900 truncate">
+                            {cartItem.menuItem.name}
+                          </h4>
+                          {cartItem.seatNumber && (
+                            <span className="text-[9px] font-mono font-black text-[#9C3D1E] bg-[#FFF8F5] border border-[#9C3D1E]/20 px-1.5 py-0.2 rounded shrink-0">
+                              Ch {cartItem.seatNumber}
+                            </span>
+                          )}
+                        </div>
+
+                        {cartItem.selectedOption && (
+                          <div className="text-[10px] text-stone-500 truncate mt-0.5">
+                            {cartItem.selectedOption}
+                          </div>
+                        )}
+
+                        {cartItem.addOns && cartItem.addOns.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {cartItem.addOns.map((ao, aIdx) => (
+                              <span
+                                key={aIdx}
+                                className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-900 border border-amber-300 text-[8.5px] font-black font-mono"
+                              >
+                                + {ao}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="text-[11px] font-mono font-black text-[#9C3D1E] mt-1">
+                          ₹{cartItem.totalPrice.toFixed(2)}
+                          <span className="text-[9.5px] font-normal text-stone-400 ml-1">
+                            (₹{(cartItem.totalPrice / cartItem.quantity).toFixed(0)} each)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Stepper */}
+                      <div className="flex items-center gap-1.5 bg-white px-2 py-1.5 rounded-xl border-2 border-stone-200 shadow-2xs shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => adjustCartItemQty(cartItem.cartItemId, -1)}
+                          className="h-6 w-6 rounded-lg bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center font-black transition cursor-pointer active:scale-95"
+                          title="Decrease quantity"
+                        >
+                          <Minus className="h-3 w-3 stroke-[3]" />
+                        </button>
+                        <span className="w-5 text-center font-mono text-xs font-black text-stone-900">
+                          {cartItem.quantity}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => adjustCartItemQty(cartItem.cartItemId, 1)}
+                          className="h-6 w-6 rounded-lg bg-[#9C3D1E] hover:bg-[#853216] text-white flex items-center justify-center font-black transition cursor-pointer active:scale-95 shadow-2xs"
+                          title="Increase quantity"
+                        >
+                          <Plus className="h-3 w-3 stroke-[3]" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Drawer Footer with Total & Firing Action */}
+              {cart.length > 0 && (
+                <div className="p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3 shrink-0">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase font-black text-stone-500 block">
+                      Total Cart Amount
+                    </span>
+                    <span className="text-lg font-black font-mono text-[#9C3D1E]">
+                      ₹{totalCartAmount.toFixed(2)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsCartDrawerOpen(false)}
+                      className="px-3 py-2.5 rounded-xl bg-white border border-stone-300 text-stone-700 font-mono text-xs font-bold hover:bg-stone-100 transition cursor-pointer"
+                    >
+                      + Add More
+                    </button>
+                    <button
+                      type="button"
+                      disabled={kotFired}
+                      onClick={() => {
+                        setIsCartDrawerOpen(false);
+                        handlePlaceOrder();
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-[#9C3D1E] hover:bg-[#853216] text-white font-mono text-xs font-black flex items-center gap-1.5 transition cursor-pointer shadow-md active:scale-95 disabled:opacity-75"
+                    >
+                      <Flame className="h-4 w-4 text-amber-300" />
+                      <span>{kotFired ? 'Placed!' : 'Fire KOT'}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom Drag Handle Pill */}
+              <div className="py-1 bg-stone-100 flex justify-center">
+                <div className="h-1 w-12 bg-stone-300 rounded-full" />
               </div>
             </motion.div>
           </div>

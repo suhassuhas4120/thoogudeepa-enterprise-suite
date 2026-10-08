@@ -265,20 +265,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const tblTag = tableId.replace(/[^a-zA-Z0-9]/g, '');
       const ticketId = `KDS-${tblTag}-${ts}-001`;
 
-      // Fire-and-forget to Supabase (async, non-blocking)
-      import('../lib/db').then(({ placeOrderToSupabase }) => {
-        placeOrderToSupabase({
-          tableId,
-          seatNumber,
-          customerName: state.guestName || 'Guest',
-          cartItems: newlyAddedItems,
-          ticketId,
-        }).catch((err: any) => {
-          console.error('[placeAllOrders] Supabase error:', err);
-        });
-      });
-
-      // Also push to local bridge as fallback (same-device BroadcastChannel)
+      // Push order once through the shared bridge (optimistic update + /api/orders/create + broadcast)
       try {
         const bridge = useSharedBridge.getState();
         bridge.customerPlacesOrder(
@@ -292,7 +279,9 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
             quantity: c.quantity,
           }))
         );
-      } catch (_) { /* bridge optional */ }
+      } catch (err) {
+        console.error('[placeAllOrders] bridge order error:', err);
+      }
 
       const newTracking: IndividualItemTracking[] = newlyAddedItems.map((c) => ({
         id: 'track-' + c.cartItemId,

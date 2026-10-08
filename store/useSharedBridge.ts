@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { INITIAL_MENU_ITEMS } from '../data/menuItems';
 import { MenuItem } from '../types/customer';
 import { OrderStage } from '../types/customer';
+import { broadcastStateChange } from '../lib/supabase';
 
 
 export interface SharedKDSItem {
@@ -23,7 +24,7 @@ export interface SharedKDSTicket {
   serverName: string;
   timestamp: string;
   elapsedMinutes: number;
-  status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED';
+  status: 'NEW' | 'PREP' | 'READY' | 'COMPLETED' | 'SERVED';
   items: SharedKDSItem[];
   source: 'CUSTOMER' | 'WAITER'; // who originated the order
   seatNumber?: number;
@@ -204,7 +205,7 @@ interface SharedBridgeState {
   waiterFiresKOT: (
     tableNumber: string,
     captainName: string,
-    items: Array<{ item: MenuItem; selectedOption: string; quantity: number }>,
+    items: Array<{ item: MenuItem; selectedOption: string; quantity: number; addOns?: string[] }>,
     seatNumber?: number
   ) => void;
 
@@ -239,10 +240,13 @@ interface SharedBridgeState {
   waiterResolvePing: (pingId: string) => void;
 
   /** Waiter records payment */
-  waiterRecordsPayment: (tableNumber: string, method: string, amount: number) => void;
+  waiterRecordsPayment: (tableNumber: string, method: string, amount: number, seatNumber?: number) => void;
 
   /** Waiter vacates table → sets to CLEANING then VACANT */
   waiterVacatesTable: (tableNumber: string) => void;
+
+  /** Waiter clears a specific chair's tickets after single-chair payment — frees that seat */
+  waiterClearsChairAfterPayment: (tableNumber: string, seatNumber: number) => void;
 
   /** Waiter marks a kitchen-ready item as served → removes from waiter feed + updates table item status */
   waiterMarkKitchenItemServed: (ticketId: string, itemId: string) => void;
@@ -264,7 +268,8 @@ export const getCanonicalDishKey = (name: string): string => {
 function bridgePost(
   url: string,
   body: Record<string, unknown>,
-  onRollback?: () => void
+  onRollback?: () => void,
+  onSuccess?: (data: Record<string, unknown>) => void
 ): void {
   if (typeof window === 'undefined') return;
 
@@ -279,7 +284,14 @@ function bridgePost(
           console.error(`[Bridge] API ${url} failed (${res.status}):`, err);
           onRollback?.();
         });
+        return;
       }
+      res.json().then((data) => {
+        broadcastStateChange(url);
+        onSuccess?.(data as Record<string, unknown>);
+      }).catch(() => {
+        broadcastStateChange(url);
+      });
     })
     .catch((err) => {
       console.error(`[Bridge] API ${url} network error:`, err);
@@ -385,7 +397,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       '/api/orders/create',
       {
         tableNumber,
-        seatNumber: 1,            // default seat; customer screen sets proper seat
+        seatNumber: assignedSeat,
         guestName,
         guestCount: guestCount || 1,
         source: 'CUSTOMER',
@@ -397,6 +409,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           prepMode: i.item.prepMode || 'Regular',
           selectedOption: i.selectedOption || null,
           addOns: i.addOns || [],
+          seatNumber: assignedSeat,
+          seat_number: assignedSeat,
           notes: '',
         })),
       },
@@ -404,6 +418,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         // Rollback on API failure
         console.error('[Bridge] customerPlacesOrder rollback');
         useSharedBridge.setState(prevState);
+      },
+      (data) => {
+        // Swap optimistic ticket ID with real DB-assigned ticketId so CDC dedup works correctly
+        const realId = data.ticketId as string | undefined;
+        if (!realId) return;
+        useSharedBridge.setState((state) => ({
+          kdsTickets: state.kdsTickets.map((tk) =>
+            tk.id === ticket.id ? { ...tk, id: realId } : tk
+          ),
+        }));
       }
     );
   },
@@ -467,27 +491,37 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
-      // Update waiter table's activeItems stages
-      const updatedTables = state.tables.map((tbl) => {
-        const ticket = newTickets.find((tk) => tk.tableNumber === tbl.number && tk.id === ticketId);
-        if (!ticket) return tbl;
-        return {
-          ...tbl,
-          activeItems: ticket.items.map((it) => ({
-            id: it.id,
-            name: it.name,
-            quantity: it.quantity,
-            status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
-            seatNumber: it.seatNumber,
-            price: it.price,
-            options: it.options,
-          })),
-        };
-      });
+      // Update waiter table's activeItems stages without erasing other tickets' items
+      const targetTicket = newTickets.find((tk) => tk.id === ticketId);
+      const updatedTables = targetTicket
+        ? state.tables.map((tbl) => {
+            if (tbl.number !== targetTicket.tableNumber) return tbl;
+            return {
+              ...tbl,
+              activeItems: (tbl.activeItems || []).map((ai) => {
+                const matchedTicketItem = targetTicket.items.find(
+                  (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+                );
+                if (!matchedTicketItem) return ai;
+                return {
+                  ...ai,
+                  status:
+                    matchedTicketItem.stage === 'SERVED'
+                      ? 'Served'
+                      : matchedTicketItem.stage === 'PLATED'
+                      ? 'Ready'
+                      : matchedTicketItem.stage === 'PREP'
+                      ? 'Cooking'
+                      : 'Placed',
+                };
+              }),
+            };
+          })
+        : state.tables;
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
@@ -505,16 +539,19 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   kitchenSetItemStage: (ticketId, itemId, stage) => {
+    const prevTickets = get().kdsTickets;
+    const prevTables = get().tables;
+
     set((state) => {
       const newTickets = state.kdsTickets.map((t) => {
-        if (t.id !== ticketId) return t;
+        if (t.id !== ticketId && !t.items.some((it) => it.id === itemId)) return t;
         const newItems = t.items.map((it) => {
           if (it.id !== itemId) return it;
           return { ...it, stage };
         });
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED');
+        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED' || i.stage === 'RECEIVED');
         return {
           ...t,
           items: newItems,
@@ -522,26 +559,48 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         };
       });
 
-      // Update waiter table's activeItems stages
-      const updatedTables = state.tables.map((tbl) => {
-        const ticket = newTickets.find((tk) => tk.tableNumber === tbl.number && tk.id === ticketId);
-        if (!ticket) return tbl;
-        return {
-          ...tbl,
-          activeItems: ticket.items.map((it) => ({
-            id: it.id,
-            name: it.name,
-            quantity: it.quantity,
-            status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
-            seatNumber: it.seatNumber,
-            price: it.price,
-            options: it.options,
-          })),
-        };
-      });
+      // Update waiter table's activeItems stages without erasing other tickets' items
+      const targetTicket = newTickets.find((tk) => tk.id === ticketId || tk.items.some((i) => i.id === itemId));
+      const updatedTables = targetTicket
+        ? state.tables.map((tbl) => {
+            if (tbl.number !== targetTicket.tableNumber) return tbl;
+            return {
+              ...tbl,
+              activeItems: (tbl.activeItems || []).map((ai) => {
+                const matchedTicketItem = targetTicket.items.find(
+                  (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+                );
+                if (!matchedTicketItem) return ai;
+                return {
+                  ...ai,
+                  status:
+                    matchedTicketItem.stage === 'SERVED'
+                      ? 'Served'
+                      : matchedTicketItem.stage === 'PLATED'
+                      ? 'Ready'
+                      : matchedTicketItem.stage === 'PREP'
+                      ? 'Cooking'
+                      : matchedTicketItem.stage === 'RECEIVED'
+                      ? 'Received'
+                      : 'Placed',
+                };
+              }),
+            };
+          })
+        : state.tables;
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
+
+    // Persist to Supabase
+    bridgePost(
+      '/api/kds/bump-item',
+      { ticketId, itemId, stage },
+      () => {
+        console.error('[Bridge] kitchenSetItemStage rollback');
+        useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables });
+      }
+    );
   },
 
   
@@ -563,7 +622,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED');
+        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED' || i.stage === 'RECEIVED');
         return {
           ...t,
           items: newItems,
@@ -571,49 +630,95 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         };
       });
 
-      // Update activeItems on all matching tables
+      // Update activeItems on all matching tables without erasing other tickets' items
       const updatedTables = state.tables.map((tbl) => {
-        const ticket = newTickets.find((tk) => tk.tableNumber === tbl.number);
-        if (!ticket) return tbl;
+        const tableTickets = newTickets.filter((tk) => tk.tableNumber === tbl.number);
+        if (tableTickets.length === 0) return tbl;
+        const allTicketItems = tableTickets.flatMap((tk) => tk.items);
         return {
           ...tbl,
-          activeItems: ticket.items.map((it) => ({
-            id: it.id,
-            name: it.name,
-            quantity: it.quantity,
-            status: it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed',
-            seatNumber: it.seatNumber,
-            price: it.price,
-            options: it.options,
-          })),
+          activeItems: (tbl.activeItems || []).map((ai) => {
+            const matchedTicketItem = allTicketItems.find(
+              (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+            );
+            if (!matchedTicketItem) return ai;
+            return {
+              ...ai,
+              status:
+                matchedTicketItem.stage === 'SERVED'
+                  ? 'Served'
+                  : matchedTicketItem.stage === 'PLATED'
+                  ? 'Ready'
+                  : matchedTicketItem.stage === 'PREP'
+                  ? 'Cooking'
+                  : matchedTicketItem.stage === 'RECEIVED'
+                  ? 'Received'
+                  : 'Placed',
+            };
+          }),
         };
       });
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
+
+    // Persist each matching item to Supabase and broadcast
+    const matchingItems: { ticketId: string; itemId: string }[] = [];
+    get().kdsTickets.forEach((tk) => {
+      tk.items.forEach((it) => {
+        const itemKey = getCanonicalDishKey(it.name);
+        if (itemKey === targetKey || itemKey.includes(targetKey) || targetKey.includes(itemKey)) {
+          matchingItems.push({ ticketId: tk.id, itemId: it.id });
+        }
+      });
+    });
+
+    matchingItems.forEach(({ ticketId, itemId }) => {
+      bridgePost('/api/kds/bump-item', { ticketId, itemId, stage });
+    });
+    broadcastStateChange('BULK_STAGE_UPDATE');
   },
 
   
   kitchenBumpTable: (ticketId) => {
     const prevTickets = get().kdsTickets;
+    const prevTables = get().tables;
 
-    set((state) => ({
-      kdsTickets: state.kdsTickets.map((t) => {
+    set((state) => {
+      const targetTicket = state.kdsTickets.find((t) => t.id === ticketId);
+      const newTickets = state.kdsTickets.map((t) => {
         if (t.id !== ticketId) return t;
         return {
           ...t,
-          status: 'READY',
-          items: t.items.map((i) => ({ ...i, stage: 'PLATED' })),
+          status: 'READY' as const,
+          items: t.items.map((i) => ({ ...i, stage: 'PLATED' as OrderStage })),
         };
-      }),
-    }));
+      });
+
+      const updatedTables = targetTicket
+        ? state.tables.map((tbl) => {
+            if (tbl.number !== targetTicket.tableNumber) return tbl;
+            return {
+              ...tbl,
+              activeItems: (tbl.activeItems || []).map((ai) => {
+                const isTicketItem = targetTicket.items.some(
+                  (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+                );
+                return isTicketItem ? { ...ai, status: 'Ready' } : ai;
+              }),
+            };
+          })
+        : state.tables;
+
+      return { kdsTickets: newTickets, tables: updatedTables };
+    });
 
     bridgePost(
       '/api/kds/bump-table',
       { ticketId, status: 'READY' },
       () => {
         console.error('[Bridge] kitchenBumpTable rollback');
-        useSharedBridge.setState({ kdsTickets: prevTickets });
+        useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables });
       }
     );
   },
@@ -701,16 +806,25 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       status: 'NEW',
       source: 'WAITER',
       seatNumber,
-      items: items.map((i, idx) => ({
-        id: `ki-w-${Date.now()}-${idx}`,
-        name: i.item.name,
-        quantity: i.quantity,
-        stage: 'PLACED',
-        prepMode: i.item.prepMode,
-        options: i.selectedOption,
-        price: i.item.price,
-        seatNumber,
-      })),
+      items: items.map((i, idx) => {
+        const addOns = i.addOns || [];
+        const addOnExtra = addOns.reduce((s, ao) => {
+          const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+          return s + (found?.extraPrice || 0);
+        }, 0);
+        const unitPrice = i.item.price + addOnExtra;
+        return {
+          id: `ki-w-${Date.now()}-${idx}`,
+          name: i.item.name,
+          quantity: i.quantity,
+          stage: 'PLACED',
+          prepMode: i.item.prepMode,
+          options: i.selectedOption,
+          addOns,
+          price: unitPrice,
+          seatNumber,
+        };
+      }),
     };
 
     const notif = {
@@ -722,7 +836,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       dismissed: false,
     };
 
-    const kotTotal = items.reduce((s, i) => s + i.item.price * i.quantity, 0);
+    const kotTotal = items.reduce((s, i) => {
+      const addOns = i.addOns || [];
+      const addOnExtra = addOns.reduce((ao_s, ao) => {
+        const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+        return ao_s + (found?.extraPrice || 0);
+      }, 0);
+      return s + (i.item.price + addOnExtra) * i.quantity;
+    }, 0);
 
     // Snapshot for rollback
     const prevState = {
@@ -753,15 +874,23 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               kotCount: t.kotCount + 1,
               activeItems: [
                 ...(t.activeItems || []),
-                ...items.map((i, idx) => ({
-                  id: `ai-w-${Date.now()}-${idx}`,
-                  name: i.item.name,
-                  quantity: i.quantity,
-                  status: 'Placed',
-                  seatNumber,
-                  price: i.item.price,
-                  options: i.selectedOption,
-                })),
+                ...items.map((i, idx) => {
+                  const addOns = i.addOns || [];
+                  const addOnExtra = addOns.reduce((s, ao) => {
+                    const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+                    return s + (found?.extraPrice || 0);
+                  }, 0);
+                  return {
+                    id: `ai-w-${Date.now()}-${idx}`,
+                    name: i.item.name,
+                    quantity: i.quantity,
+                    status: 'Placed',
+                    seatNumber,
+                    price: i.item.price + addOnExtra,
+                    options: i.selectedOption,
+                    addOns,
+                  };
+                }),
               ],
             }
           : t
@@ -777,20 +906,40 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         guestName: captainName,
         guestCount: 1,
         source: 'WAITER',
-        items: items.map((i) => ({
-          name: i.item.name,
-          quantity: i.quantity,
-          price: i.item.price,
-          unitPrice: i.item.price,
-          prepMode: i.item.prepMode || 'Regular',
-          selectedOption: i.selectedOption || null,
-          addOns: [],
-          notes: seatNumber ? `Seat ${seatNumber}` : '',
-        })),
+        items: items.map((i) => {
+          const addOns = i.addOns || [];
+          const addOnExtra = addOns.reduce((s, ao) => {
+            const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+            return s + (found?.extraPrice || 0);
+          }, 0);
+          const unitPrice = i.item.price + addOnExtra;
+          return {
+            name: i.item.name,
+            quantity: i.quantity,
+            price: unitPrice,
+            unitPrice,
+            prepMode: i.item.prepMode || 'Regular',
+            selectedOption: i.selectedOption || null,
+            addOns,
+            seatNumber: seatNumber || 1,
+            seat_number: seatNumber || 1,
+            notes: seatNumber ? `Seat ${seatNumber}` : '',
+          };
+        }),
       },
       () => {
         console.error('[Bridge] waiterFiresKOT rollback');
         useSharedBridge.setState(prevState);
+      },
+      (data) => {
+        // Swap optimistic ticket ID with real DB-assigned ticketId so CDC dedup works correctly
+        const realId = data.ticketId as string | undefined;
+        if (!realId) return;
+        useSharedBridge.setState((state) => ({
+          kdsTickets: state.kdsTickets.map((tk) =>
+            tk.id === ticket.id ? { ...tk, id: realId } : tk
+          ),
+        }));
       }
     );
   },
@@ -1105,42 +1254,54 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   
-  waiterRecordsPayment: (tableNumber, method, amount) => {
+  waiterRecordsPayment: (tableNumber, method, amount, seatNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+
     set((state) => {
-      const targetTbl = state.tables.find((t) => t.number === tableNumber);
-      // Use mergeGroupPeers to cover ALL tables in a 3-4 member group (not just mergedWith partner)
-      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [tableNumber]);
+      const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
+      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
+
+      // For single-chair settle: keep table OCCUPIED, reduce its bill by that chair's share.
+      // For full-table settle: mark entire group as BILLING (pre-vacate status).
+      const isChairSettle = typeof seatNumber === 'number';
+
       return {
-        tables: state.tables.map((t) =>
-          groupNums.has(t.number)
-            ? { ...t, status: 'BILLING' }
-            : t
-        ),
+        tables: state.tables.map((t) => {
+          if (!groupNums.has(t.number) && cleanNum(t.number) !== targetNum) return t;
+          if (isChairSettle) {
+            // Reduce currentBill by the chair's settled amount only; keep OCCUPIED
+            const newBill = Math.max(0, (t.currentBill || 0) - amount);
+            return { ...t, currentBill: newBill };
+          }
+          return { ...t, status: 'BILLING' };
+        }),
         shiftStats: {
           ...state.shiftStats,
           totalRevenue: state.shiftStats.totalRevenue + amount,
-          tablesServed: state.shiftStats.tablesServed + 1,
+          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1),
         },
       };
     });
   },
 
-  
+
   waiterVacatesTable: (tableNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
     // Snapshot for rollback (vacate is destructive — save full state)
     const prevTables = get().tables;
     const prevTickets = get().kdsTickets;
 
     set((state) => {
-      const targetTbl = state.tables.find((t) => t.number === tableNumber);
-      // Use mergeGroupPeers so all tables in a 3-4 member group are fully vacated
-      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [tableNumber]);
+      const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
+      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
       return {
         tables: state.tables.map((t) =>
-          groupNums.has(t.number)
+          groupNums.has(t.number) || cleanNum(t.number) === targetNum
             ? {
                 ...t,
-                status: 'VACANT',
+                status: 'CLEANING' as const,
                 currentBill: 0,
                 guestCount: 0,
                 kotCount: 0,
@@ -1156,10 +1317,22 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         ),
         // Remove ALL KDS tickets for every table in this group
         kdsTickets: state.kdsTickets.filter(
-          (tk) => !groupNums.has(tk.tableNumber)
+          (tk) => !groupNums.has(tk.tableNumber) && cleanNum(tk.tableNumber) !== targetNum
         ),
       };
     });
+
+    // Exactly 1 minute (60s) transition from CLEANING to green VACANT
+    setTimeout(() => {
+      set((state) => ({
+        tables: state.tables.map((t) =>
+          (cleanNum(t.number) === targetNum || t.number === tableNumber) && t.status === 'CLEANING'
+            ? { ...t, status: 'VACANT' as const }
+            : t
+        ),
+      }));
+      broadcastStateChange('tableVacated');
+    }, 60000);
 
     // Persist to Supabase
     bridgePost(
@@ -1172,46 +1345,159 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     );
   },
 
-  
+  waiterClearsChairAfterPayment: (tableNumber, seatNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+
+    set((state) => {
+      // 1. Separate items on tickets: settled seat's items are removed from active ticket
+      const newTickets: SharedKDSTicket[] = [];
+
+      for (const tk of state.kdsTickets) {
+        if (cleanNum(tk.tableNumber) !== targetNum) {
+          newTickets.push(tk);
+          continue;
+        }
+
+        const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
+        const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
+
+        if (seatItems.length === 0) {
+          // Ticket doesn't contain items for this seat
+          newTickets.push(tk);
+          continue;
+        }
+
+        if (otherItems.length === 0) {
+          // Entire ticket is for this seat -> mark ticket COMPLETED
+          newTickets.push({ ...tk, status: 'COMPLETED' as const });
+        } else {
+          // Mixed ticket: keep active ticket with ONLY the other items
+          newTickets.push({
+            ...tk,
+            items: otherItems,
+          });
+          // Add an archived ticket for the paid seat items
+          newTickets.push({
+            ...tk,
+            id: `${tk.id}-paid-s${seatNumber}`,
+            status: 'COMPLETED' as const,
+            items: seatItems.map((it) => ({ ...it, stage: 'SERVED' as OrderStage })),
+          });
+        }
+      }
+
+      // 2. Update table activeItems and remaining bill:
+      const newTables = state.tables.map((t) => {
+        if (cleanNum(t.number) !== targetNum) return t;
+
+        const remainingActiveItems = (t.activeItems || []).filter(
+          (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
+        );
+
+        // Sum remaining items from active tickets and activeItems
+        const remainingTicketItems = newTickets
+          .filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED')
+          .flatMap((tk) => tk.items);
+
+        const remainingTotal = remainingTicketItems.length > 0
+          ? remainingTicketItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0)
+          : remainingActiveItems.reduce((s, ai) => s + (ai.price || 0) * (ai.quantity || 1), 0);
+
+        const newBill = Math.round(remainingTotal * 1.05);
+        const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
+
+        return {
+          ...t,
+          activeItems: remainingActiveItems,
+          currentBill: newBill,
+          guestCount: hasRemainingOrders ? Math.max(1, (t.guestCount || 2) - 1) : 0,
+          status: hasRemainingOrders ? ('OCCUPIED' as const) : ('VACANT' as const),
+        };
+      });
+
+      return { kdsTickets: newTickets, tables: newTables };
+    });
+
+    // Persist to Supabase
+    bridgePost(
+      '/api/tables/vacate',
+      { tableNumber, seatNumber },
+      () => {
+        console.error('[Bridge] waiterClearsChairAfterPayment rollback');
+      }
+    );
+  },
+
   waiterMarkKitchenItemServed: (ticketId, itemId) => {
+    const prevTickets = get().kdsTickets;
+    const prevTables = get().tables;
+
     set((state) => {
       let targetTableNumber: string | undefined;
       let targetItemName: string | undefined;
+      let targetSeatNumber: number | undefined;
 
       const newTickets = state.kdsTickets.map((t) => {
-        if (t.id !== ticketId) return t;
+        const isMatch = t.id === ticketId || t.items.some((i) => i.id === itemId);
+        if (!isMatch) return t;
         targetTableNumber = t.tableNumber;
         const target = t.items.find((i) => i.id === itemId);
-        if (target) targetItemName = target.name;
+        if (target) {
+          targetItemName = target.name;
+          targetSeatNumber = target.seatNumber || t.seatNumber;
+        }
         const newItems = t.items.map((it) =>
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        return { ...t, items: newItems, status: allServed ? 'COMPLETED' : t.status };
+        return { ...t, items: newItems, status: allServed ? ('SERVED' as const) : t.status };
       });
+
+      if (!targetTableNumber) {
+        const foundTbl = state.tables.find((tbl) => tbl.activeItems?.some((ai) => ai.id === itemId));
+        if (foundTbl) targetTableNumber = foundTbl.number;
+      }
 
       const updatedTables = targetTableNumber
         ? state.tables.map((tbl) => {
             if (tbl.number !== targetTableNumber) return tbl;
             return {
               ...tbl,
-              activeItems: (tbl.activeItems || []).map((ai) =>
-                ai.id === itemId || (targetItemName && ai.name === targetItemName && ai.status !== 'Served')
+              activeItems: (tbl.activeItems || []).map((ai) => {
+                const matchesItem = ai.id === itemId;
+                const matchesFallback =
+                  Boolean(targetItemName) &&
+                  ai.name === targetItemName &&
+                  (targetSeatNumber !== undefined ? ai.seatNumber === targetSeatNumber : true) &&
+                  ai.status === 'Ready';
+                return matchesItem || matchesFallback
                   ? { ...ai, status: 'Served' }
-                  : ai
-              ),
+                  : ai;
+              }),
             };
           })
         : state.tables;
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
+
+    // Persist to Supabase
+    bridgePost(
+      '/api/kds/bump-item',
+      { ticketId, itemId, stage: 'SERVED' },
+      () => {
+        console.error('[Bridge] waiterMarkKitchenItemServed rollback');
+        useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables });
+      }
+    );
   },
 
   
   resetToFreshDemoState: () => {
     if (typeof window !== 'undefined') {
       try {
+        localStorage.removeItem('thoogudeepa_bridge_live_v2');
         localStorage.removeItem('thoogudeepa_bridge_v1');
       } catch {}
     }
@@ -1235,6 +1521,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
 
 if (typeof window !== 'undefined') {
+  let isBroadcasting = false;
+  const BRIDGE_STORAGE_KEY = 'thoogudeepa_bridge_live_v2';
+
   const applyPersistedState = (parsed: Record<string, unknown>, suppressBroadcast = false) => {
     if (!parsed || !Array.isArray(parsed.tables)) return;
     const cur = useSharedBridge.getState();
@@ -1330,12 +1619,12 @@ if (typeof window !== 'undefined') {
   };
 
 
-  // Global flag to prevent broadcast loops
-  let isBroadcasting = false;
-
   // 0. Rehydrate from localStorage if available
   try {
-    const saved = localStorage.getItem('thoogudeepa_bridge_v1');
+    // Purge any stale legacy bridge state from old test iterations
+    localStorage.removeItem('thoogudeepa_bridge_v1');
+
+    const saved = localStorage.getItem(BRIDGE_STORAGE_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && Array.isArray(parsed.tables)) {
@@ -1404,7 +1693,7 @@ if (typeof window !== 'undefined') {
 
         // Immediately persist the sanitized clean state
         try {
-          localStorage.setItem('thoogudeepa_bridge_v1', JSON.stringify({
+          localStorage.setItem(BRIDGE_STORAGE_KEY, JSON.stringify({
             ...parsed,
             tables: sanitizedTables,
             kdsTickets: liveTickets,
@@ -1442,7 +1731,7 @@ if (typeof window !== 'undefined') {
       // Save state to localStorage on every change (persistence + cross-device fallback)
       try {
         localStorage.setItem(
-          'thoogudeepa_bridge_v1',
+          BRIDGE_STORAGE_KEY,
           JSON.stringify({
             tables: state.tables,
             kdsTickets: state.kdsTickets,
@@ -1480,7 +1769,7 @@ if (typeof window !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     if (document.hidden) return; // tab going to background — nothing to do
     try {
-      const saved = localStorage.getItem('thoogudeepa_bridge_v1');
+      const saved = localStorage.getItem(BRIDGE_STORAGE_KEY);
       if (!saved) return;
       const parsed = JSON.parse(saved);
       if (!parsed || !Array.isArray(parsed.tables)) return;
@@ -1511,7 +1800,7 @@ if (typeof window !== 'undefined') {
     // (BroadcastChannel handles the visible case; polling is only a safety net)
     if (document.hidden) return; // only poll when tab is visible
     try {
-      const saved = localStorage.getItem('thoogudeepa_bridge_v1');
+      const saved = localStorage.getItem(BRIDGE_STORAGE_KEY);
       if (!saved) return;
       const parsed = JSON.parse(saved);
       if (!parsed || !Array.isArray(parsed.kdsTickets)) return;

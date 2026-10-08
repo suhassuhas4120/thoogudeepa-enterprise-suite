@@ -41,32 +41,47 @@ function statusBadge(status: string) {
   }
 }
 
-function StagePill({ stage }: { stage: string }) {
-  if (stage === 'Cooking') {
+function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) {
+  if (stage === 'Received') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 animate-pulse">
-        Cooking
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
+        Received
       </span>
     );
   }
-  if (stage === 'Ready') {
+  if (stage === 'Cooking' || stage === 'PREP' || stage === 'Preparing') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-100 text-emerald-800 inline-flex items-center gap-1">
-        <span className="text-emerald-600">●</span>
-        Ready
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+        Preparing
       </span>
     );
   }
-  if (stage === 'Served') {
+  if (stage === 'Ready' || stage === 'PLATED') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-blue-50 text-blue-600 line-through opacity-60">
-        Served
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onServe?.();
+        }}
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95"
+      >
+        <span className="text-white">●</span>
+        <span>Serve</span>
+      </motion.button>
+    );
+  }
+  if (stage === 'Served' || stage === 'SERVED') {
+    return (
+      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
+        <span>Served</span>
       </span>
     );
   }
   return (
-    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600">
-      {stage}
+    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600 border border-stone-200">
+      Placed
     </span>
   );
 }
@@ -143,8 +158,14 @@ export function ScreenM3TableSheet({
   const inMergeGroup = groupPeers.length > 1;
   const mergePeerLabel = groupPeers.filter((n) => n !== tableNum).join(', ');
 
-  // Tickets for table — vacant tables have NO active tickets
-  const tickets = isVacant ? [] : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  // Tickets for table — exclude COMPLETED (settled/archived) and vacant table tickets
+  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+  const tickets = isVacant
+    ? []
+    : kdsTickets.filter((tk) =>
+        groupPeers.some((peer) => cleanTableNum(peer) === cleanTableNum(tk.tableNumber)) &&
+        tk.status !== 'COMPLETED'
+      );
 
   // Unified collection of all ordered items on this table (from KDS tickets and table.activeItems)
   const allTableOrderedItems: {
@@ -154,6 +175,7 @@ export function ScreenM3TableSheet({
     price: number;
     totalPrice: number;
     options?: string;
+    addOns?: string[];
     stage: string;
     seatNumber?: number;
     ticketId: string;
@@ -172,7 +194,15 @@ export function ScreenM3TableSheet({
           )?.price || 220;
         const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
         const stageLabel =
-          it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed';
+          it.stage === 'SERVED'
+            ? 'Served'
+            : it.stage === 'PLATED'
+            ? 'Ready'
+            : it.stage === 'PREP'
+            ? 'Cooking'
+            : it.stage === 'RECEIVED'
+            ? 'Received'
+            : 'Placed';
         allTableOrderedItems.push({
           id: it.id,
           name: it.name,
@@ -180,6 +210,7 @@ export function ScreenM3TableSheet({
           price: unitPrice,
           totalPrice: unitPrice * it.quantity,
           options: it.options,
+          addOns: it.addOns || [],
           stage: stageLabel,
           seatNumber: it.seatNumber || tk.seatNumber,
           ticketId: tk.id,
@@ -208,6 +239,7 @@ export function ScreenM3TableSheet({
               price: unitPrice,
               totalPrice: unitPrice * ai.quantity,
               options: ai.options,
+              addOns: (ai as any).addOns || [],
               stage: ai.status || 'Placed',
               seatNumber: ai.seatNumber,
               ticketId: 'tbl-direct',
@@ -229,8 +261,16 @@ export function ScreenM3TableSheet({
   const itemsSubtotal = allTableOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
   // Sum bills across ALL group members (each table keeps its own bill now)
   const groupBill = isVacant ? 0 : groupTables.reduce((s, t) => s + (t.currentBill || 0), 0);
-  // Use the higher of aggregated group bill vs computed items total (handles rounding & GST-inclusive edge cases)
-  const subtotal = isVacant ? 0 : Math.max(groupBill, itemsSubtotal);
+
+  // Clean, consistent, zero double-tax pricing:
+  // When ordered items are listed, subtotal is strictly the pre-tax dishes total (itemsSubtotal).
+  // If no items are listed yet table has a groupBill, derive subtotal from the inclusive groupBill.
+  const subtotal = isVacant
+    ? 0
+    : itemsSubtotal > 0
+    ? itemsSubtotal
+    : Math.round(groupBill / 1.05);
+
   const occupiedChairsCount = (isVacant || allTableOrderedItems.length === 0)
     ? 0
     : Math.min(
@@ -242,11 +282,15 @@ export function ScreenM3TableSheet({
         )
       );
 
-  // Tax calculation
-  const totalTax = Math.round(subtotal * 0.05);
+  // Tax calculation (5% GST total = 2.5% CGST + 2.5% SGST)
+  const totalTax = isVacant
+    ? 0
+    : itemsSubtotal > 0
+    ? Math.round(subtotal * 0.05)
+    : groupBill - subtotal;
   const cgst = totalTax / 2;
   const sgst = totalTax - cgst;
-  const grandTotal = subtotal + totalTax;
+  const grandTotal = isVacant ? 0 : subtotal + totalTax;
 
   // Individual Chair Share calculation
   const perChairSubtotal = occupiedChairsCount > 0 ? Math.round(subtotal / occupiedChairsCount) : 0;
@@ -332,16 +376,64 @@ export function ScreenM3TableSheet({
   };
 
   // Check if any items are ready to serve
-  const readyTickets = tickets.filter((tk) => tk.status === 'READY');
-  const hasReadyFood = readyTickets.length > 0 || table.activeItems?.some((it) => it.status === 'Ready');
+  const readyOrderedItems = allTableOrderedItems.filter((i) => i.stage === 'Ready');
+  const hasReadyFood = readyOrderedItems.length > 0 || (table.activeItems || []).some((it) => it.status === 'Ready');
 
   const handleServeReadyFood = () => {
-    readyTickets.forEach((tk) => {
-      tk.items.forEach((it) => waiterMarkKitchenItemServed(tk.id, it.id));
+    readyOrderedItems.forEach((it) => {
+      waiterMarkKitchenItemServed(it.ticketId, it.id);
+    });
+    (table.activeItems || []).forEach((ai) => {
+      if (ai.status === 'Ready' && ai.id) {
+        waiterMarkKitchenItemServed('tbl-direct', ai.id);
+      }
     });
     setNotice('✓ Ready dishes marked as served to table');
     setTimeout(() => setNotice(null), 2000);
   };
+
+  // ── Settle Button Validation (Require all dishes to be SERVED) ──
+  const hasTableOrders = allTableOrderedItems.length > 0;
+  const hasUnservedTableItems = !hasTableOrders || allTableOrderedItems.some((it) => it.stage !== 'Served');
+
+  let isCurrentSelectionSettleDisabled = false;
+  let currentSelectionSettleReason = '';
+
+  if (selectedSeat === 'ALL') {
+    isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems;
+    currentSelectionSettleReason = !hasTableOrders
+      ? 'No orders placed'
+      : hasUnservedTableItems
+      ? 'Serve all table items to settle'
+      : '';
+  } else if (typeof selectedSeat === 'number') {
+    const chairDirectItems = allTableOrderedItems.filter((i) => i.seatNumber === selectedSeat);
+    const tableSharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
+    const chairTargetItems = chairDirectItems.length > 0 ? chairDirectItems : tableSharedItems;
+    const hasChairItems = chairTargetItems.length > 0;
+    const hasUnservedChair = !hasChairItems || chairTargetItems.some((i) => i.stage !== 'Served');
+    const chairBreakdown = getChairBillBreakdown(selectedSeat);
+    isCurrentSelectionSettleDisabled = isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || hasUnservedChair;
+    currentSelectionSettleReason = !hasChairItems
+      ? 'No orders for this chair'
+      : hasUnservedChair
+      ? `Serve all items for Chair ${selectedSeat} to settle`
+      : '';
+  } else if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+    const groupSeats = mergedSeatGroups[selectedSeat];
+    const groupDirectItems = allTableOrderedItems.filter((i) => i.seatNumber && groupSeats.includes(i.seatNumber));
+    const tableSharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
+    const groupTargetItems = groupDirectItems.length > 0 ? groupDirectItems : tableSharedItems;
+    const hasGroupItems = groupTargetItems.length > 0;
+    const hasUnservedGroup = !hasGroupItems || groupTargetItems.some((i) => i.stage !== 'Served');
+    const groupBreakdown = getChairBillBreakdown(selectedSeat);
+    isCurrentSelectionSettleDisabled = isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || hasUnservedGroup;
+    currentSelectionSettleReason = !hasGroupItems
+      ? 'No orders for this group'
+      : hasUnservedGroup
+      ? 'Serve all group items to settle'
+      : '';
+  }
 
   const handleVacate = () => {
     waiterVacatesTable(tableNum);
@@ -728,7 +820,7 @@ export function ScreenM3TableSheet({
               const isSelected = selectedSeat === seatNum;
               const chairBreakdown = getChairBillBreakdown(seatNum);
               const hasOrders = chairBreakdown.directItems.length > 0;
-              const isSeated = hasOrders || seatNum <= occupiedChairsCount;
+              const isSeated = hasOrders || chairsWithOrders.has(seatNum) || (chairsWithOrders.size === 0 && seatNum <= occupiedChairsCount);
               const seatCardTotal = chairBreakdown.totalDue;
               const isSelectedForMerge = selectedChairsForMerge.includes(seatNum);
               const seatHasReady = allTableOrderedItems.some(
@@ -884,7 +976,7 @@ export function ScreenM3TableSheet({
                     : 'UNPAID'
                   : allTableOrderedItems.some((i) => i.seatNumber === Number(selectedSeat))
                   ? 'Active Orders'
-                  : Number(selectedSeat) <= occupiedChairsCount
+                  : chairsWithOrders.size === 0 && Number(selectedSeat) <= occupiedChairsCount
                   ? 'Seated'
                   : 'Available'}
               </span>
@@ -912,38 +1004,57 @@ export function ScreenM3TableSheet({
                         <span>{groupItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
                       <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
-                        {groupItems.map((item, idx) => (
-                          <div
-                            key={item.id || idx}
-                            className="p-2.5 bg-indigo-50/50 border border-indigo-200 rounded-xl space-y-1 text-xs"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-black text-stone-900">
-                                  <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-900 text-[10px] mr-1.5 font-bold">
-                                    Chair {item.seatNumber}
-                                  </span>
-                                  <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
-                                  <span>{item.name}</span>
-                                </div>
-                                {item.options && (
-                                  <div className="text-[10px] text-stone-500 mt-0.5">
-                                    {item.options}
+                        {groupItems.map((item, idx) => {
+                          const isServed = item.stage === 'Served' || item.stage === 'SERVED';
+                          return (
+                            <div
+                              key={item.id || idx}
+                              className={`p-2.5 rounded-xl space-y-1 text-xs transition border ${
+                                isServed
+                                  ? 'bg-stone-50/70 border-stone-200 opacity-60'
+                                  : 'bg-indigo-50/50 border-indigo-200'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    <span className="px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-900 text-[10px] mr-1.5 font-bold">
+                                      Chair {item.seatNumber}
+                                    </span>
+                                    <span className={isServed ? 'text-stone-400 mr-1' : 'text-[#9C3D1E] mr-1'}>{item.quantity}×</span>
+                                    <span>{item.name}</span>
                                   </div>
-                                )}
+                                  {item.options && (
+                                    <div className="text-[10px] text-stone-500 mt-0.5">
+                                      {item.options}
+                                    </div>
+                                  )}
+                                  {item.addOns && item.addOns.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.addOns.map((ao, aIdx) => (
+                                        <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
+                                          + {ao}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <span className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    ₹{item.totalPrice.toFixed(2)}
+                                  </span>
+                                </div>
                               </div>
-                              <div className="text-right shrink-0">
-                                <span className="font-black text-stone-900">
-                                  ₹{item.totalPrice.toFixed(2)}
-                                </span>
+                              <div className="flex items-center justify-between pt-1 border-t border-indigo-100 text-[10px]">
+                                <span className="text-stone-400">KOT #{item.ticketNumber}</span>
+                                <StagePill
+                                  stage={item.stage}
+                                  onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                                />
                               </div>
                             </div>
-                            <div className="flex items-center justify-between pt-1 border-t border-indigo-100 text-[10px]">
-                              <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <StagePill stage={item.stage} />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   ) : (
@@ -978,46 +1089,88 @@ export function ScreenM3TableSheet({
             // All Table KOT Tickets & Items
             allTableOrderedItems.length > 0 ? (
               <div className="flex-1 min-h-0 flex flex-col space-y-2.5 py-1">
-                <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
-                  {allTableOrderedItems.map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="p-2.5 bg-[#FAF8F5] border border-stone-200 rounded-xl space-y-1 text-xs"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="font-black text-stone-900">
-                            {item.seatNumber ? (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-900 text-amber-200 text-[10px] mr-1.5 font-black font-mono shadow-2xs">
-                                <Armchair className="h-3 w-3 text-amber-300" />
-                                <span>Chair {item.seatNumber}</span>
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFF8F5] text-[#9C3D1E] border border-[#9C3D1E]/30 text-[10px] mr-1.5 font-black font-mono">
-                                <span>All Table</span>
-                              </span>
-                            )}
-                            <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
-                            <span>{item.name}</span>
-                          </div>
-                          {item.options && (
-                            <div className="text-[10px] text-stone-500 mt-0.5">
-                              {item.options}
-                            </div>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <span className="font-black text-stone-900">
-                            ₹{item.totalPrice.toFixed(2)}
-                          </span>
-                        </div>
+                {(() => {
+                  const readyToServeItems = allTableOrderedItems.filter((i) => i.stage === 'Ready');
+                  if (readyToServeItems.length <= 1) return null;
+                  return (
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-mono text-xs shadow-2xs shrink-0">
+                      <div className="flex items-center gap-1.5 font-black">
+                        <span className="text-emerald-600 animate-pulse text-sm">●</span>
+                        <span>{readyToServeItems.length} Dishes Ready at Pass</span>
                       </div>
-                      <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
-                        <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                        <StagePill stage={item.stage} />
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          readyToServeItems.forEach((it) =>
+                            waiterMarkKitchenItemServed(it.ticketId, it.id)
+                          );
+                        }}
+                        className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black shadow-xs transition active:scale-95 cursor-pointer"
+                      >
+                        Serve All ({readyToServeItems.length}) ✓
+                      </button>
                     </div>
-                  ))}
+                  );
+                })()}
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
+                  {allTableOrderedItems.map((item, idx) => {
+                    const isServed = item.stage === 'Served' || item.stage === 'SERVED';
+                    return (
+                      <div
+                        key={item.id || idx}
+                        className={`p-2.5 rounded-xl space-y-1 text-xs transition border ${
+                          isServed
+                            ? 'bg-stone-50/70 border-stone-200 opacity-60'
+                            : 'bg-[#FAF8F5] border-stone-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                              {item.seatNumber ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-stone-900 text-amber-200 text-[10px] mr-1.5 font-black font-mono shadow-2xs">
+                                  <Armchair className="h-3 w-3 text-amber-300" />
+                                  <span>Chair {item.seatNumber}</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[#FFF8F5] text-[#9C3D1E] border border-[#9C3D1E]/30 text-[10px] mr-1.5 font-black font-mono">
+                                  <span>All Table</span>
+                                </span>
+                              )}
+                              <span className={isServed ? 'text-stone-400 mr-1' : 'text-[#9C3D1E] mr-1'}>{item.quantity}×</span>
+                              <span>{item.name}</span>
+                            </div>
+                            {item.options && (
+                              <div className="text-[10px] text-stone-500 mt-0.5">
+                                {item.options}
+                              </div>
+                            )}
+                            {item.addOns && item.addOns.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {item.addOns.map((ao, aIdx) => (
+                                  <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
+                                    + {ao}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                              ₹{item.totalPrice.toFixed(2)}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
+                          <span className="text-stone-400">KOT #{item.ticketNumber}</span>
+                          <StagePill
+                            stage={item.stage}
+                            onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
                 {/* Table Cost Summary */}
@@ -1057,7 +1210,7 @@ export function ScreenM3TableSheet({
               const thisSeatNum = Number(selectedSeat);
               const thisSeatItems = allTableOrderedItems.filter((i) => i.seatNumber === thisSeatNum);
               const hasSeatItems = thisSeatItems.length > 0;
-              const isSeatOccupied = hasSeatItems || thisSeatNum <= occupiedChairsCount;
+              const isSeatOccupied = hasSeatItems || chairsWithOrders.has(thisSeatNum) || (chairsWithOrders.size === 0 && thisSeatNum <= occupiedChairsCount);
               const thisSeatSubtotal = thisSeatItems.reduce((sum, i) => sum + i.totalPrice, 0);
               const thisSeatTax = Math.round(thisSeatSubtotal * 0.05);
               const thisSeatCgst = thisSeatTax / 2;
@@ -1074,40 +1227,59 @@ export function ScreenM3TableSheet({
                         <span>{thisSeatItems.reduce((s, i) => s + i.quantity, 0)} Items</span>
                       </div>
                       <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5 pr-0.5">
-                        {thisSeatItems.map((item, idx) => (
-                          <div
-                            key={item.id || idx}
-                            className="p-3 bg-white border border-stone-200 rounded-xl shadow-2xs space-y-1.5 text-xs"
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div>
-                                <div className="font-black text-stone-900">
-                                  <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
-                                  <span>{item.name}</span>
-                                </div>
-                                {item.options && (
-                                  <div className="text-[10px] text-stone-500 mt-0.5">
-                                    {item.options}
+                        {thisSeatItems.map((item, idx) => {
+                          const isServed = item.stage === 'Served' || item.stage === 'SERVED';
+                          return (
+                            <div
+                              key={item.id || idx}
+                              className={`p-3 rounded-xl shadow-2xs space-y-1.5 text-xs transition border ${
+                                isServed
+                                  ? 'bg-stone-50/70 border-stone-200 opacity-60'
+                                  : 'bg-white border-stone-200'
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div>
+                                  <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    <span className={isServed ? 'text-stone-400 mr-1' : 'text-[#9C3D1E] mr-1'}>{item.quantity}×</span>
+                                    <span>{item.name}</span>
                                   </div>
-                                )}
+                                  {item.options && (
+                                    <div className="text-[10px] text-stone-500 mt-0.5">
+                                      {item.options}
+                                    </div>
+                                  )}
+                                  {item.addOns && item.addOns.length > 0 && (
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {item.addOns.map((ao, aIdx) => (
+                                        <span key={aIdx} className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-black border border-amber-300">
+                                          + {ao}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <div className={`font-black ${isServed ? 'line-through text-stone-400' : 'text-stone-900'}`}>
+                                    ₹{item.totalPrice.toFixed(2)}
+                                  </div>
+                                  {item.quantity > 1 && (
+                                    <div className="text-[9.5px] text-stone-400">
+                                      ₹{item.price} each
+                                    </div>
+                                  )}
+                                </div>
                               </div>
-                              <div className="text-right shrink-0">
-                                <div className="font-black text-stone-900">
-                                  ₹{item.totalPrice.toFixed(2)}
-                                </div>
-                                {item.quantity > 1 && (
-                                  <div className="text-[9.5px] text-stone-400">
-                                    ₹{item.price} each
-                                  </div>
-                                )}
+                              <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
+                                <span className="text-stone-400">KOT #{item.ticketNumber}</span>
+                                <StagePill
+                                  stage={item.stage}
+                                  onServe={() => waiterMarkKitchenItemServed(item.ticketId, item.id)}
+                                />
                               </div>
                             </div>
-                            <div className="flex items-center justify-between pt-1 border-t border-stone-100 text-[10px]">
-                              <span className="text-stone-400">KOT #{item.ticketNumber}</span>
-                              <StagePill stage={item.stage} />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 
@@ -1305,14 +1477,29 @@ export function ScreenM3TableSheet({
             <span>Add Dishes</span>
           </motion.button>
           <motion.button
-            whileTap={{ scale: 0.95 }}
+            whileTap={!isCurrentSelectionSettleDisabled ? { scale: 0.95 } : undefined}
             type="button"
-            disabled={grandTotal <= 0 || isVacant}
-            onClick={() => onGoToSettle()}
-            className="min-h-[48px] rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={isCurrentSelectionSettleDisabled}
+            onClick={() => {
+              if (typeof selectedSeat === 'number') {
+                const bd = getChairBillBreakdown(selectedSeat);
+                onGoToSettle(Math.round(bd.totalDue), `Chair ${selectedSeat}`);
+              } else if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+                const bd = getChairBillBreakdown(selectedSeat);
+                onGoToSettle(Math.round(bd.totalDue), `Chairs ${mergedSeatGroups[selectedSeat].join(' & ')}`);
+              } else {
+                onGoToSettle();
+              }
+            }}
+            title={currentSelectionSettleReason || 'Proceed to payment settlement'}
+            className={`min-h-[48px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs ${
+              isCurrentSelectionSettleDisabled
+                ? 'bg-stone-200 text-stone-400 cursor-not-allowed border border-stone-300'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
+            }`}
           >
             <CreditCard className="h-4 w-4" />
-            <span>Settle</span>
+            <span>{isCurrentSelectionSettleDisabled && hasTableOrders ? 'Serve to Settle' : 'Settle'}</span>
           </motion.button>
         </div>
       </footer>
@@ -1617,19 +1804,30 @@ export function ScreenM3TableSheet({
                               <span className="font-black text-stone-900 text-xs">
                                 ₹{thisPersonAmt.toFixed(0)}
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowSplitModal(false);
-                                  onGoToSettle(
-                                    Math.round(thisPersonAmt),
-                                    `Guest ${personNum} of ${splitCoverCount}`
-                                  );
-                                }}
-                                className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black shadow-2xs active:scale-95 transition cursor-pointer"
-                              >
-                                Settle
-                              </button>
+                              {(() => {
+                                const canSettleCover = !hasUnservedTableItems && grandTotal > 0 && thisPersonAmt > 0;
+                                return (
+                                  <button
+                                    type="button"
+                                    disabled={!canSettleCover}
+                                    onClick={() => {
+                                      setShowSplitModal(false);
+                                      onGoToSettle(
+                                        Math.round(thisPersonAmt),
+                                        `Guest ${personNum} of ${splitCoverCount}`
+                                      );
+                                    }}
+                                    className={`px-3 py-1.5 rounded-xl text-[11px] font-black shadow-2xs transition ${
+                                      canSettleCover
+                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-95 cursor-pointer'
+                                        : 'bg-stone-200 text-stone-400 cursor-not-allowed opacity-50'
+                                    }`}
+                                    title={!canSettleCover ? 'All table dishes must be served first' : undefined}
+                                  >
+                                    {canSettleCover ? 'Settle' : 'Serve First'}
+                                  </button>
+                                );
+                              })()}
                             </div>
                           </div>
                         );
@@ -1645,6 +1843,9 @@ export function ScreenM3TableSheet({
                     {/* Merged Groups */}
                     {Object.entries(mergedSeatGroups).map(([groupKey, groupSeats]) => {
                       const breakdown = getChairBillBreakdown(groupKey);
+                      const groupDirect = allTableOrderedItems.filter((i) => i.seatNumber && groupSeats.includes(i.seatNumber));
+                      const groupTarget = groupDirect.length > 0 ? groupDirect : allTableOrderedItems.filter((i) => !i.seatNumber);
+                      const canSettleGroup = breakdown.totalDue > 0 && groupTarget.length > 0 && groupTarget.every((i) => i.stage === 'Served');
                       return (
                         <div
                           key={groupKey}
@@ -1665,6 +1866,7 @@ export function ScreenM3TableSheet({
                             </span>
                             <button
                               type="button"
+                              disabled={!canSettleGroup}
                               onClick={() => {
                                 setShowSplitModal(false);
                                 onGoToSettle(
@@ -1672,9 +1874,14 @@ export function ScreenM3TableSheet({
                                   `Chairs ${groupSeats.join(' & ')} Group`
                                 );
                               }}
-                              className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-[11px] font-black shadow-2xs active:scale-95 transition cursor-pointer"
+                              className={`px-3 py-1.5 rounded-xl text-[11px] font-black shadow-2xs transition ${
+                                canSettleGroup
+                                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white active:scale-95 cursor-pointer'
+                                  : 'bg-stone-200 text-stone-400 cursor-not-allowed opacity-50'
+                              }`}
+                              title={!canSettleGroup ? 'All group dishes must be served first' : undefined}
                             >
-                              Settle
+                              {canSettleGroup ? 'Settle' : 'Serve First'}
                             </button>
                           </div>
                         </div>
@@ -1690,6 +1897,10 @@ export function ScreenM3TableSheet({
                       if (inGroup) return null;
                       const breakdown = getChairBillBreakdown(seatNum);
                       if (breakdown.totalDue <= 0 && isVacant) return null;
+
+                      const chairDirect = allTableOrderedItems.filter((i) => i.seatNumber === seatNum);
+                      const chairTarget = chairDirect.length > 0 ? chairDirect : allTableOrderedItems.filter((i) => !i.seatNumber);
+                      const canSettleChair = breakdown.totalDue > 0 && chairTarget.length > 0 && chairTarget.every((i) => i.stage === 'Served');
 
                       return (
                         <div
@@ -1713,7 +1924,7 @@ export function ScreenM3TableSheet({
                             </span>
                             <button
                               type="button"
-                              disabled={breakdown.totalDue <= 0}
+                              disabled={!canSettleChair}
                               onClick={() => {
                                 setShowSplitModal(false);
                                 onGoToSettle(
@@ -1721,9 +1932,14 @@ export function ScreenM3TableSheet({
                                   `Chair ${seatNum}`
                                 );
                               }}
-                              className="px-3 py-1.5 bg-[#9C3D1E] hover:bg-[#853216] disabled:opacity-40 text-white rounded-xl text-[11px] font-black shadow-2xs active:scale-95 transition cursor-pointer"
+                              className={`px-3 py-1.5 rounded-xl text-[11px] font-black shadow-2xs transition ${
+                                canSettleChair
+                                  ? 'bg-[#9C3D1E] hover:bg-[#853216] text-white active:scale-95 cursor-pointer'
+                                  : 'bg-stone-200 text-stone-400 cursor-not-allowed opacity-50'
+                              }`}
+                              title={!canSettleChair ? `All dishes for Chair ${seatNum} must be served first` : undefined}
                             >
-                              Settle
+                              {canSettleChair ? 'Settle' : 'Serve First'}
                             </button>
                           </div>
                         </div>

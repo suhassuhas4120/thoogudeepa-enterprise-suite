@@ -33,7 +33,7 @@ export interface CartItem {
   seatNumber?: number;
 }
 
-export type OrderStage = 'PLACED' | 'PREP' | 'PLATED' | 'SERVED';
+export type OrderStage = 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED';
 
 export interface IndividualItemTracking {
   id: string;

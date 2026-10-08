@@ -5,7 +5,6 @@ import { useSharedBridge } from '../../store/useSharedBridge';
 import { useCustomerStore } from '../../store/useCustomerStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 import { MenuItem } from '../../types/customer';
-import { ItemDrawer } from '../ui/ItemDrawer';
 import {
   Search,
   Plus,
@@ -17,6 +16,7 @@ import {
   Clock,
   Flame,
   Armchair,
+  X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -53,9 +53,12 @@ export function ScreenM4OrderPad({
   const [cart, setCart] = useState<OrderPadItem[]>([]);
   const [kotFired, setKotFired] = useState(false);
 
-  // Quick Customize Bottom Sheet
+  // Quick Customize Bottom Sheet State
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [drawerItem, setDrawerItem] = useState<MenuItem | null>(null);
+  const [selectedOption, setSelectedOption] = useState('');
+  const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
+  const [quantity, setQuantity] = useState(1);
 
   const categories = ['All', 'Starters', 'Rice & Bowls', 'Beverages', 'Chef Special', 'Quick Serve'];
 
@@ -96,12 +99,12 @@ export function ScreenM4OrderPad({
 
   const addItemToCart = (
     item: MenuItem,
-    selectedOption?: string,
-    selectedAddOns: string[] = [],
-    quantity: number = 1
+    opt?: string,
+    addOns: string[] = [],
+    qty: number = 1
   ) => {
-    const opt = selectedOption || item.optionsGroup1?.choices?.[0] || '';
-    const addOnExtra = selectedAddOns.reduce((s, ao) => {
+    const chosenOpt = opt || item.optionsGroup1?.choices?.[0] || '';
+    const addOnExtra = addOns.reduce((s, ao) => {
       const found = item.optionsGroup2?.addOns?.find((a) => a.name === ao);
       return s + (found?.extraPrice || 0);
     }, 0);
@@ -109,11 +112,14 @@ export function ScreenM4OrderPad({
 
     setCart((prev) => {
       const existingIdx = prev.findIndex(
-        (c) => c.menuItem.id === item.id && c.selectedOption === opt
+        (c) =>
+          c.menuItem.id === item.id &&
+          c.selectedOption === chosenOpt &&
+          (c.addOns || []).slice().sort().join(',') === addOns.slice().sort().join(',')
       );
       if (existingIdx >= 0) {
         const copy = [...prev];
-        copy[existingIdx].quantity += quantity;
+        copy[existingIdx].quantity += qty;
         copy[existingIdx].totalPrice = copy[existingIdx].quantity * unitPrice;
         return copy;
       }
@@ -122,10 +128,10 @@ export function ScreenM4OrderPad({
         {
           cartItemId: `pad-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           menuItem: item,
-          quantity,
-          selectedOption: opt,
-          addOns: selectedAddOns,
-          totalPrice: quantity * unitPrice,
+          quantity: qty,
+          selectedOption: chosenOpt,
+          addOns,
+          totalPrice: qty * unitPrice,
           seatNumber: seatNum,
         },
       ];
@@ -157,6 +163,9 @@ export function ScreenM4OrderPad({
       return;
     }
     if (item.optionsGroup1?.choices?.length || item.optionsGroup2?.addOns?.length) {
+      setSelectedOption(item.optionsGroup1?.choices?.[0] || '');
+      setSelectedAddOns([]);
+      setQuantity(1);
       setDrawerItem(item);
       setDrawerOpen(true);
     } else {
@@ -164,7 +173,7 @@ export function ScreenM4OrderPad({
     }
   };
 
-  const handleFireKOT = () => {
+  const handlePlaceOrder = () => {
     if (cart.length === 0) return;
     const targetTable = tables.find((t) => t.number === tableNum);
     if (targetTable && targetTable.status === 'VACANT') {
@@ -210,6 +219,15 @@ export function ScreenM4OrderPad({
     }, 900);
   };
 
+  const drawerUnitPrice = useMemo(() => {
+    if (!drawerItem) return 0;
+    const addOnExtra = selectedAddOns.reduce((s, name) => {
+      const found = drawerItem.optionsGroup2?.addOns?.find((a) => a.name === name);
+      return s + (found?.extraPrice || 0);
+    }, 0);
+    return drawerItem.price + addOnExtra;
+  }, [drawerItem, selectedAddOns]);
+
   return (
     <div className="bg-[#FAF8F5] flex flex-col font-sans relative select-none overflow-hidden h-full min-h-screen">
       {/* Waiter Sticky Header */}
@@ -251,7 +269,7 @@ export function ScreenM4OrderPad({
 
       {/* Scrollable Content Container */}
       <div className="flex-1 overflow-y-auto pb-24 bg-[#FAF8F5]">
-        {/* Search Input - Large, High Contrast */}
+        {/* Search Input - Large, High Contrast with Quick Clear (X) Icon */}
         <div className="px-4 pt-3.5 pb-2.5">
           <div className="relative flex items-center">
             <Search className="absolute left-3.5 h-5 w-5 text-[#9C3D1E]" />
@@ -260,8 +278,18 @@ export function ScreenM4OrderPad({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search Dishes, Donne Biryani, Starters..."
-              className="w-full rounded-2xl border-2 border-stone-300 bg-white pl-11 pr-4 py-3 text-sm font-bold text-stone-950 placeholder:text-stone-400 shadow-xs focus:border-[#9C3D1E] focus:outline-none"
+              className="w-full rounded-2xl border-2 border-stone-300 bg-white pl-11 pr-10 py-3 text-sm font-bold text-stone-950 placeholder:text-stone-400 shadow-xs focus:border-[#9C3D1E] focus:outline-none"
             />
+            {searchTerm && (
+              <button
+                type="button"
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-700 transition cursor-pointer"
+                title="Clear search"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
 
@@ -425,18 +453,18 @@ export function ScreenM4OrderPad({
         </div>
       </div>
 
-      {/* Waiter Sticky Bottom Bar: Fire KOT with Live Sync */}
+      {/* Waiter Sticky Bottom Bar: Place Order */}
       {totalCartCount > 0 && (
         <div className="fixed bottom-0 inset-x-0 z-40 p-3 bg-white/95 border-t-2 border-stone-200 shadow-xl backdrop-blur-md">
           <motion.button
             whileTap={{ scale: 0.98 }}
             disabled={kotFired}
-            onClick={handleFireKOT}
+            onClick={handlePlaceOrder}
             className="flex w-full items-center justify-between rounded-2xl bg-[#9C3D1E] hover:bg-[#853216] px-5 py-4 text-xs font-black uppercase tracking-wider text-white shadow-md transition cursor-pointer disabled:opacity-75"
           >
             <div className="flex items-center gap-2">
               <Flame className="h-5 w-5 text-amber-300" />
-              <span className="text-sm">{kotFired ? 'KOT Fired!' : 'Fire KOT to Kitchen'}</span>
+              <span className="text-sm">{kotFired ? 'Order Placed!' : 'Place Order'}</span>
               <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-black text-white font-mono">
                 {totalCartCount} Items
               </span>
@@ -449,17 +477,161 @@ export function ScreenM4OrderPad({
         </div>
       )}
 
-      {/* Quick Customize Drawer */}
-      <ItemDrawer
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        item={drawerItem}
-        onAddToCart={(item, selectedOption, selectedAddOns, quantity) => {
-          addItemToCart(item, selectedOption, selectedAddOns, quantity);
-          setDrawerOpen(false);
-          setDrawerItem(null);
-        }}
-      />
+      {/* Compact Quick Customization Bottom Drawer */}
+      <AnimatePresence>
+        {drawerOpen && drawerItem && (
+          <div className="fixed inset-0 z-50 flex flex-col justify-end">
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setDrawerOpen(false);
+                setDrawerItem(null);
+              }}
+              className="absolute inset-0 bg-black/50 backdrop-blur-xs"
+            />
+
+            {/* Bottom Sheet - Compact, sleek, less area at bottom */}
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 340 }}
+              className="relative z-10 w-full max-w-lg mx-auto bg-white rounded-t-3xl border-t-2 border-[#9C3D1E] shadow-2xl p-4 space-y-3"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between pb-2 border-b border-stone-100">
+                <div className="min-w-0 pr-2">
+                  <span className="font-mono text-[9px] font-black uppercase text-[#9C3D1E] tracking-wider">
+                    {drawerItem.prepMode || drawerItem.category}
+                  </span>
+                  <h3 className="text-sm font-black text-stone-900 truncate">
+                    {drawerItem.name}
+                  </h3>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm font-black text-[#9C3D1E]">
+                    ₹{drawerItem.price}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrawerOpen(false);
+                      setDrawerItem(null);
+                    }}
+                    className="p-1 rounded-full bg-stone-100 text-stone-500 hover:bg-stone-200 transition cursor-pointer"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Option Choices - Compact horizontal chips */}
+              {drawerItem.optionsGroup1?.choices && (
+                <div className="space-y-1">
+                  <div className="text-[10px] font-mono font-black uppercase tracking-wider text-stone-500">
+                    {drawerItem.optionsGroup1.title}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {drawerItem.optionsGroup1.choices.map((ch) => {
+                      const isSelected = selectedOption === ch;
+                      return (
+                        <button
+                          key={ch}
+                          type="button"
+                          onClick={() => setSelectedOption(ch)}
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-2xs'
+                              : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                          }`}
+                        >
+                          {ch}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Add-ons - Compact chips */}
+              {drawerItem.optionsGroup2?.addOns && drawerItem.optionsGroup2.addOns.length > 0 && (
+                <div className="space-y-1">
+                  <div className="text-[10px] font-mono font-black uppercase tracking-wider text-stone-500">
+                    {drawerItem.optionsGroup2.title || 'Add-Ons'}
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {drawerItem.optionsGroup2.addOns.map((ao) => {
+                      const isSelected = selectedAddOns.includes(ao.name);
+                      return (
+                        <button
+                          key={ao.name}
+                          type="button"
+                          onClick={() =>
+                            setSelectedAddOns((prev) =>
+                              isSelected ? prev.filter((a) => a !== ao.name) : [...prev, ao.name]
+                            )
+                          }
+                          className={`px-3 py-1.5 rounded-xl text-[11px] font-bold border flex items-center gap-1.5 transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-amber-50 border-[#9C3D1E] text-[#9C3D1E] shadow-2xs'
+                              : 'bg-stone-50 text-stone-700 border-stone-200 hover:bg-stone-100'
+                          }`}
+                        >
+                          <span>{ao.name}</span>
+                          <span className="font-mono text-[10px] opacity-80">+₹{ao.extraPrice}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Action row with inline stepper and Add button */}
+              <div className="pt-2 flex items-center gap-2.5">
+                {/* Quantity Stepper */}
+                <div className="flex items-center gap-1.5 bg-stone-100 px-2 py-1.5 rounded-xl border border-stone-200 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                    className="h-6 w-6 rounded-lg bg-white flex items-center justify-center font-black text-stone-700 shadow-2xs cursor-pointer hover:bg-stone-50"
+                  >
+                    <Minus className="h-3 w-3 stroke-[3]" />
+                  </button>
+                  <span className="font-mono text-xs font-black text-stone-900 w-5 text-center">
+                    {quantity}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setQuantity((q) => q + 1)}
+                    className="h-6 w-6 rounded-lg bg-white flex items-center justify-center font-black text-stone-700 shadow-2xs cursor-pointer hover:bg-stone-50"
+                  >
+                    <Plus className="h-3 w-3 stroke-[3]" />
+                  </button>
+                </div>
+
+                {/* Add to Order Button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    addItemToCart(drawerItem, selectedOption, selectedAddOns, quantity);
+                    setDrawerOpen(false);
+                    setDrawerItem(null);
+                  }}
+                  className="flex-1 py-3 px-4 rounded-xl bg-[#9C3D1E] hover:bg-[#853216] text-white flex items-center justify-between font-mono text-xs font-black transition cursor-pointer shadow-md"
+                >
+                  <span>Add to Order</span>
+                  <span className="text-amber-200 text-sm">
+                    ₹{drawerUnitPrice * quantity}
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

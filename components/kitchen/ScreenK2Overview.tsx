@@ -16,10 +16,11 @@ interface K2TableItem {
   id: string;
   name: string;
   quantity: number;
-  stage: 'RECEIVED' | 'PREPARING' | 'READY';
+  stage: 'RECEIVED' | 'PREPARING' | 'READY' | 'PLACED';
   notes?: string;       
   options?: string;     
   addOns?: string[];    
+  seatNumber?: number;
 }
 
 interface K2Table {
@@ -29,78 +30,10 @@ interface K2Table {
   kotNumber: string;
   elapsedMinutes: number;
   serverName: string;
+  seatNumber?: number;
   items: K2TableItem[];
 }
 
-const INITIAL_K2_TABLES: K2Table[] = [
-  {
-    id: 'tbl-1',
-    tableNumber: 'TABLE 01',
-    kotNumber: '101',
-    elapsedMinutes: 14,
-    serverName: 'Captain Ramesh',
-    items: [
-      { id: 't1-i1', name: 'Special Chicken Donne Biryani', quantity: 2, stage: 'PREPARING' },
-      { id: 't1-i2', name: 'Mutton Chops Fry (Dry)', quantity: 1, stage: 'RECEIVED' },
-    ],
-  },
-  {
-    id: 'tbl-2',
-    tableNumber: 'TABLE 02',
-    kotNumber: '102',
-    elapsedMinutes: 8,
-    serverName: 'Captain Suresh',
-    items: [
-      { id: 't2-i1', name: 'Donne Mutton Biryani (Regular)', quantity: 2, stage: 'RECEIVED' },
-      { id: 't2-i2', name: 'Guntur Chicken Wings', quantity: 1, stage: 'RECEIVED' },
-    ],
-  },
-  {
-    id: 'tbl-3',
-    tableNumber: 'TABLE 03',
-    kotNumber: '103',
-    elapsedMinutes: 22,
-    serverName: 'Captain Naveen',
-    items: [
-      { id: 't3-i1', name: 'Special Chicken Donne Biryani', quantity: 1, stage: 'READY' },
-      { id: 't3-i2', name: 'Chicken Kshatriya Kebab', quantity: 1, stage: 'READY' },
-    ],
-  },
-  {
-    id: 'tbl-4',
-    tableNumber: 'TABLE 04',
-    isVip: true,
-    kotNumber: '104',
-    elapsedMinutes: 12,
-    serverName: 'Captain Ramesh',
-    items: [
-      { id: 't4-i1', name: 'Donne Mutton Biryani (Large)', quantity: 1, stage: 'PREPARING' },
-      { id: 't4-i2', name: 'Nati Koli Donne Biryani', quantity: 2, stage: 'PREPARING' },
-    ],
-  },
-  {
-    id: 'tbl-5',
-    tableNumber: 'TABLE 05',
-    kotNumber: '105',
-    elapsedMinutes: 5,
-    serverName: 'Captain Suresh',
-    items: [
-      { id: 't5-i1', name: 'Donne Mutton Biryani (Regular)', quantity: 1, stage: 'RECEIVED' },
-      { id: 't5-i2', name: 'Donne Egg Biryani', quantity: 3, stage: 'RECEIVED' },
-    ],
-  },
-  {
-    id: 'tbl-6',
-    tableNumber: 'TABLE 06',
-    kotNumber: '106',
-    elapsedMinutes: 18,
-    serverName: 'Captain Naveen',
-    items: [
-      { id: 't6-i1', name: 'Mutton Chops Fry (Dry)', quantity: 2, stage: 'READY' },
-      { id: 't6-i2', name: 'Special Donne Biryani Rice Combo', quantity: 1, stage: 'PREPARING' },
-    ],
-  },
-];
 
 const STAGE_STEPS = ['RECEIVED', 'PREPARING', 'READY'] as const;
 const STAGE_LABELS = ['1.REC', '2.PREP', '3.READY'];
@@ -136,6 +69,7 @@ export const ScreenK2Overview: React.FC = () => {
   const {
     setCurrentScreen,
     setSelectedTableNumber,
+    setSelectedTicketId,
     callFloorWaiter: localCallFloorWaiter,
   } = useKitchenStore();
 
@@ -146,7 +80,6 @@ export const ScreenK2Overview: React.FC = () => {
     callFloorWaiter: bridgeCallFloorWaiter,
   } = useSharedBridge();
 
-  const [tablesState, setTablesState] = useState<K2Table[]>(INITIAL_K2_TABLES);
   const [selectedCategory, setSelectedCategory] = useState<MenuCategory>('ALL CATEGORIES');
 
   const [bulkStages, setBulkStages] = useState<
@@ -182,49 +115,56 @@ export const ScreenK2Overview: React.FC = () => {
     prevTicketCountRef.current = bridgeTickets.length;
   }, [bridgeTickets.length]);
 
+  const formatKdsTableNumber = (num: string): string => {
+    if (!num) return 'TABLE --';
+    if (num.startsWith('TABLE')) return num;
+    if (num.startsWith('T-')) return `TABLE ${num.replace('T-', '')}`;
+    return `TABLE ${num}`;
+  };
+
   const activeBridgeTables: K2Table[] = useMemo(() => {
     return bridgeTickets
       .filter((tk) => tk.status !== 'COMPLETED')
-      .map((tk) => ({
-        id: tk.id,
-        tableNumber: `TABLE ${tk.tableNumber}`,
-        kotNumber: tk.id.replace('KDS-', ''),
-        elapsedMinutes: tk.elapsedMinutes || 1,
-        serverName: tk.serverName || 'Captain',
-        isVip: tk.source === 'CUSTOMER',
-        items: tk.items.map((it) => {
-          const key = `${tk.id}-${it.id}`;
-          const override = itemStageOverride[key];
-          const resolvedStage =
-            override ||
-            (it.stage === 'PLACED'
-              ? 'RECEIVED'
-              : it.stage === 'PREP'
-              ? 'PREPARING'
-              : it.stage === 'PLATED'
-              ? 'READY'
-              : 'READY');
-          return {
-            id: it.id,
-            name: it.name,
-            quantity: it.quantity,
-            stage: resolvedStage as 'RECEIVED' | 'PREPARING' | 'READY',
-            notes: it.notes,       
-            options: it.options,   
-            addOns: it.addOns,     
-          };
-        }),
-      }));
+      .map((tk) => {
+        const unservedItems = tk.items.filter((it) => it.stage !== 'SERVED');
+        return {
+          id: tk.id,
+          tableNumber: formatKdsTableNumber(tk.tableNumber),
+          kotNumber: tk.id.replace('KDS-', ''),
+          elapsedMinutes: tk.elapsedMinutes || 1,
+          serverName: tk.serverName || 'Floor Captain',
+          isVip: tk.source === 'CUSTOMER',
+          seatNumber: tk.seatNumber,
+          items: unservedItems.map((it) => {
+            const key = `${tk.id}-${it.id}`;
+            const override = itemStageOverride[key];
+            const resolvedStage =
+              it.stage === 'RECEIVED'
+                ? 'RECEIVED'
+                : it.stage === 'PREP'
+                ? 'PREPARING'
+                : it.stage === 'PLATED'
+                ? 'READY'
+                : override || 'PLACED';
+            return {
+              id: it.id,
+              name: it.name,
+              quantity: it.quantity,
+              stage: resolvedStage as 'RECEIVED' | 'PREPARING' | 'READY' | 'PLACED',
+              notes: it.notes,
+              options: it.options,
+              addOns: it.addOns,
+              seatNumber: it.seatNumber || tk.seatNumber,
+            };
+          }),
+        };
+      })
+      .filter((tbl) => tbl.items.length > 0);
   }, [bridgeTickets, itemStageOverride]);
 
   const allTablesToRender: K2Table[] = useMemo(() => {
-    if (activeBridgeTables.length === 0) return tablesState;
-    const tableNumsInBridge = new Set(activeBridgeTables.map((t) => t.tableNumber));
-    const remainingSeed = tablesState.filter(
-      (t) => !tableNumsInBridge.has(t.tableNumber)
-    );
-    return [...activeBridgeTables, ...remainingSeed];
-  }, [activeBridgeTables, tablesState]);
+    return activeBridgeTables;
+  }, [activeBridgeTables]);
 
   const categoryFilteredTables = useMemo(() => {
     return allTablesToRender
@@ -303,24 +243,12 @@ export const ScreenK2Overview: React.FC = () => {
     const key = `${tableId}-${itemId}`;
     setItemStageOverride((prev) => ({ ...prev, [key]: newStage }));
 
-    setTablesState((prev) =>
-      prev.map((tbl) => {
-        if (tbl.id !== tableId) return tbl;
-        return {
-          ...tbl,
-          items: tbl.items.map((it) =>
-            it.id === itemId ? { ...it, stage: newStage } : it
-          ),
-        };
-      })
-    );
-
     const bridgeStage: OrderStage =
       newStage === 'PREPARING'
         ? 'PREP'
         : newStage === 'READY'
         ? 'PLATED'
-        : 'PLACED';
+        : 'RECEIVED';
 
     const bridgeTicket = bridgeTickets.find(
       (tk) => tk.id === tableId || tk.items.some((i) => i.id === itemId)
@@ -350,32 +278,29 @@ export const ScreenK2Overview: React.FC = () => {
       return next;
     });
 
-    setTablesState((prev) =>
-      prev.map((tbl) => ({
-        ...tbl,
-        items: tbl.items.map((it) => {
-          const itLower = it.name.toLowerCase();
-          const isMatch =
-            itLower.includes(bulkLower) || bulkLower.includes(itLower);
-          return isMatch ? { ...it, stage: newStage } : it;
-        }),
-      }))
-    );
-
     const bridgeStage: OrderStage =
       newStage === 'PREPARING'
         ? 'PREP'
         : newStage === 'READY'
         ? 'PLATED'
-        : 'PLACED';
+        : 'RECEIVED';
 
     if (kitchenSetBulkItemStage) {
       kitchenSetBulkItemStage(bulkItemName, bridgeStage);
     }
+    if (newStage === 'READY') {
+      bridgeCallFloorWaiter('ALL', `${bulkItemName} Plated & Ready at Pass`);
+    }
   };
 
-  const handleOpenTable = (tableNumber: string) => {
-    setSelectedTableNumber(tableNumber.replace('TABLE ', ''));
+  const handleOpenTable = (ticketIdOrTableNum: string, maybeTableNum?: string) => {
+    if (maybeTableNum) {
+      setSelectedTicketId(ticketIdOrTableNum);
+      setSelectedTableNumber(maybeTableNum.replace('TABLE ', ''));
+    } else {
+      setSelectedTicketId('');
+      setSelectedTableNumber(ticketIdOrTableNum.replace('TABLE ', ''));
+    }
     setCurrentScreen(3);
   };
 
@@ -385,44 +310,19 @@ export const ScreenK2Overview: React.FC = () => {
   };
 
   const timeQueueTickets = useMemo(() => {
-    if (bridgeTickets.length > 0) {
-      return bridgeTickets.map((tk) => ({
+    return bridgeTickets
+      .filter((tk) => tk.status !== 'COMPLETED' && tk.items.some((it) => it.stage !== 'SERVED'))
+      .map((tk) => ({
+        ticketId: tk.id,
         ticketNum: tk.id.replace('KDS-', ''),
-        table: `TABLE ${tk.tableNumber}`,
+        table: `${formatKdsTableNumber(tk.tableNumber)}${tk.seatNumber ? ` • Chair ${tk.seatNumber}` : ''}`,
         time: ` (${tk.elapsedMinutes || 1}m)`,
-        items: tk.items.map((it) => `${it.quantity}x ${it.name}`),
+        items: tk.items
+          .filter((it) => it.stage !== 'SERVED')
+          .map((it) => `${it.quantity}x ${it.name}${it.seatNumber ? ` [Chair ${it.seatNumber}]` : ''}`),
       }));
-    }
-    return [
-      {
-        ticketNum: '101',
-        table: 'TABLE 01',
-        time: '(14m)',
-        items: [
-          '2x Special Chicken Donne Biryani [NOTE: LESS SPICY]',
-          '1x Mutton Chops Fry [NOTE: EXTRA CRISPY]',
-        ],
-      },
-      {
-        ticketNum: '102',
-        table: 'TABLE 02',
-        time: '(10m)',
-        items: [
-          '2x Donne Mutton Biryani [NOTE: EXTRA SALNA]',
-          '1x Guntur Chicken Wings [NOTE: STANDARD]',
-        ],
-      },
-      {
-        ticketNum: '103',
-        table: 'TABLE 03',
-        time: '(06m)',
-        items: [
-          '1x Special Chicken Donne Biryani',
-          '1x Chicken Kshatriya Kebab',
-        ],
-      },
-    ];
   }, [bridgeTickets]);
+
 
   return (
     <KitchenTabletHousing
@@ -558,9 +458,12 @@ export const ScreenK2Overview: React.FC = () => {
             </div>
 
             {categoryFilteredTables.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-64 text-slate-400">
-                <span className="font-mono text-xs font-bold">
-                  NO ACTIVE ORDERS FOR THIS FILTER
+              <div className="flex flex-col items-center justify-center h-64 text-slate-400 gap-2">
+                <span className="font-mono text-xs font-bold text-slate-700">
+                  ALL ORDERS CLEARED • KITCHEN PASS READY
+                </span>
+                <span className="font-mono text-[11px] text-slate-400">
+                  Live orders from Waiter Mobile or tables will appear here in real time
                 </span>
               </div>
             ) : (
@@ -570,13 +473,18 @@ export const ScreenK2Overview: React.FC = () => {
                   return (
                     <div
                       key={`${tbl.id}-${idx}`}
-                      onClick={() => handleOpenTable(tbl.tableNumber)}
+                      onClick={() => handleOpenTable(tbl.id, tbl.tableNumber)}
                       className="border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between bg-white border-[#EFE6DA] shadow-xs hover:shadow-sm"
                     >
                       <div>
                         <div className="flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#EFE6DA] mb-2">
-                          <div className="font-mono text-xs font-black text-slate-900 whitespace-nowrap">
-                            {tbl.tableNumber}
+                          <div className="font-mono text-xs font-black text-slate-900 whitespace-nowrap flex items-center gap-1.5">
+                            <span>{tbl.tableNumber}</span>
+                            {tbl.seatNumber && (
+                              <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[11px] font-black border border-amber-300">
+                                Chair {tbl.seatNumber}
+                              </span>
+                            )}
                           </div>
                           <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1 whitespace-nowrap">
                             <Clock className="h-3 w-3 text-[#E8722E] shrink-0" />
@@ -599,18 +507,51 @@ export const ScreenK2Overview: React.FC = () => {
                               className="bg-[#FBF7F0] border border-[#EFE6DA] rounded-lg p-2 space-y-1.5"
                             >
                               <div className="flex items-center justify-between text-xs font-mono font-black">
-                                <span className="text-slate-900 truncate pr-1">
-                                  {it.quantity}x {it.name}
-                                </span>
+                                <div className="text-slate-900 truncate pr-1">
+                                  <span>{it.quantity}x {it.name}</span>
+                                  {it.seatNumber && (
+                                    <span className="ml-1.5 text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-200">
+                                      Chair {it.seatNumber}
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="font-mono text-[8.5px] font-bold bg-white border border-[#EFE6DA] px-1.5 py-0.5 rounded text-slate-800 shrink-0">
                                   STAGE{' '}
                                   {it.stage === 'RECEIVED'
                                     ? '1: RECEIVED'
                                     : it.stage === 'PREPARING'
                                     ? '2: PREPARING'
-                                    : '3: READY'}
+                                    : it.stage === 'READY'
+                                    ? '3: READY'
+                                    : 'NEW ORDER'}
                                 </span>
                               </div>
+                              {it.options && (
+                                <div className="text-[9.5px] text-stone-500 font-mono">
+                                  [{it.options}]
+                                </div>
+                              )}
+                              {it.addOns && it.addOns.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  <span className="text-[8px] font-black text-amber-700 uppercase tracking-wide self-center">
+                                    Add-ons:
+                                  </span>
+                                  {it.addOns.map((ao, aoIdx) => (
+                                    <span
+                                      key={aoIdx}
+                                      className="px-1.5 py-0.5 rounded-md bg-amber-200 border border-amber-400 text-[8.5px] font-black text-amber-900"
+                                    >
+                                      + {ao}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                              {it.notes && (
+                                <div className="text-[9px] text-stone-400 font-mono italic">
+                                  ({it.notes})
+                                </div>
+                              )}
+
 
                               <div className="grid grid-cols-3 gap-1 pt-0.5 font-mono text-[9px] font-black">
                                 {STAGE_STEPS.map((stg, sIdx) => {
@@ -648,7 +589,7 @@ export const ScreenK2Overview: React.FC = () => {
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleOpenTable(tbl.tableNumber);
+                          handleOpenTable(tbl.id, tbl.tableNumber);
                         }}
                         className="w-full mt-3 py-1.5 bg-[#E8722E] hover:bg-[#d15f1f] text-white font-mono text-[10px] font-black rounded uppercase tracking-wider transition text-center shadow-xs"
                       >
@@ -674,10 +615,17 @@ export const ScreenK2Overview: React.FC = () => {
               </div>
 
               <div className="space-y-2.5">
-                {timeQueueTickets.map((tq, idx) => (
+                {timeQueueTickets.length === 0 ? (
+                  <div className="py-12 flex flex-col items-center justify-center text-slate-400 text-center gap-1 font-mono text-[11px]">
+                    <Clock className="h-6 w-6 text-slate-300" />
+                    <span className="font-bold text-slate-500">NO TIMED ORDERS</span>
+                    <span className="text-[10px] text-slate-400">All table tickets completed</span>
+                  </div>
+                ) : (
+                  timeQueueTickets.map((tq, idx) => (
                   <div
                     key={idx}
-                    onClick={() => handleOpenTable(tq.table)}
+                    onClick={() => handleOpenTable(tq.ticketId, tq.table)}
                     className="p-2.5 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] cursor-pointer transition shadow-xs"
                   >
                     <div className="flex items-center justify-between mb-1 gap-2">
@@ -697,7 +645,8 @@ export const ScreenK2Overview: React.FC = () => {
                       ))}
                     </div>
                   </div>
-                ))}
+                  ))
+                )}
               </div>
             </div>
 

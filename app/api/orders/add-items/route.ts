@@ -74,6 +74,7 @@ export async function POST(req: NextRequest) {
         options: it.options || it.selectedOption || null,
         selected_option: it.selectedOption || it.options || null,
         add_ons: it.addOns || it.add_ons || [],
+        addOns: it.addOns || it.add_ons || [],
         notes: it.notes || null,
       };
     });

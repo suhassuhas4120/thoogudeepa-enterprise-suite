@@ -35,17 +35,10 @@ function getOccupiedSeatsForTable(
   kdsTickets: SharedKDSTicket[]
 ): Set<number> {
   const occupied = new Set<number>();
-
-  // Strict restaurant rule: If table has no running bill (₹0) and no active items, it is 100% VACANT!
-  const hasBill = typeof table.currentBill === 'number' && table.currentBill > 0;
-  const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
-
-  if (!hasBill && !hasActiveItems) {
-    return occupied;
-  }
+  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
 
   // 1. Check table activeItems (live table order)
-  if (table.activeItems) {
+  if (table.activeItems && table.activeItems.length > 0) {
     for (const item of table.activeItems) {
       if (item.seatNumber && item.seatNumber >= 1 && item.seatNumber <= capacity) {
         occupied.add(item.seatNumber);
@@ -53,23 +46,26 @@ function getOccupiedSeatsForTable(
     }
   }
 
-  // 2. Check active KDS tickets only if running bill exists
-  if (hasBill) {
-    const tickets = kdsTickets.filter((tk) => tk.tableNumber === table.number && tk.status !== 'COMPLETED');
-    for (const tk of tickets) {
-      if (tk.seatNumber && tk.seatNumber >= 1 && tk.seatNumber <= capacity) {
-        occupied.add(tk.seatNumber);
-      }
-      for (const item of tk.items) {
-        if (item.seatNumber && item.seatNumber >= 1 && item.seatNumber <= capacity) {
-          occupied.add(item.seatNumber);
-        }
+  // 2. Check active KDS tickets
+  const matchingTickets = kdsTickets.filter(
+    (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(table.number) && tk.status !== 'COMPLETED'
+  );
+  for (const tk of matchingTickets) {
+    if (tk.seatNumber && tk.seatNumber >= 1 && tk.seatNumber <= capacity) {
+      occupied.add(tk.seatNumber);
+    }
+    for (const item of tk.items || []) {
+      const seat = item.seatNumber || (item as any).seat_number;
+      if (seat && seat >= 1 && seat <= capacity) {
+        occupied.add(seat);
       }
     }
   }
 
-  // If table has orders placed / running bill but no specific chair was tagged (whole-table order):
-  if (occupied.size === 0 && (hasBill || hasActiveItems)) {
+  // If table has running bill or active tickets/items but no chair tagged:
+  const hasBill = typeof table.currentBill === 'number' && table.currentBill > 0;
+  const hasOrders = hasBill || matchingTickets.length > 0 || (table.activeItems && table.activeItems.length > 0);
+  if (occupied.size === 0 && hasOrders) {
     occupied.add(1);
   }
 
@@ -80,27 +76,22 @@ function getTableItemsPlacedCount(
   table: SharedTable,
   kdsTickets: SharedKDSTicket[]
 ): number {
-  // Strict restaurant rule: If table has no running bill (₹0) and no active items, it has 0 items!
-  const hasBill = typeof table.currentBill === 'number' && table.currentBill > 0;
-  const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
-
-  if (!hasBill && !hasActiveItems) {
-    return 0;
-  }
+  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
 
   // 1. Table activeItems (true source of truth for active items)
-  if (hasActiveItems && table.activeItems) {
+  if (table.activeItems && table.activeItems.length > 0) {
     return table.activeItems.reduce((s, it) => s + (it.quantity || 1), 0);
   }
 
-  // 2. Active tickets if running bill exists
-  if (hasBill) {
-    const tickets = kdsTickets.filter((tk) => tk.tableNumber === table.number && tk.status !== 'COMPLETED');
-    const ticketItemsCount = tickets.reduce(
-      (sum, tk) => sum + tk.items.reduce((s, it) => s + (it.quantity || 1), 0),
+  // 2. Active tickets
+  const matchingTickets = kdsTickets.filter(
+    (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(table.number) && tk.status !== 'COMPLETED'
+  );
+  if (matchingTickets.length > 0) {
+    return matchingTickets.reduce(
+      (sum, tk) => sum + (tk.items || []).filter((i) => i.stage !== 'SERVED').reduce((s, it) => s + (it.quantity || 1), 0),
       0
     );
-    if (ticketItemsCount > 0) return ticketItemsCount;
   }
 
   return 0;
@@ -336,11 +327,22 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       }
 
       // Sum bills across all members
-      const totalBill = allMembers.reduce((s, t) => s + (t.currentBill || 0), 0);
-      const hasOrders = totalBill > 0 && (totalItemsPlaced > 0 || occupiedChairs > 0);
+      const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+      const memberCleanNums = new Set(allMembers.map((m) => cleanTableNum(m.number)));
+      const matchingTickets = kdsTickets.filter(
+        (tk) => memberCleanNums.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED'
+      );
+      const ticketTotal = matchingTickets.reduce((sum, tk) =>
+        sum + (tk.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 1), 0),
+        0
+      );
+      const ticketBillWithTax = Math.round(ticketTotal * 1.05);
+      const rawBill = allMembers.reduce((s, t) => s + (t.currentBill || 0), 0);
+      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : rawBill;
+      const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || allMembers.some((m) => m.status === 'OCCUPIED' || m.status === 'BILLING');
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (primaryTbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
-        : 'VACANT';
+        : (primaryTbl.status === 'CLEANING' ? 'CLEANING' : 'VACANT');
 
       const hasPing = allMembers.some((t) => urgentPingTables.has(t.number));
       const elapsedMins = hasOrders ? calculateElapsedMinutes(primaryTbl.seatedTime) : null;
@@ -378,11 +380,20 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       const occupiedChairs = occSeats.size;
 
       const totalItemsPlaced = getTableItemsPlacedCount(tbl, kdsTickets);
-      const totalBill = tbl.currentBill || 0;
-      const hasOrders = totalBill > 0 && (totalItemsPlaced > 0 || occupiedChairs > 0);
+      const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+      const matchingTickets = kdsTickets.filter(
+        (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tbl.number) && tk.status !== 'COMPLETED'
+      );
+      const ticketTotal = matchingTickets.reduce((sum, tk) =>
+        sum + (tk.items || []).reduce((s, it) => s + Number(it.price || 0) * Number(it.quantity || 1), 0),
+        0
+      );
+      const ticketBillWithTax = Math.round(ticketTotal * 1.05);
+      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : (tbl.currentBill || 0);
+      const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || tbl.status === 'OCCUPIED' || tbl.status === 'BILLING';
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (tbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
-        : 'VACANT';
+        : (tbl.status === 'CLEANING' ? 'CLEANING' : 'VACANT');
 
       const hasPing = urgentPingTables.has(tbl.number);
       const elapsedMins = hasOrders ? calculateElapsedMinutes(tbl.seatedTime) : null;
@@ -654,12 +665,24 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
             const isFull = entry.occupiedChairs >= entry.totalChairs && entry.totalChairs > 0;
             const badge = getTableBadge(entry.status, isFull, entry.occupiedChairs, entry.totalChairs);
             const isBeingHeld = holdingTable === entry.primary.number;
-            const allMemberNums = entry.allMembers.map((m) => m.number);
-            const readyCount = entry.totalBill > 0
-              ? kdsTickets.filter(
-                  (tk) => tk.status === 'READY' && allMemberNums.includes(tk.tableNumber)
-                ).length
-              : 0;
+            const allMemberNums: string[] = entry.allMembers.map((m) => m.number);
+            const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+            const tableTickets = kdsTickets.filter(
+              (tk) =>
+                tk.status !== 'COMPLETED' &&
+                allMemberNums.some((num: string) => cleanTableNum(num) === cleanTableNum(tk.tableNumber))
+            );
+            let readyItemsCount = 0;
+            let prepItemsCount = 0;
+            let recItemsCount = 0;
+            tableTickets.forEach((tk) => {
+              (tk.items || []).forEach((it) => {
+                if (it.stage === 'PLATED') readyItemsCount += it.quantity;
+                else if (it.stage === 'PREP') prepItemsCount += it.quantity;
+                else if (it.stage === 'RECEIVED') recItemsCount += it.quantity;
+              });
+            });
+
             const pendingPingCount = pings.filter(
               (p) => p.status === 'PENDING' && allMemberNums.includes(p.tableNumber)
             ).length;
@@ -804,10 +827,22 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
                           <Link2 className="h-3.5 w-3.5" />
                         </span>
                       )}
-                      {readyCount > 0 && (
-                        <div className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 font-mono text-[9.5px] font-black shrink-0 shadow-2xs">
+                      {readyItemsCount > 0 && (
+                        <div className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 font-mono text-[9px] font-black shrink-0 shadow-2xs">
                           <span className="text-emerald-600 animate-pulse text-[8px]">●</span>
-                          <span>{readyCount} READY</span>
+                          <span>{readyItemsCount} SERVE</span>
+                        </div>
+                      )}
+                      {prepItemsCount > 0 && readyItemsCount === 0 && (
+                        <div className="inline-flex items-center gap-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 px-2 py-0.5 font-mono text-[9px] font-black shrink-0 shadow-2xs">
+                          <span className="text-amber-600 animate-pulse text-[8px]">●</span>
+                          <span>{prepItemsCount} PREP</span>
+                        </div>
+                      )}
+                      {recItemsCount > 0 && prepItemsCount === 0 && readyItemsCount === 0 && (
+                        <div className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-800 border border-sky-300 px-2 py-0.5 font-mono text-[9px] font-black shrink-0 shadow-2xs">
+                          <span className="text-sky-600 text-[8px]">●</span>
+                          <span>{recItemsCount} REC</span>
                         </div>
                       )}
                     </div>

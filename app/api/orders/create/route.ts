@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
     const orderId = `ORD-${cleanTable}-S${seatNumber}-${timestamp.toString().slice(-6)}`;
     const ticketId = `KOT-${cleanTable}-${timestamp.toString().slice(-4)}`;
 
+    const nowIso = new Date().toISOString();
+
     // 1. Create order record
     const { error: orderErr } = await supabase.from('orders').insert({
       id: orderId,
@@ -63,6 +65,8 @@ export async function POST(req: NextRequest) {
       status: 'UNPAID',
       source,
       device_token: deviceToken,
+      created_at: nowIso,
+      updated_at: nowIso,
     });
 
     if (orderErr) {
@@ -74,12 +78,14 @@ export async function POST(req: NextRequest) {
       const unitPrice = Number(it.unitPrice || it.price || 0);
       const qty = Number(it.quantity || 1);
       const totalPrice = unitPrice * qty;
+      const itemSeat = it.seat_number || it.seatNumber || seatNumber;
 
       return {
         id: `${orderId}-it-${index + 1}`,
         order_id: orderId,
         table_number: tableNumber,
-        seat_number: seatNumber,
+        seat_number: itemSeat,
+        seatNumber: itemSeat,
         name: it.name,
         quantity: qty,
         unit_price: unitPrice,
@@ -90,7 +96,10 @@ export async function POST(req: NextRequest) {
         options: it.options || it.selectedOption || null,
         selected_option: it.selectedOption || it.options || null,
         add_ons: it.addOns || it.add_ons || [],
+        addOns: it.addOns || it.add_ons || [],
         notes: it.notes || null,
+        created_at: nowIso,
+        updated_at: nowIso,
       };
     });
 
@@ -109,6 +118,8 @@ export async function POST(req: NextRequest) {
       status: 'NEW',
       source,
       items: lineItems,
+      created_at: nowIso,
+      updated_at: nowIso,
     });
 
     if (kdsErr) {
@@ -122,7 +133,7 @@ export async function POST(req: NextRequest) {
         status: 'OCCUPIED',
         active_order_id: orderId,
         device_token: deviceToken,
-        updated_at: new Date().toISOString(),
+        updated_at: nowIso,
       })
       .eq('table_number', tableNumber)
       .eq('seat_number', seatNumber);
@@ -137,8 +148,8 @@ export async function POST(req: NextRequest) {
         status: 'OCCUPIED',
         current_bill: newBill,
         kot_count: newKotCount,
-        guest_count: Math.max(Number(tableRecord.guest_count || 0), guestCount),
-        updated_at: new Date().toISOString(),
+        guest_count: Math.max(Number(tableRecord.guest_count || 0), guestCount, seatNumber),
+        updated_at: nowIso,
       })
       .eq('number', tableNumber);
 

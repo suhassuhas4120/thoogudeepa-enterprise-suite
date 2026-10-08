@@ -234,6 +234,7 @@ export const Screen5LiveTracking: React.FC = () => {
 
   const stageKeyToIdx: Record<OrderStage, number> = {
     PLACED: 0,
+    RECEIVED: 0,
     PREP: 1,
     PLATED: 2,
     SERVED: 3,

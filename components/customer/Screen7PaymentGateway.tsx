@@ -47,7 +47,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     venueName,
   } = useCustomer();
 
-  const { waiterRecordsPayment } = useSharedBridge();
+  const { waiterRecordsPayment, customerPingsWaiter } = useSharedBridge();
 
   // Tab State: 'UPI' | 'CASH' | 'CARD'
   const [activeTab, setActiveTab] = useState<'UPI' | 'CASH' | 'CARD'>('UPI');
@@ -231,12 +231,26 @@ export const Screen7PaymentGateway: React.FC = () => {
         }, 700);
       } else if (activeTab === 'CASH') {
         waiterRecordsPayment(effectiveTable, 'CASH', grandTotal);
+        customerPingsWaiter(
+          effectiveTable,
+          'CASH BILL',
+          `Customer (Table ${effectiveTable})`,
+          selectedTender.change > 0
+            ? `Cash payment: ₹${selectedTender.amount} tendered, ₹${selectedTender.change} return change requested`
+            : `Exact cash payment of ₹${grandTotal} ready at table`
+        );
         setTimeout(() => {
           setIsProcessing(false);
           setCurrentScreen(8);
         }, 700);
       } else {
         waiterRecordsPayment(effectiveTable, 'CARD', grandTotal);
+        customerPingsWaiter(
+          effectiveTable,
+          'CARD POS',
+          `Customer (Table ${effectiveTable})`,
+          `Portable POS Card Machine requested at Table ${effectiveTable} (Bill: ₹${grandTotal})`
+        );
         setTimeout(() => {
           setIsProcessing(false);
           setCurrentScreen(8);

@@ -23,7 +23,17 @@ export const Screen10WaiterCall: React.FC = () => {
     venueName,
   } = useCustomer();
   const { pings } = useSharedBridge();
-  const activePing = pings?.find((p) => p.tableNumber === tableNumber);
+  // Check live shared bridge pings for this table
+  const pendingPing = pings?.find(
+    (p) => p.tableNumber === tableNumber && p.status === 'PENDING'
+  );
+  const resolvedPing = pings?.find(
+    (p) => p.tableNumber === tableNumber && p.status === 'RESOLVED'
+  );
+
+  const isPending = Boolean(pendingPing || waiterNotification?.active);
+  const isResolved = !pendingPing && Boolean(resolvedPing);
+
   const [customText, setCustomText] = useState('');
 
   const handlePing = (type: WaiterPingType) => {
@@ -81,21 +91,38 @@ export const Screen10WaiterCall: React.FC = () => {
       />
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
-        {/* Active Ping Status Banner */}
+        {/* Active Ping Status Banner (Reactive to Waiter Acknowledgement) */}
         <AnimatePresence>
-          {waiterNotification?.active && (
+          {isPending && (
+            <motion.div
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm"
+            >
+              <div className="flex items-center gap-2 font-black text-xs text-amber-900">
+                <CheckCircle2 className="h-4 w-4 text-amber-600 animate-pulse" />
+                <span>Captain Summoned! (Pending Acknowledgment)</span>
+              </div>
+              <p className="mt-1 text-xs font-medium text-amber-800">
+                {pendingPing?.message || waiterNotification?.message || 'Floor Captain has been alerted.'}
+              </p>
+            </motion.div>
+          )}
+
+          {!isPending && isResolved && (
             <motion.div
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
               className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 shadow-sm"
             >
-              <div className="flex items-center gap-2 font-black text-xs text-emerald-800">
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 animate-pulse" />
-                <span>Captain Summoned!</span>
+              <div className="flex items-center gap-2 font-black text-xs text-emerald-900">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <span>Captain Attending Table {tableNumber}!</span>
               </div>
               <p className="mt-1 text-xs font-medium text-emerald-700">
-                {waiterNotification.message}
+                Floor Captain has acknowledged and attended your request for {resolvedPing?.type || 'Assistance'}.
               </p>
             </motion.div>
           )}

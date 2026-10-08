@@ -34,10 +34,31 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Fallback: look up recent ticket items for this table if items are empty
+    if ((!items.length || total === 0) && tableNumber) {
+      const cleanNum = tableNumber.replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const { data: ticketData } = await supabase
+        .from('kds_tickets')
+        .select('*')
+        .or(`table_number.eq.${tableNumber},table_number.eq.T-${cleanNum},table_number.eq.TABLE ${cleanNum}`)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (ticketData && Array.isArray(ticketData.items) && ticketData.items.length > 0) {
+        items = ticketData.items;
+      }
+    }
+
     if (!total && items.length) {
       subtotal = items.reduce((sum: number, it: any) => sum + (Number(it.price || it.unitPrice || 0) * (it.quantity || 1)), 0);
       tax = Math.round(subtotal * 0.05);
       total = subtotal + tax;
+    }
+
+    if (total > 0 && subtotal === 0) {
+      subtotal = Math.round(total / 1.05);
+      tax = total - subtotal;
     }
 
     // Format item lines for receipt

@@ -60,7 +60,7 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
 
   type ReadyNotif = ReadyItemNotif | ReadyGroupNotif;
 
-  const readyNotifications: ReadyNotif[] = [];
+  const readyNotifications: ReadyNotif[] = []; // readyTickets
 
   kdsTickets.forEach((tk) => {
     if (tk.status === 'COMPLETED' || tk.status === 'SERVED') return;

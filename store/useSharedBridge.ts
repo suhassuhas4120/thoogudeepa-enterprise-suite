@@ -143,6 +143,7 @@ const freshInventory86: SharedMenuItem86[] = INITIAL_MENU_ITEMS.map((item) => ({
 
 let ticketCounter = 1;
 let notifCounter = 1;
+let itemIdCounter = 1;
 const makeTicketId = () => {
   if (typeof ticketCounter !== 'number' || isNaN(ticketCounter)) {
     ticketCounter = 1;
@@ -328,7 +329,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       source: 'CUSTOMER',
       seatNumber: assignedSeat,
       items: items.map((i, idx) => ({
-        id: `ki-c-${Date.now()}-${idx}`,
+        id: `ki-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
         name: i.item.name,
         quantity: i.quantity,
         stage: 'PLACED',
@@ -379,7 +380,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               activeItems: [
                 ...(t.activeItems || []),
                 ...items.map((i, idx) => ({
-                  id: `ai-c-${Date.now()}-${idx}`,
+                  id: `ai-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
                   name: i.item.name,
                   quantity: i.quantity,
                   status: 'Placed',
@@ -491,7 +492,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -690,8 +691,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         if (t.id !== ticketId) return t;
         return {
           ...t,
-          status: 'READY' as const,
-          items: t.items.map((i) => ({ ...i, stage: 'PLATED' as OrderStage })),
+          status: 'READY' as const, // status: 'READY',
+          items: t.items.map((i) => ({ ...i, stage: 'PLATED' as OrderStage })), // items: t.items.map((i) => ({ ...i, stage: 'PLATED' }))
         };
       });
 
@@ -718,7 +719,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       { ticketId, status: 'READY' },
       () => {
         console.error('[Bridge] kitchenBumpTable rollback');
-        useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables });
+        useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables }); // useSharedBridge.setState({ kdsTickets: prevTickets })
       }
     );
   },
@@ -814,7 +815,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         }, 0);
         const unitPrice = i.item.price + addOnExtra;
         return {
-          id: `ki-w-${Date.now()}-${idx}`,
+          id: `ki-w-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
           name: i.item.name,
           quantity: i.quantity,
           stage: 'PLACED',
@@ -881,7 +882,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                     return s + (found?.extraPrice || 0);
                   }, 0);
                   return {
-                    id: `ai-w-${Date.now()}-${idx}`,
+                    id: `ai-w-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
                     name: i.item.name,
                     quantity: i.quantity,
                     status: 'Placed',
@@ -1279,7 +1280,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         shiftStats: {
           ...state.shiftStats,
           totalRevenue: state.shiftStats.totalRevenue + amount,
-          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1),
+          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1), // tablesServed: state.shiftStats.tablesServed + 1
         },
       };
     });
@@ -1301,7 +1302,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           groupNums.has(t.number) || cleanNum(t.number) === targetNum
             ? {
                 ...t,
-                status: 'CLEANING' as const,
+                status: 'VACANT' as const,
                 currentBill: 0,
                 guestCount: 0,
                 kotCount: 0,
@@ -1322,17 +1323,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       };
     });
 
-    // Exactly 1 minute (60s) transition from CLEANING to green VACANT
-    setTimeout(() => {
-      set((state) => ({
-        tables: state.tables.map((t) =>
-          (cleanNum(t.number) === targetNum || t.number === tableNumber) && t.status === 'CLEANING'
-            ? { ...t, status: 'VACANT' as const }
-            : t
-        ),
-      }));
-      broadcastStateChange('tableVacated');
-    }, 60000);
+    broadcastStateChange('tableVacated');
 
     // Persist to Supabase
     bridgePost(
@@ -1451,7 +1442,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        return { ...t, items: newItems, status: allServed ? ('SERVED' as const) : t.status };
+        return { ...t, items: newItems, status: allServed ? ('COMPLETED' as const) : t.status }; // status: allServed ? 'COMPLETED' : t.status
       });
 
       if (!targetTableNumber) {
@@ -1503,6 +1494,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     }
     ticketCounter = 1;
     notifCounter = 1;
+    itemIdCounter = 1;
     set({
       tables: freshTables,
       kdsTickets: [],

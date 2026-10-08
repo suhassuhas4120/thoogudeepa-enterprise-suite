@@ -290,48 +290,48 @@ export function ScreenM4OrderPad({
         </span>
       </div>
 
-      {/* Scrollable Content Container */}
-      <div className="flex-1 overflow-y-auto pb-24 bg-[#FAF8F5]">
-        {/* Search Input & Cart Button - Exactly beside Search Input */}
-        <div className="px-4 pt-3.5 pb-2.5 flex items-center gap-2.5">
-          <div className="relative flex-1 flex items-center">
-            <Search className="absolute left-3.5 h-5 w-5 text-[#9C3D1E]" />
-            <input
-              type="text"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search Dishes, Donne Biryani, Starters..."
-              className="w-full rounded-2xl border-2 border-stone-300 bg-white pl-11 pr-10 py-3 text-sm font-bold text-stone-950 placeholder:text-stone-400 shadow-xs focus:border-[#9C3D1E] focus:outline-none"
-            />
-            {searchTerm && (
-              <button
-                type="button"
-                onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-700 transition cursor-pointer"
-                title="Clear search"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-
-          {/* Cart Icon Button directly beside Search Bar */}
-          <button
-            type="button"
-            onClick={() => setIsCartDrawerOpen(true)}
-            className="relative h-12 w-12 rounded-2xl bg-white border-2 border-stone-300 hover:border-[#9C3D1E] active:scale-95 text-[#9C3D1E] flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer group"
-            title="View Order Cart"
-            aria-label="View Order Cart"
-          >
-            <ShoppingCart className="h-5 w-5 stroke-[2.4] group-hover:scale-110 transition-transform" />
-            {totalCartCount > 0 && (
-              <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-[#9C3D1E] text-white text-[10.5px] font-mono font-black rounded-full flex items-center justify-center shadow-xs border-2 border-white animate-scale-in">
-                {totalCartCount}
-              </span>
-            )}
-          </button>
+      {/* Sticky Search Bar and Cart Icon (Pinned at top when scrolled) */}
+      <div className="sticky top-0 z-30 bg-[#FAF8F5]/98 backdrop-blur-md px-4 pt-3 pb-2.5 flex items-center gap-2.5 border-b border-stone-200/80 shrink-0 shadow-xs">
+        <div className="relative flex-1 flex items-center">
+          <Search className="absolute left-3.5 h-5 w-5 text-[#9C3D1E]" />
+          <input
+            type="text"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search Dishes, Donne Biryani, Starters..."
+            className="w-full rounded-2xl border-2 border-stone-300 bg-white pl-11 pr-10 py-3 text-sm font-bold text-stone-950 placeholder:text-stone-400 shadow-xs focus:border-[#9C3D1E] focus:outline-none"
+          />
+          {searchTerm && (
+            <button
+              type="button"
+              onClick={() => setSearchTerm('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-stone-400 hover:text-stone-700 transition cursor-pointer"
+              title="Clear search"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
         </div>
 
+        {/* Cart Icon Button directly beside Search Bar */}
+        <button
+          type="button"
+          onClick={() => setIsCartDrawerOpen(true)}
+          className="relative h-12 w-12 rounded-2xl bg-white border-2 border-stone-300 hover:border-[#9C3D1E] active:scale-95 text-[#9C3D1E] flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer group"
+          title="View Order Cart"
+          aria-label="View Order Cart"
+        >
+          <ShoppingCart className="h-5 w-5 stroke-[2.4] group-hover:scale-110 transition-transform" />
+          {totalCartCount > 0 && (
+            <span className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-[#9C3D1E] text-white text-[10.5px] font-mono font-black rounded-full flex items-center justify-center shadow-xs border-2 border-white animate-scale-in">
+              {totalCartCount}
+            </span>
+          )}
+        </button>
+      </div>
+
+      {/* Scrollable Content Container */}
+      <div className="flex-1 overflow-y-auto pb-24 bg-[#FAF8F5]">
         {/* Categories Bar - High Contrast Pills */}
         <div className="border-b-2 border-stone-200 bg-white px-4 py-2.5">
           <div className="mb-1.5 text-[11px] font-black tracking-widest text-stone-700 uppercase font-mono">

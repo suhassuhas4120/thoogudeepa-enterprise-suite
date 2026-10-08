@@ -39,10 +39,10 @@ export const Screen3ItemDetail: React.FC = () => {
     );
   };
 
-  const handleAddAndGoToCart = () => {
+  const handleAddToCart = () => {
     if (isSoldOut) return;
     addToCart(item, selectedOption, selectedAddOns, quantity);
-    setCurrentScreen(4);
+    setCurrentScreen(2);
   };
 
   let currentTotal = item.price;
@@ -355,7 +355,7 @@ export const Screen3ItemDetail: React.FC = () => {
       <StickyBottomBar>
         <motion.button
           whileTap={{ scale: 0.98 }}
-          onClick={handleAddAndGoToCart}
+          onClick={handleAddToCart}
           disabled={isSoldOut}
           className="flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
           style={
@@ -372,14 +372,14 @@ export const Screen3ItemDetail: React.FC = () => {
                 }
           }
         >
-          <span>{isSoldOut ? 'Item Sold Out' : 'Add to Cart & Review'}</span>
+          <span>{isSoldOut ? 'Item Sold Out' : 'Add Item to Cart'}</span>
           <div className="flex items-center gap-2">
             <span
               className="font-mono text-sm font-bold opacity-90"
             >
               ₹{currentTotal * quantity}
             </span>
-            <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+            <Check className="h-4 w-4 stroke-[2.5]" />
           </div>
         </motion.button>
       </StickyBottomBar>

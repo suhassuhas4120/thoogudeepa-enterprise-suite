@@ -114,7 +114,7 @@ export const Screen11Loyalty: React.FC = () => {
                     className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
                       isRedeemed
                         ? 'bg-emerald-100 text-emerald-700 border border-emerald-300'
-                        : 'bg-slate-900 text-white hover:bg-orange-600'
+                        : 'bg-slate-800 text-white hover:bg-orange-600'
                     }`}
                   >
                     {isRedeemed ? 'REDEEMED' : 'REDEEM'}

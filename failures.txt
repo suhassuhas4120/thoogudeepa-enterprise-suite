@@ -1,0 +1,147 @@
+=== PHASE 5 FAILURES (116) ===
+  ✗ placeAllOrders calls placeOrderToSupabase
+  ✗ Screen2Menu.tsx imports StickyBottomBar
+  ✗ Screen2Menu.tsx renders <StickyBottomBar
+  ✗ ScreenHousing Dynamic Island pill is bg-slate-900 (intentional hardware UI)
+  ✗ Screen content area uses warm canvas bg-[#FAF8F5]/70
+  ✗ WireHeader uses bg-white/95 backdrop-blur
+  ✗ WireHeader border uses slate-200
+  ✗ WireHeader call-waiter button uses orange styling
+  ✗ WireHeader cart button uses brand color #9C3D1E
+  ✗ WireHeader cart badge uses orange-600 background
+  ✗ StickyBottomBar has bg-white/95
+  ✗ Screen1Welcome.tsx uses warm screen background #FFFCF7
+  ✗ Screen2Menu.tsx uses warm screen background #FFFCF7
+  ✗ Screen3ItemDetail.tsx uses warm screen background #FFFCF7
+  ✗ Screen4Cart.tsx uses warm screen background #FFFCF7
+  ✗ Screen6PaymentBreakdown.tsx uses warm screen background #FFFCF7
+  ✗ Screen10WaiterCall.tsx uses warm screen background #FFFCF7
+  ✗ Welcome proceed button: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Menu cart CTA: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Cart place order CTA: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Payment breakdown CTA: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Waiter call send button: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Screen1Welcome.tsx uses warm card border #E8D5C3
+  ✗ Screen2Menu.tsx uses warm card border #E8D5C3
+  ✗ Screen6PaymentBreakdown.tsx uses warm card border #E8D5C3
+  ✗ Screen10WaiterCall.tsx uses warm card border #E8D5C3
+  ✗ Screen1 checks /api/session/verify endpoint
+  ✗ Screen1 uses setCheckingSession for loading state
+  ✗ Screen1 navigates to screen 5 if activeOrder found
+  ✗ Screen1 shows 'Resume Ongoing Order' when activeOrderFound
+  ✗ Screen1 shows 'PROCEED TO MENU' text for fresh session
+  ✗ Screen1 sets default name to Seat {seatNumber} if blank
+  ✗ Screen1 shows active order restoration banner
+  ✗ Screen1 uses Wi-Fi button that sets wifiConnected
+  ✗ Screen1 shows Wi-Fi Connected state when connected
+  ✗ Screen1 has MapPin for table badge
+  ✗ Screen1 uses 'Powered by Thoogudeepa SaaS' brand footer
+  ✗ Screen6 shows Total Amount row
+  ✗ Screen6 total uses brand color #8A4228
+  ✗ Screen9 has VIP Club navigation (Screen11)
+  ✗ Screen9 has Feedback navigation (Screen12)
+  ✗ Screen2 has 'Starters' category
+  ✗ Screen2 has 'Beverages' category
+  ✗ Screen8 has navigate to Screen9 (digital bill)
+  ✗ Screen8 dine-again/new-order flows through Screen9 (not direct S1 jump)
+  ✗ Screen11Loyalty.tsx has no dark background violations
+  ✗ Screen12Feedback.tsx has no dark background violations
+  ✗ S1 can navigate to S5 (session recovery)
+  ✗ S8 navigates to S9 (view detailed bill)
+  ✗ S8 does not directly jump to S1 — dine-again is on S9
+  ✗ S9 navigates to S11 (VIP club loyalty)
+  ✗ S9 navigates to S12 (feedback/review)
+  ✗ Screen7 calls /api/payments/initiate
+  ✗ Screen7 polls /api/payments/verify
+  ✗ Screen11 uses brand color #8A4228 or #9C3D1E
+  ✗ Screen12 uses brand color #8A4228 or #9C3D1E
+  ✗ Screen1 has THOOGUDEEPA brand label
+  ✗ Screen1 has correct Supabase import for session check
+  ✗ placeAllOrders calls placeOrderToSupabase
+  ✗ Screen2Menu.tsx imports StickyBottomBar
+  ✗ Screen2Menu.tsx renders <StickyBottomBar
+  ✗ ScreenHousing Dynamic Island pill is bg-slate-900 (intentional hardware UI)
+  ✗ Screen content area uses warm canvas bg-[#FAF8F5]/70
+  ✗ WireHeader uses bg-white/95 backdrop-blur
+  ✗ WireHeader border uses slate-200
+  ✗ WireHeader call-waiter button uses orange styling
+  ✗ WireHeader cart button uses brand color #9C3D1E
+  ✗ WireHeader cart badge uses orange-600 background
+  ✗ StickyBottomBar has bg-white/95
+  ✗ Screen1Welcome.tsx uses warm screen background #FFFCF7
+  ✗ Screen2Menu.tsx uses warm screen background #FFFCF7
+  ✗ Screen3ItemDetail.tsx uses warm screen background #FFFCF7
+  ✗ Screen4Cart.tsx uses warm screen background #FFFCF7
+  ✗ Screen6PaymentBreakdown.tsx uses warm screen background #FFFCF7
+  ✗ Screen10WaiterCall.tsx uses warm screen background #FFFCF7
+  ✗ Welcome proceed button: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Menu cart CTA: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Cart place order CTA: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Payment breakdown CTA: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Waiter call send button: uses brand CTA color #8A4228 or #9C3D1E
+  ✗ Screen1Welcome.tsx uses warm card border #E8D5C3
+  ✗ Screen2Menu.tsx uses warm card border #E8D5C3
+  ✗ Screen6PaymentBreakdown.tsx uses warm card border #E8D5C3
+  ✗ Screen10WaiterCall.tsx uses warm card border #E8D5C3
+  ✗ Screen1 checks /api/session/verify endpoint
+  ✗ Screen1 uses setCheckingSession for loading state
+  ✗ Screen1 navigates to screen 5 if activeOrder found
+  ✗ Screen1 shows 'Resume Ongoing Order' when activeOrderFound
+  ✗ Screen1 shows 'PROCEED TO MENU' text for fresh session
+  ✗ Screen1 sets default name to Seat {seatNumber} if blank
+  ✗ Screen1 shows active order restoration banner
+  ✗ Screen1 uses Wi-Fi button that sets wifiConnected
+  ✗ Screen1 shows Wi-Fi Connected state when connected
+  ✗ Screen1 has MapPin for table badge
+  ✗ Screen1 uses 'Powered by Thoogudeepa SaaS' brand footer
+  ✗ Screen6 shows Total Amount row
+  ✗ Screen6 total uses brand color #8A4228
+  ✗ Screen9 has VIP Club navigation (Screen11)
+  ✗ Screen9 has Feedback navigation (Screen12)
+  ✗ Screen2 has 'Starters' category
+  ✗ Screen2 has 'Beverages' category
+  ✗ Screen8 has navigate to Screen9 (digital bill)
+  ✗ Screen8 dine-again/new-order flows through Screen9 (not direct S1 jump)
+  ✗ Screen11Loyalty.tsx has no dark background violations
+  ✗ Screen12Feedback.tsx has no dark background violations
+  ✗ S1 can navigate to S5 (session recovery)
+  ✗ S8 navigates to S9 (view detailed bill)
+  ✗ S8 does not directly jump to S1 — dine-again is on S9
+  ✗ S9 navigates to S11 (VIP club loyalty)
+  ✗ S9 navigates to S12 (feedback/review)
+  ✗ Screen7 calls /api/payments/initiate
+  ✗ Screen7 polls /api/payments/verify
+  ✗ Screen11 uses brand color #8A4228 or #9C3D1E
+  ✗ Screen12 uses brand color #8A4228 or #9C3D1E
+  ✗ Screen1 has THOOGUDEEPA brand label
+  ✗ Screen1 has correct Supabase import for session check
+
+=== PHASE 7 FAILURES (28) ===
+  ✗ OrderStage: PLACED | PREP | PLATED | SERVED
+  ✗ waiterRecordsPayment handles mergedWith partner table
+  ✗ waiterVacatesTable handles merged partner table cleanup
+  ✗ waiterMergeTables combines currentBill from both tables
+  ✗ waiterMergeTables combines guestCount with Math.max(2,...)
+  ✗ waiterMergeTables sets mergedWith on target
+  ✗ waiterMergeTables sets mergedWith on source (back-reference)
+  ✗ waiterMergeTables merges activeItems arrays
+  ✗ waiterMergeTables guards against missing tables (returns state)
+  ✗ ticketCounter synced from stored tickets to avoid ID collisions
+  ✗ Rehydration parses KDS-NNN prefix to get numeric counter
+  ✗ SERVED stage maps to 'Served' label
+  ✗ PLATED stage maps to 'Ready' label
+  ✗ PREP stage maps to 'Cooking' label
+  ✗ OrderStage: PLACED | PREP | PLATED | SERVED
+  ✗ waiterRecordsPayment handles mergedWith partner table
+  ✗ waiterVacatesTable handles merged partner table cleanup
+  ✗ waiterMergeTables combines currentBill from both tables
+  ✗ waiterMergeTables combines guestCount with Math.max(2,...)
+  ✗ waiterMergeTables sets mergedWith on target
+  ✗ waiterMergeTables sets mergedWith on source (back-reference)
+  ✗ waiterMergeTables merges activeItems arrays
+  ✗ waiterMergeTables guards against missing tables (returns state)
+  ✗ ticketCounter synced from stored tickets to avoid ID collisions
+  ✗ Rehydration parses KDS-NNN prefix to get numeric counter
+  ✗ SERVED stage maps to 'Served' label
+  ✗ PLATED stage maps to 'Ready' label
+  ✗ PREP stage maps to 'Cooking' label

@@ -389,31 +389,38 @@ export const ScreenK2Overview: React.FC = () => {
                     key={idx}
                     className="bg-white border border-[#EFE6DA] rounded-xl p-2.5 shadow-xs flex flex-col justify-between gap-1.5 shrink-0 w-[260px]"
                   >
-                    <div className="flex items-center justify-between pb-1 border-b border-[#EFE6DA]">
-                      <span
-                        className="font-mono text-[11px] font-black text-slate-900 truncate"
-                        title={b.name}
-                      >
-                        {b.name}
-                      </span>
-                      <span className="font-mono text-[10px] font-black bg-[#E8722E] text-white px-1.5 py-0.5 rounded ml-1 shrink-0">
-                        TOTAL: {b.total}
-                      </span>
-                    </div>
-                    <div className="font-mono text-[9px] text-slate-600 truncate">
-                      {b.sources}
-                    </div>
-                    <div className="flex items-center justify-between font-mono text-[9px] font-extrabold text-[#B85A1F]">
-                      <span>STATUS:</span>
-                      <span className="bg-[#FFF4EC] border border-[#F5C9A5] px-1.5 py-0.2 rounded text-[8.5px] truncate">
-                        {b.status}
-                      </span>
+                    <div>
+                      <div className="flex items-center justify-between pb-1 border-b border-[#EFE6DA]">
+                        <span
+                          className="font-mono text-[11px] font-black text-slate-900 truncate"
+                          title={b.name}
+                        >
+                          {b.name}
+                        </span>
+                        <span className="font-mono text-[10px] font-black bg-[#E8722E] text-white px-1.5 py-0.5 rounded ml-1 shrink-0">
+                          TOTAL: {b.total}
+                        </span>
+                      </div>
+                      <div className="font-mono text-[9px] text-slate-600 mt-1 break-words leading-tight">
+                        {b.sources}
+                      </div>
+                      <div className="flex items-center justify-between mt-1 font-mono text-[9px] font-extrabold text-[#B85A1F]">
+                        <span>STATUS:</span>
+                        <span className="bg-[#FFF4EC] border border-[#F5C9A5] px-1.5 py-0.2 rounded text-[8.5px] truncate">
+                          {b.status}
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="pt-1.5 border-t border-[#EFE6DA]">
+                    <div className="pt-1.5 border-t border-[#EFE6DA] mt-auto">
                       <div className="grid grid-cols-3 gap-1 font-mono text-[9px] font-black">
                         {STAGE_STEPS.map((stg, sIdx) => {
                           const isActive = currentBulkStage === stg;
+                          const stgIdx = STAGE_STEPS.indexOf(stg);
+                          const curIdx = STAGE_STEPS.indexOf(
+                            currentBulkStage as any
+                          );
+                          const isPast = stgIdx < curIdx;
                           return (
                             <button
                               key={stg}
@@ -425,6 +432,8 @@ export const ScreenK2Overview: React.FC = () => {
                               className={`py-1.5 rounded text-center transition border ${
                                 isActive
                                   ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-xs'
+                                  : isPast
+                                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
                                   : 'bg-[#FBF7F0] text-slate-700 border-[#EFE6DA] hover:bg-[#FFF4EC] hover:text-[#B85A1F]'
                               }`}
                             >
@@ -467,19 +476,14 @@ export const ScreenK2Overview: React.FC = () => {
                     <div
                       key={`${tbl.id}-${idx}`}
                       onClick={() => handleOpenTable(tbl.id, tbl.tableNumber)}
-                      className="border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between bg-white border-[#EFE6DA] shadow-xs hover:shadow-sm"
+                      className="border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between bg-white border-[#EFE6DA] shadow-xs hover:shadow-sm min-w-0"
                     >
-                      <div>
+                      <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#EFE6DA] mb-2">
-                          <div className="font-mono text-xs font-black text-slate-900 whitespace-nowrap flex items-center gap-1.5">
-                            <span>{tbl.tableNumber}</span>
-                            {tbl.seatNumber && (
-                              <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 text-[11px] font-black border border-amber-300">
-                                Chair {tbl.seatNumber}
-                              </span>
-                            )}
+                          <div className="font-mono text-xs font-black text-slate-900 whitespace-nowrap min-w-0">
+                            <span className="truncate">{tbl.tableNumber}</span>
                           </div>
-                          <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1 whitespace-nowrap">
+                          <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1 whitespace-nowrap shrink-0">
                             <Clock className="h-3 w-3 text-[#E8722E] shrink-0" />
                             <span>
                               {tbl.elapsedMinutes}m (KOT #{shortKot})
@@ -497,13 +501,15 @@ export const ScreenK2Overview: React.FC = () => {
                           {tbl.items.map((it) => (
                             <div
                               key={it.id}
-                              className="bg-[#FBF7F0] border border-[#EFE6DA] rounded-lg p-2 space-y-1.5"
+                              className="bg-[#FBF7F0] border border-[#EFE6DA] rounded-lg p-2 space-y-1.5 min-w-0"
                             >
-                              <div className="flex items-center justify-between text-xs font-mono font-black">
-                                <div className="text-slate-900 truncate pr-1">
-                                  <span>{it.quantity}x {it.name}</span>
+                              <div className="flex items-start justify-between gap-1 text-xs font-mono font-black">
+                                <div className="text-slate-900 min-w-0 flex-1">
+                                  <div className="truncate">
+                                    {it.quantity}x {it.name}
+                                  </div>
                                   {it.seatNumber && (
-                                    <span className="ml-1.5 text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-200">
+                                    <span className="inline-block mt-0.5 text-[10px] font-black text-amber-800 bg-amber-100 px-1.5 py-0.2 rounded border border-amber-200">
                                       Chair {it.seatNumber}
                                     </span>
                                   )}
@@ -520,7 +526,7 @@ export const ScreenK2Overview: React.FC = () => {
                                 </span>
                               </div>
                               {it.options && (
-                                <div className="text-[9.5px] text-stone-500 font-mono">
+                                <div className="text-[9.5px] text-stone-500 font-mono break-words">
                                   [{it.options}]
                                 </div>
                               )}
@@ -532,7 +538,7 @@ export const ScreenK2Overview: React.FC = () => {
                                   {it.addOns.map((ao, aoIdx) => (
                                     <span
                                       key={aoIdx}
-                                      className="px-1.5 py-0.5 rounded-md bg-amber-200 border border-amber-400 text-[8.5px] font-black text-amber-900"
+                                      className="px-1.5 py-0.5 rounded-md bg-amber-200 border border-amber-400 text-[8.5px] font-black text-amber-900 break-words"
                                     >
                                       + {ao}
                                     </span>
@@ -540,7 +546,7 @@ export const ScreenK2Overview: React.FC = () => {
                                 </div>
                               )}
                               {it.notes && (
-                                <div className="text-[9px] text-stone-400 font-mono italic">
+                                <div className="text-[9px] text-stone-400 font-mono italic break-words">
                                   ({it.notes})
                                 </div>
                               )}
@@ -549,6 +555,11 @@ export const ScreenK2Overview: React.FC = () => {
                               <div className="grid grid-cols-3 gap-1 pt-0.5 font-mono text-[9px] font-black">
                                 {STAGE_STEPS.map((stg, sIdx) => {
                                   const isActive = it.stage === stg;
+                                  const stgIdx = STAGE_STEPS.indexOf(stg);
+                                  const curIdx = STAGE_STEPS.indexOf(
+                                    it.stage as any
+                                  );
+                                  const isPast = stgIdx < curIdx;
                                   return (
                                     <button
                                       key={stg}
@@ -559,6 +570,8 @@ export const ScreenK2Overview: React.FC = () => {
                                       className={`py-1.5 rounded text-center transition border ${
                                         isActive
                                           ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-2xs'
+                                          : isPast
+                                          ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
                                           : 'bg-white text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
                                       }`}
                                     >

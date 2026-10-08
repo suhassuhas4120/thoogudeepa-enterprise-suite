@@ -78,6 +78,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
       price: number;
       totalPrice: number;
       options?: string;
+      addOns?: string[];
       stage?: string;
       seatNumber?: number;
       ticketNumber: string;
@@ -100,6 +101,7 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
           price: unitPrice,
           totalPrice: unitPrice * it.quantity,
           options: it.options,
+          addOns: it.addOns || [],
           stage: it.stage,
           seatNumber: it.seatNumber || tk.seatNumber,
           ticketNumber: tk.id.slice(-4),
@@ -380,39 +382,54 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                 <span>Item Particulars &amp; Chair</span>
                 <span>Amount (₹)</span>
               </div>
-              {allOrderedItems.length > 0 ? (
-                allOrderedItems.map((item, idx) => (
-                  <div key={item.id || idx} className="flex justify-between text-stone-800 text-[11.5px] py-0.5">
-                    <div>
-                      <div className="font-bold">
-                        <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
-                        <span>{item.name}</span>
-                        {item.seatNumber && (
-                          <span className="text-[9px] bg-stone-100 text-stone-700 px-1 py-0.5 rounded border border-stone-300 ml-1.5 font-bold">
-                            Chair {item.seatNumber}
-                          </span>
+              {(() => {
+                const receiptItems = splitSeatNumber !== null ? displayedItems : allOrderedItems;
+                return receiptItems.length > 0 ? (
+                  receiptItems.map((item, idx) => (
+                    <div key={item.id || idx} className="flex justify-between text-stone-800 text-[11.5px] py-0.5">
+                      <div>
+                        <div className="font-bold">
+                          <span className="text-[#9C3D1E] mr-1">{item.quantity}×</span>
+                          <span>{item.name}</span>
+                          {!splitSeatNumber && item.seatNumber && (
+                            <span className="text-[9px] bg-stone-100 text-stone-700 px-1 py-0.5 rounded border border-stone-300 ml-1.5 font-bold">
+                              Chair {item.seatNumber}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[9.5px] text-stone-400 flex flex-wrap items-center gap-1.5 pt-0.5">
+                          <span>@ ₹{item.price} each</span>
+                          {item.options && <span>• {item.options}</span>}
+                        </div>
+                        {item.addOns && item.addOns.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {item.addOns.map((ao, aoIdx) => (
+                              <span
+                                key={aoIdx}
+                                className="px-1 py-0.2 rounded bg-amber-100 border border-amber-300 text-[8px] font-black text-amber-900"
+                              >
+                                + {ao}
+                              </span>
+                            ))}
+                          </div>
                         )}
                       </div>
-                      <div className="text-[9.5px] text-stone-400 flex items-center gap-2">
-                        <span>@ ₹{item.price} each</span>
-                        {item.options && <span>• {item.options}</span>}
-                      </div>
+                      <span className="font-bold shrink-0 ml-2">₹{item.totalPrice.toFixed(2)}</span>
                     </div>
-                    <span className="font-bold shrink-0 ml-2">₹{item.totalPrice.toFixed(2)}</span>
+                  ))
+                ) : (
+                  <div className="flex justify-between text-stone-800 text-[11.5px]">
+                    <span className="font-bold">1× Dine-in Food Orders</span>
+                    <span className="font-bold">₹{subtotal.toFixed(2)}</span>
                   </div>
-                ))
-              ) : (
-                <div className="flex justify-between text-stone-800 text-[11.5px]">
-                  <span className="font-bold">1× Dine-in Food Orders</span>
-                  <span className="font-bold">₹{subtotal.toFixed(2)}</span>
-                </div>
-              )}
+                );
+              })()}
             </div>
 
             {/* ── TAXES & CHARGES BREAKDOWN ── */}
             <div className="space-y-1.5 pb-3 border-b border-stone-200 text-xs text-stone-600">
               <div className="flex justify-between">
-                <span>Items Subtotal ({allOrderedItems.reduce((s, i) => s + i.quantity, 0) || 1} items):</span>
+                <span>Items Subtotal ({(splitSeatNumber !== null ? displayedItems : allOrderedItems).reduce((s, i) => s + i.quantity, 0) || 1} items):</span>
                 <span className="font-bold text-stone-900">₹{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[11px] text-stone-500">
@@ -701,9 +718,26 @@ export function ScreenM6Settlement({ tableNum, splitAmount, splitLabel, waiterNa
                     {displayedItems.map((item, idx) => (
                       <div key={item.id || idx} className="flex justify-between text-[11px] text-stone-700 py-0.5">
                         <div>
-                          <span>{item.quantity}× {item.name}</span>
-                          {!splitSeatNumber && item.seatNumber && (
-                            <span className="text-[9.5px] text-[#9C3D1E] ml-1.5 font-bold">[Chair {item.seatNumber}]</span>
+                          <div>
+                            <span className="font-bold">{item.quantity}× {item.name}</span>
+                            {!splitSeatNumber && item.seatNumber && (
+                              <span className="text-[9.5px] text-[#9C3D1E] ml-1.5 font-bold">[Chair {item.seatNumber}]</span>
+                            )}
+                          </div>
+                          {item.options && (
+                            <div className="text-[9.5px] text-stone-400">[{item.options}]</div>
+                          )}
+                          {item.addOns && item.addOns.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {item.addOns.map((ao, aIdx) => (
+                                <span
+                                  key={aIdx}
+                                  className="px-1 py-0.2 rounded bg-amber-100 border border-amber-300 text-[8px] font-black text-amber-900"
+                                >
+                                  + {ao}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
                         <span className="font-bold shrink-0 ml-2">₹{item.totalPrice.toFixed(2)}</span>

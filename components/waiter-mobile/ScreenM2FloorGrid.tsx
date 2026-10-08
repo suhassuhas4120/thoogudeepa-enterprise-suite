@@ -342,7 +342,7 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || allMembers.some((m) => m.status === 'OCCUPIED' || m.status === 'BILLING');
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (primaryTbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
-        : 'VACANT';
+        : (primaryTbl.status === 'CLEANING' ? 'CLEANING' : 'VACANT');
 
       const hasPing = allMembers.some((t) => urgentPingTables.has(t.number));
       const elapsedMins = hasOrders ? calculateElapsedMinutes(primaryTbl.seatedTime) : null;
@@ -393,7 +393,7 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || tbl.status === 'OCCUPIED' || tbl.status === 'BILLING';
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (tbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
-        : 'VACANT';
+        : (tbl.status === 'CLEANING' ? 'CLEANING' : 'VACANT');
 
       const hasPing = urgentPingTables.has(tbl.number);
       const elapsedMins = hasOrders ? calculateElapsedMinutes(tbl.seatedTime) : null;

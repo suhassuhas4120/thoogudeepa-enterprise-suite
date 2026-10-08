@@ -1253,9 +1253,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   waiterRecordsPayment: (tableNumber, method, amount, seatNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+
     set((state) => {
-      const targetTbl = state.tables.find((t) => t.number === tableNumber);
-      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [tableNumber]);
+      const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
+      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
 
       // For single-chair settle: keep table OCCUPIED, reduce its bill by that chair's share.
       // For full-table settle: mark entire group as BILLING (pre-vacate status).
@@ -1263,7 +1266,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return {
         tables: state.tables.map((t) => {
-          if (!groupNums.has(t.number)) return t;
+          if (!groupNums.has(t.number) && cleanNum(t.number) !== targetNum) return t;
           if (isChairSettle) {
             // Reduce currentBill by the chair's settled amount only; keep OCCUPIED
             const newBill = Math.max(0, (t.currentBill || 0) - amount);
@@ -1282,20 +1285,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
 
   waiterVacatesTable: (tableNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
     // Snapshot for rollback (vacate is destructive — save full state)
     const prevTables = get().tables;
     const prevTickets = get().kdsTickets;
 
     set((state) => {
-      const targetTbl = state.tables.find((t) => t.number === tableNumber);
-      // Use mergeGroupPeers so all tables in a 3-4 member group are fully vacated
-      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [tableNumber]);
+      const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
+      const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
       return {
         tables: state.tables.map((t) =>
-          groupNums.has(t.number)
+          groupNums.has(t.number) || cleanNum(t.number) === targetNum
             ? {
                 ...t,
-                status: 'VACANT',
+                status: 'CLEANING' as const,
                 currentBill: 0,
                 guestCount: 0,
                 kotCount: 0,
@@ -1311,10 +1315,22 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         ),
         // Remove ALL KDS tickets for every table in this group
         kdsTickets: state.kdsTickets.filter(
-          (tk) => !groupNums.has(tk.tableNumber)
+          (tk) => !groupNums.has(tk.tableNumber) && cleanNum(tk.tableNumber) !== targetNum
         ),
       };
     });
+
+    // Exactly 1 minute (60s) transition from CLEANING to green VACANT
+    setTimeout(() => {
+      set((state) => ({
+        tables: state.tables.map((t) =>
+          (cleanNum(t.number) === targetNum || t.number === tableNumber) && t.status === 'CLEANING'
+            ? { ...t, status: 'VACANT' as const }
+            : t
+        ),
+      }));
+      broadcastStateChange('tableVacated');
+    }, 60000);
 
     // Persist to Supabase
     bridgePost(
@@ -1328,38 +1344,76 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   waiterClearsChairAfterPayment: (tableNumber, seatNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+
     set((state) => {
-      const newTickets = state.kdsTickets.map((tk) => {
-        if (tk.tableNumber !== tableNumber) return tk;
-        // Archive only SERVED tickets belonging to this specific seat
-        const hasSeatItems = tk.items.some((it) => it.seatNumber === seatNumber);
-        if (!hasSeatItems) return tk;
-        const allThisSeatServed = tk.items
-          .filter((it) => it.seatNumber === seatNumber)
-          .every((it) => it.stage === 'SERVED');
-        if (!allThisSeatServed) return tk;
-        // Mark the whole ticket COMPLETED only if every item is this seat's (single-seat KOT)
-        const allItemsAreSeat = tk.items.every((it) => it.seatNumber === seatNumber);
-        if (allItemsAreSeat) {
-          return { ...tk, status: 'COMPLETED' as const };
+      // 1. Separate items on tickets: settled seat's items are removed from active ticket
+      const newTickets: SharedKDSTicket[] = [];
+
+      for (const tk of state.kdsTickets) {
+        if (cleanNum(tk.tableNumber) !== targetNum) {
+          newTickets.push(tk);
+          continue;
         }
-        // Mixed KOT — mark just that seat's items as COMPLETED stage
-        return {
-          ...tk,
-          items: tk.items.map((it) =>
-            it.seatNumber === seatNumber ? { ...it, stage: 'SERVED' as OrderStage } : it
-          ),
-        };
-      });
+
+        const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
+        const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
+
+        if (seatItems.length === 0) {
+          // Ticket doesn't contain items for this seat
+          newTickets.push(tk);
+          continue;
+        }
+
+        if (otherItems.length === 0) {
+          // Entire ticket is for this seat -> mark ticket COMPLETED
+          newTickets.push({ ...tk, status: 'COMPLETED' as const });
+        } else {
+          // Mixed ticket: keep active ticket with ONLY the other items
+          newTickets.push({
+            ...tk,
+            items: otherItems,
+          });
+          // Add an archived ticket for the paid seat items
+          newTickets.push({
+            ...tk,
+            id: `${tk.id}-paid-s${seatNumber}`,
+            status: 'COMPLETED' as const,
+            items: seatItems.map((it) => ({ ...it, stage: 'SERVED' as OrderStage })),
+          });
+        }
+      }
+
+      // 2. Update table activeItems and remaining bill:
       const newTables = state.tables.map((t) => {
-        if (t.number !== tableNumber) return t;
+        if (cleanNum(t.number) !== targetNum) return t;
+
+        const remainingActiveItems = (t.activeItems || []).filter(
+          (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
+        );
+
+        // Sum remaining items from active tickets and activeItems
+        const remainingTicketItems = newTickets
+          .filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED')
+          .flatMap((tk) => tk.items);
+
+        const remainingTotal = remainingTicketItems.length > 0
+          ? remainingTicketItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0)
+          : remainingActiveItems.reduce((s, ai) => s + (ai.price || 0) * (ai.quantity || 1), 0);
+
+        const newBill = Math.round(remainingTotal * 1.05);
+        const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
+
         return {
           ...t,
-          activeItems: (t.activeItems || []).filter(
-            (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
-          ),
+          activeItems: remainingActiveItems,
+          currentBill: newBill,
+          guestCount: hasRemainingOrders ? Math.max(1, (t.guestCount || 2) - 1) : 0,
+          status: hasRemainingOrders ? ('OCCUPIED' as const) : ('VACANT' as const),
         };
       });
+
       return { kdsTickets: newTickets, tables: newTables };
     });
   },

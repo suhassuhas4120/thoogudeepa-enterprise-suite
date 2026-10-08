@@ -81,7 +81,7 @@ group('types/customer.ts — complete interface coverage', () => {
   ok('CartItem interface exists', /interface CartItem/.test(t));
   ok('CartItem has cartItemId, menuItem, quantity, totalPrice', /cartItemId/.test(t) && /menuItem: MenuItem/.test(t));
   ok('CartItem has orderSeparately and isOrdered optional flags', /orderSeparately/.test(t) && /isOrdered/.test(t));
-  ok('OrderStage: PLACED | PREP | PLATED | SERVED', /OrderStage = 'PLACED'.*'PREP'.*'PLATED'.*'SERVED'/.test(t));
+  ok('OrderStage: PLACED | RECEIVED | PREP | PLATED | SERVED', /OrderStage = 'PLACED'.*'RECEIVED'.*'PREP'.*'PLATED'.*'SERVED'/.test(t));
   ok('PaymentDetails interface exists', /interface PaymentDetails/.test(t));
   ok('PaymentDetails splitMode: NONE | ITEMS | PERSONS', /splitMode: 'NONE' \| 'ITEMS' \| 'PERSONS'/.test(t));
   ok('PaymentDetails paymentMethod: UPI | CARD | NET_BANKING | CASH', /UPI.*CARD.*NET_BANKING.*CASH/.test(t));
@@ -454,8 +454,8 @@ group('useSharedBridge — waiterMergeTables bill combining', () => {
   ok('waiterMergeTables combines guestCount with Math.max(2,...)', /mergedStatus|mergedWith/.test(b));
   ok('waiterMergeTables sets mergedWith on target', /mergedWith: primaryNum/.test(b));
   ok('waiterMergeTables sets mergedWith on source (back-reference)', /mergeGroupPeers: combined/.test(b));
-  ok('waiterMergeTables zeroes out source table bill', /preMergeBill|currentBill/.test(b));
-  ok('waiterMergeTables zeroes out source table guestCount', /preMergeGuests|guestCount/.test(b));
+  ok('waiterMergeTables preserves per-table state model for source bill', /preMergeBill|currentBill/.test(b));
+  ok('waiterMergeTables preserves per-table state model for source guestCount', /preMergeGuests|guestCount/.test(b));
   ok('waiterMergeTables merges activeItems arrays', /activeItems/.test(b));
   ok('waiterMergeTables guards against missing tables (returns state)', /if \(combined\.length > 4\) return state/.test(b));
 

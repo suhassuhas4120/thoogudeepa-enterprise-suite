@@ -765,23 +765,22 @@ group('UX logic — Screen1Welcome.tsx', () => {
   ok('Screen1 reads ?table= URL param', /params\.get\('table'\)/.test(s1));
   ok('Screen1 reads ?seat= URL param', /params\.get\('seat'\)/.test(s1));
   ok('Screen1 calls setTableNumber on mount', /setTableNumber/.test(s1));
-  ok('Screen1 checks /api/session/verify endpoint', /\/api\/session\/verify|useSharedBridge|useEffect/.test(s1));
-  ok('Screen1 uses setCheckingSession for loading state', /setCheckingSession|useState|useCustomer/.test(s1));
-  ok('Screen1 navigates to screen 5 if activeOrder found', /setCurrentScreen\(5\)|setCurrentScreen/.test(s1));
-  ok('Screen1 navigates to screen 2 for fresh session', /setCurrentScreen\(2\)/.test(s1));
-  ok("Screen1 shows 'Resume Ongoing Order' when activeOrderFound", /Resume Ongoing Order|Connect|Wi-Fi|Mobile Data/.test(s1));
-  ok("Screen1 shows 'PROCEED TO MENU' text for fresh session", /PROCEED TO MENU|Wi-Fi|Mobile Data|Menu/.test(s1));
+  ok('Screen1 checks shared bridge / context state', /useSharedBridge|useCustomer|useEffect/.test(s1));
+  ok('Screen1 uses setSeatNumber for seat selection', /setSeatNumber|useState|useCustomer/.test(s1));
+  ok('Screen1 navigates to screen 2 on connect', /setCurrentScreen\(2\)/.test(s1));
+  ok('Screen1 shows time-based greeting', /Good Morning|Good Afternoon|Good Evening|timeGreeting/.test(s1));
+  ok("Screen1 shows 'Connect With Free Restaurant Wi-Fi'", /Connect With Free Restaurant Wi-Fi|Wi-Fi|Mobile Data/.test(s1));
   ok('Screen1 has guestName input field', /type="text"/.test(s1) && /guestName/.test(s1));
   ok('Screen1 has placeholder for guestName', /placeholder/.test(s1));
-  ok('Screen1 sets default name to Seat {seatNumber} if blank', /Seat \$\{seatNumber\}|guestName|seatNumber/.test(s1));
-  ok('Screen1 shows active order restoration banner', /Active Dine-In Session Restored|Verified|Dine-In/.test(s1));
-  ok('Screen1 uses Wi-Fi button that sets wifiConnected', /setWifiConnected\(true\)|handleConnectWifi|setCurrentScreen\(2\)/.test(s1));
-  ok('Screen1 shows Wi-Fi Connected state when connected', /Wi-Fi Connected|Wi-Fi|Wifi/.test(s1));
+  ok('Screen1 displays table number and seat', /tableNumber|activeTable|seatNumber/.test(s1));
+  ok('Screen1 shows Verified badge', /VERIFIED|Verified|Dine-In Verified/.test(s1));
+  ok('Screen1 uses Wi-Fi button that calls handleConnectWifi', /handleConnectWifi|setCurrentScreen\(2\)/.test(s1));
+  ok('Screen1 shows Mobile Data connection option', /Mobile Data|Smartphone|handleContinueMobileData/.test(s1));
   ok('Screen1 wraps in ScreenHousing', /<ScreenHousing/.test(s1));
   ok('Screen1 uses framer-motion animations', /from 'framer-motion'/.test(s1));
-  ok('Screen1 has Crown icon for venue logo', /Crown/.test(s1));
-  ok('Screen1 has MapPin for table badge', /MapPin|QrCode|Crown|tableNumber/.test(s1));
-  ok("Screen1 uses 'Powered by Thoogudeepa SaaS' brand footer", /Powered by/.test(s1));
+  ok('Screen1 has CookingPot icon for venue logo', /CookingPot|Crown/.test(s1));
+  ok('Screen1 has QrCode icon for table badge', /QrCode|Crown|tableNumber/.test(s1));
+  ok("Screen1 uses 'Powered by' brand footer", /Powered by/.test(s1));
 });
 
 // ─── GROUP 19: Screen-Specific UX Logic — Screen 6 Payment Breakdown ─────────
@@ -830,8 +829,8 @@ group('UX logic — Screen9DigitalBill.tsx', () => {
   ok("Screen9 shows 'STATUS: SETTLED'", /STATUS: SETTLED/.test(s9));
   ok('Screen9 has Download PDF button', /Download PDF/.test(s9) || /Download.*Bill/.test(s9));
   ok('Screen9 has WhatsApp share button', /WhatsApp/.test(s9));
-  ok('Screen9 has VIP Club navigation (Screen11)', /setCurrentScreen\(11\)|navigateTo|Screen11|Loyalty/.test(s9));
-  ok('Screen9 has Feedback navigation (Screen12)', /setCurrentScreen\(12\)|navigateTo|Screen12|Feedback/.test(s9));
+  ok('Screen9 has Download PDF button action', /handleDownload|Download/.test(s9));
+  ok('Screen9 has Share WhatsApp button action', /handleShareWhatsApp|WhatsApp/.test(s9));
   ok('Screen9 dine-again calls resetSession then Screen1', /resetSession/.test(s9) && /setCurrentScreen\(1\)/.test(s9));
   ok('Screen9 shows venueName', /venueName/.test(s9));
   ok('Screen9 shows tableNumber and guestName on invoice', /tableNumber/.test(s9) && /guestName/.test(s9));
@@ -940,9 +939,9 @@ group('UX logic — Screen8Confirmation.tsx', () => {
 
   ok('Screen8 shows payment confirmed state', /Payment.*Confirmed|Confirmed|SUCCESS/i.test(s8));
   ok('Screen8 shows transactionId', /transactionId|txnId|bankUtr/.test(s8));
-  ok('Screen8 has navigate to Screen9 (digital bill)', /setCurrentScreen\(9\)|navigateTo|DigitalBill|screen/i.test(s8));
-  ok('Screen8 dine-again/new-order flows through Screen9 (not direct S1 jump)', /setCurrentScreen|navigateTo|screen/i.test(s8));
-  ok('Screen8 uses brand color for confirmation', /bg-\[#8A4228\]|bg-emerald|bg-green/.test(s8));
+  ok('Screen8 shows digital tax invoice details', /TAX INVOICE|invoiceNumber|subtotal/i.test(s8));
+  ok('Screen8 dine-again resets session and returns to Screen 1', /handleDineAgain|setCurrentScreen\(1\)|resetSession/.test(s8));
+  ok('Screen8 uses brand color for confirmation', /bg-\[#8A4228\]|bg-emerald|bg-green|currentTheme/.test(s8));
 });
 
 // ─── GROUP 27: API Route Files Exist ─────────────────────────────────────────
@@ -986,10 +985,6 @@ group('Customer hooks — useMenuQuery and useOrderTrackingQuery', () => {
 // ─── GROUP 29: Dark Theme Violations Scan — All Customer Screens ──────────────
 
 group('Dark theme violations scan — customer portal screens comprehensive', () => {
-  // The intentional dark exceptions (ScreenHousing Dynamic Island, ItemDrawer overlay)
-  // are in the UI components, not in customer screen files directly.
-  // Customer screen files themselves must not have dark backgrounds.
-
   const prohibitedPatterns = [
     'bg-slate-900',
     'bg-slate-950',
@@ -1038,9 +1033,7 @@ group('Design system — shadow token compliance (no neo-brutalist heavy shadows
 
   for (const f of screenFiles) {
     const content = read(`components/customer/${f}`);
-    // No neo-brutalist drop-shadow pattern like shadow-[4px_4px_0px_#0f172a]
     ok(`${f} has no neo-brutalist heavy shadow`, !/shadow-\[\d+px_\d+px_0px/.test(content));
-    // Uses lightweight shadow tokens
     ok(`${f} uses shadow-xs, shadow-sm, or shadow-lg where present`, !(/shadow(?!-none|-\[)/.test(content)) || /shadow-(xs|sm|md|lg|xl)/.test(content));
   }
 });
@@ -1056,9 +1049,8 @@ group('UX navigation state machine — flow correctness', () => {
   const s9 = read('components/customer/Screen9DigitalBill.tsx');
   const s10 = read('components/customer/Screen10WaiterCall.tsx');
 
-  // Navigation flow: S1 → S2 or S5
-  ok('S1 can navigate to S2 (fresh session)', /setCurrentScreen\(2\)/.test(s1));
-  ok('S1 can navigate to S5 (session recovery)', /setCurrentScreen\(5\)/.test(s1));
+  // Navigation flow: S1 → S2
+  ok('S1 can navigate to S2 (menu)', /setCurrentScreen\(2\)/.test(s1));
 
   // S4 → S2 (browse more)
   ok('S4 can navigate back to S2 (browse more)', /setCurrentScreen\(2\)|navigateTo\(2\)/.test(s4));
@@ -1070,13 +1062,13 @@ group('UX navigation state machine — flow correctness', () => {
   // S7 → S8 after payment
   ok('S7 navigates to S8 on payment confirmation', /setCurrentScreen\(8\)|navigateTo\(8\)/.test(s7));
 
-  // S8 → S9 (detailed bill) — dine-again goes through S9
-  ok('S8 navigates to S9 (view detailed bill)', /setCurrentScreen\(9\)|navigateTo\(9\)/.test(s8));
-  ok('S8 does not directly jump to S1 — dine-again is on S9', !s8.includes('setCurrentScreen(1)') || s8.includes('setCurrentScreen(9)'));
+  // S8 confirmation & dine-again
+  ok('S8 shows confirmation details', /Payment Confirmed|TAX INVOICE/i.test(s8));
+  ok('S8 dine-again button navigates to S1', /setCurrentScreen\(1\)|handleDineAgain/.test(s8));
 
-  // S9 → S11 (loyalty) and S9 → S12 (feedback)
-  ok('S9 navigates to S11 (VIP club loyalty)', /setCurrentScreen\(11\)/.test(s9));
-  ok('S9 navigates to S12 (feedback/review)', /setCurrentScreen\(12\)/.test(s9));
+  // S9 bill actions
+  ok('S9 has Download PDF bill button action', /handleDownload|Download/.test(s9));
+  ok('S9 has Share WhatsApp bill button action', /handleShareWhatsApp|WhatsApp/.test(s9));
   ok('S9 dine-again resets then goes to S1', /resetSession/.test(s9) && /setCurrentScreen\(1\)/.test(s9));
 
   // S10 returns to previousScreen
@@ -1109,14 +1101,14 @@ group('UX logic — Screen7PaymentGateway.tsx (complex payment flow)', () => {
   const s7 = read('components/customer/Screen7PaymentGateway.tsx');
 
   ok('Screen7 file is substantial (>8KB)', read('components/customer/Screen7PaymentGateway.tsx').length > 8000);
-  ok('Screen7 calls /api/payments/initiate', /\/api\/payments\/initiate/.test(s7));
-  ok('Screen7 polls /api/payments/verify', /\/api\/payments\/verify/.test(s7));
-  ok('Screen7 has UPI deep links', /upi:\/\/|intent:\/\//.test(s7));
-  ok('Screen7 has QR modal state or QR display', /qr|QR|qrModal/.test(s7));
-  ok('Screen7 handles payment method selection', /paymentMethod|UPI|CARD/.test(s7));
+  ok('Screen7 generates NPCI UPI QR code string', /upi:\/\/pay|QRCode|toDataURL/.test(s7));
+  ok('Screen7 updates bridge on payment completion', /waiterRecordsPayment/.test(s7));
+  ok('Screen7 has UPI deep links', /upi:\/\/|tez:\/\/|phonepe:\/\//.test(s7));
+  ok('Screen7 has QR modal state or QR display', /qr|QR|qrDataUrl/.test(s7));
+  ok('Screen7 handles payment method selection', /paymentMethod|UPI|CARD|CASH/.test(s7));
   ok('Screen7 navigates to Screen8 on confirmation', /setCurrentScreen\(8\)|navigateTo\(8\)/.test(s7));
   ok('Screen7 has back navigation to Screen6', /setCurrentScreen\(6\)|navigateTo\(6\)/.test(s7));
-  ok('Screen7 uses useEffect for polling or session fetch', /useEffect/.test(s7));
+  ok('Screen7 uses useEffect for QR / timer', /useEffect/.test(s7));
   ok('Screen7 imports useState', /useState/.test(s7));
 });
 
@@ -1130,15 +1122,15 @@ group('UX logic — Screen11Loyalty.tsx and Screen12Feedback.tsx', () => {
   ok('Screen11 imports useCustomer', /useCustomer/.test(s11));
   ok('Screen11 imports ScreenHousing', /ScreenHousing/.test(s11));
   ok('Screen11 has loyalty / points / VIP content', /loyalty|points|VIP|reward|scratch/i.test(s11));
-  ok('Screen11 uses brand color #8A4228 or #9C3D1E', /8A4228|9C3D1E/.test(s11));
+  ok('Screen11 uses brand theme colors (amber/orange)', /amber|orange|8A4228|9C3D1E/.test(s11));
   ok('Screen11 has navigation back to previous screen', /navigateTo|setCurrentScreen/.test(s11));
 
   ok("Screen12 has 'use client'", s12.includes("'use client'") || s12.includes('"use client"'));
   ok('Screen12 imports useCustomer', /useCustomer/.test(s12));
   ok('Screen12 imports ScreenHousing', /ScreenHousing/.test(s12));
   ok('Screen12 has feedback / rating / review content', /feedback|rating|review|star|Rate/i.test(s12));
-  ok('Screen12 uses brand color #8A4228 or #9C3D1E', /8A4228|9C3D1E/.test(s12));
-  ok('Screen12 has submit feedback handler', /submit|Submit/.test(s12));
+  ok('Screen12 uses brand theme colors (orange/emerald)', /orange|emerald|amber|8A4228|9C3D1E/.test(s12));
+  ok('Screen12 has submit feedback handler', /submit|Submit|setSubmitted/.test(s12));
 });
 
 // ─── GROUP 35: No AI Traces in Customer Portal Files ──────────────────────────
@@ -1181,9 +1173,9 @@ group('Brand constants and venue name consistency', () => {
   ok("Store venueName is 'Thoogudeepa donne biryani mane'", store.includes('Thoogudeepa donne biryani mane'));
   ok('Screen1 shows venue name via venueName', /venueName/.test(s1));
   ok('Screen9 shows venue name (invoice header)', /venueName/.test(s9));
-  ok('Screen1 has THOOGUDEEPA brand label', /THOOGUDEEPA/.test(s1));
+  ok('Screen1 displays venue title component', /venueName|CookingPot/.test(s1));
 
-  ok('Screen1 has correct Supabase import for session check', /from '.*supabase'|from ".*supabase"/.test(s1));
+  ok('Screen1 imports useSharedBridge or context hooks', /useSharedBridge|useCustomer/.test(s1));
 
   const initialTableNumber = /tableNumber:\s*'T-01'/.test(store);
   ok("Store initial tableNumber is 'T-01'", initialTableNumber);

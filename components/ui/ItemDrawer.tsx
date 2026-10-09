@@ -1,15 +1,20 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect } from 'react';
-import { MenuItem } from '../../types/customer';
-import { Plus, Minus, X, Check, Sparkles } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect } from "react";
+import { MenuItem } from "../../types/customer";
+import { Plus, Minus, X, Check, Sparkles } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface ItemDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   item: MenuItem | null;
-  onAddToCart: (item: MenuItem, selectedOption: string, selectedAddOns: string[], quantity: number) => void;
+  onAddToCart: (
+    item: MenuItem,
+    selectedOption: string,
+    selectedAddOns: string[],
+    quantity: number,
+  ) => void;
 }
 
 export const ItemDrawer: React.FC<ItemDrawerProps> = ({
@@ -18,13 +23,13 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
   item,
   onAddToCart,
 }) => {
-  const [selectedOption, setSelectedOption] = useState('');
+  const [selectedOption, setSelectedOption] = useState("");
   const [selectedAddOns, setSelectedAddOns] = useState<string[]>([]);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (item) {
-      setSelectedOption(item.optionsGroup1?.choices?.[0] ?? '');
+      setSelectedOption(item.optionsGroup1?.choices?.[0] ?? "");
       setSelectedAddOns([]);
       setQuantity(1);
     }
@@ -34,7 +39,7 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
 
   const toggleAddOn = (name: string) => {
     setSelectedAddOns((prev) =>
-      prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name]
+      prev.includes(name) ? prev.filter((a) => a !== name) : [...prev, name],
     );
   };
 
@@ -68,10 +73,10 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
 
           {/* In-Phone Bottom Sheet (locked strictly to phone container width) */}
           <motion.div
-            initial={{ y: '100%' }}
+            initial={{ y: "100%" }}
             animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+            exit={{ y: "100%" }}
+            transition={{ type: "spring", damping: 28, stiffness: 320 }}
             className="relative z-10 flex max-h-[85%] w-full flex-col rounded-t-[28px] bg-white shadow-2xl border-t border-slate-200"
           >
             {/* Pull Bar */}
@@ -111,7 +116,9 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                   <span className="text-[11.5px] font-extrabold text-slate-900">
                     {item.optionsGroup1.title}
                   </span>
-                  <span className="text-[9.5px] font-bold text-slate-500">Choose 1</span>
+                  <span className="text-[9.5px] font-bold text-slate-500">
+                    Choose 1
+                  </span>
                 </div>
                 <div className="space-y-1.5">
                   {item.optionsGroup1.choices.map((choice) => {
@@ -121,8 +128,8 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                         key={choice}
                         className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer border transition ${
                           isChecked
-                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
-                            : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
+                            ? "border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs"
+                            : "border-slate-200/90 bg-white text-slate-700 hover:border-slate-300"
                         }`}
                       >
                         <span>{choice}</span>
@@ -145,7 +152,9 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                   <span className="text-[11.5px] font-extrabold text-slate-900">
                     {item.optionsGroup2.title}
                   </span>
-                  <span className="text-[9.5px] font-bold text-slate-500">Optional</span>
+                  <span className="text-[9.5px] font-bold text-slate-500">
+                    Optional
+                  </span>
                 </div>
                 <div className="space-y-1.5">
                   {item.optionsGroup2.addOns.map((addon) => {
@@ -155,8 +164,8 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                         key={addon.name}
                         className={`flex items-center justify-between rounded-xl px-3 py-2 text-xs font-semibold cursor-pointer border transition ${
                           isChecked
-                            ? 'border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs'
-                            : 'border-slate-200/90 bg-white text-slate-700 hover:border-slate-300'
+                            ? "border-orange-500 bg-orange-50/70 text-orange-950 shadow-2xs"
+                            : "border-slate-200/90 bg-white text-slate-700 hover:border-slate-300"
                         }`}
                       >
                         <div className="flex items-center gap-1.5">
@@ -179,7 +188,9 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
 
               {/* Quantity Stepper */}
               <div className="flex items-center justify-between rounded-2xl border border-slate-200 bg-white p-3 shadow-2xs">
-                <span className="text-xs font-extrabold text-slate-900">Quantity</span>
+                <span className="text-xs font-extrabold text-slate-900">
+                  Quantity
+                </span>
                 <div className="flex items-center gap-2.5">
                   <motion.button
                     whileTap={{ scale: 0.9 }}
@@ -209,8 +220,12 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
                 onClick={handleConfirmAdd}
                 className="flex w-full items-center justify-between rounded-xl bg-orange-600 px-4 py-3 text-xs font-extrabold uppercase tracking-wider text-white shadow-md shadow-orange-600/30 hover:bg-orange-700 transition"
               >
-                <span>Add &bull; {quantity} Item{quantity > 1 ? 's' : ''}</span>
-                <span className="font-mono text-sm font-black">&#8377; {totalAmount}</span>
+                <span>
+                  Add &bull; {quantity} Item{quantity > 1 ? "s" : ""}
+                </span>
+                <span className="font-mono text-sm font-black">
+                  &#8377; {totalAmount}
+                </span>
               </motion.button>
             </div>
           </motion.div>

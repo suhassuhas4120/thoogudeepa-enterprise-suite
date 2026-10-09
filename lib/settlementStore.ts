@@ -44,6 +44,10 @@ export function clearSettledBillInMemory(tableNumber: string, seatNumber?: numbe
   if (typeof seatNumber === 'number') {
     settledBills.delete(`${normTable}-CHAIR-${seatNumber}`);
     activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+    const tblBill = settledBills.get(normTable);
+    if (tblBill && (!tblBill.seatNumber || tblBill.seatNumber === seatNumber)) {
+      settledBills.delete(normTable);
+    }
   } else {
     settledBills.delete(normTable);
     activeSettlementSessions.delete(normTable);

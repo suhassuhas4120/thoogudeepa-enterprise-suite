@@ -249,8 +249,10 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const params = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search)
         : new URLSearchParams();
-      const seatNumber = parseInt(params.get('seat') || String(state.seatNumber || 1), 10) || 1;
-      const rawTable = params.get('table') || state.tableNumber || 'T-01';
+      const seatNumber = (state.seatNumber && state.seatNumber > 0)
+        ? state.seatNumber
+        : (parseInt(params.get('seat') || '1', 10) || 1);
+      const rawTable = state.tableNumber || params.get('table') || 'T-01';
       let tableId = rawTable.trim().toUpperCase();
       const match = tableId.match(/^T-?(\d+)$/);
       if (match) {
@@ -593,7 +595,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const orderStage: OrderStage = allServed ? 'SERVED' : 'PREP';
 
       set((state) => {
-        const nextScreen = state.currentScreen <= 4 ? 5 : state.currentScreen;
+        const nextScreen = state.currentScreen === 8 ? 5 : (state.currentScreen <= 4 ? 5 : state.currentScreen);
         return {
           cart: restoredCart,
           itemTracking: restoredTracking,
@@ -645,7 +647,7 @@ if (typeof window !== 'undefined') {
     try {
       // Only persist if there is an active unplaced/in-progress order for a known table+seat.
       // Never write to the global _v1 key — that caused cross-seat contamination.
-      const hasTable = state.tableNumber && state.tableNumber !== 'T-01';
+      const hasTable = Boolean(state.tableNumber);
       const hasSeat = state.seatNumber && state.seatNumber > 0;
       const hasActiveCart = state.cart && state.cart.length > 0;
       // Don't persist the settled confirmation screen (screen 8) — next QR scan must be fresh

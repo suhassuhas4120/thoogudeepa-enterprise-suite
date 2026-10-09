@@ -162,11 +162,12 @@ function CustomerJourneyContent() {
     }
   }, [setTableNumber, setSeatNumber]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Keep hasPlacedOrderRef in sync with cart state ────────────────────────
-  // When the customer places their first order, mark the ref so the vacate
-  // check knows it's now safe to act on a VACANT table status.
+  // ─── Keep refs and hasPlacedOrderRef in sync with store state ──────────
   React.useEffect(() => {
     const unsubscribe = useCustomerStore.subscribe((state) => {
+      if (state.tableNumber) tableRef.current = normTableId(state.tableNumber);
+      if (state.seatNumber) seatRef.current = state.seatNumber;
+
       if (!hasPlacedOrderRef.current && state.cart.some((ci) => ci.isOrdered)) {
         hasPlacedOrderRef.current = true;
       }
@@ -187,7 +188,7 @@ function CustomerJourneyContent() {
 
     const channel = getSyncBroadcastChannel();
 
-    const handleBroadcast = (event: { payload: { reason?: string } }) => {
+    const handleBroadcast = (event: { payload?: { reason?: string; tableNumber?: string; seatNumber?: number } }) => {
       const reason = event?.payload?.reason;
       if (reason !== 'tableVacated' && reason !== 'chairCleared') return;
 
@@ -195,40 +196,22 @@ function CustomerJourneyContent() {
       // (pre-order browsing must never be disrupted by unrelated vacate events)
       if (!hasPlacedOrderRef.current) return;
 
-      const tableId = tableRef.current;
-      const seatId = seatRef.current;
       const curStore = useCustomerStore.getState();
+      const tableId = curStore.tableNumber || tableRef.current;
+      const seatId = curStore.seatNumber || seatRef.current;
 
       // Don't interrupt Screen 8 (confirmation) — payment already shown
       if (curStore.currentScreen === 8) return;
 
-      const bridgeState = useSharedBridge.getState();
-
-      // Check if there is a fresh settled bill strictly for this chair
-      const bridgeBills = bridgeState.settledBills || {};
-      const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
-      const chairKey = `${normTable}-CHAIR-${seatId}`;
-      const matchingSettledBill = bridgeBills[chairKey];
-
-      const isFreshBill = Boolean(
-        curStore.orderPlacedAt &&
-        curStore.orderPlacedAt > 0 &&
-        matchingSettledBill?.timestamp &&
-        matchingSettledBill.timestamp > curStore.orderPlacedAt + 500 &&
-        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000 &&
-        curStore.cart.some((ci) => ci.isOrdered) &&
-        curStore.currentScreen >= 5
-      );
-
-      if (matchingSettledBill && isFreshBill) {
-        const seatNum = typeof matchingSettledBill.seatNumber === 'number'
-          ? matchingSettledBill.seatNumber
-          : (matchingSettledBill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSettledBill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-        if (seatNum === seatId) {
-          curStore.handleBillSettledByWaiter(matchingSettledBill);
-          return;
-        }
+      // If this is a chairCleared event for a different chair or table, ignore it completely
+      if (reason === 'chairCleared') {
+        const evtTable = event?.payload?.tableNumber;
+        const evtSeat = event?.payload?.seatNumber;
+        if (evtTable && cleanTableNum(evtTable) !== cleanTableNum(tableId)) return;
+        if (typeof evtSeat === 'number' && evtSeat !== seatId) return;
       }
+
+      const bridgeState = useSharedBridge.getState();
 
       // Check bridge — reset if our specific chair is now cleared or entire table is VACANT
       const bridgeTbl = bridgeState.tables.find(
@@ -263,41 +246,15 @@ function CustomerJourneyContent() {
     const vacateCheckInterval = setInterval(() => {
       if (!hasPlacedOrderRef.current) return;
 
-      const tableId = tableRef.current;
-      const seatId = seatRef.current;
       const curStore = useCustomerStore.getState();
+      const tableId = curStore.tableNumber || tableRef.current;
+      const seatId = curStore.seatNumber || seatRef.current;
 
       // Only relevant for post-order screens; never interrupt browsing or confirmation
       const postOrderScreens = [5, 6, 7, 9, 10];
       if (!postOrderScreens.includes(curStore.currentScreen)) return;
 
       const bridgeState = useSharedBridge.getState();
-
-      // Check if there is a fresh settled bill strictly for this chair
-      const bridgeBills = bridgeState.settledBills || {};
-      const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
-      const chairKey = `${normTable}-CHAIR-${seatId}`;
-      const matchingSettledBill = bridgeBills[chairKey];
-
-      const isFreshBill = Boolean(
-        curStore.orderPlacedAt &&
-        curStore.orderPlacedAt > 0 &&
-        matchingSettledBill?.timestamp &&
-        matchingSettledBill.timestamp > curStore.orderPlacedAt + 500 &&
-        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000 &&
-        curStore.cart.some((ci) => ci.isOrdered) &&
-        curStore.currentScreen >= 5
-      );
-
-      if (matchingSettledBill && isFreshBill) {
-        const seatNum = typeof matchingSettledBill.seatNumber === 'number'
-          ? matchingSettledBill.seatNumber
-          : (matchingSettledBill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSettledBill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-        if (seatNum === seatId) {
-          curStore.handleBillSettledByWaiter(matchingSettledBill);
-          return;
-        }
-      }
 
       const bridgeTbl = bridgeState.tables.find(
         (t) => cleanTableNum(t.number) === cleanTableNum(tableId)

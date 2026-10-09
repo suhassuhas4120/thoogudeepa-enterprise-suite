@@ -146,24 +146,21 @@ export const Screen5LiveTracking: React.FC = () => {
   const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
 
-  // Check if floor captain has arrived and initiated settlement for this chair or table
+  // Check if floor captain has arrived and initiated settlement for this specific chair
   const activeSession = useMemo(() => {
     const sessions = activeSettlementSessions || {};
     const now = Date.now();
     const isValid = (sess: any) => sess && (!sess.initiatedAt || Math.abs(now - sess.initiatedAt) < 1800000);
 
     if (isValid(sessions[chairKey])) return sessions[chairKey];
-    if (isValid(sessions[normTable])) return sessions[normTable];
     for (const [, sess] of Object.entries(sessions)) {
       if (!isValid(sess)) continue;
-      if (isTableMatch(sess.tableNumber, effectiveTable)) {
-        if (!sess.seatNumber || Number(sess.seatNumber) === effectiveSeat) {
-          return sess;
-        }
+      if (isTableMatch(sess.tableNumber, effectiveTable) && Number(sess.seatNumber) === effectiveSeat) {
+        return sess;
       }
     }
     return null;
-  }, [activeSettlementSessions, chairKey, normTable, effectiveTable, effectiveSeat]);
+  }, [activeSettlementSessions, chairKey, effectiveTable, effectiveSeat]);
 
   const isCaptainArrived = Boolean(activeSession);
 
@@ -314,21 +311,6 @@ export const Screen5LiveTracking: React.FC = () => {
       }
     }
 
-    if (!candidate) {
-      for (const [, bill] of Object.entries(bills)) {
-        if (!bill) continue;
-        if (isTableMatch(bill.tableName, effectiveTable)) {
-          const seatNum = typeof bill.seatNumber === 'number'
-            ? bill.seatNumber
-            : (bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(bill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-          if (seatNum === effectiveSeat) {
-            candidate = bill;
-            break;
-          }
-        }
-      }
-    }
-
     // Must be fresh and generated strictly AFTER the current customer placed order
     if (candidate && candidate.timestamp) {
       const now = Date.now();
@@ -340,7 +322,7 @@ export const Screen5LiveTracking: React.FC = () => {
     }
 
     return null;
-  }, [settledBills, chairKey, effectiveTable, effectiveSeat, orderPlacedAt, trackedDishes]);
+  }, [settledBills, chairKey, effectiveSeat, orderPlacedAt, trackedDishes]);
 
   useEffect(() => {
     if (matchingSnapshot && trackedDishes.length > 0 && orderPlacedAt > 0) {
@@ -358,7 +340,7 @@ export const Screen5LiveTracking: React.FC = () => {
     let isCancelled = false;
     const fetchSession = async () => {
       try {
-        const res = await fetch('/api/settlement/session', { cache: 'no-store' });
+        const res = await fetch(`/api/settlement/session?tableNumber=${encodeURIComponent(effectiveTable)}`, { cache: 'no-store' });
         if (res.ok && !isCancelled) {
           const data = await res.json();
           if (data?.sessions !== undefined || data?.settledBills !== undefined) {
@@ -377,7 +359,7 @@ export const Screen5LiveTracking: React.FC = () => {
       isCancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [effectiveTable]);
 
   // Total payable amount
   const currentBillAmount = useMemo(() => {

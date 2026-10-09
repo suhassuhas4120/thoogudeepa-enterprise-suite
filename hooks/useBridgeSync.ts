@@ -341,10 +341,18 @@ async function reconcileAllState(): Promise<void> {
         ...(prev.activeSettlementSessions || {}),
         ...activeSessionsFromDb,
       },
-      settledBills: {
-        ...(prev.settledBills || {}),
-        ...settledBillsFromDb,
-      },
+      settledBills: (() => {
+        const merged: Record<string, any> = { ...settledBillsFromDb };
+        const prevBills = prev.settledBills || {};
+        const nowTs = Date.now();
+        // Only keep in-flight snapshots from memory if created in the last 4 seconds
+        Object.entries(prevBills).forEach(([k, v]) => {
+          if (v?.timestamp && Math.abs(nowTs - v.timestamp) < 4000 && !merged[k]) {
+            merged[k] = v;
+          }
+        });
+        return merged;
+      })(),
     }));
   } catch (err) {
     console.error('[BridgeSync] Reconciliation error:', err);
@@ -697,10 +705,15 @@ export function useBridgeSync() {
               const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
               useSharedBridge.setState((prev) => {
                 const nextBills = { ...(prev.settledBills || {}) };
-                nextBills[normTable] = bill;
                 const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-                if (seatMatch) {
-                  nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
+                const seatNum = typeof bill.seatNumber === 'number'
+                  ? bill.seatNumber
+                  : (seatMatch ? Number(seatMatch[1]) : undefined);
+
+                if (typeof seatNum === 'number') {
+                  nextBills[`${normTable}-CHAIR-${seatNum}`] = bill;
+                } else {
+                  nextBills[normTable] = bill;
                 }
                 return { settledBills: nextBills };
               });

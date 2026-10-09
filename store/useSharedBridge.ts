@@ -230,6 +230,9 @@ interface SharedBridgeState {
   /** Record settled bill snapshot from waiter settlement */
   recordSettledBill: (snapshot: SettledBillSnapshot) => void;
 
+  /** Clear settled bill for a table or specific chair */
+  clearSettledBill: (tableNumber: string, seatNumber?: number) => void;
+
   /** Kitchen bumps an item stage */
   kitchenBumpItemStage: (ticketId: string, itemId: string) => void;
   kitchenSetItemStage: (ticketId: string, itemId: string, stage: OrderStage) => void;
@@ -418,41 +421,51 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       tables: get().tables,
     };
 
-    set((state) => ({
-      kdsTickets: [...state.kdsTickets, ticket],
-      kitchenNotifications: [...state.kitchenNotifications, notif],
-      tables: state.tables.map((t) =>
-        t.number === tableNumber
-          ? {
-              ...t,
-              status: 'OCCUPIED',
-              guestCount: (() => {
-                const existingSeats = new Set<number>();
-                (t.activeItems || []).forEach((it) => {
-                  if (it.seatNumber) existingSeats.add(it.seatNumber);
-                });
-                existingSeats.add(assignedSeat);
-                return Math.min(t.capacity, Math.max(1, existingSeats.size));
-              })(),
-              seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
-              currentBill: t.currentBill + orderTotal,
-              kotCount: t.kotCount + 1,
-              activeItems: [
-                ...(t.activeItems || []),
-                ...items.map((i, idx) => ({
-                  id: `ai-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
-                  name: i.item.name,
-                  quantity: i.quantity,
-                  status: 'Placed',
-                  seatNumber: assignedSeat,
-                  price: i.item.price,
-                  options: i.selectedOption,
-                })),
-              ],
-            }
-          : t
-      ),
-    }));
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    set((state) => {
+      const nextBills = { ...state.settledBills };
+      delete nextBills[`${normTable}-CHAIR-${assignedSeat}`];
+
+      return {
+        kdsTickets: [...state.kdsTickets, ticket],
+        kitchenNotifications: [...state.kitchenNotifications, notif],
+        settledBills: nextBills,
+        tables: state.tables.map((t) =>
+          t.number === tableNumber
+            ? {
+                ...t,
+                status: 'OCCUPIED',
+                guestCount: (() => {
+                  const existingSeats = new Set<number>();
+                  (t.activeItems || []).forEach((it) => {
+                    if (it.seatNumber) existingSeats.add(it.seatNumber);
+                  });
+                  existingSeats.add(assignedSeat);
+                  return Math.min(t.capacity, Math.max(1, existingSeats.size));
+                })(),
+                seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
+                currentBill: t.currentBill + orderTotal,
+                kotCount: t.kotCount + 1,
+                activeItems: [
+                  ...(t.activeItems || []),
+                  ...items.map((i, idx) => ({
+                    id: `ai-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
+                    name: i.item.name,
+                    quantity: i.quantity,
+                    status: 'Placed',
+                    seatNumber: assignedSeat,
+                    price: i.item.price,
+                    options: i.selectedOption,
+                  })),
+                ],
+              }
+            : t
+        ),
+      };
+    });
 
     bridgePost(
       '/api/orders/create',
@@ -600,6 +613,31 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
         .then(() => {}, () => {});
     }
+  },
+
+  clearSettledBill: (tableNumber, seatNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    set((state) => {
+      const nextBills = { ...state.settledBills };
+      if (typeof seatNumber === 'number') {
+        delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+      } else {
+        delete nextBills[normTable];
+        for (let s = 1; s <= 12; s++) {
+          delete nextBills[`${normTable}-CHAIR-${s}`];
+        }
+      }
+      return { settledBills: nextBills };
+    });
+
+    bridgePost('/api/settlement/session', {
+      action: 'CLEAR_BILL',
+      tableNumber,
+      seatNumber,
+    });
   },
 
   
@@ -987,10 +1025,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     };
 
     // 1. Optimistic update
-    set((state) => ({
-      kdsTickets: [...state.kdsTickets, ticket],
-      kitchenNotifications: [...state.kitchenNotifications, notif],
-      tables: state.tables.map((t) =>
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    set((state) => {
+      const nextBills = { ...state.settledBills };
+      if (typeof seatNumber === 'number') {
+        delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+      }
+
+      return {
+        kdsTickets: [...state.kdsTickets, ticket],
+        kitchenNotifications: [...state.kitchenNotifications, notif],
+        settledBills: nextBills,
+        tables: state.tables.map((t) =>
         t.number === tableNumber
           ? {
               ...t,
@@ -1029,7 +1078,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             }
           : t
       ),
-    }));
+      };
+    });
 
     // 2. Persist to Supabase
     bridgePost(
@@ -1433,9 +1483,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
       const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
       const nextSessions = { ...state.activeSettlementSessions };
+      const nextBills = { ...state.settledBills };
       delete nextSessions[normTable];
+      delete nextBills[normTable];
       for (let s = 1; s <= 12; s++) {
         delete nextSessions[`${normTable}-CHAIR-${s}`];
+        delete nextBills[`${normTable}-CHAIR-${s}`];
       }
 
       return {
@@ -1462,6 +1515,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           (tk) => !groupNums.has(tk.tableNumber) && cleanNum(tk.tableNumber) !== targetNum
         ),
         activeSettlementSessions: nextSessions,
+        settledBills: nextBills,
       };
     });
 
@@ -1565,10 +1619,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       });
 
       const nextSessions = { ...state.activeSettlementSessions };
+      const nextBills = { ...state.settledBills };
       const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
       delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
+      delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
 
-      return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions };
+      return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions, settledBills: nextBills };
     });
 
     // Clear server settlement session & settled bills for this chair

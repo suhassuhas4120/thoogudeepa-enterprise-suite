@@ -3,7 +3,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, SettledBillSnapshot } from '../../store/useSharedBridge';
 import { useOrderTrackingQuery } from '../../hooks/useOrderTrackingQuery';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -92,6 +92,7 @@ export const Screen5LiveTracking: React.FC = () => {
     cart,
     pingWaiter,
     waiterNotification,
+    orderPlacedAt,
   } = useCustomer();
 
   const {
@@ -181,20 +182,25 @@ export const Screen5LiveTracking: React.FC = () => {
 
   // Unified items list with live stage resolved across Bridge, Supabase, and local Cart
   const trackedDishes = useMemo(() => {
-    const myBridgeTickets = bridgeTickets.filter((tk) => isTableMatch(tk.tableNumber, effectiveTable));
+    const myBridgeTickets = bridgeTickets.filter(
+      (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+    );
     const bridgeItems = myBridgeTickets.flatMap((tk) =>
-      tk.items.map((it) => ({
-        id: it.id,
-        ticketId: tk.id,
-        name: getCleanName(it.name),
-        quantity: it.quantity,
-        stage: it.stage as OrderStage,
-        prepMode: it.prepMode,
-        options: it.options,
-        addOns: it.addOns,
-        notes: it.notes,
-        seatNumber: it.seatNumber || tk.seatNumber,
-      }))
+      tk.items
+        .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+        .map((it) => ({
+          id: it.id,
+          ticketId: tk.id,
+          name: getCleanName(it.name),
+          quantity: it.quantity,
+          stage: it.stage as OrderStage,
+          prepMode: it.prepMode,
+          options: it.options,
+          addOns: it.addOns,
+          notes: it.notes,
+          seatNumber: effectiveSeat,
+        }))
     );
 
     const mySupabaseTickets = supabaseTickets.filter((tk) => isTableMatch(tk.tableId, effectiveTable));
@@ -213,20 +219,18 @@ export const Screen5LiveTracking: React.FC = () => {
       }))
     );
 
-    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered);
+    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && (!ci.seatNumber || ci.seatNumber === effectiveSeat));
 
     if (orderedCart.length > 0) {
       return orderedCart.map((ci) => {
         const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
         const key = getCanonicalKey(dishName);
-        const bridgeMatch =
-          bridgeItems.find((bi) => bi && getCanonicalKey(bi.name) === key && bi.seatNumber === (ci.seatNumber || effectiveSeat)) ||
-          bridgeItems.find((bi) => bi && getCanonicalKey(bi.name) === key);
+        const bridgeMatch = bridgeItems.find((bi) => bi && getCanonicalKey(bi.name) === key);
         const supabaseMatch = supabaseItems.find((si) => si && getCanonicalKey(si.name) === key);
 
         // Check if table active item is marked Served
         const tableActiveItem = currentTbl?.activeItems?.find(
-          (ai) => ai && getCanonicalKey(ai.name) === key && (!ai.seatNumber || ai.seatNumber === effectiveSeat)
+          (ai) => ai && getCanonicalKey(ai.name) === key && ai.seatNumber === effectiveSeat
         );
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
@@ -248,7 +252,7 @@ export const Screen5LiveTracking: React.FC = () => {
           options: ci.selectedOption,
           addOns: ci.selectedAddOns || [],
           notes: '',
-          seatNumber: ci.seatNumber || effectiveSeat,
+          seatNumber: effectiveSeat,
         };
       });
     }
@@ -279,7 +283,7 @@ export const Screen5LiveTracking: React.FC = () => {
     return trackedDishes.every((d) => {
       if (d.stage === 'SERVED') return true;
       const matched = currentTbl?.activeItems?.find(
-        (ai) => getCanonicalKey(ai.name) === getCanonicalKey(d.name) && (!ai.seatNumber || ai.seatNumber === effectiveSeat)
+        (ai) => getCanonicalKey(ai.name) === getCanonicalKey(d.name) && ai.seatNumber === effectiveSeat
       );
       return matched?.status === 'Served';
     });
@@ -288,30 +292,49 @@ export const Screen5LiveTracking: React.FC = () => {
   // Auto-transition to Screen 8 immediately when waiter confirms payment
   const matchingSnapshot = useMemo(() => {
     const bills = settledBills || {};
-    if (bills[chairKey]) return bills[chairKey];
-    if (bills[normTable]) {
+    let candidate: SettledBillSnapshot | null = null;
+
+    if (bills[chairKey]) {
+      candidate = bills[chairKey];
+    } else if (bills[normTable]) {
       const b = bills[normTable];
       if (b.seatNumber === undefined || b.seatNumber === null || b.seatNumber === effectiveSeat) {
-        return b;
+        candidate = b;
       }
     }
-    for (const [key, bill] of Object.entries(bills)) {
-      if (!bill) continue;
-      if (isTableMatch(bill.tableName, effectiveTable)) {
-        if (typeof bill.seatNumber === 'number') {
-          if (bill.seatNumber === effectiveSeat) return bill;
-        } else {
-          const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-          if (seatMatch) {
-            if (Number(seatMatch[1]) === effectiveSeat) return bill;
+
+    if (!candidate) {
+      for (const [, bill] of Object.entries(bills)) {
+        if (!bill) continue;
+        if (isTableMatch(bill.tableName, effectiveTable)) {
+          if (typeof bill.seatNumber === 'number') {
+            if (bill.seatNumber === effectiveSeat) {
+              candidate = bill;
+              break;
+            }
           } else {
-            return bill;
+            const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
+            if (seatMatch && Number(seatMatch[1]) === effectiveSeat) {
+              candidate = bill;
+              break;
+            }
           }
         }
       }
     }
+
+    // Must be fresh and generated on or after the current customer's order placed timestamp
+    if (candidate) {
+      const now = Date.now();
+      const isRecent = !candidate.timestamp || Math.abs(now - candidate.timestamp) < 1800000;
+      const isAfterOrder = !orderPlacedAt || (candidate.timestamp && candidate.timestamp >= orderPlacedAt);
+      if (isRecent && isAfterOrder) {
+        return candidate;
+      }
+    }
+
     return null;
-  }, [settledBills, chairKey, normTable, effectiveTable, effectiveSeat]);
+  }, [settledBills, chairKey, normTable, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   useEffect(() => {
     if (matchingSnapshot) {
@@ -332,14 +355,11 @@ export const Screen5LiveTracking: React.FC = () => {
         const res = await fetch('/api/settlement/session', { cache: 'no-store' });
         if (res.ok && !isCancelled) {
           const data = await res.json();
-          if (data?.sessions || data?.settledBills) {
-            useSharedBridge.setState((prev) => ({
+          if (data?.sessions !== undefined || data?.settledBills !== undefined) {
+            useSharedBridge.setState({
               activeSettlementSessions: data.sessions || {},
-              settledBills: {
-                ...(prev.settledBills || {}),
-                ...(data.settledBills || {}),
-              },
-            }));
+              settledBills: data.settledBills || {},
+            });
           }
         }
       } catch {}

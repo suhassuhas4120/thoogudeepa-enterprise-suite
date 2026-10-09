@@ -22,6 +22,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     tableNumber,
     seatNumber,
     venueName,
+    orderPlacedAt,
   } = useCustomer();
 
   const { settledBills, kdsTickets, tables } = useSharedBridge();
@@ -50,37 +51,46 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     );
     if (matchingSnapshot && matchingSnapshot.timestamp) {
       const now = Date.now();
-      if (Math.abs(now - matchingSnapshot.timestamp) < 1800000) {
+      const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
+      const isAfterOrder = !orderPlacedAt || matchingSnapshot.timestamp >= orderPlacedAt;
+      if (isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }
-  }, [settledBills, tables, effectiveTable, effectiveSeat]);
+  }, [settledBills, tables, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   // Authentic items from cart, bridge tickets, or settled items (no fake/random data)
   const activeCart = useMemo(() => {
-    if (cart.length > 0) return cart;
+    const chairCart = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat);
+    if (chairCart.length > 0) return chairCart;
 
-    // Check if table has items in bridge tickets
+    // Check if table has items in bridge tickets strictly for this chair
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-    const myTickets = kdsTickets.filter((tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) && tk.status !== 'COMPLETED');
+    const myTickets = kdsTickets.filter(
+      (tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) &&
+              tk.status !== 'COMPLETED' &&
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+    );
     if (myTickets.length > 0) {
       return myTickets.flatMap((tk) =>
-        tk.items.map((it) => ({
-          cartItemId: it.id,
-          menuItem: { id: it.id, name: it.name, price: it.price || 0 } as any,
-          selectedOption: it.options || '',
-          selectedAddOns: it.addOns || [],
-          quantity: it.quantity,
-          totalPrice: (it.price || 0) * it.quantity,
-          prepMode: it.prepMode || '',
-          isOrdered: true,
-          seatNumber: it.seatNumber || tk.seatNumber,
-        }))
+        tk.items
+          .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+          .map((it) => ({
+            cartItemId: it.id,
+            menuItem: { id: it.id, name: it.name, price: it.price || 0 } as any,
+            selectedOption: it.options || '',
+            selectedAddOns: it.addOns || [],
+            quantity: it.quantity,
+            totalPrice: (it.price || 0) * it.quantity,
+            prepMode: it.prepMode || '',
+            isOrdered: true,
+            seatNumber: effectiveSeat,
+          }))
       );
     }
 
     return [];
-  }, [cart, kdsTickets, effectiveTable]);
+  }, [cart, kdsTickets, effectiveTable, effectiveSeat]);
 
   const subtotal = activeCart.reduce((s, i) => s + i.totalPrice, 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)

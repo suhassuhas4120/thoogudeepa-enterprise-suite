@@ -165,6 +165,9 @@ export const Screen8Confirmation: React.FC = () => {
   };
 
   const handleDineAgain = () => {
+    try {
+      useSharedBridge.getState().clearSettledBill(effectiveTable, seatNumber);
+    } catch {}
     resetSession();
     setCurrentScreen(1);
   };

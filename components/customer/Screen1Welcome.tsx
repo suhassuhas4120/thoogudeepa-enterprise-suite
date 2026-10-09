@@ -29,6 +29,7 @@ export const Screen1Welcome: React.FC = () => {
     seatNumber,
     setTableNumber,
     setSeatNumber,
+    syncWithActiveSession,
   } = useCustomer();
 
   const { currentTheme } = useCustomerTheme();
@@ -86,6 +87,7 @@ export const Screen1Welcome: React.FC = () => {
       url.searchParams.set('seat', newSeat.toString());
       window.history.replaceState({}, '', url.toString());
     }
+    syncWithActiveSession(activeTable.number, newSeat);
   };
 
   // Connection Handlers: advance to Authentic Menu

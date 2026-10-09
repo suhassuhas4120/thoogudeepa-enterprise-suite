@@ -46,6 +46,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     tableNumber,
     seatNumber,
     venueName,
+    orderPlacedAt,
   } = useCustomer();
 
   const { waiterRecordsPayment, settledBills, recordSettledBill, tables } = useSharedBridge();
@@ -78,11 +79,13 @@ export const Screen7PaymentGateway: React.FC = () => {
     );
     if (matchingSnapshot && matchingSnapshot.timestamp) {
       const now = Date.now();
-      if (Math.abs(now - matchingSnapshot.timestamp) < 1800000) {
+      const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
+      const isAfterOrder = !orderPlacedAt || matchingSnapshot.timestamp >= orderPlacedAt;
+      if (isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }
-  }, [settledBills, tables, effectiveTable, effectiveSeat]);
+  }, [settledBills, tables, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   // Money Calculations
   const subtotal = cart.length > 0

@@ -101,14 +101,22 @@ function CustomerJourneyContent() {
           const hasPlacedOrders = parsed.cart.some((ci: { isOrdered?: boolean }) => ci.isOrdered === true);
 
           if (hasPlacedOrders) {
-            // Check bridge — if table is explicitly VACANT (not just absent), discard stale session
-            const bridgeTables = useSharedBridge.getState().tables;
-            const bridgeTbl = bridgeTables.find(
+            // Check bridge — verify if THIS specific chair has active orders in bridge
+            const bridgeState = useSharedBridge.getState();
+            const bridgeTbl = bridgeState.tables.find(
               (t) => cleanTableNum(t.number) === cleanTableNum(cleanTable)
             );
-            const tableExplicitlyVacant = bridgeTbl && bridgeTbl.status === 'VACANT';
+            const seatActiveItems = (bridgeTbl?.activeItems || []).filter(
+              (ai) => ai.seatNumber === parsedSeat
+            );
+            const seatTickets = bridgeState.kdsTickets.filter(
+              (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(cleanTable) &&
+                      tk.status !== 'COMPLETED' &&
+                      (tk.seatNumber === parsedSeat || tk.items.some((i) => i.seatNumber === parsedSeat))
+            );
+            const chairHasActiveOrdersInBridge = seatActiveItems.length > 0 || seatTickets.length > 0;
 
-            if (!tableExplicitlyVacant) {
+            if (chairHasActiveOrdersInBridge) {
               // Restore the active mid-session
               useCustomerStore.setState({
                 cart: parsed.cart,
@@ -116,10 +124,11 @@ function CustomerJourneyContent() {
                 orderStage: parsed.orderStage || 'PLACED',
                 itemTracking: parsed.itemTracking || [],
                 payment: parsed.payment || curStore.payment,
+                orderPlacedAt: parsed.orderPlacedAt || Date.now(),
               });
               hasPlacedOrderRef.current = true;
             } else {
-              // Table got vacated while they were away — wipe stale session
+              // Chair was vacated or finished in kitchen/bridge — wipe stale session
               try { localStorage.removeItem(scopedKey); } catch {}
             }
           } else {
@@ -179,7 +188,7 @@ function CustomerJourneyContent() {
 
       const bridgeState = useSharedBridge.getState();
 
-      // Check if there is a settled bill waiting to be shown to this customer
+      // Check if there is a fresh settled bill waiting to be shown to this customer
       const bridgeBills = bridgeState.settledBills || {};
       const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
       const chairKey = `${normTable}-CHAIR-${seatId}`;
@@ -191,17 +200,29 @@ function CustomerJourneyContent() {
         ) ? bridgeBills[normTable] : null
       );
 
-      if (matchingSettledBill) {
+      const isFreshBill = matchingSettledBill?.timestamp &&
+        (!curStore.orderPlacedAt || matchingSettledBill.timestamp >= curStore.orderPlacedAt);
+
+      if (matchingSettledBill && isFreshBill) {
         curStore.handleBillSettledByWaiter(matchingSettledBill);
         return;
       }
 
-      // Check bridge — only reset if our specific table is now VACANT
+      // Check bridge — reset if our specific chair is now cleared or entire table is VACANT
       const bridgeTbl = bridgeState.tables.find(
         (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
       );
+      const seatActiveItems = (bridgeTbl?.activeItems || []).filter(
+        (ai) => ai.seatNumber === seatId
+      );
+      const seatTickets = bridgeState.kdsTickets.filter(
+        (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tableId) &&
+                tk.status !== 'COMPLETED' &&
+                (tk.seatNumber === seatId || tk.items.some((i) => i.seatNumber === seatId))
+      );
+      const chairHasRemainingOrders = seatActiveItems.length > 0 || seatTickets.length > 0;
 
-      if (bridgeTbl && bridgeTbl.status === 'VACANT') {
+      if (!chairHasRemainingOrders || (bridgeTbl && bridgeTbl.status === 'VACANT')) {
         try {
           localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
           localStorage.removeItem('thoogudeepa_customer_session_v1');
@@ -215,7 +236,7 @@ function CustomerJourneyContent() {
 
     // Safety-net poll every 8 seconds — only acts if:
     //   1. Customer has placed an order (not pre-order browsing)
-    //   2. Table is confirmed VACANT in bridge (not just absent)
+    //   2. Table or chair is confirmed cleared/VACANT in bridge (not just absent)
     //   3. Customer is on an active post-order screen (5, 6, 7, 9, 10)
     const vacateCheckInterval = setInterval(() => {
       if (!hasPlacedOrderRef.current) return;
@@ -230,7 +251,7 @@ function CustomerJourneyContent() {
 
       const bridgeState = useSharedBridge.getState();
 
-      // Check if there is a settled bill waiting to be shown to this customer
+      // Check if there is a fresh settled bill waiting to be shown to this customer
       const bridgeBills = bridgeState.settledBills || {};
       const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
       const chairKey = `${normTable}-CHAIR-${seatId}`;
@@ -242,7 +263,10 @@ function CustomerJourneyContent() {
         ) ? bridgeBills[normTable] : null
       );
 
-      if (matchingSettledBill) {
+      const isFreshBill = matchingSettledBill?.timestamp &&
+        (!curStore.orderPlacedAt || matchingSettledBill.timestamp >= curStore.orderPlacedAt);
+
+      if (matchingSettledBill && isFreshBill) {
         curStore.handleBillSettledByWaiter(matchingSettledBill);
         return;
       }
@@ -250,9 +274,18 @@ function CustomerJourneyContent() {
       const bridgeTbl = bridgeState.tables.find(
         (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
       );
+      const seatActiveItems = (bridgeTbl?.activeItems || []).filter(
+        (ai) => ai.seatNumber === seatId
+      );
+      const seatTickets = bridgeState.kdsTickets.filter(
+        (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tableId) &&
+                tk.status !== 'COMPLETED' &&
+                (tk.seatNumber === seatId || tk.items.some((i) => i.seatNumber === seatId))
+      );
+      const chairHasRemainingOrders = seatActiveItems.length > 0 || seatTickets.length > 0;
 
-      // Table must exist AND be explicitly VACANT (not just absent from bridge)
-      if (bridgeTbl && bridgeTbl.status === 'VACANT') {
+      // Reset if chair has no active orders in bridge or table is explicitly VACANT
+      if (!chairHasRemainingOrders || (bridgeTbl && bridgeTbl.status === 'VACANT')) {
         try {
           localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
           localStorage.removeItem('thoogudeepa_customer_session_v1');

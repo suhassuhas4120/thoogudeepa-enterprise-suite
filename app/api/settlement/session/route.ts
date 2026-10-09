@@ -124,6 +124,26 @@ export async function POST(req: NextRequest) {
         initiatedAt: session.initiatedAt || Date.now(),
       };
 
+      // Pessimistic settlement lock: Check if another seat or table-wide settlement is active within 3 minutes
+      const existingSession = activeSettlementSessions.get(normTable);
+      if (
+        existingSession &&
+        existingSession.initiatedAt &&
+        Date.now() - existingSession.initiatedAt < 180000 &&
+        typeof session.seatNumber === 'number' &&
+        typeof existingSession.seatNumber === 'number' &&
+        existingSession.seatNumber !== session.seatNumber
+      ) {
+        return NextResponse.json(
+          {
+            error: 'TABLE_SETTLEMENT_LOCKED',
+            message: `Table ${normTable} is currently being settled by Chair ${existingSession.seatNumber}. Please wait.`,
+            existingSession,
+          },
+          { status: 409 }
+        );
+      }
+
       activeSettlementSessions.set(normTable, cleanSession);
       if (typeof session.seatNumber === 'number') {
         activeSettlementSessions.set(`${normTable}-CHAIR-${session.seatNumber}`, cleanSession);

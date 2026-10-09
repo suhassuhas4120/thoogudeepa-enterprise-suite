@@ -4,6 +4,8 @@ import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
 
+const inFlightOrderLocks = new Map<string, Promise<any>>();
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
@@ -82,32 +84,90 @@ export async function POST(req: NextRequest) {
     const tax = Math.round(subtotal * 0.05); // 5% GST
     const total = subtotal + tax;
 
-    // Generate unique identifiers
-    const timestamp = Date.now();
-    const cleanTable = tableNumber.replace(/[^a-zA-Z0-9]/g, '');
-    const orderId = `ORD-${cleanTable}-S${seatNumber}-${timestamp.toString().slice(-6)}`;
-    const ticketId = `KOT-${cleanTable}-${timestamp.toString().slice(-4)}`;
+    const lockKey = `${tableNumber}-S${seatNumber}`;
 
-    const nowIso = new Date().toISOString();
-
-    // 1. Create order record
-    const { error: orderErr } = await supabase.from('orders').insert({
-      id: orderId,
-      table_number: tableNumber,
-      seat_number: seatNumber,
-      guest_name: guestName,
-      guest_count: guestCount,
-      items,
-      subtotal,
-      tax,
-      total,
-      total_amount: total,
-      status: 'UNPAID',
-      source,
-      device_token: deviceToken,
-      created_at: nowIso,
-      updated_at: nowIso,
+    // Synchronous mutex chaining: acquire reference to current tail, install ourselves as the new tail
+    const previousLock = inFlightOrderLocks.get(lockKey);
+    let releaseLock: () => void = () => {};
+    const myLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
     });
+    inFlightOrderLocks.set(lockKey, myLock);
+
+    // Wait for previous in-flight order for this exact chair if any
+    if (previousLock) {
+      try {
+        await previousLock;
+      } catch {}
+    }
+
+    try {
+      // Idempotency check: Look for identical order created in the last 45 seconds
+      const fortyFiveSecsAgo = new Date(Date.now() - 45000).toISOString();
+      const { data: recentOrder } = await supabase
+        .from('orders')
+        .select('id, table_number, seat_number, total_amount, status, created_at')
+        .eq('table_number', tableNumber)
+        .eq('seat_number', seatNumber)
+        .eq('status', 'UNPAID')
+        .gte('created_at', fortyFiveSecsAgo)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recentOrder && Math.abs(Number(recentOrder.total_amount) - total) < 0.01) {
+        const { data: recentItems } = await supabase
+          .from('order_items')
+          .select('name, quantity')
+          .eq('order_id', recentOrder.id);
+
+        const itemsMatch =
+          recentItems &&
+          recentItems.length === items.length &&
+          items.every((it: any) =>
+            recentItems.some((ri: any) => ri.name === it.name && Number(ri.quantity) === Number(it.quantity || 1))
+          );
+
+        if (itemsMatch) {
+          return NextResponse.json({
+            success: true,
+            orderId: recentOrder.id,
+            ticketId: `KOT-${tableNumber.replace(/[^a-zA-Z0-9]/g, '')}-${recentOrder.id.slice(-4)}`,
+            tableNumber,
+            seatNumber,
+            total,
+            source,
+            idempotent: true,
+            message: 'Order accepted idempotently',
+          });
+        }
+      }
+      // Generate unique identifiers
+      const timestamp = Date.now();
+      const cleanTable = tableNumber.replace(/[^a-zA-Z0-9]/g, '');
+      const orderId = `ORD-${cleanTable}-S${seatNumber}-${timestamp.toString().slice(-6)}`;
+      const ticketId = `KOT-${cleanTable}-${timestamp.toString().slice(-4)}`;
+
+      const nowIso = new Date().toISOString();
+
+      // 1. Create order record
+      const { error: orderErr } = await supabase.from('orders').insert({
+        id: orderId,
+        table_number: tableNumber,
+        seat_number: seatNumber,
+        guest_name: guestName,
+        guest_count: guestCount,
+        items,
+        subtotal,
+        tax,
+        total,
+        total_amount: total,
+        status: 'UNPAID',
+        source,
+        device_token: deviceToken,
+        created_at: nowIso,
+        updated_at: nowIso,
+      });
 
     if (orderErr) {
       return NextResponse.json({ error: `Failed to create order: ${orderErr.message}` }, { status: 500 });
@@ -202,17 +262,23 @@ export async function POST(req: NextRequest) {
       })
       .eq('number', tableNumber);
 
-    return NextResponse.json({
-      success: true,
-      orderId,
-      ticketId,
-      tableNumber,
-      seatNumber,
-      subtotal,
-      tax,
-      total,
-      itemCount: items.length,
-    });
+      return NextResponse.json({
+        success: true,
+        orderId,
+        ticketId,
+        tableNumber,
+        seatNumber,
+        subtotal,
+        tax,
+        total,
+        itemCount: items.length,
+      });
+    } finally {
+      if (inFlightOrderLocks.get(lockKey) === myLock) {
+        inFlightOrderLocks.delete(lockKey);
+      }
+      releaseLock();
+    }
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }

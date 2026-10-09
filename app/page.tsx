@@ -67,6 +67,17 @@ function CustomerJourneyContent() {
     tableRef.current = cleanTable;
     seatRef.current = parsedSeat;
 
+    const curStoreState = useCustomerStore.getState();
+    const tableOrSeatChanged =
+      curStoreState.tableNumber !== cleanTable ||
+      curStoreState.seatNumber !== parsedSeat ||
+      curStoreState.isSettled;
+
+    if (tableOrSeatChanged) {
+      curStoreState.resetSession();
+      hasPlacedOrderRef.current = false;
+    }
+
     // Always wipe the OLD global (unscoped) key — it causes cross-seat contamination
     try {
       localStorage.removeItem('thoogudeepa_customer_session_v1');
@@ -97,43 +108,48 @@ function CustomerJourneyContent() {
           // Stale entry for a different table/seat — discard silently
           try { localStorage.removeItem(scopedKey); } catch {}
         } else if (tableMatches && curStore.cart.length === 0 && hasSavedCart) {
-          // Check if there are any placed orders in the saved cart
-          const hasPlacedOrders = parsed.cart.some((ci: { isOrdered?: boolean }) => ci.isOrdered === true);
+          if (parsed.isSettled || parsed.currentScreen === 8) {
+            // Already paid/settled in previous customer session — wipe so new customer starts fresh
+            try { localStorage.removeItem(scopedKey); } catch {}
+          } else {
+            // Check if there are any placed orders in the saved cart
+            const hasPlacedOrders = parsed.cart.some((ci: { isOrdered?: boolean }) => ci.isOrdered === true);
 
-          if (hasPlacedOrders) {
-            // Check bridge — verify if THIS specific chair has active orders in bridge
-            const bridgeState = useSharedBridge.getState();
-            const bridgeTbl = bridgeState.tables.find(
-              (t) => cleanTableNum(t.number) === cleanTableNum(cleanTable)
-            );
-            const seatActiveItems = (bridgeTbl?.activeItems || []).filter(
-              (ai) => ai.seatNumber === parsedSeat
-            );
-            const seatTickets = bridgeState.kdsTickets.filter(
-              (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(cleanTable) &&
-                      tk.status !== 'COMPLETED' &&
-                      (tk.seatNumber === parsedSeat || tk.items.some((i) => i.seatNumber === parsedSeat))
-            );
-            const chairHasActiveOrdersInBridge = seatActiveItems.length > 0 || seatTickets.length > 0;
+            if (hasPlacedOrders) {
+              // Check bridge — verify if THIS specific chair has active orders in bridge
+              const bridgeState = useSharedBridge.getState();
+              const bridgeTbl = bridgeState.tables.find(
+                (t) => cleanTableNum(t.number) === cleanTableNum(cleanTable)
+              );
+              const seatActiveItems = (bridgeTbl?.activeItems || []).filter(
+                (ai) => ai.seatNumber === parsedSeat
+              );
+              const seatTickets = bridgeState.kdsTickets.filter(
+                (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(cleanTable) &&
+                        tk.status !== 'COMPLETED' &&
+                        (tk.seatNumber === parsedSeat || tk.items.some((i) => i.seatNumber === parsedSeat))
+              );
+              const chairHasActiveOrdersInBridge = seatActiveItems.length > 0 || seatTickets.length > 0;
 
-            if (chairHasActiveOrdersInBridge) {
-              // Restore the active mid-session
-              useCustomerStore.setState({
-                cart: parsed.cart,
-                currentScreen: parsed.currentScreen || 1,
-                orderStage: parsed.orderStage || 'PLACED',
-                itemTracking: parsed.itemTracking || [],
-                payment: parsed.payment || curStore.payment,
-                orderPlacedAt: parsed.orderPlacedAt || Date.now(),
-              });
-              hasPlacedOrderRef.current = true;
+              if (chairHasActiveOrdersInBridge) {
+                // Restore the active mid-session
+                useCustomerStore.setState({
+                  cart: parsed.cart,
+                  currentScreen: parsed.currentScreen || 1,
+                  orderStage: parsed.orderStage || 'PLACED',
+                  itemTracking: parsed.itemTracking || [],
+                  payment: parsed.payment || curStore.payment,
+                  orderPlacedAt: parsed.orderPlacedAt || Date.now(),
+                });
+                hasPlacedOrderRef.current = true;
+              } else {
+                // Chair was vacated or finished in kitchen/bridge — wipe stale session
+                try { localStorage.removeItem(scopedKey); } catch {}
+              }
             } else {
-              // Chair was vacated or finished in kitchen/bridge — wipe stale session
+              // Only unplaced browsing state — don't restore; let them start fresh
               try { localStorage.removeItem(scopedKey); } catch {}
             }
-          } else {
-            // Only unplaced browsing state — don't restore; let them start fresh
-            try { localStorage.removeItem(scopedKey); } catch {}
           }
         }
       }
@@ -198,8 +214,10 @@ function CustomerJourneyContent() {
         curStore.orderPlacedAt &&
         curStore.orderPlacedAt > 0 &&
         matchingSettledBill?.timestamp &&
-        matchingSettledBill.timestamp >= curStore.orderPlacedAt &&
-        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000
+        matchingSettledBill.timestamp > curStore.orderPlacedAt + 500 &&
+        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000 &&
+        curStore.cart.some((ci) => ci.isOrdered) &&
+        curStore.currentScreen >= 5
       );
 
       if (matchingSettledBill && isFreshBill) {
@@ -265,8 +283,10 @@ function CustomerJourneyContent() {
         curStore.orderPlacedAt &&
         curStore.orderPlacedAt > 0 &&
         matchingSettledBill?.timestamp &&
-        matchingSettledBill.timestamp >= curStore.orderPlacedAt &&
-        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000
+        matchingSettledBill.timestamp > curStore.orderPlacedAt + 500 &&
+        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000 &&
+        curStore.cart.some((ci) => ci.isOrdered) &&
+        curStore.currentScreen >= 5
       );
 
       if (matchingSettledBill && isFreshBill) {

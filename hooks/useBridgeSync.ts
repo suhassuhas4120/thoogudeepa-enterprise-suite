@@ -304,10 +304,13 @@ async function reconcileAllState(): Promise<void> {
           const tNum = clean(row.table_number);
           const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
           if (bill.timestamp && Math.abs(now - bill.timestamp) < 1800000) {
-            settledBillsFromDb[normTable] = bill;
-            const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-            if (seatMatch) {
-              settledBillsFromDb[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
+            const seatNum = typeof bill.seatNumber === 'number'
+              ? bill.seatNumber
+              : (bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(bill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+            if (typeof seatNum === 'number') {
+              settledBillsFromDb[`${normTable}-CHAIR-${seatNum}`] = bill;
+            } else {
+              settledBillsFromDb[normTable] = bill;
             }
           }
         } catch {}
@@ -618,15 +621,17 @@ export function useBridgeSync() {
               const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
               useSharedBridge.setState((prev) => {
                 const nextBills = { ...(prev.settledBills || {}) };
-                nextBills[normTable] = bill;
-                const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-                if (seatMatch) {
-                  nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
-                }
+                const seatNum = typeof bill.seatNumber === 'number'
+                  ? bill.seatNumber
+                  : (bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(bill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
                 const nextSessions = { ...(prev.activeSettlementSessions || {}) };
-                delete nextSessions[normTable];
-                if (seatMatch) {
-                  delete nextSessions[`${normTable}-CHAIR-${seatMatch[1]}`];
+
+                if (typeof seatNum === 'number') {
+                  nextBills[`${normTable}-CHAIR-${seatNum}`] = bill;
+                  delete nextSessions[`${normTable}-CHAIR-${seatNum}`];
+                } else {
+                  nextBills[normTable] = bill;
+                  delete nextSessions[normTable];
                 }
                 return { settledBills: nextBills, activeSettlementSessions: nextSessions };
               });
@@ -897,15 +902,17 @@ export function useBridgeSync() {
           const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
           useSharedBridge.setState((prev) => {
             const nextBills = { ...(prev.settledBills || {}) };
-            nextBills[normTable] = snap;
-            const seatMatch = snap.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-            if (seatMatch) {
-              nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = snap;
-            }
+            const seatNum = typeof snap.seatNumber === 'number'
+              ? snap.seatNumber
+              : (snap.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(snap.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
             const nextSessions = { ...(prev.activeSettlementSessions || {}) };
-            delete nextSessions[normTable];
-            if (seatMatch) {
-              delete nextSessions[`${normTable}-CHAIR-${seatMatch[1]}`];
+
+            if (typeof seatNum === 'number') {
+              nextBills[`${normTable}-CHAIR-${seatNum}`] = snap;
+              delete nextSessions[`${normTable}-CHAIR-${seatNum}`];
+            } else {
+              nextBills[normTable] = snap;
+              delete nextSessions[normTable];
             }
             return { settledBills: nextBills, activeSettlementSessions: nextSessions };
           });

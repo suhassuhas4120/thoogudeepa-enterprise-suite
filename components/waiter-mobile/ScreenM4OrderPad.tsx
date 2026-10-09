@@ -215,10 +215,10 @@ export function ScreenM4OrderPad({
       seatNum
     );
 
-    // Sync live tracking for customer portal when matching table is active
+    // Sync live tracking for customer portal when matching table and chair are active
     try {
       const customerStore = useCustomerStore.getState();
-      if (customerStore.tableNumber === tableNum) {
+      if (customerStore.tableNumber === tableNum && (!seatNum || customerStore.seatNumber === seatNum)) {
         const newTracking = cart.map((c) => ({
           id: `track-${c.cartItemId}`,
           name: `${c.menuItem.name} × ${c.quantity}`,

@@ -73,6 +73,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Failed to create order: ${orderErr.message}` }, { status: 500 });
     }
 
+    // Delete any previous settled bill for this chair
+    try {
+      const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+      await supabase
+        .from('pings')
+        .delete()
+        .or(`id.eq.SETTLED-BILL-${nTable}-S${seatNumber},id.eq.SETTLE-SESSION-${nTable}-S${seatNumber}`);
+    } catch {}
+
     // 2. Insert line items
     const lineItems = items.map((it: any, index: number) => {
       const unitPrice = Number(it.unitPrice || it.price || 0);

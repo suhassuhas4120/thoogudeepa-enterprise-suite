@@ -299,6 +299,7 @@ export const Screen5LiveTracking: React.FC = () => {
   const matchingSnapshot = useMemo(() => {
     // A customer MUST have placed an order in this current session to match a settled bill
     if (!orderPlacedAt || orderPlacedAt <= 0) return null;
+    if (!trackedDishes || trackedDishes.length === 0) return null;
 
     const bills = settledBills || {};
     let candidate: SettledBillSnapshot | null = null;
@@ -328,28 +329,28 @@ export const Screen5LiveTracking: React.FC = () => {
       }
     }
 
-    // Must be fresh and generated strictly on or after the current customer placed order
+    // Must be fresh and generated strictly AFTER the current customer placed order
     if (candidate && candidate.timestamp) {
       const now = Date.now();
       const isRecent = Math.abs(now - candidate.timestamp) < 1800000;
-      const isAfterOrder = candidate.timestamp >= orderPlacedAt;
+      const isAfterOrder = candidate.timestamp > orderPlacedAt + 500;
       if (isRecent && isAfterOrder) {
         return candidate;
       }
     }
 
     return null;
-  }, [settledBills, chairKey, effectiveTable, effectiveSeat, orderPlacedAt]);
+  }, [settledBills, chairKey, effectiveTable, effectiveSeat, orderPlacedAt, trackedDishes]);
 
   useEffect(() => {
-    if (matchingSnapshot) {
+    if (matchingSnapshot && trackedDishes.length > 0 && orderPlacedAt > 0) {
       const now = Date.now();
       if (!matchingSnapshot.timestamp || Math.abs(now - matchingSnapshot.timestamp) < 1800000) {
         setIsScannerOpen(false);
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }
-  }, [matchingSnapshot]);
+  }, [matchingSnapshot, trackedDishes, orderPlacedAt]);
 
   // Dedicated high-priority 1-second polling loop to guarantee instantaneous synchronization
   // when customer is waiting for captain or settlement
@@ -899,6 +900,7 @@ export const Screen5LiveTracking: React.FC = () => {
               whileTap={allDishesServed ? { scale: 0.98 } : undefined}
               onClick={() => {
                 if (allDishesServed) {
+                  cancelPaymentPing();
                   setIsWaitingForCaptain(false);
                   useCustomerStore.getState().dismissWaiterNotification();
                   setCurrentScreen(6);
@@ -1057,13 +1059,10 @@ export const Screen5LiveTracking: React.FC = () => {
                 onClick={() => {
                   const normTbl = `T-${String(parseInt(effectiveTable.replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
                   const key = `${normTbl}-CHAIR-${effectiveSeat}`;
-                  const snapshot = settledBills[key] || (
-                    settledBills[normTbl] && (
-                      settledBills[normTbl].seatNumber === undefined ||
-                      settledBills[normTbl].seatNumber === null ||
-                      settledBills[normTbl].seatNumber === effectiveSeat
-                    ) ? settledBills[normTbl] : null
-                  );
+                  const candidate = settledBills[key];
+                  const snapshot = candidate && candidate.timestamp && candidate.timestamp > orderPlacedAt + 500
+                    ? candidate
+                    : null;
                   if (snapshot) {
                     useCustomerStore.getState().handleBillSettledByWaiter(snapshot);
                   } else {

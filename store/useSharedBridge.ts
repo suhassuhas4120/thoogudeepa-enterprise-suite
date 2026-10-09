@@ -432,6 +432,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         delete nextBills[normTable];
       }
 
+      if (typeof window !== 'undefined') {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.SETTLED-BILL-${normTable}-S${assignedSeat},id.eq.SETTLE-SESSION-${normTable}-S${assignedSeat}`)
+          .then(() => {}, () => {});
+      }
+
       return {
         kdsTickets: [...state.kdsTickets, ticket],
         kitchenNotifications: [...state.kitchenNotifications, notif],
@@ -644,6 +652,22 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       tableNumber,
       seatNumber,
     });
+
+    if (typeof window !== 'undefined') {
+      if (typeof seatNumber === 'number') {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.SETTLED-BILL-${normTable}-S${seatNumber},id.eq.SETTLE-SESSION-${normTable}-S${seatNumber}`)
+          .then(() => {}, () => {});
+      } else {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.ilike.SETTLED-BILL-${normTable}%,id.ilike.SETTLE-SESSION-${normTable}%`)
+          .then(() => {}, () => {});
+      }
+    }
   },
 
   
@@ -1039,6 +1063,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const nextBills = { ...state.settledBills };
       if (typeof seatNumber === 'number') {
         delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+        if (typeof window !== 'undefined') {
+          supabase
+            .from('pings')
+            .delete()
+            .or(`id.eq.SETTLED-BILL-${normTable}-S${seatNumber},id.eq.SETTLE-SESSION-${normTable}-S${seatNumber}`)
+            .then(() => {}, () => {});
+        }
       }
 
       return {

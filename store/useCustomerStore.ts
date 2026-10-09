@@ -305,6 +305,8 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         previousScreen: state.currentScreen,
         currentScreen: 5,
         isSettled: false,
+        payment: initialEmptyPayment,
+        waiterNotification: null,
         orderPlacedAt: nowTs,
       };
     });
@@ -364,11 +366,13 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     set((state) => {
       // Record payment in bridge → updates waiter shift stats + table to BILLING
       const bridge = useSharedBridge.getState();
-      bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount);
+      bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount, state.seatNumber);
+      bridge.waiterClearsChairAfterPayment(state.tableNumber, state.seatNumber);
 
       return {
         previousScreen: state.currentScreen,
         currentScreen: 8, // Proceed to Confirmation Screen 8
+        isSettled: true,
         payment: {
           ...state.payment,
           transactionId: randomTxn,

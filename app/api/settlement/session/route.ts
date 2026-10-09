@@ -240,14 +240,12 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(tableNumber);
-      if (action === 'CLEAR_BILL') {
-        settledBills.delete(normTable);
-        if (typeof seatNumber === 'number') {
-          settledBills.delete(`${normTable}-CHAIR-${seatNumber}`);
-        } else {
-          for (let s = 1; s <= 12; s++) {
-            settledBills.delete(`${normTable}-CHAIR-${s}`);
-          }
+      settledBills.delete(normTable);
+      if (typeof seatNumber === 'number') {
+        settledBills.delete(`${normTable}-CHAIR-${seatNumber}`);
+      } else {
+        for (let s = 1; s <= 12; s++) {
+          settledBills.delete(`${normTable}-CHAIR-${s}`);
         }
       }
 
@@ -261,36 +259,19 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (action === 'CLEAR_BILL') {
-        broadcastStateChange('settledBillCleared', { normTable, seatNumber });
-      }
+      broadcastStateChange('settledBillCleared', { normTable, seatNumber });
 
       try {
-        if (action === 'CLEAR_BILL') {
-          if (typeof seatNumber === 'number') {
-            await supabase
-              .from('pings')
-              .delete()
-              .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber}`);
-          } else {
-            await supabase
-              .from('pings')
-              .delete()
-              .or(`id.ilike.SETTLE-SESSION-${normTable}%,id.ilike.SETTLED-BILL-${normTable}%`);
-          }
+        if (typeof seatNumber === 'number') {
+          await supabase
+            .from('pings')
+            .delete()
+            .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber}`);
         } else {
-          // VACATE: only clean up active negotiation sessions in Supabase, preserve settled bill receipt
-          if (typeof seatNumber === 'number') {
-            await supabase
-              .from('pings')
-              .delete()
-              .eq('id', `SETTLE-SESSION-${normTable}-S${seatNumber}`);
-          } else {
-            await supabase
-              .from('pings')
-              .delete()
-              .ilike('id', `SETTLE-SESSION-${normTable}%`);
-          }
+          await supabase
+            .from('pings')
+            .delete()
+            .or(`id.ilike.SETTLE-SESSION-${normTable}%,id.ilike.SETTLED-BILL-${normTable}%`);
         }
       } catch {}
 

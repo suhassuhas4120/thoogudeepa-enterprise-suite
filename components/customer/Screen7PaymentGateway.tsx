@@ -77,12 +77,29 @@ export const Screen7PaymentGateway: React.FC = () => {
         : (matchingSnapshot.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSnapshot.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
       const now = Date.now();
       const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
-      const isAfterOrder = matchingSnapshot.timestamp >= orderPlacedAt;
+      const isAfterOrder = matchingSnapshot.timestamp > orderPlacedAt + 500;
       if (seatNum === effectiveSeat && isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }
   }, [settledBills, effectiveTable, effectiveSeat, orderPlacedAt]);
+
+  // Dismiss any lingering waiter summons when on self-pay gateway
+  useEffect(() => {
+    useCustomerStore.getState().dismissWaiterNotification();
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const bridgeState = useSharedBridge.getState();
+    const paymentPing = bridgeState.pings.find(
+      (p) =>
+        cleanNum(p.tableNumber) === cleanNum(effectiveTable) &&
+        p.type === 'PAYMENT' &&
+        p.seatNumber === effectiveSeat &&
+        p.status === 'PENDING'
+    );
+    if (paymentPing) {
+      bridgeState.waiterResolvePing(paymentPing.id);
+    }
+  }, [effectiveTable, effectiveSeat]);
 
   // Money Calculations
   const subtotal = cart.length > 0
@@ -296,6 +313,18 @@ export const Screen7PaymentGateway: React.FC = () => {
         showBack={true}
         onBack={() => {
           useCustomerStore.getState().dismissWaiterNotification();
+          const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const bridgeState = useSharedBridge.getState();
+          const paymentPing = bridgeState.pings.find(
+            (p) =>
+              cleanNum(p.tableNumber) === cleanNum(effectiveTable) &&
+              p.type === 'PAYMENT' &&
+              p.seatNumber === effectiveSeat &&
+              p.status === 'PENDING'
+          );
+          if (paymentPing) {
+            bridgeState.waiterResolvePing(paymentPing.id);
+          }
           setCurrentScreen(6);
         }}
         showCallWaiter={true}

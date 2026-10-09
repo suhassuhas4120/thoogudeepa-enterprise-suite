@@ -187,6 +187,7 @@ async function run() {
     process.exit(1);
   } else {
     console.log('FULL E2E LIFECYCLE COMPLETE: All 7 dining stages verified seamlessly.');
+    process.exit(0);
   }
 }
 

@@ -800,6 +800,7 @@ async function main() {
     process.exit(1);
   } else {
     console.log('\n  All Phase 1 tests passed.\n');
+    process.exit(0);
   }
 }
 

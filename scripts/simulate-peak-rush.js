@@ -167,6 +167,7 @@ async function run() {
     process.exit(1);
   } else {
     console.log('CONCURRENCY SIMULATION PASSED: Zero deadlocks, 100% throughput fidelity.');
+    process.exit(0);
   }
 }
 

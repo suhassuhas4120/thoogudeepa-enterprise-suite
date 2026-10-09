@@ -1382,5 +1382,6 @@ async function cleanupAll() {
     process.exit(1);
   } else {
     process.stdout.write('  All Phase 2 tests passed.\n\n');
+    process.exit(0);
   }
 })();

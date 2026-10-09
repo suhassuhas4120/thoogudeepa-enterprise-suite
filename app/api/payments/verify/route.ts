@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabase, broadcastStateChange } from '../../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -225,12 +225,13 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', resolvedOrderId);
 
-      // 2. Mark Seat as PAID
+      // 2. Mark Seat as PAID and release device lock
       if (resolvedTableNumber && resolvedSeatNumber) {
         await supabase
           .from('table_seats')
           .update({
             status: 'PAID',
+            device_token: null,
             updated_at: nowIso,
           })
           .eq('table_number', resolvedTableNumber)
@@ -264,6 +265,14 @@ export async function POST(req: NextRequest) {
             .eq('number', resolvedTableNumber);
         }
       }
+
+      // 5. Broadcast real-time payment confirmation across portals
+      broadcastStateChange('paymentConfirmed', {
+        orderId: resolvedOrderId,
+        tableNumber: resolvedTableNumber,
+        seatNumber: resolvedSeatNumber,
+        amount: resolvedAmount,
+      });
     }
 
     return NextResponse.json({

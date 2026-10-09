@@ -50,7 +50,7 @@ interface CustomerStoreState {
   setItemTracking: (items: IndividualItemTracking[]) => void;
   updateTip: (tip: number) => void;
   setSplitMode: (mode: 'NONE' | 'ITEMS' | 'PERSONS', count?: number) => void;
-  setPaymentMethod: (method: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH') => void;
+  setPaymentMethod: (method: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH' | 'RAZORPAY') => void;
   toggleRedeemPoints: () => void;
   confirmAndPay: () => void;
   pingWaiter: (type: WaiterPingType, customMsg?: string) => void;

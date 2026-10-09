@@ -432,7 +432,7 @@ export const Screen5LiveTracking: React.FC = () => {
       />
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
+      <div className="flex-1 overflow-y-auto p-4 pb-36 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Table Connection Status Bar */}
         <div
           className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"

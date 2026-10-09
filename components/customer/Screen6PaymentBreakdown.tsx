@@ -34,30 +34,27 @@ export const Screen6PaymentBreakdown: React.FC = () => {
   const effectiveTable = tableNumber || 'T-01';
   const effectiveSeat = seatNumber || 1;
 
-  // Auto-transition to Screen 8 only if waiter just settled this table or chair right now
+  // Auto-transition to Screen 8 only if waiter just settled this specific chair right now
   useEffect(() => {
-    if (!settledBills) return;
+    if (!settledBills || !orderPlacedAt || orderPlacedAt <= 0) return;
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
     const tNum = cleanNum(effectiveTable);
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
     const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
 
-    const matchingSnapshot = settledBills[chairKey] || (
-      settledBills[normTable] && (
-        settledBills[normTable].seatNumber === undefined ||
-        settledBills[normTable].seatNumber === null ||
-        settledBills[normTable].seatNumber === effectiveSeat
-      ) ? settledBills[normTable] : null
-    );
+    const matchingSnapshot = settledBills[chairKey];
     if (matchingSnapshot && matchingSnapshot.timestamp) {
+      const seatNum = typeof matchingSnapshot.seatNumber === 'number'
+        ? matchingSnapshot.seatNumber
+        : (matchingSnapshot.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSnapshot.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
       const now = Date.now();
       const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
-      const isAfterOrder = !orderPlacedAt || matchingSnapshot.timestamp >= orderPlacedAt;
-      if (isRecent && isAfterOrder) {
+      const isAfterOrder = matchingSnapshot.timestamp >= orderPlacedAt;
+      if (seatNum === effectiveSeat && isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }
-  }, [settledBills, tables, effectiveTable, effectiveSeat, orderPlacedAt]);
+  }, [settledBills, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   // Authentic items from cart, bridge tickets, or settled items (no fake/random data)
   const activeCart = useMemo(() => {
@@ -132,7 +129,10 @@ export const Screen6PaymentBreakdown: React.FC = () => {
         }
         leftSubtitle={venueName.toUpperCase()}
         showBack={true}
-        onBack={() => setCurrentScreen(5)}
+        onBack={() => {
+          useCustomerStore.getState().dismissWaiterNotification();
+          setCurrentScreen(5);
+        }}
         showCallWaiter={true}
         showCart={false}
       />

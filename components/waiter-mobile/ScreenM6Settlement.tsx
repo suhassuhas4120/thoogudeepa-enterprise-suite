@@ -58,12 +58,14 @@ interface SettledBillSnapshot {
   cashTendered: number;
   cashChange: number;
   seatLabel: string;
+  seatNumber?: number;
   captainName: string;
   tableName: string;
   section: string;
   guestCount: number;
   formattedDate: string;
   formattedTime: string;
+  timestamp?: number;
 }
 
 export function ScreenM6Settlement({
@@ -391,12 +393,14 @@ export function ScreenM6Settlement({
       cashTendered: finalTendered,
       cashChange: finalChange,
       seatLabel: splitSeatNumber !== null ? `Chair ${splitSeatNumber}` : seatNumbersLabel,
+      seatNumber: splitSeatNumber ?? undefined,
       captainName,
       tableName: tableNum,
       section: table?.section || 'Main Dining Hall',
       guestCount: splitSeatNumber !== null ? 1 : table?.guestCount || table?.capacity || 1,
       formattedDate,
       formattedTime,
+      timestamp: Date.now(),
     };
 
     setSettledSnapshot(snapshot);
@@ -406,10 +410,16 @@ export function ScreenM6Settlement({
     recordSettledBill({
       ...snapshot,
       seatNumber: splitSeatNumber ?? undefined,
+      timestamp: Date.now(),
     });
 
     // Update store state
     waiterRecordsPayment(tableNum, method, finalGrandTotal, splitSeatNumber ?? undefined);
+
+    // Clear chair items and tickets immediately so no lingering items or bills remain
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
+    }
   };
 
   const handleFinish = () => {

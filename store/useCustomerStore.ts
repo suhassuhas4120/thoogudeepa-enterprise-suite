@@ -477,7 +477,11 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       (tk) => tk.seatNumber === seatNumber || tk.items.some((i) => i.seatNumber === seatNumber)
     );
 
-    const hasActiveOrders = seatActiveItems.length > 0 || seatTickets.length > 0;
+    const hasActiveOrders = Boolean(
+      currentTbl &&
+      currentTbl.status !== 'VACANT' &&
+      (seatActiveItems.length > 0 || seatTickets.length > 0)
+    );
 
     if (!hasActiveOrders) {
       // Chair is vacant or already cleared/settled. Reset session cleanly for fresh scanning.

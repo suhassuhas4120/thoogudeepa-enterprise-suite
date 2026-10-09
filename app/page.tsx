@@ -188,24 +188,28 @@ function CustomerJourneyContent() {
 
       const bridgeState = useSharedBridge.getState();
 
-      // Check if there is a fresh settled bill waiting to be shown to this customer
+      // Check if there is a fresh settled bill strictly for this chair
       const bridgeBills = bridgeState.settledBills || {};
       const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
       const chairKey = `${normTable}-CHAIR-${seatId}`;
-      const matchingSettledBill = bridgeBills[chairKey] || (
-        bridgeBills[normTable] && (
-          bridgeBills[normTable].seatNumber === undefined ||
-          bridgeBills[normTable].seatNumber === null ||
-          bridgeBills[normTable].seatNumber === seatId
-        ) ? bridgeBills[normTable] : null
+      const matchingSettledBill = bridgeBills[chairKey];
+
+      const isFreshBill = Boolean(
+        curStore.orderPlacedAt &&
+        curStore.orderPlacedAt > 0 &&
+        matchingSettledBill?.timestamp &&
+        matchingSettledBill.timestamp >= curStore.orderPlacedAt &&
+        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000
       );
 
-      const isFreshBill = matchingSettledBill?.timestamp &&
-        (!curStore.orderPlacedAt || matchingSettledBill.timestamp >= curStore.orderPlacedAt);
-
       if (matchingSettledBill && isFreshBill) {
-        curStore.handleBillSettledByWaiter(matchingSettledBill);
-        return;
+        const seatNum = typeof matchingSettledBill.seatNumber === 'number'
+          ? matchingSettledBill.seatNumber
+          : (matchingSettledBill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSettledBill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+        if (seatNum === seatId) {
+          curStore.handleBillSettledByWaiter(matchingSettledBill);
+          return;
+        }
       }
 
       // Check bridge — reset if our specific chair is now cleared or entire table is VACANT
@@ -251,24 +255,28 @@ function CustomerJourneyContent() {
 
       const bridgeState = useSharedBridge.getState();
 
-      // Check if there is a fresh settled bill waiting to be shown to this customer
+      // Check if there is a fresh settled bill strictly for this chair
       const bridgeBills = bridgeState.settledBills || {};
       const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
       const chairKey = `${normTable}-CHAIR-${seatId}`;
-      const matchingSettledBill = bridgeBills[chairKey] || (
-        bridgeBills[normTable] && (
-          bridgeBills[normTable].seatNumber === undefined ||
-          bridgeBills[normTable].seatNumber === null ||
-          bridgeBills[normTable].seatNumber === seatId
-        ) ? bridgeBills[normTable] : null
+      const matchingSettledBill = bridgeBills[chairKey];
+
+      const isFreshBill = Boolean(
+        curStore.orderPlacedAt &&
+        curStore.orderPlacedAt > 0 &&
+        matchingSettledBill?.timestamp &&
+        matchingSettledBill.timestamp >= curStore.orderPlacedAt &&
+        Math.abs(Date.now() - matchingSettledBill.timestamp) < 1800000
       );
 
-      const isFreshBill = matchingSettledBill?.timestamp &&
-        (!curStore.orderPlacedAt || matchingSettledBill.timestamp >= curStore.orderPlacedAt);
-
       if (matchingSettledBill && isFreshBill) {
-        curStore.handleBillSettledByWaiter(matchingSettledBill);
-        return;
+        const seatNum = typeof matchingSettledBill.seatNumber === 'number'
+          ? matchingSettledBill.seatNumber
+          : (matchingSettledBill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSettledBill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+        if (seatNum === seatId) {
+          curStore.handleBillSettledByWaiter(matchingSettledBill);
+          return;
+        }
       }
 
       const bridgeTbl = bridgeState.tables.find(

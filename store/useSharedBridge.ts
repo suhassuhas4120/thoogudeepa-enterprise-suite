@@ -428,6 +428,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     set((state) => {
       const nextBills = { ...state.settledBills };
       delete nextBills[`${normTable}-CHAIR-${assignedSeat}`];
+      if (nextBills[normTable] && (!nextBills[normTable].seatNumber || nextBills[normTable].seatNumber === assignedSeat)) {
+        delete nextBills[normTable];
+      }
 
       return {
         kdsTickets: [...state.kdsTickets, ticket],
@@ -624,6 +627,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const nextBills = { ...state.settledBills };
       if (typeof seatNumber === 'number') {
         delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+        if (nextBills[normTable] && (!nextBills[normTable].seatNumber || nextBills[normTable].seatNumber === seatNumber)) {
+          delete nextBills[normTable];
+        }
       } else {
         delete nextBills[normTable];
         for (let s = 1; s <= 12; s++) {
@@ -1451,20 +1457,37 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       // For full-table settle: mark entire group as BILLING (pre-vacate status).
       const isChairSettle = typeof seatNumber === 'number';
 
+      const newTickets = isChairSettle
+        ? state.kdsTickets.map((tk) => {
+            if (cleanNum(tk.tableNumber) !== targetNum) return tk;
+            const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
+            const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
+            if (seatItems.length === 0) return tk;
+            if (otherItems.length === 0) {
+              return { ...tk, status: 'COMPLETED' as const };
+            }
+            return { ...tk, items: otherItems };
+          })
+        : state.kdsTickets;
+
       return {
         tables: state.tables.map((t) => {
           if (!groupNums.has(t.number) && cleanNum(t.number) !== targetNum) return t;
           if (isChairSettle) {
             // Reduce currentBill by the chair's settled amount only; keep OCCUPIED
             const newBill = Math.max(0, (t.currentBill || 0) - amount);
-            return { ...t, currentBill: newBill };
+            const remainingActiveItems = (t.activeItems || []).filter(
+              (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
+            );
+            return { ...t, currentBill: newBill, activeItems: remainingActiveItems };
           }
           return { ...t, status: 'BILLING' };
         }),
+        kdsTickets: newTickets,
         shiftStats: {
           ...state.shiftStats,
           totalRevenue: state.shiftStats.totalRevenue + amount,
-          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1), // tablesServed: state.shiftStats.tablesServed + 1
+          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1),
         },
       };
     });

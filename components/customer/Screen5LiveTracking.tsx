@@ -167,16 +167,17 @@ export const Screen5LiveTracking: React.FC = () => {
 
   const isCaptainArrived = Boolean(activeSession);
 
-  // Check if waiter was called for payment
+  // Check if waiter was called for payment strictly for this chair
   const hasActivePaymentPing = useMemo(() => {
+    if (!orderPlacedAt || orderPlacedAt <= 0) return false;
     return pings.some(
       (p) =>
         isTableMatch(p.tableNumber, effectiveTable) &&
         p.type === 'PAYMENT' &&
         p.status === 'PENDING' &&
-        (!p.seatNumber || p.seatNumber === effectiveSeat)
+        p.seatNumber === effectiveSeat
     );
-  }, [pings, effectiveTable, effectiveSeat]);
+  }, [pings, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   const isSummoned = isWaitingForCaptain || hasActivePaymentPing || (waiterNotification?.active && waiterNotification.type === 'PAYMENT');
 
@@ -203,20 +204,25 @@ export const Screen5LiveTracking: React.FC = () => {
         }))
     );
 
-    const mySupabaseTickets = supabaseTickets.filter((tk) => isTableMatch(tk.tableId, effectiveTable));
+    const mySupabaseTickets = supabaseTickets.filter(
+      (tk) => isTableMatch(tk.tableId, effectiveTable) &&
+              (tk.seatNumber === effectiveSeat || tk.items.some((i: any) => i.seatNumber === effectiveSeat))
+    );
     const supabaseItems = mySupabaseTickets.flatMap((tk) =>
-      tk.items.map((it) => ({
-        id: it.id,
-        ticketId: tk.id,
-        name: getCleanName(it.name),
-        quantity: it.quantity,
-        stage: it.stage as OrderStage,
-        prepMode: '',
-        options: '',
-        addOns: [] as string[],
-        notes: it.notes,
-        seatNumber: effectiveSeat,
-      }))
+      tk.items
+        .filter((it: any) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+        .map((it) => ({
+          id: it.id,
+          ticketId: tk.id,
+          name: getCleanName(it.name),
+          quantity: it.quantity,
+          stage: it.stage as OrderStage,
+          prepMode: '',
+          options: '',
+          addOns: [] as string[],
+          notes: it.notes,
+          seatNumber: effectiveSeat,
+        }))
     );
 
     const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && (!ci.seatNumber || ci.seatNumber === effectiveSeat));
@@ -291,14 +297,18 @@ export const Screen5LiveTracking: React.FC = () => {
 
   // Auto-transition to Screen 8 immediately when waiter confirms payment
   const matchingSnapshot = useMemo(() => {
+    // A customer MUST have placed an order in this current session to match a settled bill
+    if (!orderPlacedAt || orderPlacedAt <= 0) return null;
+
     const bills = settledBills || {};
     let candidate: SettledBillSnapshot | null = null;
 
     if (bills[chairKey]) {
-      candidate = bills[chairKey];
-    } else if (bills[normTable]) {
-      const b = bills[normTable];
-      if (b.seatNumber === undefined || b.seatNumber === null || b.seatNumber === effectiveSeat) {
+      const b = bills[chairKey];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === effectiveSeat) {
         candidate = b;
       }
     }
@@ -307,34 +317,29 @@ export const Screen5LiveTracking: React.FC = () => {
       for (const [, bill] of Object.entries(bills)) {
         if (!bill) continue;
         if (isTableMatch(bill.tableName, effectiveTable)) {
-          if (typeof bill.seatNumber === 'number') {
-            if (bill.seatNumber === effectiveSeat) {
-              candidate = bill;
-              break;
-            }
-          } else {
-            const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-            if (seatMatch && Number(seatMatch[1]) === effectiveSeat) {
-              candidate = bill;
-              break;
-            }
+          const seatNum = typeof bill.seatNumber === 'number'
+            ? bill.seatNumber
+            : (bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(bill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+          if (seatNum === effectiveSeat) {
+            candidate = bill;
+            break;
           }
         }
       }
     }
 
-    // Must be fresh and generated on or after the current customer's order placed timestamp
-    if (candidate) {
+    // Must be fresh and generated strictly on or after the current customer placed order
+    if (candidate && candidate.timestamp) {
       const now = Date.now();
-      const isRecent = !candidate.timestamp || Math.abs(now - candidate.timestamp) < 1800000;
-      const isAfterOrder = !orderPlacedAt || (candidate.timestamp && candidate.timestamp >= orderPlacedAt);
+      const isRecent = Math.abs(now - candidate.timestamp) < 1800000;
+      const isAfterOrder = candidate.timestamp >= orderPlacedAt;
       if (isRecent && isAfterOrder) {
         return candidate;
       }
     }
 
     return null;
-  }, [settledBills, chairKey, normTable, effectiveTable, effectiveSeat, orderPlacedAt]);
+  }, [settledBills, chairKey, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   useEffect(() => {
     if (matchingSnapshot) {
@@ -429,6 +434,26 @@ export const Screen5LiveTracking: React.FC = () => {
     if (stage === 'PREP') return 2;
     if (stage === 'RECEIVED') return 1;
     return 0; // PLACED
+  };
+
+  // Reset any transient waiter call state when mounting Screen 5
+  useEffect(() => {
+    setIsWaitingForCaptain(false);
+  }, []);
+
+  const cancelPaymentPing = () => {
+    setIsWaitingForCaptain(false);
+    useCustomerStore.getState().dismissWaiterNotification();
+    const paymentPing = pings.find(
+      (p) =>
+        isTableMatch(p.tableNumber, effectiveTable) &&
+        p.type === 'PAYMENT' &&
+        p.seatNumber === effectiveSeat &&
+        p.status === 'PENDING'
+    );
+    if (paymentPing) {
+      useSharedBridge.getState().waiterResolvePing(paymentPing.id);
+    }
   };
 
   const handleConfirmCallCaptain = () => {
@@ -730,25 +755,33 @@ export const Screen5LiveTracking: React.FC = () => {
       {/* Bottom Sticky Bar */}
       <StickyBottomBar>
         <div className="w-full flex flex-col gap-2.5">
-          {/* STATE 1: Captain Summoned and Waiter hasn't opened Settle Bill yet (ONLY DISPLAY MESSAGE, NO BUTTONS) */}
+          {/* Notice when Floor Captain is summoned (with Cancel option, never hides payment buttons) */}
           {isSummoned && !isCaptainArrived && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm space-y-2 text-center"
+              className="rounded-2xl border border-amber-300 bg-amber-50 p-3 shadow-xs space-y-1.5"
             >
-              <div className="flex items-center justify-center gap-2 text-xs font-black text-amber-900">
-                <Bell className="h-4 w-4 text-amber-600 animate-bounce" />
-                <span>Floor Captain Summoned for Payment</span>
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+              <div className="flex items-center justify-between text-xs font-black text-amber-900">
+                <div className="flex items-center gap-1.5">
+                  <Bell className="h-4 w-4 text-amber-600 animate-bounce" />
+                  <span>Floor Captain Summoned</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelPaymentPing}
+                  className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950 cursor-pointer"
+                >
+                  Cancel Call
+                </button>
               </div>
-              <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                Please wait at Chair C-{String(effectiveSeat).padStart(2, '0')}... Floor Captain Suresh is walking over to your table with the billing terminal.
+              <p className="text-[11px] text-amber-800 leading-snug font-medium">
+                Captain Suresh is walking over to Chair C-{String(effectiveSeat).padStart(2, '0')}. You can also use Self Pay below.
               </p>
             </motion.div>
           )}
 
-          {/* STATE 2: Captain Arrived & opened Settle Bill on Waiter Mobile */}
+          {/* Captain Arrived & opened Settle Bill on Waiter Mobile */}
           {isCaptainArrived && (
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
@@ -837,62 +870,62 @@ export const Screen5LiveTracking: React.FC = () => {
             </motion.div>
           )}
 
-          {/* STATE 3: Captain NOT summoned yet: Show action buttons (Enabled ONLY when allDishesServed) */}
-          {!isSummoned && !isCaptainArrived && (
-            <>
-              {!allDishesServed && trackedDishes.length > 0 && (
-                <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-center text-[10.5px] font-medium text-stone-600">
-                  Dishes are being cooked & served. Payment unlocks once all dishes reach your table.
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-2">
-                <motion.button
-                  disabled={!allDishesServed}
-                  whileTap={allDishesServed ? { scale: 0.98 } : undefined}
-                  onClick={() => {
-                    if (allDishesServed) setShowPayViaWaiterModal(true);
-                  }}
-                  className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
-                    allDishesServed
-                      ? 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
-                      : 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  <CreditCard className="h-4 w-4 stroke-[2.2]" />
-                  <span>Pay via Waiter</span>
-                </motion.button>
-
-                <motion.button
-                  disabled={!allDishesServed}
-                  whileTap={allDishesServed ? { scale: 0.98 } : undefined}
-                  onClick={() => {
-                    if (allDishesServed) setCurrentScreen(6);
-                  }}
-                  style={
-                    allDishesServed
-                      ? {
-                          backgroundColor: currentTheme.colors.buttonBg,
-                          color: currentTheme.colors.buttonFg,
-                          boxShadow: currentTheme.colors.buttonShadow,
-                        }
-                      : {
-                          backgroundColor: '#E5E7EB',
-                          color: '#9CA3AF',
-                        }
-                  }
-                  className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
-                    allDishesServed
-                      ? 'hover:brightness-105 cursor-pointer shadow-md'
-                      : 'cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  <span>Self Pay (QR/UPI)</span>
-                  <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-                </motion.button>
-              </div>
-            </>
+          {/* Action buttons: ALWAYS PRESENT and accessible */}
+          {!allDishesServed && trackedDishes.length > 0 && (
+            <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-center text-[10.5px] font-medium text-stone-600">
+              Dishes are being cooked &amp; served. Payment unlocks once all dishes reach your table.
+            </div>
           )}
+
+          <div className="grid grid-cols-2 gap-2">
+            <motion.button
+              disabled={!allDishesServed}
+              whileTap={allDishesServed ? { scale: 0.98 } : undefined}
+              onClick={() => {
+                if (allDishesServed) setShowPayViaWaiterModal(true);
+              }}
+              className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
+                allDishesServed
+                  ? 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
+                  : 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-60'
+              }`}
+            >
+              <CreditCard className="h-4 w-4 stroke-[2.2]" />
+              <span>Pay via Waiter</span>
+            </motion.button>
+
+            <motion.button
+              disabled={!allDishesServed}
+              whileTap={allDishesServed ? { scale: 0.98 } : undefined}
+              onClick={() => {
+                if (allDishesServed) {
+                  setIsWaitingForCaptain(false);
+                  useCustomerStore.getState().dismissWaiterNotification();
+                  setCurrentScreen(6);
+                }
+              }}
+              style={
+                allDishesServed
+                  ? {
+                      backgroundColor: currentTheme.colors.buttonBg,
+                      color: currentTheme.colors.buttonFg,
+                      boxShadow: currentTheme.colors.buttonShadow,
+                    }
+                  : {
+                      backgroundColor: '#E5E7EB',
+                      color: '#9CA3AF',
+                    }
+              }
+              className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
+                allDishesServed
+                  ? 'hover:brightness-105 cursor-pointer shadow-md'
+                  : 'cursor-not-allowed opacity-60'
+              }`}
+            >
+              <span>Self Pay (QR/UPI)</span>
+              <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+            </motion.button>
+          </div>
         </div>
       </StickyBottomBar>
 

@@ -51,7 +51,7 @@ export const Screen8Confirmation: React.FC = () => {
   const captainName =
     currentTable?.serverName && currentTable.serverName !== 'Floor Captain'
       ? currentTable.serverName
-      : 'Captain Suresh';
+      : 'Floor Captain';
 
   const { formattedDate, formattedTime } = useMemo(() => {
     const d = new Date();
@@ -68,27 +68,47 @@ export const Screen8Confirmation: React.FC = () => {
     return { formattedDate, formattedTime };
   }, []);
 
-  // Calculations (Use live cart or authentic preview dishes)
-  const previewDishes = [
-    { cartItemId: 'sample-1', menuItem: { name: 'Special Mutton Donne Biryani' }, quantity: 2, totalPrice: 680 },
-    { cartItemId: 'sample-2', menuItem: { name: 'Chicken Ghee Roast' }, quantity: 1, totalPrice: 280 },
-    { cartItemId: 'sample-3', menuItem: { name: 'Mutton Nalli Fry' }, quantity: 1, totalPrice: 220 },
-  ];
-  const activeItems = cart.length > 0 ? cart : previewDishes;
-  const subtotal = cart.length > 0
-    ? cart.reduce((s, i) => s + i.totalPrice, 0)
-    : (payment.subtotal > 0 ? payment.subtotal : 1180);
-  const cgst = Math.round(subtotal * 0.025);
-  const sgst = Math.round(subtotal * 0.025);
-  const totalTax = cgst + sgst;
+  // Active items: prioritize settledItems from waiter or self payment, then cart
+  const activeItems = useMemo(() => {
+    if (payment.settledItems && payment.settledItems.length > 0) {
+      return payment.settledItems.map((si) => ({
+        cartItemId: si.id,
+        menuItem: { name: si.name },
+        quantity: si.quantity,
+        totalPrice: si.totalPrice || si.price * si.quantity,
+      }));
+    }
+    if (cart.length > 0) {
+      return cart;
+    }
+    return [];
+  }, [payment.settledItems, cart]);
+
+  const subtotal = payment.subtotal > 0
+    ? payment.subtotal
+    : activeItems.reduce((s, i) => s + i.totalPrice, 0);
+  const totalTax = payment.tax > 0
+    ? payment.tax
+    : Math.round(subtotal * 0.05);
+  const cgst = Math.round(totalTax / 2);
+  const sgst = totalTax - cgst;
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + totalTax) : 0);
   const calculatedGrandTotal = Math.max(0, subtotal + totalTax + payment.tipAmount - discount);
   const paidAmount = payment.totalAmount > 0 ? payment.totalAmount : calculatedGrandTotal;
 
-  // Verified 12-digit bank reference number & Tax invoice ID
-  const bankUtr = '4281' + Math.floor(10000000 + Math.random() * 90000000);
-  const txnId = payment.transactionId || '#TXN-' + Math.floor(100000 + Math.random() * 900000);
-  const invoiceNumber = `INV-${effectiveTable.replace(/[^a-zA-Z0-9]/g, '')}-${Date.now().toString().slice(-6)}`;
+  // Verified bank reference number & Tax invoice ID
+  const bankUtr = useMemo(() => {
+    if (payment.paymentMethod === 'CASH') return 'CASH-SETTLED';
+    return '4281' + String(Math.abs(effectiveTable.split('').reduce((a, b) => a + b.charCodeAt(0), 428194349255))).slice(0, 8);
+  }, [payment.paymentMethod, effectiveTable]);
+
+  const txnId = useMemo(() => {
+    return payment.transactionId || `INV-${effectiveTable.replace(/[^a-zA-Z0-9]/g, '')}-${String(seatNumber).padStart(2, '0')}`;
+  }, [payment.transactionId, effectiveTable, seatNumber]);
+
+  const invoiceNumber = useMemo(() => {
+    return payment.invoiceNumber || `INV-${effectiveTable.replace(/[^a-zA-Z0-9]/g, '')}-${String(seatNumber).padStart(2, '0')}`;
+  }, [payment.invoiceNumber, effectiveTable, seatNumber]);
 
   const chips = [
     'Super Quick Service',
@@ -110,6 +130,36 @@ export const Screen8Confirmation: React.FC = () => {
   };
 
   const handleShareWhatsApp = () => {
+    const itemLines = activeItems.map((it: any) => {
+      const name = it.menuItem?.name || it.name || 'Dish';
+      const qty = it.quantity || 1;
+      const price = it.totalPrice || (it.price ? it.price * qty : 0);
+      return `${qty}x ${name} — ₹${price}`;
+    }).join('\n');
+
+    const receiptText = [
+      '🍗 THOOGUDEEPA DONNE BIRYANI MANE',
+      'Authentic Military Style Restaurant',
+      'Bengaluru, Karnataka',
+      '────────────────────────────',
+      `Invoice: ${invoiceNumber}`,
+      `Table: ${effectiveTable} (Seat C-${String(seatNumber).padStart(2, '0')}) | Date: ${formattedDate}, ${formattedTime}`,
+      '────────────────────────────',
+      itemLines || 'Food & Beverage Service',
+      '────────────────────────────',
+      `Subtotal:    ₹${subtotal}`,
+      `GST (5%):    ₹${totalTax}`,
+      `Total Paid:  ₹${paidAmount}`,
+      `Payment Ref: ${bankUtr}`,
+      '────────────────────────────',
+      'Thank you! Visit again.',
+      typeof window !== 'undefined' ? window.location.origin : 'https://thoogudeepa-enterprise-suite.vercel.app',
+    ].join('\n');
+
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(receiptText)}`;
+    if (typeof window !== 'undefined') {
+      window.open(waUrl, '_blank');
+    }
     setShareMsg(true);
     setTimeout(() => setShareMsg(false), 2200);
   };

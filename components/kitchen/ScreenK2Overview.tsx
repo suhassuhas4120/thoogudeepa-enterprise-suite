@@ -258,40 +258,6 @@ export const ScreenK2Overview: React.FC = () => {
     }
   };
 
-  const handleSetBulkStage = (
-    bulkItemName: string,
-    newStage: 'RECEIVED' | 'PREPARING' | 'READY'
-  ) => {
-    setBulkStages((prev) => ({ ...prev, [bulkItemName]: newStage }));
-
-    const bulkLower = bulkItemName.toLowerCase();
-    setItemStageOverride((prev) => {
-      const next = { ...prev };
-      allTablesToRender.forEach((tbl) => {
-        tbl.items.forEach((it) => {
-          const itLower = it.name.toLowerCase();
-          if (itLower.includes(bulkLower) || bulkLower.includes(itLower)) {
-            next[`${tbl.id}-${it.id}`] = newStage;
-          }
-        });
-      });
-      return next;
-    });
-
-    const bridgeStage: OrderStage =
-      newStage === 'PREPARING'
-        ? 'PREP'
-        : newStage === 'READY'
-        ? 'PLATED'
-        : 'RECEIVED';
-
-    if (kitchenSetBulkItemStage) {
-      kitchenSetBulkItemStage(bulkItemName, bridgeStage);
-    }
-    if (newStage === 'READY') {
-      bridgeCallFloorWaiter('ALL', `${bulkItemName} Plated & Ready at Pass`);
-    }
-  };
 
   const handleOpenTable = (ticketIdOrTableNum: string, maybeTableNum?: string) => {
     if (maybeTableNum) {
@@ -383,11 +349,10 @@ export const ScreenK2Overview: React.FC = () => {
               style={{ scrollbarWidth: 'thin' }}
             >
               {bulkAggregation.map((b, idx) => {
-                const currentBulkStage = b.currentStage;
                 return (
                   <div
                     key={idx}
-                    className="bg-white border border-[#EFE6DA] rounded-xl p-2.5 shadow-xs flex flex-col justify-between gap-1.5 shrink-0 w-[260px]"
+                    className="bg-white border border-[#EFE6DA] rounded-xl p-2 shadow-xs flex flex-col justify-between gap-1 shrink-0 w-[240px]"
                   >
                     <div>
                       <div className="flex items-center justify-between pb-1 border-b border-[#EFE6DA]">
@@ -401,7 +366,7 @@ export const ScreenK2Overview: React.FC = () => {
                           TOTAL: {b.total}
                         </span>
                       </div>
-                      <div className="font-mono text-[9px] text-slate-600 mt-1 break-words leading-tight">
+                      <div className="font-mono text-[9px] text-slate-600 mt-1 break-words leading-tight line-clamp-2">
                         {b.sources}
                       </div>
                       <div className="flex items-center justify-between mt-1 font-mono text-[9px] font-extrabold text-[#B85A1F]">
@@ -409,38 +374,6 @@ export const ScreenK2Overview: React.FC = () => {
                         <span className="bg-[#FFF4EC] border border-[#F5C9A5] px-1.5 py-0.2 rounded text-[8.5px] truncate">
                           {b.status}
                         </span>
-                      </div>
-                    </div>
-
-                    <div className="pt-1.5 border-t border-[#EFE6DA] mt-auto">
-                      <div className="grid grid-cols-3 gap-1 font-mono text-[9px] font-black">
-                        {STAGE_STEPS.map((stg, sIdx) => {
-                          const isActive = currentBulkStage === stg;
-                          const stgIdx = STAGE_STEPS.indexOf(stg);
-                          const curIdx = STAGE_STEPS.indexOf(
-                            currentBulkStage as any
-                          );
-                          const isPast = stgIdx < curIdx;
-                          return (
-                            <button
-                              key={stg}
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleSetBulkStage(b.name, stg);
-                              }}
-                              className={`py-1.5 rounded text-center transition border ${
-                                isActive
-                                  ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-xs'
-                                  : isPast
-                                  ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                                  : 'bg-[#FBF7F0] text-slate-700 border-[#EFE6DA] hover:bg-[#FFF4EC] hover:text-[#B85A1F]'
-                              }`}
-                            >
-                              {STAGE_LABELS[sIdx]}
-                            </button>
-                          );
-                        })}
                       </div>
                     </div>
                   </div>
@@ -452,7 +385,7 @@ export const ScreenK2Overview: React.FC = () => {
 
         {/* Tables + Time queue */}
         <div className="flex-1 flex overflow-hidden">
-          <div className="w-[70%] border-r-2 border-[#EFE6DA] p-3 overflow-y-auto bg-[#FAF6EE]/70">
+          <div className="w-[75%] border-r-2 border-[#EFE6DA] p-3 overflow-y-auto bg-[#FAF6EE]/70">
             <div className="flex items-center justify-between mb-2.5">
               <span className="font-mono text-[11px] font-black text-slate-900 uppercase">
                 ALL TABLES
@@ -602,7 +535,7 @@ export const ScreenK2Overview: React.FC = () => {
           </div>
 
           {/* TIME QUEUE */}
-          <div className="w-[30%] bg-white p-3 overflow-y-auto flex flex-col justify-between">
+          <div className="w-[25%] bg-white p-3 overflow-y-auto flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between pb-2 border-b border-[#EFE6DA] mb-3">
                 <span className="font-mono text-[11px] font-black text-slate-900 uppercase">

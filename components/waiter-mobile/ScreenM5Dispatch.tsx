@@ -6,6 +6,7 @@ import {
   UtensilsCrossed,
   CheckCircle2,
   Clock,
+  CreditCard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -14,9 +15,10 @@ interface Props {
   mode?: 'CALLS' | 'READY';
   initialTab?: 'CALLS' | 'READY';
   onNavigateToTable?: (tableNum: string) => void;
+  onSettleTable?: (tableNum: string, chair?: number) => void;
 }
 
-export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable }: Props) {
+export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable, onSettleTable }: Props) {
   const effectiveMode = initialTab ?? mode;
   const { pings, kdsTickets, waiterResolvePing, waiterMarkKitchenItemServed } = useSharedBridge();
 
@@ -190,15 +192,29 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
                               className={`font-mono text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs ${
                                 urgent
                                   ? 'text-red-950 bg-red-100 border border-red-300'
+                                  : p.type === 'PAYMENT'
+                                  ? 'text-purple-950 bg-purple-100 border border-purple-300'
                                   : 'text-orange-950 bg-orange-100 border border-orange-300'
                               }`}
                             >
                               {p.tableNumber}
                             </span>
-                            <span className="font-mono text-[10px] font-black uppercase text-amber-900 bg-white border border-amber-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                              <Bell className="h-2.5 w-2.5 text-amber-600" />
-                              <span>{p.type} Request</span>
-                            </span>
+                            {p.seatNumber && (
+                              <span className="font-mono text-[10px] font-black text-amber-950 bg-amber-200 border border-amber-400 px-1.5 py-0.5 rounded-md">
+                                Chair {p.seatNumber}
+                              </span>
+                            )}
+                            {p.type === 'PAYMENT' ? (
+                              <span className="font-mono text-[10px] font-black uppercase text-purple-900 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                <CreditCard className="h-2.5 w-2.5 text-purple-600" />
+                                <span>Bill & Payment</span>
+                              </span>
+                            ) : (
+                              <span className="font-mono text-[10px] font-black uppercase text-amber-900 bg-white border border-amber-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
+                                <Bell className="h-2.5 w-2.5 text-amber-600" />
+                                <span>{p.type} Request</span>
+                              </span>
+                            )}
                             {urgent && (
                               <span className="font-mono text-[9px] font-black uppercase text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full animate-pulse">
                                 URGENT (&gt;2m)
@@ -220,15 +236,31 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
                           </p>
                         </div>
 
-                        <motion.button
-                          whileTap={{ scale: 0.93 }}
-                          type="button"
-                          onClick={() => handleResolvePing(p.id, p.tableNumber)}
-                          className="px-3.5 py-2 font-mono text-xs font-black rounded-xl shadow-xs transition shrink-0 flex items-center gap-1 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          <span>Attended ✓</span>
-                        </motion.button>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          {p.type === 'PAYMENT' && onSettleTable && (
+                            <motion.button
+                              whileTap={{ scale: 0.93 }}
+                              type="button"
+                              onClick={() => {
+                                handleResolvePing(p.id, p.tableNumber);
+                                onSettleTable(p.tableNumber, p.seatNumber);
+                              }}
+                              className="px-3.5 py-2 font-mono text-xs font-black rounded-xl shadow-xs transition shrink-0 flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer"
+                            >
+                              <CreditCard className="h-3.5 w-3.5" />
+                              <span>Settle Bill →</span>
+                            </motion.button>
+                          )}
+                          <motion.button
+                            whileTap={{ scale: 0.93 }}
+                            type="button"
+                            onClick={() => handleResolvePing(p.id, p.tableNumber)}
+                            className="px-3.5 py-1.5 font-mono text-xs font-black rounded-xl shadow-xs transition shrink-0 flex items-center gap-1 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white cursor-pointer"
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            <span>Attended ✓</span>
+                          </motion.button>
+                        </div>
                       </div>
                     </motion.div>
                   );

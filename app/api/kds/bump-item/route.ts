@@ -36,6 +36,8 @@ export async function POST(req: NextRequest) {
       .eq('id', itemId)
       .maybeSingle();
 
+    const normSearch = String(itemId).trim().toLowerCase();
+
     // 2. Fetch ticket from kds_tickets
     let targetTicket: any = null;
     if (ticketId) {
@@ -53,7 +55,11 @@ export async function POST(req: NextRequest) {
         .select('*')
         .neq('status', 'COMPLETED');
       targetTicket = (allActiveTickets || []).find((t: any) =>
-        Array.isArray(t.items) && t.items.some((it: any) => it.id === itemId)
+        Array.isArray(t.items) &&
+        t.items.some((it: any) => {
+          const itName = (it.name || '').trim().toLowerCase();
+          return it.id === itemId || itName === normSearch || (itName && normSearch.includes(itName));
+        })
       );
     }
 
@@ -62,7 +68,11 @@ export async function POST(req: NextRequest) {
         .from('kds_tickets')
         .select('*');
       targetTicket = (anyTicket || []).find((t: any) =>
-        Array.isArray(t.items) && t.items.some((it: any) => it.id === itemId)
+        Array.isArray(t.items) &&
+        t.items.some((it: any) => {
+          const itName = (it.name || '').trim().toLowerCase();
+          return it.id === itemId || itName === normSearch || (itName && normSearch.includes(itName));
+        })
       );
     }
 
@@ -70,7 +80,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Item ${itemId} not found` }, { status: 404 });
     }
 
-    const ticketItem = targetTicket?.items?.find((it: any) => it.id === itemId);
+    let ticketItem = targetTicket?.items?.find((it: any) => it.id === itemId);
+    if (!ticketItem && targetTicket?.items) {
+      ticketItem = targetTicket.items.find((it: any) => {
+        const itName = (it.name || '').trim().toLowerCase();
+        return itName === normSearch || (itName && normSearch.includes(itName));
+      });
+    }
+
     const currentStage = item?.stage || ticketItem?.stage || 'PLACED';
     const nextStage = targetStage || STAGE_TRANSITION[currentStage] || 'PREP';
 
@@ -82,12 +99,12 @@ export async function POST(req: NextRequest) {
           stage: nextStage,
           updated_at: nowIso,
         })
-        .eq('id', itemId);
+        .eq('id', item.id);
     } else if (targetTicket && ticketItem) {
       await supabase
         .from('order_items')
         .upsert({
-          id: itemId,
+          id: ticketItem.id || itemId,
           order_id: targetTicket.order_id || targetTicket.id,
           table_number: targetTicket.table_number,
           seat_number: ticketItem.seatNumber || ticketItem.seat_number || targetTicket.seat_number || 1,
@@ -111,7 +128,13 @@ export async function POST(req: NextRequest) {
     let ticketStatus = 'NEW';
     if (targetTicket) {
       const updatedTicketItems = (targetTicket.items || []).map((it: any) => {
-        if (it.id === itemId) {
+        const itName = (it.name || '').trim().toLowerCase();
+        const isMatch =
+          it.id === itemId ||
+          (ticketItem && it.id === ticketItem.id) ||
+          itName === normSearch ||
+          (itName && normSearch.includes(itName));
+        if (isMatch) {
           return { ...it, stage: nextStage };
         }
         return it;
@@ -139,6 +162,18 @@ export async function POST(req: NextRequest) {
           updated_at: nowIso,
         })
         .eq('id', targetTicket.id);
+
+      // Broadcast update so all connected screens update in <50ms
+      try {
+        const { broadcastStateChange } = await import('../../../../lib/supabase');
+        broadcastStateChange('KDS_ITEM_BUMPED', {
+          ticketId: targetTicket.id,
+          itemId,
+          stage: nextStage,
+        });
+      } catch (bcErr) {
+        console.warn('Broadcast error in bump-item:', bcErr);
+      }
     }
 
 

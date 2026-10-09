@@ -401,6 +401,13 @@ export default function WaiterMobilePage() {
           <ScreenM5Dispatch
             mode="CALLS"
             onNavigateToTable={(num) => navigateView({ type: 'SHEET', tableNum: num, initialSeat: 'ALL' })}
+            onSettleTable={(num, chair) =>
+              navigateView({
+                type: 'SETTLE',
+                tableNum: num,
+                splitLabel: chair ? `Chair ${chair}` : undefined,
+              })
+            }
           />
         )}
 

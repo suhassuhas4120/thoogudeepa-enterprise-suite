@@ -56,6 +56,17 @@ export interface PaymentDetails {
   pointsAvailable: number;
   pointsRedeemed: number;
   transactionId?: string;
+  invoiceNumber?: string;
+  settledItems?: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+    totalPrice: number;
+    options?: string;
+    addOns?: string[];
+    seatNumber?: number;
+  }>;
 }
 
-export type WaiterPingType = 'WATER' | 'TISSUE' | 'CUTLERY' | 'TABLE CLEAN' | 'GENERAL CALL';
+export type WaiterPingType = 'WATER' | 'TISSUE' | 'CUTLERY' | 'TABLE CLEAN' | 'GENERAL CALL' | 'PAYMENT';

@@ -116,7 +116,7 @@ export interface DbPing {
 let syncBroadcastChannel: ReturnType<typeof supabase.channel> | null = null;
 
 export function getSyncBroadcastChannel() {
-  if (!syncBroadcastChannel && typeof window !== 'undefined') {
+  if (!syncBroadcastChannel) {
     syncBroadcastChannel = supabase.channel('restaurant-sync-broadcast', {
       config: { broadcast: { self: false } },
     });
@@ -125,14 +125,14 @@ export function getSyncBroadcastChannel() {
   return syncBroadcastChannel;
 }
 
-export function broadcastStateChange(reason: string) {
+export function broadcastStateChange(reason: string, payload?: unknown) {
   try {
     const ch = getSyncBroadcastChannel();
     if (ch) {
       ch.send({
         type: 'broadcast',
         event: 'STATE_CHANGED',
-        payload: { reason, timestamp: Date.now() },
+        payload: { reason, payload, timestamp: Date.now() },
       });
     }
   } catch (err) {

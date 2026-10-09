@@ -9,7 +9,7 @@ import {
   WaiterPingType,
 } from '../types/customer';
 import { INITIAL_MENU_ITEMS } from '../data/menuItems';
-import { useSharedBridge } from './useSharedBridge';
+import { useSharedBridge, SettledBillSnapshot } from './useSharedBridge';
 
 interface CustomerStoreState {
   currentScreen: ScreenId;
@@ -25,6 +25,7 @@ interface CustomerStoreState {
   itemTracking: IndividualItemTracking[];
   payment: PaymentDetails;
   waiterNotification: { active: boolean; type: string; message: string } | null;
+  isSettled: boolean;
 
   // Actions
   setCurrentScreen: (screen: ScreenId) => void;
@@ -52,6 +53,8 @@ interface CustomerStoreState {
   toggleRedeemPoints: () => void;
   confirmAndPay: () => void;
   pingWaiter: (type: WaiterPingType, customMsg?: string) => void;
+  handleBillSettledByWaiter: (snapshot: SettledBillSnapshot) => void;
+  syncWithActiveSession: (tableNumber: string, seatNumber: number) => void;
   dismissWaiterNotification: () => void;
   resetSession: () => void;
 }
@@ -105,6 +108,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   itemTracking: [],
   payment: initialEmptyPayment,
   waiterNotification: null,
+  isSettled: false,
 
   setCurrentScreen: (screen) =>
     set((state) => ({
@@ -238,12 +242,17 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         return { currentScreen: 5 };
       }
 
-      // Read seat from URL params
+      // Read seat from URL params or state
       const params = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search)
         : new URLSearchParams();
-      const seatNumber = parseInt(params.get('seat') || '1', 10);
-      const tableId = (params.get('table') || state.tableNumber || 'A-01').toUpperCase();
+      const seatNumber = parseInt(params.get('seat') || String(state.seatNumber || 1), 10) || 1;
+      const rawTable = params.get('table') || state.tableNumber || 'T-01';
+      let tableId = rawTable.trim().toUpperCase();
+      const match = tableId.match(/^T-?(\d+)$/);
+      if (match) {
+        tableId = `T-${String(parseInt(match[1], 10)).padStart(2, '0')}`;
+      }
 
       // Build a stable ticket ID
       const ts = Date.now();
@@ -255,7 +264,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         const bridge = useSharedBridge.getState();
         bridge.customerPlacesOrder(
           tableId,
-          state.guestName || 'Guest',
+          state.guestName || `Guest (Chair ${seatNumber})`,
           seatNumber,
           newlyAddedItems.map((c) => ({
             item: c.menuItem,
@@ -276,7 +285,11 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         stage: 'PREP' as OrderStage,
       }));
 
-      const updatedCart = state.cart.map((c) => ({ ...c, isOrdered: true }));
+      const updatedCart = state.cart.map((c) => ({
+        ...c,
+        isOrdered: true,
+        seatNumber: c.seatNumber || seatNumber,
+      }));
 
       return {
         cart: updatedCart,
@@ -357,16 +370,30 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   },
 
   pingWaiter: (type, customMsg = '') => {
-    // Get current state to capture tableNumber and guestName
-    const message = customMsg || `Request for ${type} transmitted to floor server`;
     set((state) => {
-      // Push real ping to bridge → waiter sees it immediately
+      const seat = state.seatNumber || 1;
+      const guest = state.guestName || `Guest (Chair ${seat})`;
+      const defaultMsg =
+        type === 'PAYMENT'
+          ? `Customer requested bill settlement at Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'WATER'
+          ? `Drinking water requested for Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'TISSUE'
+          ? `Extra tissues requested for Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'CUTLERY'
+          ? `Cutlery / plates requested for Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'TABLE CLEAN'
+          ? `Table cleaning requested for Table ${state.tableNumber}`
+          : `Floor assistance requested at Table ${state.tableNumber} (Chair ${seat})`;
+      const message = customMsg && customMsg.trim() ? customMsg.trim() : defaultMsg;
+
       const bridge = useSharedBridge.getState();
       bridge.customerPingsWaiter(
         state.tableNumber,
         type,
-        state.guestName || `Guest (Table ${state.tableNumber})`,
-        message
+        guest,
+        message,
+        seat
       );
       return {
         waiterNotification: { active: true, type, message },
@@ -374,11 +401,219 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     });
   },
 
+  handleBillSettledByWaiter: (snapshot) => {
+    set((state) => {
+      // Transition immediately to Screen 8, skipping Screen 6 and 7
+      const convertedCart: CartItem[] = (snapshot.items || []).map((it) => ({
+        cartItemId: it.id || `settled-${Date.now()}-${Math.random()}`,
+        menuItem: {
+          id: it.id,
+          name: it.name,
+          price: it.price || 0,
+          category: 'Authentic Donne',
+          description: '',
+          imagePlaceholder: '',
+          prepMode: 'Military Dum Handi',
+          optionsGroup1: { title: '', choices: [] },
+          optionsGroup2: { title: '', addOns: [] },
+        },
+        selectedOption: it.options || '',
+        selectedAddOns: it.addOns || [],
+        quantity: it.quantity || 1,
+        totalPrice: it.totalPrice || (it.price || 0) * (it.quantity || 1),
+        prepMode: 'Military Dum Handi',
+        isOrdered: true,
+        seatNumber: it.seatNumber || state.seatNumber,
+      }));
+
+      const newPayment: PaymentDetails = {
+        ...state.payment,
+        subtotal: snapshot.subtotal,
+        tax: snapshot.totalTax,
+        tipAmount: 0,
+        discount: 0,
+        totalAmount: snapshot.grandTotal,
+        paymentMethod: (snapshot.method as any) || 'UPI',
+        transactionId: snapshot.invoiceNumber,
+        invoiceNumber: snapshot.invoiceNumber,
+        settledItems: snapshot.items,
+      };
+
+      return {
+        previousScreen: state.currentScreen,
+        currentScreen: 8, // Directly navigate to Screen 8!
+        cart: convertedCart.length > 0 ? convertedCart : state.cart,
+        payment: newPayment,
+        orderStage: 'SERVED',
+        waiterNotification: null,
+        isSettled: true,
+      };
+    });
+  },
+
+  syncWithActiveSession: (tableNumber: string, seatNumber: number) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetTableNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetTableNum, 10) || 1).padStart(2, '0')}`;
+    const bridge = useSharedBridge.getState();
+    const currentTbl = bridge.tables.find((t) => cleanNum(t.number) === targetTableNum);
+
+    // Tickets for this table
+    const myTickets = bridge.kdsTickets.filter(
+      (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED'
+    );
+    const tableActiveItems = (currentTbl?.activeItems || []).filter(
+      (ai) => !ai.seatNumber || ai.seatNumber === seatNumber
+    );
+    const seatTickets = myTickets.filter(
+      (tk) => !tk.seatNumber || tk.seatNumber === seatNumber || tk.items.some((i) => !i.seatNumber || i.seatNumber === seatNumber)
+    );
+
+    const hasActiveOrders =
+      (currentTbl && currentTbl.status !== 'VACANT' && (currentTbl.currentBill > 0 || tableActiveItems.length > 0)) ||
+      seatTickets.length > 0;
+
+    // If the bill was settled by waiter but table hasn't fully vacated yet, don't reset the customer portal
+    const { isSettled } = useCustomerStore.getState();
+    if (isSettled) {
+      // Already transitioned to confirmation/bill screen — don't overwrite
+      return;
+    }
+
+    if (!hasActiveOrders) {
+      // Table/seat is VACANT or already settled/vacated.
+      // Reset session completely so scanning QR opens clean/new as requested!
+      set({
+        currentScreen: 1,
+        previousScreen: 1,
+        cart: [],
+        orderStage: 'PLACED',
+        itemTracking: [],
+        payment: initialEmptyPayment,
+        waiterNotification: null,
+      });
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${normTable}_s${seatNumber}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+        } catch {}
+      }
+      return;
+    }
+
+    // Otherwise, table/seat has active unpaid orders!
+    // Extract real dishes from KDS tickets or table activeItems
+    const ticketItems = seatTickets.flatMap((tk) =>
+      tk.items
+        .filter((it) => !it.seatNumber || it.seatNumber === seatNumber)
+        .map((it) => ({
+          ...it,
+          ticketId: tk.id,
+        }))
+    );
+
+    const activeList = ticketItems.length > 0 ? ticketItems : tableActiveItems;
+
+    if (activeList.length > 0) {
+      const restoredCart: CartItem[] = activeList.map((it: any, idx: number) => {
+        const foundMenu = INITIAL_MENU_ITEMS.find(
+          (m) => m.name.toLowerCase().trim() === (it.name || '').toLowerCase().trim()
+        ) || {
+          id: `item-${idx}`,
+          name: it.name,
+          price: it.price || 0,
+          category: 'Authentic Donne',
+          description: '',
+          imagePlaceholder: '',
+          prepMode: it.prepMode || 'Military Dum Handi',
+          optionsGroup1: { title: '', choices: [] },
+          optionsGroup2: { title: '', addOns: [] },
+        };
+
+        const unitPrice = it.price || foundMenu.price || 0;
+        const qty = it.quantity || 1;
+        return {
+          cartItemId: it.id || `active-${idx}-${Date.now()}`,
+          menuItem: foundMenu,
+          selectedOption: it.options || '',
+          selectedAddOns: it.addOns || [],
+          quantity: qty,
+          totalPrice: unitPrice * qty,
+          prepMode: it.prepMode || foundMenu.prepMode || 'Military Dum Handi',
+          isOrdered: true,
+          seatNumber: it.seatNumber || seatNumber,
+        };
+      });
+
+      const restoredTracking: IndividualItemTracking[] = activeList.map((it: any, idx: number) => {
+        const stg: OrderStage =
+          it.stage === 'SERVED' || it.status === 'Served'
+            ? 'SERVED'
+            : it.stage === 'READY' || it.stage === 'PLATED' || it.status === 'Ready'
+            ? 'PLATED'
+            : it.stage === 'PREP' || it.status === 'Cooking'
+            ? 'PREP'
+            : it.stage === 'RECEIVED' || it.status === 'Received'
+            ? 'RECEIVED'
+            : 'PLACED';
+
+        return {
+          id: it.id || `track-${idx}`,
+          name: `${it.name} × ${it.quantity || 1}`,
+          prepMode: it.prepMode || 'Military Dum Handi',
+          status:
+            stg === 'SERVED'
+              ? 'Delivered to Table'
+              : stg === 'PLATED'
+              ? 'Plated & Ready for Service'
+              : stg === 'PREP'
+              ? 'In Kitchen Preparation'
+              : stg === 'RECEIVED'
+              ? 'Order Received by Kitchen'
+              : 'Order Placed',
+          stage: stg,
+        };
+      });
+
+      const subtotal = restoredCart.reduce((s, c) => s + c.totalPrice, 0);
+      const tax = Math.round(subtotal * 0.05);
+      const totalAmount = subtotal + tax;
+
+      const allServed = restoredTracking.every((t) => t.stage === 'SERVED');
+      const orderStage: OrderStage = allServed ? 'SERVED' : 'PREP';
+
+      set((state) => {
+        const nextScreen = state.currentScreen <= 4 ? 5 : state.currentScreen;
+        return {
+          cart: restoredCart,
+          itemTracking: restoredTracking,
+          orderStage,
+          currentScreen: nextScreen,
+          tableNumber: normTable,
+          seatNumber,
+          payment: {
+            ...state.payment,
+            subtotal,
+            tax,
+            totalAmount,
+          },
+        };
+      });
+    }
+  },
+
   dismissWaiterNotification: () => {
     set({ waiterNotification: null });
   },
 
   resetSession: () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const st = useCustomerStore.getState();
+        localStorage.removeItem('thoogudeepa_customer_session_v1');
+        localStorage.removeItem(`thoogudeepa_customer_session_${st.tableNumber}_s${st.seatNumber}`);
+      } catch {}
+    }
     set({
       currentScreen: 1,
       previousScreen: 1,
@@ -388,6 +623,28 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       itemTracking: [],
       payment: initialEmptyPayment,
       waiterNotification: null,
+      isSettled: false,
     });
   },
 }));
+
+if (typeof window !== 'undefined') {
+  useCustomerStore.subscribe((state) => {
+    try {
+      if (state.cart && state.cart.length > 0) {
+        const payload = JSON.stringify({
+          cart: state.cart,
+          currentScreen: state.currentScreen,
+          tableNumber: state.tableNumber,
+          seatNumber: state.seatNumber,
+          guestName: state.guestName,
+          orderStage: state.orderStage,
+          itemTracking: state.itemTracking,
+          payment: state.payment,
+        });
+        localStorage.setItem('thoogudeepa_customer_session_v1', payload);
+        localStorage.setItem(`thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`, payload);
+      }
+    } catch {}
+  });
+}

@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { useCustomer } from '../context/CustomerContext';
+import { useCustomerStore } from '../store/useCustomerStore';
 import { CustomerThemeProvider, useCustomerTheme } from '../context/ThemeContext';
 import { ThemeSwitcherBar } from '../components/ui/ThemeSwitcherBar';
 import { ScreenId } from '../types/customer';
@@ -35,8 +36,59 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 function CustomerJourneyContent() {
-  const { currentScreen, setCurrentScreen, viewMode, setViewMode } = useCustomer();
+  const { currentScreen, setCurrentScreen, viewMode, setViewMode, setTableNumber, setSeatNumber } = useCustomer();
   const { currentTheme } = useCustomerTheme();
+
+  // Initialize table and seat from QR code scan query params (?table=T-05&seat=2)
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const tblParam = params.get('table') || params.get('t');
+    const seatParam = params.get('seat') || params.get('chair') || params.get('s');
+
+    let cleanTable = 'T-01';
+    let parsedSeat = 1;
+
+    if (tblParam) {
+      let raw = tblParam.trim().toUpperCase();
+      const match = raw.match(/^T-?(\d+)$/);
+      if (match) {
+        cleanTable = `T-${String(parseInt(match[1], 10)).padStart(2, '0')}`;
+      } else {
+        cleanTable = raw;
+      }
+      setTableNumber(cleanTable);
+    }
+    if (seatParam) {
+      const s = parseInt(seatParam, 10);
+      if (!isNaN(s) && s > 0) {
+        parsedSeat = s;
+        setSeatNumber(s);
+      }
+    }
+
+    // Sync with live active session for this table & seat immediately
+    useCustomerStore.getState().syncWithActiveSession(cleanTable, parsedSeat);
+
+    // Also check table-specific localStorage as fallback if unplaced cart existed
+    try {
+      const key = `thoogudeepa_customer_session_${cleanTable}_s${parsedSeat}`;
+      const raw = localStorage.getItem(key) || localStorage.getItem('thoogudeepa_customer_session_v1');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const curStore = useCustomerStore.getState();
+        if (curStore.cart.length === 0 && Array.isArray(parsed.cart) && parsed.cart.length > 0) {
+          useCustomerStore.setState({
+            cart: parsed.cart,
+            currentScreen: parsed.currentScreen || 1,
+            orderStage: parsed.orderStage || 'PLACED',
+            itemTracking: parsed.itemTracking || [],
+            payment: parsed.payment || curStore.payment,
+          });
+        }
+      }
+    } catch {}
+  }, [setTableNumber, setSeatNumber]);
 
   const screens = [
     { id: 1 as ScreenId, name: '1. Welcome & Wi-Fi', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },

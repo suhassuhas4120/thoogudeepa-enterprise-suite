@@ -227,7 +227,7 @@ export function ScreenM4OrderPad({
           stage: 'PREP' as const,
         }));
         customerStore.setItemTracking([
-          ...customerStore.itemTracking,
+          ...(customerStore.itemTracking || []),
           ...newTracking,
         ]);
         customerStore.setOrderStage('PREP');

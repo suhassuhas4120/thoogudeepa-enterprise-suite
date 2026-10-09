@@ -410,11 +410,15 @@ export function ScreenM6Settlement({
 
     // Update store state
     waiterRecordsPayment(tableNum, method, finalGrandTotal, splitSeatNumber ?? undefined);
-    if (splitSeatNumber) {
-      setTimeout(() => waiterClearsChairAfterPayment(tableNum, splitSeatNumber), 800);
+  };
+
+  const handleFinish = () => {
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
     } else if (vacateAfter) {
-      setTimeout(() => waiterVacatesTable(tableNum), 600);
+      waiterVacatesTable(tableNum);
     }
+    onDone();
   };
 
   if (!table) return null;
@@ -437,7 +441,7 @@ export function ScreenM6Settlement({
           </div>
           <button
             type="button"
-            onClick={onDone}
+            onClick={handleFinish}
             className="font-mono text-xs font-black text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-xl border border-stone-300 transition cursor-pointer"
           >
             Done
@@ -726,7 +730,7 @@ export function ScreenM6Settlement({
 
             <button
               type="button"
-              onClick={onDone}
+              onClick={handleFinish}
               className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
               <span>Return to Floor Grid</span>

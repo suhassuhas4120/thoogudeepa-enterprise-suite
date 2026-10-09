@@ -177,8 +177,26 @@ function CustomerJourneyContent() {
       // Don't interrupt Screen 8 (confirmation) — payment already shown
       if (curStore.currentScreen === 8) return;
 
-      // Check bridge — only reset if our specific table is now VACANT
       const bridgeState = useSharedBridge.getState();
+
+      // Check if there is a settled bill waiting to be shown to this customer
+      const bridgeBills = bridgeState.settledBills || {};
+      const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
+      const chairKey = `${normTable}-CHAIR-${seatId}`;
+      const matchingSettledBill = bridgeBills[chairKey] || (
+        bridgeBills[normTable] && (
+          bridgeBills[normTable].seatNumber === undefined ||
+          bridgeBills[normTable].seatNumber === null ||
+          bridgeBills[normTable].seatNumber === seatId
+        ) ? bridgeBills[normTable] : null
+      );
+
+      if (matchingSettledBill) {
+        curStore.handleBillSettledByWaiter(matchingSettledBill);
+        return;
+      }
+
+      // Check bridge — only reset if our specific table is now VACANT
       const bridgeTbl = bridgeState.tables.find(
         (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
       );
@@ -211,6 +229,24 @@ function CustomerJourneyContent() {
       if (!postOrderScreens.includes(curStore.currentScreen)) return;
 
       const bridgeState = useSharedBridge.getState();
+
+      // Check if there is a settled bill waiting to be shown to this customer
+      const bridgeBills = bridgeState.settledBills || {};
+      const normTable = `T-${String(parseInt(cleanTableNum(tableId), 10) || 1).padStart(2, '0')}`;
+      const chairKey = `${normTable}-CHAIR-${seatId}`;
+      const matchingSettledBill = bridgeBills[chairKey] || (
+        bridgeBills[normTable] && (
+          bridgeBills[normTable].seatNumber === undefined ||
+          bridgeBills[normTable].seatNumber === null ||
+          bridgeBills[normTable].seatNumber === seatId
+        ) ? bridgeBills[normTable] : null
+      );
+
+      if (matchingSettledBill) {
+        curStore.handleBillSettledByWaiter(matchingSettledBill);
+        return;
+      }
+
       const bridgeTbl = bridgeState.tables.find(
         (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
       );

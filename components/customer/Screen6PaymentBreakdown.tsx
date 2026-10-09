@@ -41,7 +41,13 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
     const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
 
-    const matchingSnapshot = settledBills[chairKey] || settledBills[normTable];
+    const matchingSnapshot = settledBills[chairKey] || (
+      settledBills[normTable] && (
+        settledBills[normTable].seatNumber === undefined ||
+        settledBills[normTable].seatNumber === null ||
+        settledBills[normTable].seatNumber === effectiveSeat
+      ) ? settledBills[normTable] : null
+    );
     if (matchingSnapshot && matchingSnapshot.timestamp) {
       const now = Date.now();
       if (Math.abs(now - matchingSnapshot.timestamp) < 1800000) {

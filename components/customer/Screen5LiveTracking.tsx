@@ -289,13 +289,24 @@ export const Screen5LiveTracking: React.FC = () => {
   const matchingSnapshot = useMemo(() => {
     const bills = settledBills || {};
     if (bills[chairKey]) return bills[chairKey];
-    if (bills[normTable]) return bills[normTable];
+    if (bills[normTable]) {
+      const b = bills[normTable];
+      if (b.seatNumber === undefined || b.seatNumber === null || b.seatNumber === effectiveSeat) {
+        return b;
+      }
+    }
     for (const [key, bill] of Object.entries(bills)) {
       if (!bill) continue;
       if (isTableMatch(bill.tableName, effectiveTable)) {
-        const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-        if (!seatMatch || Number(seatMatch[1]) === effectiveSeat) {
-          return bill;
+        if (typeof bill.seatNumber === 'number') {
+          if (bill.seatNumber === effectiveSeat) return bill;
+        } else {
+          const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
+          if (seatMatch) {
+            if (Number(seatMatch[1]) === effectiveSeat) return bill;
+          } else {
+            return bill;
+          }
         }
       }
     }
@@ -993,7 +1004,13 @@ export const Screen5LiveTracking: React.FC = () => {
                 onClick={() => {
                   const normTbl = `T-${String(parseInt(effectiveTable.replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
                   const key = `${normTbl}-CHAIR-${effectiveSeat}`;
-                  const snapshot = settledBills[key] || settledBills[normTbl];
+                  const snapshot = settledBills[key] || (
+                    settledBills[normTbl] && (
+                      settledBills[normTbl].seatNumber === undefined ||
+                      settledBills[normTbl].seatNumber === null ||
+                      settledBills[normTbl].seatNumber === effectiveSeat
+                    ) ? settledBills[normTbl] : null
+                  );
                   if (snapshot) {
                     useCustomerStore.getState().handleBillSettledByWaiter(snapshot);
                   } else {

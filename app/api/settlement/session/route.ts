@@ -24,6 +24,7 @@ export interface SettledBillSnapshot {
   cashTendered?: number;
   cashChange?: number;
   seatLabel: string;
+  seatNumber?: number;
   captainName: string;
   tableName: string;
   section: string;
@@ -89,14 +90,16 @@ export async function GET(req: NextRequest) {
             }
           } else if (row.type === 'SETTLED_BILL') {
             if (parsed.timestamp && Math.abs(now - parsed.timestamp) < 1800000) {
-              billsObj[normTable] = parsed;
-              const seatMatch = parsed.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-              if (seatMatch) {
-                billsObj[`${normTable}-CHAIR-${seatMatch[1]}`] = parsed;
-              }
-              settledBills.set(normTable, parsed);
-              if (seatMatch) {
-                settledBills.set(`${normTable}-CHAIR-${seatMatch[1]}`, parsed);
+              const seatNum = typeof parsed.seatNumber === 'number'
+                ? parsed.seatNumber
+                : (parsed.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(parsed.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
+              if (typeof seatNum === 'number') {
+                billsObj[`${normTable}-CHAIR-${seatNum}`] = parsed;
+                settledBills.set(`${normTable}-CHAIR-${seatNum}`, parsed);
+              } else {
+                billsObj[normTable] = parsed;
+                settledBills.set(normTable, parsed);
               }
             }
           }
@@ -190,24 +193,31 @@ export async function POST(req: NextRequest) {
         timestamp: snapshot.timestamp || Date.now(),
       };
 
-      settledBills.set(normTable, enrichedSnapshot);
-
       const seatMatch = snapshot.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-      if (seatMatch) {
-        settledBills.set(`${normTable}-CHAIR-${seatMatch[1]}`, enrichedSnapshot);
-        activeSettlementSessions.delete(`${normTable}-CHAIR-${seatMatch[1]}`);
+      const seatNumber = typeof snapshot.seatNumber === 'number'
+        ? snapshot.seatNumber
+        : (seatMatch ? Number(seatMatch[1]) : undefined);
+
+      if (typeof seatNumber === 'number') {
+        settledBills.set(`${normTable}-CHAIR-${seatNumber}`, enrichedSnapshot);
+        activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+      } else {
+        settledBills.set(normTable, enrichedSnapshot);
+        activeSettlementSessions.delete(normTable);
+        for (let s = 1; s <= 12; s++) {
+          activeSettlementSessions.delete(`${normTable}-CHAIR-${s}`);
+        }
       }
-      activeSettlementSessions.delete(normTable);
 
       broadcastStateChange('settledBillRecorded', enrichedSnapshot);
 
-      const billId = `SETTLED-BILL-${normTable}${seatMatch ? `-S${seatMatch[1]}` : ''}`;
-      const sessId = `SETTLE-SESSION-${normTable}${seatMatch ? `-S${seatMatch[1]}` : ''}`;
+      const billId = `SETTLED-BILL-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
+      const sessId = `SETTLE-SESSION-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
       try {
         await supabase.from('pings').upsert({
           id: billId,
           table_number: normTable,
-          seat_number: seatMatch ? Number(seatMatch[1]) : 1,
+          seat_number: typeof seatNumber === 'number' ? seatNumber : 1,
           type: 'SETTLED_BILL',
           guest_name: snapshot.captainName || 'Guest',
           message: JSON.stringify(enrichedSnapshot),
@@ -230,32 +240,57 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(tableNumber);
-      settledBills.delete(normTable);
+      if (action === 'CLEAR_BILL') {
+        settledBills.delete(normTable);
+        if (typeof seatNumber === 'number') {
+          settledBills.delete(`${normTable}-CHAIR-${seatNumber}`);
+        } else {
+          for (let s = 1; s <= 12; s++) {
+            settledBills.delete(`${normTable}-CHAIR-${s}`);
+          }
+        }
+      }
+
       activeSettlementSessions.delete(normTable);
       if (typeof seatNumber === 'number') {
-        settledBills.delete(`${normTable}-CHAIR-${seatNumber}`);
         activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
       } else {
         // Clear all chairs for this table
         for (let s = 1; s <= 12; s++) {
-          settledBills.delete(`${normTable}-CHAIR-${s}`);
           activeSettlementSessions.delete(`${normTable}-CHAIR-${s}`);
         }
       }
 
-      broadcastStateChange('settledBillCleared', { normTable, seatNumber });
+      if (action === 'CLEAR_BILL') {
+        broadcastStateChange('settledBillCleared', { normTable, seatNumber });
+      }
 
       try {
-        if (typeof seatNumber === 'number') {
-          await supabase
-            .from('pings')
-            .delete()
-            .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber}`);
+        if (action === 'CLEAR_BILL') {
+          if (typeof seatNumber === 'number') {
+            await supabase
+              .from('pings')
+              .delete()
+              .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber}`);
+          } else {
+            await supabase
+              .from('pings')
+              .delete()
+              .or(`id.ilike.SETTLE-SESSION-${normTable}%,id.ilike.SETTLED-BILL-${normTable}%`);
+          }
         } else {
-          await supabase
-            .from('pings')
-            .delete()
-            .or(`id.ilike.SETTLE-SESSION-${normTable}%,id.ilike.SETTLED-BILL-${normTable}%`);
+          // VACATE: only clean up active negotiation sessions in Supabase, preserve settled bill receipt
+          if (typeof seatNumber === 'number') {
+            await supabase
+              .from('pings')
+              .delete()
+              .eq('id', `SETTLE-SESSION-${normTable}-S${seatNumber}`);
+          } else {
+            await supabase
+              .from('pings')
+              .delete()
+              .ilike('id', `SETTLE-SESSION-${normTable}%`);
+          }
         }
       } catch {}
 

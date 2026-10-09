@@ -550,18 +550,22 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextBills = { ...state.settledBills };
-      // Key by normalized table: "T-05"
-      nextBills[normTable] = timestampedSnapshot;
-      // Key by chair if specific chair: "T-05-CHAIR-2"
+      // Key by chair if specific chair; otherwise key by whole table
       if (typeof snapshot.seatNumber === 'number') {
         nextBills[`${normTable}-CHAIR-${snapshot.seatNumber}`] = timestampedSnapshot;
+      } else {
+        nextBills[normTable] = timestampedSnapshot;
       }
 
       // Automatically clear active settlement session
       const nextSessions = { ...state.activeSettlementSessions };
-      delete nextSessions[normTable];
       if (typeof snapshot.seatNumber === 'number') {
         delete nextSessions[`${normTable}-CHAIR-${snapshot.seatNumber}`];
+      } else {
+        delete nextSessions[normTable];
+        for (let s = 1; s <= 12; s++) {
+          delete nextSessions[`${normTable}-CHAIR-${s}`];
+        }
       }
 
       return { settledBills: nextBills, activeSettlementSessions: nextSessions };
@@ -1428,12 +1432,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     set((state) => {
       const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
       const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
-      const nextSettled = { ...state.settledBills };
       const nextSessions = { ...state.activeSettlementSessions };
-      delete nextSettled[normTable];
       delete nextSessions[normTable];
       for (let s = 1; s <= 12; s++) {
-        delete nextSettled[`${normTable}-CHAIR-${s}`];
         delete nextSessions[`${normTable}-CHAIR-${s}`];
       }
 
@@ -1460,7 +1461,6 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kdsTickets: state.kdsTickets.filter(
           (tk) => !groupNums.has(tk.tableNumber) && cleanNum(tk.tableNumber) !== targetNum
         ),
-        settledBills: nextSettled,
         activeSettlementSessions: nextSessions,
       };
     });
@@ -1564,13 +1564,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         };
       });
 
-      const nextSettled = { ...state.settledBills };
       const nextSessions = { ...state.activeSettlementSessions };
       const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
-      delete nextSettled[`${normTable}-CHAIR-${seatNumber}`];
       delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
 
-      return { kdsTickets: newTickets, tables: newTables, settledBills: nextSettled, activeSettlementSessions: nextSessions };
+      return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions };
     });
 
     // Clear server settlement session & settled bills for this chair

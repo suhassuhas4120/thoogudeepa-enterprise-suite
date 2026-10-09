@@ -42,7 +42,7 @@ export function TabletPaymentPanel({
   splitAmount,
   splitLabel,
 }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable } = useSharedBridge();
+  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, recordSettledBill } = useSharedBridge();
   const { cart } = useCustomer();
   const table = tables.find((t) => t.number === tableNum);
 
@@ -187,14 +187,68 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
   const handleSettle = () => {
     if (isSettleDisabled) return;
 
-    waiterRecordsPayment(tableNum, method, bill);
+    const splitSeatNum = typeof selectedChair === 'number'
+      ? selectedChair
+      : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
 
-    if (vacateAfter && !splitAmount) {
-      setTimeout(() => waiterVacatesTable(tableNum), 400);
-    }
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const formattedTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+    const relevantItems = (allFiredItems.length > 0 ? allFiredItems : allDraftItems)
+      .filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
+
+    const snapshotItems = relevantItems.length > 0
+      ? relevantItems.map((it: any, idx: number) => ({
+          id: it.id || `item-${idx}`,
+          name: it.name || it.menuItem?.name || 'Item',
+          quantity: it.quantity || 1,
+          price: it.price || it.menuItem?.price || Math.round(subtotal / relevantItems.length),
+          totalPrice: (it.price || it.menuItem?.price || Math.round(subtotal / relevantItems.length)) * (it.quantity || 1),
+          seatNumber: it.seatNumber,
+        }))
+      : [
+          {
+            id: `item-${Date.now()}`,
+            name: `${tableNum} Dine-in Food Service`,
+            quantity: 1,
+            price: subtotal,
+            totalPrice: subtotal,
+            seatNumber: splitSeatNum,
+          },
+        ];
+
+    const cleanTbl = tableNum.replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const invoiceNumber = `INV-${cleanTbl.padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+
+    recordSettledBill({
+      invoiceNumber,
+      tableName: tableNum,
+      section: table?.section || 'Main Dining Hall',
+      guestCount: splitSeatNum ? 1 : table?.guestCount || table?.capacity || 1,
+      formattedDate,
+      formattedTime,
+      captainName: 'Floor Captain',
+      method,
+      subtotal,
+      totalTax,
+      cgst: Number(cgst),
+      sgst: Number(sgst),
+      grandTotal: bill,
+      cashTendered: method === 'CASH' && typeof cashTendered === 'number' ? cashTendered : undefined,
+      cashChange: method === 'CASH' ? change : undefined,
+      items: snapshotItems,
+      seatNumber: splitSeatNum,
+      seatLabel: targetLabel,
+    });
+
+    waiterRecordsPayment(tableNum, method, bill, splitSeatNum);
 
     setSettled(true);
     setTimeout(() => {
+      if (vacateAfter && !splitAmount && !splitSeatNum) {
+        waiterVacatesTable(tableNum);
+      }
       setSettled(false);
       setCashTendered('');
       setIsUpiVerified(false);

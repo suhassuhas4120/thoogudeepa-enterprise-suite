@@ -18,7 +18,7 @@ import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
 import { ScreenId } from '../types/customer';
 import { getSyncBroadcastChannel } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
-import { Armchair, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
+import { Armchair, AlertCircle, Sparkles, RefreshCw, Check } from 'lucide-react';
 
 // Normalise a raw table param like "T-5", "T05", "5" → "T-05"
 function normTableId(raw: string): string {
@@ -226,6 +226,37 @@ function CustomerJourneyContent() {
     curStore.setSeatNumber(newSeat);
     curStore.resetSession();
     curStore.syncWithActiveSession(cleanTable, newSeat);
+  };
+
+  const handleResumeChair = async () => {
+    if (!chairConflict) return;
+    const devToken = getOrCreateDeviceToken();
+    try {
+      const res = await fetch('/api/session/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableNumber: chairConflict.table,
+          seatNumber: chairConflict.occupiedSeat,
+          deviceToken: devToken,
+          claim: true,
+        }),
+      });
+      const data = await res.json();
+      if (data.active && data.order) {
+        setChairConflict(null);
+        useCustomerStore.getState().syncWithActiveSession(chairConflict.table, chairConflict.occupiedSeat);
+        useCustomerStore.setState({
+          currentScreen: 5,
+        });
+        hasPlacedOrderRef.current = true;
+        return;
+      }
+    } catch (e) {
+      console.warn('Session claim error:', e);
+    }
+    setChairConflict(null);
+    useCustomerStore.getState().syncWithActiveSession(chairConflict.table, chairConflict.occupiedSeat);
   };
 
   // ─── Native Hardware / Browser Back & Swipe Navigation Sync ─────────────────
@@ -525,16 +556,30 @@ function CustomerJourneyContent() {
                 <div className="flex items-start gap-2">
                   <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
                   <p className="leading-snug">
-                    Another guest is currently using <strong className="text-white">Chair {chairConflict.occupiedSeat}</strong> at this table.
+                    Another device or session is bound to <strong className="text-white">Chair {chairConflict.occupiedSeat}</strong> at this table.
                   </p>
                 </div>
               </div>
 
-              {chairConflict.vacantSeats && chairConflict.vacantSeats.length > 0 ? (
-                <div className="space-y-2.5">
-                  <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">
-                    Select Your Chair To Continue:
-                  </p>
+              {/* 1-Tap Session Resume for Returning Guests */}
+              <button
+                onClick={handleResumeChair}
+                className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white font-black text-xs flex items-center justify-center gap-2 active:scale-95 transition shadow-lg shadow-emerald-950/40 border border-emerald-500/30 uppercase tracking-wider"
+              >
+                <Check className="h-4 w-4" />
+                <span>Resume My Dining Session (Chair {chairConflict.occupiedSeat})</span>
+              </button>
+
+              {chairConflict.vacantSeats && chairConflict.vacantSeats.length > 0 && (
+                <div className="space-y-2.5 pt-1">
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 h-px bg-stone-800" />
+                    <span className="text-[10px] text-stone-400 font-mono uppercase tracking-wider font-bold">
+                      or switch to open chair
+                    </span>
+                    <div className="flex-1 h-px bg-stone-800" />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2.5">
                     {chairConflict.vacantSeats.map((seatNum) => (
                       <button
@@ -548,7 +593,9 @@ function CustomerJourneyContent() {
                     ))}
                   </div>
                 </div>
-              ) : (
+              )}
+
+              {(!chairConflict.vacantSeats || chairConflict.vacantSeats.length === 0) && (
                 <div className="space-y-3">
                   <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-xs text-rose-300">
                     All seats at Table {chairConflict.table} are currently occupied. Please notify your waiter.

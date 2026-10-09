@@ -1615,10 +1615,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           continue;
         }
 
-        const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
-        const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
+        const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : undefined;
+        const seatItems = tk.items.filter((it) => (it.seatNumber ?? tkSeat) === seatNumber);
+        const otherItems = tk.items.filter((it) => (it.seatNumber ?? tkSeat) !== seatNumber);
 
-        if (seatItems.length === 0) {
+        if (seatItems.length === 0 && tkSeat !== seatNumber) {
           // Ticket doesn't contain items for this seat
           newTickets.push(tk);
           continue;
@@ -1662,12 +1663,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
         const newBill = Math.round(remainingTotal * 1.05);
         const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
+        const activeKotCount = newTickets.filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED').length;
 
         return {
           ...t,
           activeItems: remainingActiveItems,
           currentBill: newBill,
           guestCount: hasRemainingOrders ? Math.max(1, (t.guestCount || 2) - 1) : 0,
+          kotCount: hasRemainingOrders ? activeKotCount : 0,
           status: hasRemainingOrders ? ('OCCUPIED' as const) : ('VACANT' as const),
         };
       });
@@ -1677,6 +1680,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
       delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
       delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+
+      const tblRemaining = newTables.find((t) => cleanNum(t.number) === targetNum);
+      if (!tblRemaining || tblRemaining.currentBill === 0 || tblRemaining.status === 'VACANT') {
+        delete nextBills[normTable];
+        delete nextSessions[normTable];
+      }
 
       return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions, settledBills: nextBills };
     });
@@ -1692,7 +1701,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       supabase
         .from('pings')
         .delete()
-        .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber}`)
+        .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}`)
         .then(() => {}, () => {});
     }
 

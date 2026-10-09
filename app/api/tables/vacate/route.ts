@@ -7,7 +7,10 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const tableNumber = (body.tableNumber || body.table || '').toUpperCase();
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const rawTable = body.tableNumber || body.table || '';
+    const tNum = cleanNum(rawTable);
+    const tableNumber = tNum ? `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}` : rawTable.toUpperCase();
 
     if (!tableNumber) {
       return NextResponse.json({ error: 'tableNumber is required' }, { status: 400 });
@@ -55,10 +58,26 @@ export async function POST(req: NextRequest) {
       if (activeTickets && activeTickets.length > 0) {
         for (const tk of activeTickets) {
           const items = Array.isArray(tk.items) ? tk.items : [];
-          const thisSeatItems = items.filter((it: any) => (it.seat_number || it.seatNumber) === seatNumber);
-          const otherSeatItems = items.filter((it: any) => (it.seat_number || it.seatNumber) !== seatNumber);
+          const tkSeat = tk.seat_number !== undefined && tk.seat_number !== null ? Number(tk.seat_number) : undefined;
 
-          if (thisSeatItems.length > 0) {
+          const thisSeatItems = items.filter((it: any) => {
+            const itSeat = (it.seat_number !== undefined && it.seat_number !== null)
+              ? Number(it.seat_number)
+              : (it.seatNumber !== undefined && it.seatNumber !== null)
+              ? Number(it.seatNumber)
+              : tkSeat;
+            return itSeat === seatNumber;
+          });
+          const otherSeatItems = items.filter((it: any) => {
+            const itSeat = (it.seat_number !== undefined && it.seat_number !== null)
+              ? Number(it.seat_number)
+              : (it.seatNumber !== undefined && it.seatNumber !== null)
+              ? Number(it.seatNumber)
+              : tkSeat;
+            return itSeat !== seatNumber;
+          });
+
+          if (thisSeatItems.length > 0 || tkSeat === seatNumber) {
             if (otherSeatItems.length === 0) {
               // Entire ticket belonged to settled seat -> mark COMPLETED
               await supabase
@@ -89,6 +108,7 @@ export async function POST(req: NextRequest) {
       const newBill = Math.round(remainingItemsTotal * 1.05);
       const newStatus = hasOtherSeatItems ? 'OCCUPIED' : 'VACANT';
       const newGuestCount = hasOtherSeatItems ? Math.max(1, (table.guest_count || 2) - 1) : 0;
+      const newKotCount = hasOtherSeatItems ? Math.max(1, (table.kot_count || 1) - 1) : 0;
 
       await supabase
         .from('tables')
@@ -96,6 +116,7 @@ export async function POST(req: NextRequest) {
           status: newStatus,
           current_bill: newBill,
           guest_count: newGuestCount,
+          kot_count: newKotCount,
           updated_at: now,
         })
         .eq('number', tableNumber);
@@ -103,12 +124,13 @@ export async function POST(req: NextRequest) {
       // Clear settled bills for this specific chair
       try {
         clearSettledBillInMemory(tableNumber, seatNumber);
-        const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-        const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+        if (!hasOtherSeatItems) {
+          clearSettledBillInMemory(tableNumber);
+        }
         await supabase
           .from('pings')
           .delete()
-          .or(`id.eq.SETTLED-BILL-${nTable}-S${seatNumber},id.eq.SETTLE-SESSION-${nTable}-S${seatNumber}`);
+          .or(`id.eq.SETTLED-BILL-${tableNumber}-S${seatNumber},id.eq.SETTLE-SESSION-${tableNumber}-S${seatNumber},id.eq.SETTLED-BILL-${tableNumber}`);
       } catch {}
 
       return NextResponse.json({

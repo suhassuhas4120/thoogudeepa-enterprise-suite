@@ -605,7 +605,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           seatNumber,
           isSettled: false,
           payment: {
-            ...state.payment,
+            ...initialEmptyPayment,
             subtotal,
             tax,
             totalAmount,

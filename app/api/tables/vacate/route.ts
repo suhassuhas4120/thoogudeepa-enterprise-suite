@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase';
+import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -99,6 +100,17 @@ export async function POST(req: NextRequest) {
         })
         .eq('number', tableNumber);
 
+      // Clear settled bills for this specific chair
+      try {
+        clearSettledBillInMemory(tableNumber, seatNumber);
+        const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+        const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+        await supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.SETTLED-BILL-${nTable}-S${seatNumber},id.eq.SETTLE-SESSION-${nTable}-S${seatNumber}`);
+      } catch {}
+
       return NextResponse.json({
         success: true,
         tableNumber,
@@ -146,6 +158,17 @@ export async function POST(req: NextRequest) {
         updated_at: now,
       })
       .eq('table_number', tableNumber);
+
+    // 5. Clear settled bills for this table
+    try {
+      clearSettledBillInMemory(tableNumber);
+      const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+      await supabase
+        .from('pings')
+        .delete()
+        .or(`id.ilike.SETTLE-SESSION-${nTable}%,id.ilike.SETTLED-BILL-${nTable}%`);
+    } catch {}
 
     return NextResponse.json({
       success: true,

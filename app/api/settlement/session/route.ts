@@ -1,48 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, broadcastStateChange } from '../../../../lib/supabase';
+import {
+  activeSettlementSessions,
+  settledBills,
+  normalizeTable,
+  ActiveSettlementSession,
+  SettledBillSnapshot,
+} from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
-
-export interface ActiveSettlementSession {
-  tableNumber: string;
-  seatNumber?: number;
-  grandTotal?: number;
-  method: 'UPI' | 'CASH';
-  isUpiVerified?: boolean;
-  initiatedAt: number;
-}
-
-export interface SettledBillSnapshot {
-  invoiceNumber: string;
-  items: any[];
-  subtotal: number;
-  totalTax: number;
-  cgst: number;
-  sgst: number;
-  grandTotal: number;
-  method: 'UPI' | 'CASH';
-  cashTendered?: number;
-  cashChange?: number;
-  seatLabel: string;
-  seatNumber?: number;
-  captainName: string;
-  tableName: string;
-  section: string;
-  guestCount: number;
-  formattedDate: string;
-  formattedTime: string;
-  timestamp?: number;
-}
-
-// In-memory active settlement storage on Next.js server instance
-const activeSettlementSessions = new Map<string, ActiveSettlementSession>();
-const settledBills = new Map<string, SettledBillSnapshot>();
-
-const normalizeTable = (tbl: string) => {
-  const clean = (tbl || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-  const num = parseInt(clean, 10);
-  return `T-${String(!isNaN(num) && num > 0 ? num : clean).padStart(2, '0')}`;
-};
 
 export async function GET(req: NextRequest) {
   const now = Date.now();
@@ -107,6 +73,32 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch {}
+
+  const { searchParams } = new URL(req.url);
+  const tableParam = searchParams.get('tableNumber') || searchParams.get('table');
+
+  if (tableParam) {
+    const normReqTable = normalizeTable(tableParam);
+    const filteredSessions: Record<string, ActiveSettlementSession> = {};
+    const filteredBills: Record<string, SettledBillSnapshot> = {};
+
+    Object.entries(sessionsObj).forEach(([k, v]) => {
+      if (k === normReqTable || k.startsWith(`${normReqTable}-CHAIR-`)) {
+        filteredSessions[k] = v;
+      }
+    });
+
+    Object.entries(billsObj).forEach(([k, v]) => {
+      if (k === normReqTable || k.startsWith(`${normReqTable}-CHAIR-`)) {
+        filteredBills[k] = v;
+      }
+    });
+
+    return NextResponse.json({
+      sessions: filteredSessions,
+      settledBills: filteredBills,
+    });
+  }
 
   return NextResponse.json({
     sessions: sessionsObj,

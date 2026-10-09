@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase';
+import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
     try {
       const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
       const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+      clearSettledBillInMemory(nTable, seatNumber);
       await supabase
         .from('pings')
         .delete()

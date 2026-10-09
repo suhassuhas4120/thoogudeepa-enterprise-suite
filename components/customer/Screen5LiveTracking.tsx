@@ -60,7 +60,7 @@ const BhimLogo: React.FC = () => (
 );
 
 const CredLogo: React.FC = () => (
-  <div className="w-5 h-5 rounded bg-black flex items-center justify-center border border-white/20 shadow-2xs shrink-0">
+  <div className="w-5 h-5 rounded bg-slate-900 flex items-center justify-center border border-white/20 shadow-2xs shrink-0">
     <span className="font-serif font-black text-white text-[9px] tracking-tighter">CR</span>
   </div>
 );
@@ -910,7 +910,7 @@ export const Screen5LiveTracking: React.FC = () => {
       {/* Scanner Mode Overlay Modal */}
       <AnimatePresence>
         {isScannerOpen && (
-          <div className="fixed inset-0 z-50 flex flex-col bg-black text-white p-4">
+          <div className="fixed inset-0 z-50 flex flex-col bg-slate-900/95 text-white p-4">
             {/* Top Bar */}
             <div className="flex items-center justify-between py-2 border-b border-white/10">
               <div className="flex items-center gap-2">
@@ -933,20 +933,20 @@ export const Screen5LiveTracking: React.FC = () => {
 
             {/* Amount Banner */}
             <div className="py-4 text-center space-y-1">
-              <span className="text-[11px] font-mono uppercase tracking-widest text-stone-400">
+              <span className="text-[11px] font-mono uppercase tracking-widest text-slate-400">
                 Amount Payable
               </span>
               <div className="text-3xl font-black font-mono text-emerald-400">
                 ₹{currentBillAmount}
               </div>
-              <p className="text-[11px] text-stone-400">
+              <p className="text-[11px] text-slate-400">
                 Table {effectiveTable} • Chair C-{String(effectiveSeat).padStart(2, '0')}
               </p>
             </div>
 
             {/* High-Tech Camera Viewfinder */}
             <div className="flex-1 flex flex-col items-center justify-center">
-              <div className="relative w-64 h-64 rounded-3xl overflow-hidden border-2 border-emerald-500/50 bg-stone-900 shadow-2xl flex items-center justify-center">
+              <div className="relative w-64 h-64 rounded-3xl overflow-hidden border-2 border-emerald-500/50 bg-slate-900 shadow-2xl flex items-center justify-center">
                 <video
                   ref={videoRef}
                   autoPlay

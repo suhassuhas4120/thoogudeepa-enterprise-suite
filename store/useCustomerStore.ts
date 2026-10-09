@@ -473,16 +473,24 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       (currentTbl && currentTbl.status !== 'VACANT' && (currentTbl.currentBill > 0 || tableActiveItems.length > 0)) ||
       seatTickets.length > 0;
 
-    // If the bill was settled by waiter but table hasn't fully vacated yet, don't reset the customer portal
+    const tableIsVacant = !currentTbl || currentTbl.status === 'VACANT';
+
+    // If the bill was settled by waiter and the table is still BILLING/OCCUPIED (not yet vacated),
+    // don't overwrite — customer is on Screen 8 (confirmation). But if the table is now VACANT,
+    // the waiter has completed the vacate — the NEXT customer scanning the QR should get a clean start.
     const { isSettled } = useCustomerStore.getState();
-    if (isSettled) {
-      // Already transitioned to confirmation/bill screen — don't overwrite
+    if (isSettled && !tableIsVacant) {
+      // Still in the post-payment confirmation state, table not cleared yet — leave as-is
       return;
     }
-
-    if (!hasActiveOrders) {
-      // Table/seat is VACANT or already settled/vacated.
-      // Reset session completely so scanning QR opens clean/new as requested!
+    if (isSettled && tableIsVacant) {
+      // Waiter has vacated — previous customer session is done. Reset for next customer.
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${normTable}_s${seatNumber}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+        } catch {}
+      }
       set({
         currentScreen: 1,
         previousScreen: 1,
@@ -491,6 +499,23 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         itemTracking: [],
         payment: initialEmptyPayment,
         waiterNotification: null,
+        isSettled: false,
+      });
+      return;
+    }
+
+    if (!hasActiveOrders) {
+      // Table/seat is VACANT or already settled/vacated.
+      // Reset session completely so scanning QR opens clean/new!
+      set({
+        currentScreen: 1,
+        previousScreen: 1,
+        cart: [],
+        orderStage: 'PLACED',
+        itemTracking: [],
+        payment: initialEmptyPayment,
+        waiterNotification: null,
+        isSettled: false,
       });
       if (typeof window !== 'undefined') {
         try {
@@ -631,7 +656,15 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 if (typeof window !== 'undefined') {
   useCustomerStore.subscribe((state) => {
     try {
-      if (state.cart && state.cart.length > 0) {
+      // Only persist if there is an active unplaced/in-progress order for a known table+seat.
+      // Never write to the global _v1 key — that caused cross-seat contamination.
+      const hasTable = state.tableNumber && state.tableNumber !== 'T-01';
+      const hasSeat = state.seatNumber && state.seatNumber > 0;
+      const hasActiveCart = state.cart && state.cart.length > 0;
+      // Don't persist the settled confirmation screen (screen 8) — next QR scan must be fresh
+      const isConfirmationScreen = state.currentScreen === 8 || state.isSettled;
+
+      if (hasTable && hasSeat && hasActiveCart && !isConfirmationScreen) {
         const payload = JSON.stringify({
           cart: state.cart,
           currentScreen: state.currentScreen,
@@ -642,9 +675,18 @@ if (typeof window !== 'undefined') {
           itemTracking: state.itemTracking,
           payment: state.payment,
         });
-        localStorage.setItem('thoogudeepa_customer_session_v1', payload);
-        localStorage.setItem(`thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`, payload);
+        localStorage.setItem(
+          `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`,
+          payload
+        );
+      } else if (isConfirmationScreen && hasTable && hasSeat) {
+        // Payment confirmed — wipe the scoped session so next scan starts fresh
+        localStorage.removeItem(
+          `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`
+        );
+        localStorage.removeItem('thoogudeepa_customer_session_v1');
       }
     } catch {}
   });
 }
+

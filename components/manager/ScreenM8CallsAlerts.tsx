@@ -8,7 +8,7 @@ export function ScreenM8CallsAlerts() {
   const { pings, waiterResolvePing } = useSharedBridge();
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
+    <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex justify-between items-center">
         <div>
           <h3 className="text-base font-black text-slate-900 mt-1">

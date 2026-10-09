@@ -6,19 +6,26 @@ import { useManagerStore } from '../../store/useManagerStore';
 import { FileText, Printer, Lock, AlertTriangle, CheckCircle2, IndianRupee } from 'lucide-react';
 
 export function ScreenM16DayCloseZReport() {
-  const { shiftStats } = useSharedBridge();
-  const { openingFloat, pettyExpenses, activeManager } = useManagerStore();
+  const { shiftStats, settledBills } = useSharedBridge();
+  const { openingFloat, pettyExpenses, activeManager, activeShift } = useManagerStore();
 
   const totalPetty = pettyExpenses.reduce((acc, pe) => acc + pe.amount, 0);
-  const grossSales = Math.max(48250, shiftStats.totalRevenue);
-  const discountTotal = 1650;
+  const bills = Array.from(
+    new Map(
+      Object.values(settledBills).map((bill) => [bill.invoiceNumber, bill])
+    ).values()
+  );
+  const grossSales = bills.reduce((sum, bill) => sum + bill.grandTotal, 0) || shiftStats.totalRevenue;
+  const discountTotal = 0;
   const taxable = grossSales - discountTotal;
   const cgst = Math.round(taxable * 0.025);
   const sgst = Math.round(taxable * 0.025);
   const netRevenue = taxable + cgst + sgst;
 
   // Expected cash
-  const cashSales = Math.round(grossSales * 0.26);
+  const cashSales = bills
+    .filter((bill) => bill.method === 'CASH')
+    .reduce((sum, bill) => sum + bill.grandTotal, 0);
   const expectedCashInTill = openingFloat + cashSales - totalPetty;
 
   const [actualCashCounted, setActualCashCounted] = useState(String(expectedCashInTill));
@@ -36,14 +43,14 @@ export function ScreenM16DayCloseZReport() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto p-4 space-y-5 font-mono">
+    <div className="w-full max-w-5xl mx-auto p-4 space-y-5 font-mono border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-base font-black text-slate-900 mt-1">
             END-OF-DAY FINANCIAL AUDIT &amp; DRAWER RECONCILIATION
           </h3>
           <p className="text-xs text-slate-500">
-            Manager: {activeManager.name} • Shift: DINNER SERVICE (18:00 - 24:00)
+            Manager: {activeManager.name} • Shift: {activeShift.name} ({activeShift.timeRange})
           </p>
         </div>
         <div className="flex gap-2">

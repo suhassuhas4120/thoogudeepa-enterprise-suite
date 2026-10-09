@@ -10,8 +10,8 @@ export function ScreenM3FloorPlan() {
   const { selectedTableNumber, setSelectedTableNumber, setCurrentScreen } = useManagerStore();
   const [activeSection, setActiveSection] = useState('ALL');
 
-  const sections = ['ALL', 'SECTION A', 'SECTION B', 'SECTION C'];
-  const filteredTables = activeSection === 'ALL' ? tables : tables.filter((t) => t.section.includes(activeSection));
+  const sections = ['ALL', ...Array.from(new Set(tables.map((table) => table.section)))];
+  const filteredTables = activeSection === 'ALL' ? tables : tables.filter((t) => t.section === activeSection);
 
   const selectedTable = tables.find((t) => t.number === selectedTableNumber) || tables[0];
 
@@ -22,7 +22,7 @@ export function ScreenM3FloorPlan() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5">
+    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Left Main Tables Canvas */}
       <div className="md:col-span-8 flex flex-col gap-4">
         {/* Section Tabs */}

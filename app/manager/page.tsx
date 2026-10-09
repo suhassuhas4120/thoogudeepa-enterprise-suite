@@ -46,6 +46,7 @@ export default function ManagerPortalPage() {
     setViewMode,
     activeManager,
     activeShift,
+    isAuthenticated,
     logout,
   } = useManagerStore();
 
@@ -90,10 +91,22 @@ export default function ManagerPortalPage() {
     return s ? s.comp : <ScreenM1Login />;
   };
 
+  if (!isAuthenticated) {
+    return (
+      <main className="manager-portal h-screen w-full min-w-[1024px] max-w-[1920px] mx-auto overflow-hidden border-x border-[#D6D3D1] bg-[#FAF8F5] flex flex-col font-sans">
+        <div className="min-h-0 flex-1 w-full overflow-y-auto overflow-x-hidden py-8 px-2 sm:px-4 xl:px-8">
+          <div className="flex justify-center pb-12">
+            <ScreenM1Login />
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <main className="manager-portal min-h-screen w-full overflow-x-hidden bg-[#FAF8F5] flex flex-col font-sans">
+    <main className="manager-portal h-screen w-full min-w-[1024px] max-w-[1920px] mx-auto overflow-hidden border-x border-[#D6D3D1] bg-[#FAF8F5] flex flex-col font-sans">
       {/* Top Header Console */}
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
+      <header className="shrink-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-sm shadow-[#9C3D1E]/25">
             <Briefcase className="h-5 w-5 fill-white" />
@@ -175,12 +188,19 @@ export default function ManagerPortalPage() {
               <LayoutGrid className="h-3.5 w-3.5" />
               <span>ALL 16 SCREENS</span>
             </button>
+            <button
+              onClick={logout}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-mono font-bold text-rose-700 hover:bg-rose-50 transition"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              <span>LOCK DESK</span>
+            </button>
           </div>
         </div>
       </header>
 
       {/* Screen Tabs Bar (1 to 16) */}
-      <nav className="w-full max-w-[1600px] mx-auto flex gap-1.5 overflow-x-auto px-6 xl:px-8 py-2.5 scrollbar-none font-mono">
+      <nav className="shrink-0 w-full max-w-[1600px] mx-auto flex gap-1.5 overflow-x-auto px-6 xl:px-8 py-2.5 scrollbar-none font-mono">
         {screens.map((sc) => {
           const isActive = viewMode === 'single' && currentScreen === sc.id;
           return (
@@ -203,7 +223,7 @@ export default function ManagerPortalPage() {
       </nav>
 
       {/* Main Viewport */}
-      <div className="flex-1 w-full py-4 px-2 sm:px-4 xl:px-8">
+      <div className="min-h-0 flex-1 w-full overflow-y-auto overflow-x-hidden py-4 px-2 sm:px-4 xl:px-8">
         {viewMode === 'single' ? (
           <div className="flex justify-center pb-12">
             <AnimatePresence mode="wait">

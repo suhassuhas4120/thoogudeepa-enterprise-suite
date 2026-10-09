@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useManagerStore } from '../../store/useManagerStore';
 import { IndianRupee, Users, Utensils, AlertTriangle, TrendingUp, Clock, CheckCircle2, ArrowRight, Bell, BellRing, PhoneCall, Receipt, Star } from 'lucide-react';
@@ -8,6 +8,7 @@ import { IndianRupee, Users, Utensils, AlertTriangle, TrendingUp, Clock, CheckCi
 export function ScreenM2LiveOverview() {
   const { tables, kdsTickets, shiftStats } = useSharedBridge();
   const { setCurrentScreen, setSelectedTableNumber } = useManagerStore();
+  const [notificationsRead, setNotificationsRead] = useState(false);
 
   const occupiedTables = tables.filter((t) => t.status === 'OCCUPIED' || t.status === 'BILLING');
   const totalSeated = occupiedTables.reduce((acc, t) => acc + (t.guestCount || 0), 0);
@@ -20,7 +21,7 @@ export function ScreenM2LiveOverview() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 space-y-5">
+    <div className="w-full max-w-6xl mx-auto p-4 space-y-5 border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Top 4 KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
@@ -170,7 +171,7 @@ export function ScreenM2LiveOverview() {
               CUSTOMER NOTIFICATIONS
             </h4>
             <button
-              onClick={() => {}}
+              onClick={() => setNotificationsRead(true)}
               className="text-[11px] font-mono font-bold text-slate-500 hover:text-slate-800 flex items-center gap-1"
             >
               <span>MARK ALL READ</span>
@@ -180,28 +181,32 @@ export function ScreenM2LiveOverview() {
 
           <div className="space-y-2">
             {/* Waiter Call Alert */}
-            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-red-50 border border-red-200">
-              <div className="mt-0.5 p-1.5 rounded-full bg-red-100 shrink-0">
+            <div className={`flex items-start gap-3 p-2.5 rounded-lg border ${notificationsRead ? 'bg-[#FAF8F5] border-slate-200' : 'bg-red-50 border-red-200'}`}>
+              <div className={`mt-0.5 p-1.5 rounded-full shrink-0 ${notificationsRead ? 'bg-slate-100' : 'bg-red-100'}`}>
                 <PhoneCall className="h-3.5 w-3.5 text-red-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-mono font-black text-slate-900">Table T-07 — Waiter Call</span>
-                  <span className="text-[10px] font-mono text-red-600 font-bold bg-red-100 px-1.5 py-0.5 rounded shrink-0">NEW</span>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${notificationsRead ? 'text-slate-500 bg-slate-200' : 'text-red-600 bg-red-100'}`}>
+                    {notificationsRead ? 'READ' : 'NEW'}
+                  </span>
                 </div>
                 <p className="text-[11px] font-mono text-slate-500 mt-0.5">Guest requesting assistance • 2 mins ago</p>
               </div>
             </div>
 
             {/* Bill Request */}
-            <div className="flex items-start gap-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200">
-              <div className="mt-0.5 p-1.5 rounded-full bg-amber-100 shrink-0">
+            <div className={`flex items-start gap-3 p-2.5 rounded-lg border ${notificationsRead ? 'bg-[#FAF8F5] border-slate-200' : 'bg-amber-50 border-amber-200'}`}>
+              <div className={`mt-0.5 p-1.5 rounded-full shrink-0 ${notificationsRead ? 'bg-slate-100' : 'bg-amber-100'}`}>
                 <Receipt className="h-3.5 w-3.5 text-amber-600" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-1">
                   <span className="text-xs font-mono font-black text-slate-900">Table T-12 — Bill Request</span>
-                  <span className="text-[10px] font-mono text-amber-700 font-bold bg-amber-100 px-1.5 py-0.5 rounded shrink-0">NEW</span>
+                  <span className={`text-[10px] font-mono font-bold px-1.5 py-0.5 rounded shrink-0 ${notificationsRead ? 'text-slate-500 bg-slate-200' : 'text-amber-700 bg-amber-100'}`}>
+                    {notificationsRead ? 'READ' : 'NEW'}
+                  </span>
                 </div>
                 <p className="text-[11px] font-mono text-slate-500 mt-0.5">Guest ready to pay • 4 mins ago</p>
               </div>

@@ -5,34 +5,46 @@ import { useSharedBridge } from '../../store/useSharedBridge';
 import { TrendingUp, PieChart, IndianRupee, Trophy } from 'lucide-react';
 
 export function ScreenM11SalesReport() {
-  const { shiftStats } = useSharedBridge();
+  const { shiftStats, settledBills } = useSharedBridge();
 
-  const totalSales = Math.max(38400, shiftStats.totalRevenue);
+  const bills = Array.from(
+    new Map(
+      Object.values(settledBills).map((bill) => [bill.invoiceNumber, bill])
+    ).values()
+  );
+  const totalSales = bills.reduce((sum, bill) => sum + bill.grandTotal, 0) || shiftStats.totalRevenue;
 
   const categories = [
-    { name: 'Donne Biryani (Dum Pots)', share: 58, amount: Math.round(totalSales * 0.58) },
-    { name: 'Starters & Kebabs', share: 22, amount: Math.round(totalSales * 0.22) },
-    { name: 'Gravies & Breads', share: 12, amount: Math.round(totalSales * 0.12) },
-    { name: 'Beverages & Desserts', share: 8, amount: Math.round(totalSales * 0.08) },
-  ];
+    { name: 'UPI', amount: bills.filter((bill) => bill.method === 'UPI').reduce((sum, bill) => sum + bill.grandTotal, 0) },
+    { name: 'Cash', amount: bills.filter((bill) => bill.method === 'CASH').reduce((sum, bill) => sum + bill.grandTotal, 0) },
+  ].map((category) => ({
+    ...category,
+    share: totalSales > 0 ? Math.round((category.amount / totalSales) * 100) : 0,
+  }));
 
-  const channels = [
-    { name: 'UPI Dynamic QR (PhonePe / GPay)', percent: 54, amount: Math.round(totalSales * 0.54) },
-    { name: 'Cash Counter Till', percent: 26, amount: Math.round(totalSales * 0.26) },
-    { name: 'Card EDC Swipe (HDFC POS)', percent: 14, amount: Math.round(totalSales * 0.14) },
-    { name: 'Online Aggregator (Swiggy/Zomato)', percent: 6, amount: Math.round(totalSales * 0.06) },
-  ];
+  const channels = categories.map((category) => ({
+    name: category.name,
+    percent: category.share,
+    amount: category.amount,
+  }));
 
-  const topDishes = [
-    { name: 'Special Chicken Donne Biryani', count: 68, revenue: 19720 },
-    { name: 'Mutton Donne Biryani', count: 42, revenue: 15120 },
-    { name: 'Mutton Chops Fry (Dry)', count: 28, revenue: 9520 },
-    { name: 'Guntur Chicken Wings', count: 24, revenue: 6240 },
-    { name: 'Special Filter Coffee', count: 52, revenue: 2080 },
-  ];
+  const dishTotals = new Map<string, { count: number; revenue: number }>();
+  bills.forEach((bill) => {
+    bill.items.forEach((item) => {
+      const current = dishTotals.get(item.name) || { count: 0, revenue: 0 };
+      dishTotals.set(item.name, {
+        count: current.count + item.quantity,
+        revenue: current.revenue + item.totalPrice,
+      });
+    });
+  });
+  const topDishes = Array.from(dishTotals.entries())
+    .map(([name, totals]) => ({ name, ...totals }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
+    <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Top Total */}
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -50,7 +62,7 @@ export function ScreenM11SalesReport() {
         {/* Category Breakdown */}
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-xs">
           <h4 className="text-xs font-black text-slate-900 uppercase pb-3 border-b border-slate-200">
-            Category-Wise Sales Distribution
+            Recorded Settlement Totals
           </h4>
           <div className="space-y-3 mt-4">
             {categories.map((cat) => (
@@ -73,7 +85,7 @@ export function ScreenM11SalesReport() {
         {/* Payment Channels */}
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-xs">
           <h4 className="text-xs font-black text-slate-900 uppercase pb-3 border-b border-slate-200">
-            Payment Mode Settlement Split
+            Settlement Method Split
           </h4>
           <div className="space-y-3 mt-4">
             {channels.map((ch) => (
@@ -111,7 +123,7 @@ export function ScreenM11SalesReport() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {topDishes.map((dish, i) => (
+              {topDishes.length > 0 ? topDishes.map((dish, i) => (
                 <tr key={dish.name} className="hover:bg-[#FAF8F5]">
                   <td className="py-2.5 font-black text-slate-900">#{i + 1}</td>
                   <td className="py-2.5 font-bold text-slate-800">{dish.name}</td>
@@ -120,7 +132,11 @@ export function ScreenM11SalesReport() {
                     ₹ {dish.revenue.toLocaleString('en-IN')}
                   </td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={4} className="py-6 text-center text-slate-500">No settled bills for this shift.</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -10,7 +10,7 @@ export function ScreenM5KitchenSpeed() {
   const activeTickets = kdsTickets.filter((tk) => tk.status !== 'COMPLETED');
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 space-y-5">
+    <div className="w-full max-w-6xl mx-auto p-4 space-y-5 border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Top Banner */}
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>

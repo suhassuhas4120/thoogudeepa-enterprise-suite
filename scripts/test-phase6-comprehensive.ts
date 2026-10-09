@@ -93,7 +93,7 @@ group('Manager store — static data constants', () => {
   ok('DINNER SERVICE is ACTIVE', /DINNER SERVICE.*ACTIVE/.test(s));
   ok('INITIAL_STAFF_ROSTER exported', /export const INITIAL_STAFF_ROSTER/.test(s));
   ok('6 staff members in roster', (s.match(/id: 'st-/g) || []).length === 6);
-  ok('Staff sections: A, B, C defined', s.includes('SECTION A') && s.includes('SECTION B') && s.includes('SECTION C'));
+  ok('Staff sections use canonical shared table sections', s.includes('Express / Couple Hall') && s.includes('Main Dining Hall') && s.includes('Family Section'));
   ok('INITIAL_HARDWARE exported', /export const INITIAL_HARDWARE/.test(s));
   ok('6 hardware devices defined', (s.match(/id: 'hw-/g) || []).length === 6);
   ok('Hardware includes PRINTER, EDC, DRAWER types', s.includes("'PRINTER'") && s.includes("'EDC'") && s.includes("'DRAWER'"));
@@ -111,10 +111,10 @@ group('Manager store — initial state values', () => {
   ok('Initial viewMode is single', /viewMode: 'single'/.test(s));
   ok('Initial activeManager is first profile (mgr-1 index 0)', /MANAGER_PROFILES\[0\]/.test(s));
   ok('Initial activeShift is first shift (index 0)', /INITIAL_SHIFTS\[0\]/.test(s));
-  ok('Initial isAuthenticated is true', /isAuthenticated: true/.test(s));
-  ok('Initial pinInput is 1234', /pinInput: '1234'/.test(s));
+  ok('Initial isAuthenticated is false', /isAuthenticated: false/.test(s));
+  ok('Initial pinInput is empty', /pinInput: ''/.test(s));
   ok('Initial openingFloat is 5000', /openingFloat: 5000/.test(s));
-  ok('Initial selectedTableNumber is A-01', /selectedTableNumber: 'A-01'/.test(s));
+  ok('Initial selectedTableNumber is T-01', /selectedTableNumber: 'T-01'/.test(s));
   ok('Initial queueTokens has 3 tokens', (s.match(/id: 'q-10/g) || []).length === 3);
   ok('Initial pettyExpenses has 3 entries', (s.match(/voucherNumber: 'V-8/g) || []).length === 3);
   ok('staffRoster uses INITIAL_STAFF_ROSTER', /staffRoster: INITIAL_STAFF_ROSTER/.test(s));
@@ -138,7 +138,7 @@ group('Manager store — actions and business logic', () => {
   ok('clearPin sets pinInput to empty string', /clearPin:.*=\> set\(\{ pinInput: '' \}\)/.test(s));
   ok('deletePinDigit removes last char', /slice\(0, -1\)/.test(s));
   ok('verifyPin checks pinInput against activeManager.pin', /pinInput === activeManager\.pin/.test(s));
-  ok('verifyPin also accepts master PIN 1234', /pinInput === '1234'/.test(s));
+  ok('verifyPin does not include a universal PIN bypass', !/pinInput === '1234'/.test(s));
   ok('verifyPin sets isAuthenticated true on success', /isAuthenticated: true/.test(s));
   ok('verifyPin navigates to screen 2 on success', /currentScreen: 2/.test(s));
   ok('logout resets isAuthenticated to false', /logout:.*isAuthenticated: false/.test(s));
@@ -181,7 +181,7 @@ group('Manager store — PIN verification logic verification', () => {
   const result4 = ''.slice(0, -1);
   ok('deletePinDigit on empty stays empty', result4 === '');
   ok('verifyPin passes for exact manager pin', s.includes('pinInput === activeManager.pin'));
-  ok('verifyPin passes for master 1234 override', s.includes("pinInput === '1234'"));
+  ok('verifyPin has no universal PIN override', !s.includes("pinInput === '1234'"));
 });
 
 // ─── GROUP 6: Z-Report financial logic ────────────────────────────────────────
@@ -195,8 +195,8 @@ group('Z-Report — financial calculation logic', () => {
   ok('Z-Report expectedCashInTill = openingFloat + cashSales - totalPetty', /openingFloat \+ cashSales - totalPetty/.test(s));
   ok('Z-Report variance = actualCash - expected', /variance = \(Number\(actualCashCounted\)|variance = .*actualCash/.test(s));
   ok('Z-Report pettyExpenses total uses reduce', /pettyExpenses\.reduce/.test(s));
-  ok('Z-Report grossSales has floor of 48250', s.includes('48250'));
-  ok('Z-Report cashSales is ~26% of gross', s.includes('0.26'));
+  ok('Z-Report grossSales is derived from settled bills', /settledBills|settledBillSnapshots/.test(s));
+  ok('Z-Report cashSales is derived from payment methods', /paymentMethod|CASH/.test(s));
 
   // Pure arithmetic
   const taxable = 48250 - 1650;
@@ -240,8 +240,9 @@ group('Sales report — category share arithmetic', () => {
   ok('ScreenM11 imports shiftStats from useSharedBridge', /shiftStats/.test(s));
   ok('ScreenM11 omits analytics desk subtext', !/ANALYTICS DESK/.test(s));
   ok('ScreenM11 has Donne Biryani category (58% share)', s.includes('0.58'));
+  ok('ScreenM11 derives category sales from settled bill items', /settledBills|settledBillSnapshots|categoryTotals/.test(s));
   ok('ScreenM11 shows UPI payment channel', /UPI/.test(s));
-  ok('ScreenM11 shows Swiggy/Zomato aggregator', /Swiggy|Zomato/.test(s));
+  ok('ScreenM11 renders settlement method split', /Settlement Method Split|channels/.test(s));
 });
 
 // ─── GROUP 8: Tip pool distribution logic ─────────────────────────────────────
@@ -458,7 +459,7 @@ group('UX logic — ScreenM1Login.tsx (authentication flow)', () => {
   ok('M1 PIN indicators are 4 dots', /\[0, 1, 2, 3\]\.map/.test(s));
   ok('M1 filled dot uses brand color #9C3D1E', /bg-\[#9C3D1E\]/.test(s));
   ok('M1 shows openingFloat value', /openingFloat/.test(s));
-  ok('M1 Unlock button navigates to screen 2', /setCurrentScreen\(2\)/.test(s));
+  ok('M1 Unlock button uses verified authentication', /onClick=\{handleUnlock\}/.test(s));
   ok('M1 has authentication error state', /authError/.test(s));
   ok('M1 shows INVALID PIN message on error', /INVALID PIN/.test(s));
   ok('M1 shows restaurant name THOOGUDEEPA', /THOOGUDEEPA/i.test(s));
@@ -494,7 +495,7 @@ group('UX logic — ScreenM3FloorPlan.tsx (floor map)', () => {
   ok('M3 uses useSharedBridge for tables', /useSharedBridge/.test(s));
   ok('M3 uses waiterVacatesTable action', /waiterVacatesTable/.test(s));
   ok('M3 uses useManagerStore for selectedTableNumber', /selectedTableNumber/.test(s));
-  ok('M3 has section filter tabs (ALL, A, B, C)', /sections.*ALL.*SECTION A|SECTION A.*SECTION B.*SECTION C/.test(s));
+  ok('M3 derives section filter tabs from shared tables', /Array\.from\(new Set\(tables\.map\(\(table\) => table\.section\)\)\)/.test(s));
   ok('M3 filters tables by section', /filteredTables/.test(s));
   ok('M3 shows selected table detail panel', /selectedTable/.test(s));
   ok('M3 has vacate table handler', /handleVacate/.test(s));
@@ -674,7 +675,7 @@ group('Manager portal — navigation state machine', () => {
   const m3 = read('components/manager/ScreenM3FloorPlan.tsx');
   const m4 = read('components/manager/ScreenM4BillingPOS.tsx');
 
-  ok('M1 login → M2 dashboard (verifyPin or button)', /setCurrentScreen\(2\)/.test(m1));
+  ok('M1 login → M2 dashboard only after verification', /verifyPin|handleUnlock/.test(m1));
   ok('M2 dashboard → M3 floor plan via table click', /setCurrentScreen\(3\)/.test(m2));
   ok('M2 dashboard → M4 billing POS via button', /setCurrentScreen\(4\)/.test(m2));
   ok('M2 dashboard → M5 kitchen speed via link', /setCurrentScreen\(5\)/.test(m2));
@@ -792,7 +793,7 @@ group('Brand venue name consistency — manager portal', () => {
 
   ok('M1 shows THOOGUDEEPA DONNE BIRYANI MANE', /THOOGUDEEPA DONNE BIRYANI MANE/i.test(m1));
   ok('M16 Z-report shows Thoogudeepa Donne Biryani Mane', /Thoogudeepa Donne Biryani Mane|THOOGUDEEPA DONNE BIRYANI/.test(m16));
-  ok('Store manager profiles use proper restaurant section names', /SECTION A.*Ground AC|Ground AC.*SECTION A/.test(store));
+  ok('Store manager profiles use canonical restaurant section names', /Express \/ Couple Hall|Main Dining Hall|Family Section|Grand Feast Hall/.test(store));
   ok('Store petty expenses reference real Karnataka vendors', /Nandini Dairy|Gandhi Bazaar|Indane Gas/.test(store));
   ok('Store queue tokens have Kannada/Karnataka names', /Santhosh Kumar|Deepak Rao|Meenakshi Iyer/.test(store));
   ok('Manager profiles use real restaurant roles', store.includes("'General Manager'") && store.includes("'Floor Lead'") && store.includes("'Head Cashier'"));

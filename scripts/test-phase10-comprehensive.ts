@@ -372,7 +372,7 @@ group('resetSession — tableNumber persists across session reset', () => {
 group('Manager PIN guard — verifyPin logic', () => {
   ok(
     'verifyPin returns true when pinInput matches activeManager.pin',
-    hasText(manager, 'if (pinInput === activeManager.pin || pinInput === ')
+    hasText(manager, 'if (pinInput === activeManager.pin)')
   );
   ok(
     'verifyPin returns false when pin is wrong — no screen navigation',

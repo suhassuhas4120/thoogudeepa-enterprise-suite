@@ -24,7 +24,7 @@ export function ScreenM9WaiterCash() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 font-mono">
+    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 font-mono border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Left Captain Cash Balance */}
       <div className="md:col-span-12 bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-col justify-between">
         <div>

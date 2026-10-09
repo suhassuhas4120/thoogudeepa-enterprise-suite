@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useManagerStore, MANAGER_PROFILES, INITIAL_SHIFTS } from '../../store/useManagerStore';
-import { Unlock, Clock, KeyRound, Printer, Edit2, Check, X, User } from 'lucide-react';
+import { Unlock, Clock, KeyRound, Printer, Edit2, Check, X } from 'lucide-react';
 
 export function ScreenM1Login() {
   const {
@@ -15,9 +15,7 @@ export function ScreenM1Login() {
     clearPin,
     deletePinDigit,
     verifyPin,
-    isAuthenticated,
     openingFloat,
-    setCurrentScreen,
   } = useManagerStore();
 
   const [authError, setAuthError] = useState(false);
@@ -27,26 +25,13 @@ export function ScreenM1Login() {
   const [floatInput, setFloatInput] = useState('');
   const [localFloat, setLocalFloat] = useState(openingFloat);
 
-  // Other staff selection state
   const [selectedProfileId, setSelectedProfileId] = useState(activeManager.id);
-  const [otherStaffName, setOtherStaffName] = useState('');
-  const isOtherStaff = selectedProfileId === 'other';
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setSelectedProfileId(val);
-    if (val !== 'other') {
-      const found = MANAGER_PROFILES.find((m) => m.id === val);
-      if (found) setActiveManager(found);
-    } else {
-      setActiveManager({ id: 'other', name: otherStaffName.toUpperCase() || 'OTHER STAFF', role: 'Staff', pin: '1234' });
-    }
-  };
-
-  const handleOtherNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const name = e.target.value;
-    setOtherStaffName(name);
-    setActiveManager({ id: 'other', name: name.toUpperCase() || 'OTHER STAFF', role: 'Staff', pin: '1234' });
+    const found = MANAGER_PROFILES.find((m) => m.id === val);
+    if (found) setActiveManager(found);
   };
 
   const handlePress = (d: string) => {
@@ -77,7 +62,7 @@ export function ScreenM1Login() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 p-4">
+    <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 p-4 border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Left Control Column */}
       <div className="md:col-span-5 flex flex-col gap-4">
         {/* Terminal Header — [AUTH TERMINAL 01] removed */}
@@ -221,25 +206,7 @@ export function ScreenM1Login() {
                   {p.name} — ({p.role})
                 </option>
               ))}
-              <option value="other">OTHER STAFF — (Enter Name Below)</option>
             </select>
-
-            {/* Other Staff Name Input */}
-            {isOtherStaff && (
-              <div className="mt-2 flex items-center gap-2 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
-                <User className="h-3.5 w-3.5 text-orange-600 shrink-0" />
-                <input
-                  type="text"
-                  autoFocus
-                  maxLength={40}
-                  value={otherStaffName}
-                  onChange={handleOtherNameChange}
-                  placeholder="Enter staff member name..."
-                  className="flex-1 bg-transparent font-mono text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                  style={{ textTransform: 'uppercase' }}
-                />
-              </div>
-            )}
           </div>
 
           {/* PIN Indicators */}
@@ -299,7 +266,7 @@ export function ScreenM1Login() {
         {/* Action Button */}
         <div className="mt-6 pt-4 border-t border-slate-200 flex gap-3">
           <button
-            onClick={() => setCurrentScreen(2)}
+            onClick={handleUnlock}
             className="flex-1 bg-[#9C3D1E] text-white py-3 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs hover:bg-orange-600 transition"
           >
             <Unlock className="h-4 w-4" />

@@ -16,8 +16,9 @@ export function ScreenM13PettyExpenses() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!desc.trim() || !amount) return;
-    addPettyExpense(desc, category, Number(amount) || 0, paidTo || 'Vendor');
+    const amountValue = Number(amount);
+    if (!desc.trim() || !Number.isFinite(amountValue) || amountValue <= 0) return;
+    addPettyExpense(desc, category, amountValue, paidTo || 'Vendor');
     setDesc('');
     setAmount('');
     setPaidTo('');
@@ -25,7 +26,7 @@ export function ScreenM13PettyExpenses() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 font-mono">
+    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 font-mono border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Left Expense Log */}
       <div className="md:col-span-7 bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-col justify-between">
         <div>
@@ -104,6 +105,8 @@ export function ScreenM13PettyExpenses() {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   placeholder="₹ 500"
+                  min="0.01"
+                  step="0.01"
                   required
                   className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 focus:outline-none font-bold"
                 />

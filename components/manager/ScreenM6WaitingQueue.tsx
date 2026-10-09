@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { useManagerStore } from '../../store/useManagerStore';
+import { MANAGER_SECTIONS, useManagerStore } from '../../store/useManagerStore';
+import { QueueToken } from '../../types/manager';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { Users, Clock, Send, CheckCircle, Plus } from 'lucide-react';
 
@@ -12,7 +13,7 @@ export function ScreenM6WaitingQueue() {
   const [guestName, setGuestName] = useState('');
   const [phone, setPhone] = useState('');
   const [pax, setPax] = useState('4');
-  const [section, setSection] = useState('Ground AC');
+  const [section, setSection] = useState<string>(MANAGER_SECTIONS[0]);
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,7 +23,7 @@ export function ScreenM6WaitingQueue() {
     setPhone('');
   };
 
-  const handleSeat = (token: any) => {
+  const handleSeat = (token: QueueToken) => {
     const vacantTable = tables.find((t) => t.status === 'VACANT');
     if (vacantTable) {
       waiterSeatsGuests(vacantTable.number, token.pax, 'Manager Host');
@@ -34,7 +35,7 @@ export function ScreenM6WaitingQueue() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5">
+    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Left Queue List */}
       <div className="md:col-span-7 bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm">
         <div className="flex justify-between items-center pb-3 border-b border-slate-200">
@@ -154,9 +155,9 @@ export function ScreenM6WaitingQueue() {
                   onChange={(e) => setSection(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none font-bold"
                 >
-                  <option value="Ground AC">Ground AC</option>
-                  <option value="Family AC">Family AC</option>
-                  <option value="Terrace VIP">Terrace VIP</option>
+                  {MANAGER_SECTIONS.map((managerSection) => (
+                    <option key={managerSection} value={managerSection}>{managerSection}</option>
+                  ))}
                 </select>
               </div>
             </div>

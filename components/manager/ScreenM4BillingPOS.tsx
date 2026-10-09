@@ -65,7 +65,7 @@ export function ScreenM4BillingPOS() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [showMenuCatalog, setShowMenuCatalog] = useState(true);
 
-  const categories = ['ALL', 'Donne Biryani', 'Starters & Kebabs', 'Sides & Desserts', 'Beverages'];
+  const categories = ['ALL', ...Array.from(new Set(INITIAL_MENU_ITEMS.map((item) => item.category)))];
 
   const filteredMenuItems = INITIAL_MENU_ITEMS.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(menuSearch.toLowerCase());
@@ -128,7 +128,7 @@ export function ScreenM4BillingPOS() {
   };
 
   return (
-    <div className="w-full max-w-[1520px] mx-auto p-4 space-y-4">
+    <div className="w-full max-w-[1520px] mx-auto p-4 space-y-4 border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
       {/* Top POS Action Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 bg-white border border-[#EAE5DF] rounded-xl px-4 py-2.5 shadow-xs">
         <div className="flex items-center gap-3">

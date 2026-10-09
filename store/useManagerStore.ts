@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { ManagerScreenId, ManagerProfile, ShiftInfo, QueueToken, PettyExpense, StaffRosterMember, HardwareDevice, PromoRule } from '../types/manager';
 
 export const MANAGER_PROFILES: ManagerProfile[] = [
@@ -13,12 +14,20 @@ export const INITIAL_SHIFTS: ShiftInfo[] = [
   { name: 'MORNING PREP', timeRange: '06:30 - 10:30', status: 'CLOSED' },
 ];
 
+export const MANAGER_SECTIONS = [
+  'Express / Couple Hall',
+  'Main Dining Hall',
+  'Family Section',
+  'Courtyard Garden',
+  'Grand Feast Hall',
+] as const;
+
 export const INITIAL_STAFF_ROSTER: StaffRosterMember[] = [
-  { id: 'st-1', name: 'Captain Ramesh', role: 'Floor Captain', assignedSection: 'SECTION A (Ground AC)', tablesCount: 4, status: 'ACTIVE', phone: '+91 98450 11223', cashCollected: 3850, cashHandedOver: 3850 },
-  { id: 'st-2', name: 'Captain Suresh', role: 'Floor Captain', assignedSection: 'SECTION B (Family AC)', tablesCount: 3, status: 'ACTIVE', phone: '+91 98450 22334', cashCollected: 2450, cashHandedOver: 2000 },
-  { id: 'st-3', name: 'Captain Vijay', role: 'Floor Captain', assignedSection: 'SECTION C (Terrace VIP)', tablesCount: 1, status: 'ACTIVE', phone: '+91 98450 33445', cashCollected: 5200, cashHandedOver: 5200 },
-  { id: 'st-4', name: 'Kiran K.', role: 'Senior Waiter', assignedSection: 'SECTION A', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 44556', cashCollected: 1200, cashHandedOver: 1200 },
-  { id: 'st-5', name: 'Anand R.', role: 'Waiter', assignedSection: 'SECTION B', tablesCount: 2, status: 'ON BREAK', phone: '+91 98450 55667', cashCollected: 850, cashHandedOver: 850 },
+  { id: 'st-1', name: 'Captain Ramesh', role: 'Floor Captain', assignedSection: 'Express / Couple Hall', tablesCount: 4, status: 'ACTIVE', phone: '+91 98450 11223', cashCollected: 3850, cashHandedOver: 3850 },
+  { id: 'st-2', name: 'Captain Suresh', role: 'Floor Captain', assignedSection: 'Family Section', tablesCount: 3, status: 'ACTIVE', phone: '+91 98450 22334', cashCollected: 2450, cashHandedOver: 2000 },
+  { id: 'st-3', name: 'Captain Vijay', role: 'Floor Captain', assignedSection: 'Grand Feast Hall', tablesCount: 1, status: 'ACTIVE', phone: '+91 98450 33445', cashCollected: 5200, cashHandedOver: 5200 },
+  { id: 'st-4', name: 'Kiran K.', role: 'Senior Waiter', assignedSection: 'Main Dining Hall', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 44556', cashCollected: 1200, cashHandedOver: 1200 },
+  { id: 'st-5', name: 'Anand R.', role: 'Waiter', assignedSection: 'Family Section', tablesCount: 2, status: 'ON BREAK', phone: '+91 98450 55667', cashCollected: 850, cashHandedOver: 850 },
   { id: 'st-6', name: 'Sunil G.', role: 'Busboy', assignedSection: 'ALL SECTIONS', tablesCount: 8, status: 'ACTIVE', phone: '+91 98450 66778', cashCollected: 0, cashHandedOver: 0 },
 ];
 
@@ -85,20 +94,20 @@ interface ManagerStoreState {
   togglePromo: (id: string) => void;
 }
 
-export const useManagerStore = create<ManagerStoreState>((set, get) => ({
+export const useManagerStore = create<ManagerStoreState>()(persist((set, get) => ({
   currentScreen: 1,
   viewMode: 'single',
   activeManager: MANAGER_PROFILES[0],
   activeShift: INITIAL_SHIFTS[0],
-  isAuthenticated: true, // Default unlocked for ease of testing all screens
-  pinInput: '1234',
+  isAuthenticated: false,
+  pinInput: '',
   openingFloat: 5000,
-  selectedTableNumber: 'A-01',
+  selectedTableNumber: 'T-01',
   
   queueTokens: [
-    { id: 'q-101', tokenNumber: 'T-101', guestName: 'Santhosh Kumar', phone: '+91 98450 99881', pax: 4, section: 'Family AC', waitTimeMins: 12, status: 'WAITING', timestamp: '20:45' },
-    { id: 'q-102', tokenNumber: 'T-102', guestName: 'Deepak Rao', phone: '+91 98450 77665', pax: 2, section: 'Ground AC', waitTimeMins: 5, status: 'PAGED', timestamp: '20:52' },
-    { id: 'q-103', tokenNumber: 'T-103', guestName: 'Meenakshi Iyer', phone: '+91 98450 44332', pax: 6, section: 'Terrace VIP', waitTimeMins: 18, status: 'WAITING', timestamp: '20:39' },
+    { id: 'q-101', tokenNumber: 'T-101', guestName: 'Santhosh Kumar', phone: '+91 98450 99881', pax: 4, section: 'Family Section', waitTimeMins: 12, status: 'WAITING', timestamp: '20:45' },
+    { id: 'q-102', tokenNumber: 'T-102', guestName: 'Deepak Rao', phone: '+91 98450 77665', pax: 2, section: 'Main Dining Hall', waitTimeMins: 5, status: 'PAGED', timestamp: '20:52' },
+    { id: 'q-103', tokenNumber: 'T-103', guestName: 'Meenakshi Iyer', phone: '+91 98450 44332', pax: 6, section: 'Grand Feast Hall', waitTimeMins: 18, status: 'WAITING', timestamp: '20:39' },
   ],
   pettyExpenses: [
     { id: 'pe-1', voucherNumber: 'V-801', description: 'Fresh Curd & Nandini Milk (Emergency 10L)', category: 'Dairy & Fresh', amount: 540, paidTo: 'Nandini Dairy Booth', paidBy: 'Ramesh', time: '17:30' },
@@ -119,7 +128,7 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
   deletePinDigit: () => set((s) => ({ pinInput: s.pinInput.slice(0, -1) })),
   verifyPin: () => {
     const { pinInput, activeManager } = get();
-    if (pinInput === activeManager.pin || pinInput === '1234') {
+    if (pinInput === activeManager.pin) {
       set({ isAuthenticated: true, currentScreen: 2 });
       return true;
     }
@@ -136,7 +145,7 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
       guestName: guestName || 'Guest',
       phone: phone || '+91 99999 00000',
       pax: pax || 2,
-      section: section || 'Ground AC',
+      section: section || 'Main Dining Hall',
       waitTimeMins: 0,
       status: 'WAITING',
       timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
@@ -175,4 +184,33 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
   togglePromo: (id) => set((s) => ({
     promos: s.promos.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p)),
   })),
+}), {
+  name: 'thoogudeepa-manager-store',
+  version: 1,
+  migrate: (persistedState) => {
+    if (!persistedState || typeof persistedState !== 'object') {
+      return persistedState;
+    }
+
+    return {
+      ...persistedState,
+      isAuthenticated: false,
+      pinInput: '',
+      currentScreen: 1,
+      viewMode: 'single',
+    };
+  },
+  partialize: (state) => ({
+    currentScreen: state.currentScreen,
+    viewMode: state.viewMode,
+    activeManager: state.activeManager,
+    activeShift: state.activeShift,
+    openingFloat: state.openingFloat,
+    selectedTableNumber: state.selectedTableNumber,
+    queueTokens: state.queueTokens,
+    pettyExpenses: state.pettyExpenses,
+    staffRoster: state.staffRoster,
+    hardwareDevices: state.hardwareDevices,
+    promos: state.promos,
+  }),
 }));

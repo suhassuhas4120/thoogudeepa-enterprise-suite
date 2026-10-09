@@ -83,6 +83,17 @@ export interface SharedShiftStats {
   avgTurnaroundMinutes: number;
 }
 
+export interface SettledBillSnapshot {
+  invoiceNumber: string;
+  items: Array<{
+    name: string;
+    quantity: number;
+    totalPrice: number;
+  }>;
+  grandTotal: number;
+  method: 'UPI' | 'CASH';
+}
+
 
 const freshTables: SharedTable[] = [
   // Express / Couple Hall (4 tables, 2-seater)
@@ -158,6 +169,7 @@ interface SharedBridgeState {
   pings: SharedPing[];
   inventory86: SharedMenuItem86[];
   shiftStats: SharedShiftStats;
+  settledBills: Record<string, SettledBillSnapshot>;
 
   // NEW kitchen notification queue — never shown to customer
   kitchenNotifications: Array<{
@@ -291,6 +303,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     tipsEarned: 0,
     avgTurnaroundMinutes: 38,
   },
+  settledBills: {},
   kitchenNotifications: [],
 
   
@@ -1456,6 +1469,5 @@ if (typeof window !== 'undefined') {
     // Fallback to BroadcastChannel only
   }
 }
-
 
 

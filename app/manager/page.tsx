@@ -223,9 +223,13 @@ export default function ManagerPortalPage() {
       </nav>
 
       {/* Main Viewport */}
-      <div className="min-h-0 flex-1 w-full overflow-y-auto overflow-x-hidden py-4 px-2 sm:px-4 xl:px-8">
+      <div
+        className={`min-h-0 flex-1 w-full overflow-x-hidden py-4 px-2 sm:px-4 xl:px-8 ${
+          viewMode === 'single' ? 'overflow-hidden' : 'overflow-y-auto'
+        }`}
+      >
         {viewMode === 'single' ? (
-          <div className="flex justify-center pb-12">
+          <div className="h-full min-h-0 flex justify-center">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentScreen}
@@ -233,9 +237,11 @@ export default function ManagerPortalPage() {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.99, y: -6 }}
                 transition={{ duration: 0.15 }}
-                className="w-full flex justify-center"
+                className="h-full min-h-0 w-full flex justify-center overflow-hidden rounded-2xl border border-[#D6D3D1] bg-white shadow-sm"
               >
-                {renderActiveScreen()}
+                <div className="h-full min-h-0 w-full overflow-y-auto overflow-x-hidden py-1">
+                  {renderActiveScreen()}
+                </div>
               </motion.div>
             </AnimatePresence>
           </div>

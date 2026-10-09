@@ -25,12 +25,21 @@ function normTableId(raw: string): string {
   return upper;
 }
 
+// Compact table number extractor: "T-05" → "5", "TABLE 5" → "5"
+function cleanTableNum(s: string): string {
+  return (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+}
+
 function CustomerJourneyContent() {
-  const { currentScreen, setCurrentScreen, setTableNumber, setSeatNumber } = useCustomer();
+  const { currentScreen, setTableNumber, setSeatNumber } = useCustomer();
 
   // Parsed once from URL; stable for the lifetime of this page load
   const tableRef = React.useRef('T-01');
   const seatRef = React.useRef(1);
+
+  // Track whether the customer has placed at least one order (sent to kitchen).
+  // Only after this point should a table VACANT status trigger a session reset.
+  const hasPlacedOrderRef = React.useRef(false);
 
   // ─── One-time QR init ───────────────────────────────────────────────────────
   React.useEffect(() => {
@@ -66,8 +75,12 @@ function CustomerJourneyContent() {
     // Step 1: Sync with the live bridge state for this specific table+seat
     useCustomerStore.getState().syncWithActiveSession(cleanTable, parsedSeat);
 
-    // Step 2: If bridge sync left cart empty AND there is a table+seat specific saved session,
-    // restore it — but ONLY if it belongs to THIS table and seat, and the table is not VACANT
+    // Step 2: Restore a table+seat specific saved session only if:
+    //   a) The bridge sync left the cart empty
+    //   b) The saved payload belongs to THIS exact table AND seat
+    //   c) The saved session actually has placed orders (isOrdered items) —
+    //      meaning it's a mid-session restore, not a stale pre-order browsing state.
+    //      If no placed orders exist, the customer should just start fresh on Screen 1.
     try {
       const scopedKey = `thoogudeepa_customer_session_${cleanTable}_s${parsedSeat}`;
       const saved = localStorage.getItem(scopedKey);
@@ -75,102 +88,143 @@ function CustomerJourneyContent() {
         const parsed = JSON.parse(saved);
         const curStore = useCustomerStore.getState();
 
-        // Check bridge: if the table is now VACANT, the saved session is stale — discard it
-        const bridgeTables = useSharedBridge.getState().tables;
-        const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-        const bridgeTbl = bridgeTables.find(
-          (t) => cleanNum(t.number) === cleanNum(cleanTable)
-        );
-        const tableIsVacant = !bridgeTbl || bridgeTbl.status === 'VACANT';
+        const savedTable = parsed.tableNumber ? normTableId(parsed.tableNumber) : '';
+        const savedSeat = parsed.seatNumber ?? 0;
+        const hasSavedCart = Array.isArray(parsed.cart) && parsed.cart.length > 0;
+        const tableMatches = savedTable === cleanTable && savedSeat === parsedSeat;
 
-        if (!tableIsVacant && curStore.cart.length === 0 && Array.isArray(parsed.cart) && parsed.cart.length > 0) {
-          // Validate the saved session belongs to this exact table and seat
-          const savedTable = parsed.tableNumber ? normTableId(parsed.tableNumber) : '';
-          const savedSeat = parsed.seatNumber ?? 0;
-          if (savedTable === cleanTable && savedSeat === parsedSeat) {
-            useCustomerStore.setState({
-              cart: parsed.cart,
-              currentScreen: parsed.currentScreen || 1,
-              orderStage: parsed.orderStage || 'PLACED',
-              itemTracking: parsed.itemTracking || [],
-              payment: parsed.payment || curStore.payment,
-            });
+        if (!tableMatches) {
+          // Stale entry for a different table/seat — discard silently
+          try { localStorage.removeItem(scopedKey); } catch {}
+        } else if (tableMatches && curStore.cart.length === 0 && hasSavedCart) {
+          // Check if there are any placed orders in the saved cart
+          const hasPlacedOrders = parsed.cart.some((ci: { isOrdered?: boolean }) => ci.isOrdered === true);
+
+          if (hasPlacedOrders) {
+            // Check bridge — if table is explicitly VACANT (not just absent), discard stale session
+            const bridgeTables = useSharedBridge.getState().tables;
+            const bridgeTbl = bridgeTables.find(
+              (t) => cleanTableNum(t.number) === cleanTableNum(cleanTable)
+            );
+            const tableExplicitlyVacant = bridgeTbl && bridgeTbl.status === 'VACANT';
+
+            if (!tableExplicitlyVacant) {
+              // Restore the active mid-session
+              useCustomerStore.setState({
+                cart: parsed.cart,
+                currentScreen: parsed.currentScreen || 1,
+                orderStage: parsed.orderStage || 'PLACED',
+                itemTracking: parsed.itemTracking || [],
+                payment: parsed.payment || curStore.payment,
+              });
+              hasPlacedOrderRef.current = true;
+            } else {
+              // Table got vacated while they were away — wipe stale session
+              try { localStorage.removeItem(scopedKey); } catch {}
+            }
           } else {
-            // Stale entry for a different seat/table — discard
+            // Only unplaced browsing state — don't restore; let them start fresh
             try { localStorage.removeItem(scopedKey); } catch {}
           }
-        } else if (tableIsVacant) {
-          // Table vacated since this session was saved — wipe it
-          try { localStorage.removeItem(scopedKey); } catch {}
         }
       }
     } catch {}
+
+    // Also track if there are already placed orders in the current store (restored from syncWithActiveSession)
+    const storeAfterSync = useCustomerStore.getState();
+    if (storeAfterSync.cart.some((ci) => ci.isOrdered)) {
+      hasPlacedOrderRef.current = true;
+    }
   }, [setTableNumber, setSeatNumber]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ─── Real-time vacate / settle listener ────────────────────────────────────
-  // When the waiter vacates the table, we need to reset the customer session
-  // immediately (on any device, including the customer's phone that already has
-  // an open tab). This subscribes to the Supabase broadcast channel.
+  // ─── Keep hasPlacedOrderRef in sync with cart state ────────────────────────
+  // When the customer places their first order, mark the ref so the vacate
+  // check knows it's now safe to act on a VACANT table status.
+  React.useEffect(() => {
+    const unsubscribe = useCustomerStore.subscribe((state) => {
+      if (!hasPlacedOrderRef.current && state.cart.some((ci) => ci.isOrdered)) {
+        hasPlacedOrderRef.current = true;
+      }
+      // If session was fully reset (screen 1, empty cart), clear the flag
+      if (state.currentScreen === 1 && state.cart.length === 0) {
+        hasPlacedOrderRef.current = false;
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // ─── Real-time vacate listener ──────────────────────────────────────────────
+  // Listens for the waiter's "tableVacated" broadcast on the Supabase channel.
+  // Only resets the customer session if they had already placed an order —
+  // browsing customers (screen 2/3/4 with no placed order) are never interrupted.
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
     const channel = getSyncBroadcastChannel();
 
-    const handleBroadcast = (event: { payload: { reason?: string; payload?: unknown } }) => {
+    const handleBroadcast = (event: { payload: { reason?: string } }) => {
       const reason = event?.payload?.reason;
       if (reason !== 'tableVacated' && reason !== 'chairCleared') return;
 
-      // Only act if our table is affected
+      // Only act if the customer has already placed an order
+      // (pre-order browsing must never be disrupted by unrelated vacate events)
+      if (!hasPlacedOrderRef.current) return;
+
       const tableId = tableRef.current;
       const seatId = seatRef.current;
+      const curStore = useCustomerStore.getState();
+
+      // Don't interrupt Screen 8 (confirmation) — payment already shown
+      if (curStore.currentScreen === 8) return;
+
+      // Check bridge — only reset if our specific table is now VACANT
       const bridgeState = useSharedBridge.getState();
-      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
       const bridgeTbl = bridgeState.tables.find(
-        (t) => cleanNum(t.number) === cleanNum(tableId)
+        (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
       );
 
-      if (!bridgeTbl || bridgeTbl.status === 'VACANT') {
-        // Our table got vacated — reset customer session completely
-        const curStore = useCustomerStore.getState();
-        // Only reset if the customer hasn't already settled (to avoid disrupting Screen 8)
-        // Exception: if table is now VACANT, the session is definitively over even if isSettled=true
+      if (bridgeTbl && bridgeTbl.status === 'VACANT') {
         try {
           localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
           localStorage.removeItem('thoogudeepa_customer_session_v1');
         } catch {}
         curStore.resetSession();
+        hasPlacedOrderRef.current = false;
       }
     };
 
     channel.on('broadcast', { event: 'STATE_CHANGED' }, handleBroadcast);
 
-    // Also poll bridge every 4 seconds as a safety net for cross-device vacate
+    // Safety-net poll every 8 seconds — only acts if:
+    //   1. Customer has placed an order (not pre-order browsing)
+    //   2. Table is confirmed VACANT in bridge (not just absent)
+    //   3. Customer is on an active post-order screen (5, 6, 7, 9, 10)
     const vacateCheckInterval = setInterval(() => {
+      if (!hasPlacedOrderRef.current) return;
+
       const tableId = tableRef.current;
       const seatId = seatRef.current;
       const curStore = useCustomerStore.getState();
 
-      // If customer is already on screen 1 or settled, nothing to do
-      if (curStore.currentScreen === 1 || curStore.currentScreen === 8) return;
+      // Only relevant for post-order screens; never interrupt browsing or confirmation
+      const postOrderScreens = [5, 6, 7, 9, 10];
+      if (!postOrderScreens.includes(curStore.currentScreen)) return;
 
       const bridgeState = useSharedBridge.getState();
-      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
       const bridgeTbl = bridgeState.tables.find(
-        (t) => cleanNum(t.number) === cleanNum(tableId)
+        (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
       );
 
-      // If table is VACANT and customer still has an active session (screen 2-7, 9-10)
+      // Table must exist AND be explicitly VACANT (not just absent from bridge)
       if (bridgeTbl && bridgeTbl.status === 'VACANT') {
-        const activeScreens = [2, 3, 4, 5, 6, 7, 9, 10];
-        if (activeScreens.includes(curStore.currentScreen)) {
-          try {
-            localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
-            localStorage.removeItem('thoogudeepa_customer_session_v1');
-          } catch {}
-          curStore.resetSession();
-        }
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+        } catch {}
+        curStore.resetSession();
+        hasPlacedOrderRef.current = false;
       }
-    }, 4000);
+    }, 8000);
 
     return () => {
       clearInterval(vacateCheckInterval);

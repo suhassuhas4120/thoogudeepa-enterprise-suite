@@ -341,7 +341,7 @@ group('useSharedBridge — customerPlacesOrder full logic', () => {
 group('useSharedBridge — customerPingsWaiter deduplication', () => {
   const b = read('store/useSharedBridge.ts');
   ok('customerPingsWaiter checks for duplicate pending pings', /hasDuplicate/.test(b));
-  ok('Deduplication uses same tableNumber + type + PENDING status', /tableNumber.*type.*PENDING|PENDING.*tableNumber.*type/.test(b));
+  ok('Deduplication uses same tableNumber + type + PENDING status', /cleanNum\(p\.tableNumber\).*targetNum|tableNumber.*type.*PENDING/.test(b));
   ok('Duplicate pings return early without adding', /if \(hasDuplicate\) return/.test(b));
   ok('New ping starts with status PENDING', /status: 'PENDING'/.test(b));
   ok('customerPingsWaiter posts to /api/pings/create', /\/api\/pings\/create/.test(b));

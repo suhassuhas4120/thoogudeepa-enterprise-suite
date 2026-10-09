@@ -3,6 +3,7 @@ import { INITIAL_MENU_ITEMS } from '../data/menuItems';
 import { MenuItem } from '../types/customer';
 import { OrderStage } from '../types/customer';
 import { broadcastStateChange, supabase } from '../lib/supabase';
+import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
 
 
 export interface SharedKDSItem {
@@ -330,7 +331,7 @@ export const getCanonicalDishKey = (name: string): string => {
 function bridgePost(
   url: string,
   body: Record<string, unknown>,
-  onRollback?: () => void,
+  onRollback?: (err?: any) => void,
   onSuccess?: (data: Record<string, unknown>) => void
 ): void {
   if (typeof window === 'undefined') return;
@@ -344,7 +345,7 @@ function bridgePost(
       if (!res.ok) {
         res.json().catch(() => null).then((err) => {
           console.error(`[Bridge] API ${url} failed (${res.status}):`, err);
-          onRollback?.();
+          onRollback?.(err);
         });
         return;
       }
@@ -357,7 +358,7 @@ function bridgePost(
     })
     .catch((err) => {
       console.error(`[Bridge] API ${url} network error:`, err);
-      onRollback?.();
+      onRollback?.(err);
     });
 }
 
@@ -486,6 +487,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         guestName,
         guestCount: guestCount || 1,
         source: 'CUSTOMER',
+        deviceToken: getOrCreateDeviceToken(),
         items: items.map((i, idx) => ({
           id: ticket.items[idx]?.id,
           name: i.item.name,
@@ -500,10 +502,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           notes: '',
         })),
       },
-      () => {
+      (err) => {
         // Rollback on API failure
-        console.error('[Bridge] customerPlacesOrder rollback');
+        console.error('[Bridge] customerPlacesOrder rollback', err);
         useSharedBridge.setState(prevState);
+        if (typeof window !== 'undefined' && err?.error === 'CHAIR_OCCUPIED_BY_ANOTHER_DEVICE') {
+          window.dispatchEvent(new CustomEvent('chairConflictDetected', { detail: err }));
+        }
       },
       (data) => {
         // Swap optimistic ticket ID with real DB-assigned ticketId so CDC dedup works correctly

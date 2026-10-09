@@ -15,7 +15,10 @@ import { Screen6PaymentBreakdown } from '../components/customer/Screen6PaymentBr
 import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGateway';
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
+import { ScreenId } from '../types/customer';
 import { getSyncBroadcastChannel } from '../lib/supabase';
+import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
+import { Armchair, AlertCircle, Sparkles, RefreshCw } from 'lucide-react';
 
 // Normalise a raw table param like "T-5", "T05", "5" → "T-05"
 function normTableId(raw: string): string {
@@ -160,7 +163,146 @@ function CustomerJourneyContent() {
     if (storeAfterSync.cart.some((ci) => ci.isOrdered)) {
       hasPlacedOrderRef.current = true;
     }
+
+    // Chair Device Lock Check: verify if this chair is already occupied by a different device
+    const devToken = getOrCreateDeviceToken();
+    fetch(`/api/session/verify?table=${encodeURIComponent(cleanTable)}&seat=${parsedSeat}&deviceToken=${encodeURIComponent(devToken)}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.isOccupiedByOtherDevice) {
+          setChairConflict({
+            isOpen: true,
+            occupiedSeat: parsedSeat,
+            table: cleanTable,
+            vacantSeats: data.vacantSeats || [],
+          });
+        }
+      })
+      .catch(() => {});
   }, [setTableNumber, setSeatNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Chair Device Lock Conflict State & Listener ────────────────────────────
+  const [chairConflict, setChairConflict] = React.useState<{
+    isOpen: boolean;
+    occupiedSeat: number;
+    table: string;
+    vacantSeats: number[];
+  } | null>(null);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleConflict = (e: Event) => {
+      const customEvent = e as CustomEvent<{ vacantSeats?: number[] }>;
+      const detail = customEvent.detail || {};
+      const curStore = useCustomerStore.getState();
+      setChairConflict({
+        isOpen: true,
+        occupiedSeat: curStore.seatNumber || seatRef.current,
+        table: curStore.tableNumber || tableRef.current,
+        vacantSeats: detail.vacantSeats || [],
+      });
+    };
+
+    window.addEventListener('chairConflictDetected', handleConflict);
+    return () => window.removeEventListener('chairConflictDetected', handleConflict);
+  }, []);
+
+  const handleSwitchChair = (newSeat: number) => {
+    seatRef.current = newSeat;
+    setSeatNumber(newSeat);
+    setChairConflict(null);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('seat', String(newSeat));
+        window.history.replaceState({ screen: useCustomerStore.getState().currentScreen }, '', url.toString());
+      } catch {}
+    }
+
+    const cleanTable = tableRef.current;
+    const curStore = useCustomerStore.getState();
+    curStore.setSeatNumber(newSeat);
+    curStore.resetSession();
+    curStore.syncWithActiveSession(cleanTable, newSeat);
+  };
+
+  // ─── Native Hardware / Browser Back & Swipe Navigation Sync ─────────────────
+  const isPopNavigatingRef = React.useRef(false);
+  const historyDepthRef = React.useRef(1);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const initialScreen = useCustomerStore.getState().currentScreen;
+    if (!window.history.state?.screen) {
+      window.history.replaceState({ screen: initialScreen, depth: 1 }, '');
+    }
+
+    const handlePopState = (e: PopStateEvent) => {
+      const curStore = useCustomerStore.getState();
+      const currentScrn = curStore.currentScreen;
+      const targetScreen = e.state?.screen as ScreenId | undefined;
+
+      if (targetScreen && targetScreen !== currentScrn) {
+        isPopNavigatingRef.current = true;
+        historyDepthRef.current = Math.max(1, e.state?.depth || 1);
+        curStore.setCurrentScreen(targetScreen);
+        setTimeout(() => {
+          isPopNavigatingRef.current = false;
+        }, 80);
+      } else if (!targetScreen) {
+        // Fallback backward mapping if browser popped to root
+        let fallbackScreen: ScreenId = 1;
+        if (currentScrn === 3 || currentScrn === 4) fallbackScreen = 2; // details / cart -> menu
+        else if (currentScrn === 7) fallbackScreen = 6; // gateway -> breakdown
+        else if (currentScrn === 6) fallbackScreen = 5; // breakdown -> live tracking
+        else if (currentScrn === 10) fallbackScreen = hasPlacedOrderRef.current ? 5 : 2; // waiter call
+        else if (currentScrn === 2 && hasPlacedOrderRef.current) fallbackScreen = 5; // menu -> tracking
+        else if (currentScrn === 5 || currentScrn === 8) fallbackScreen = currentScrn; // stay on active tracking or paid invoice
+
+        isPopNavigatingRef.current = true;
+        curStore.setCurrentScreen(fallbackScreen);
+        window.history.replaceState({ screen: fallbackScreen, depth: 1 }, '');
+        setTimeout(() => {
+          isPopNavigatingRef.current = false;
+        }, 80);
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Synchronize in-app screen changes with browser history stack
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (isPopNavigatingRef.current) return;
+
+    const currentState = window.history.state;
+    if (currentState?.screen !== currentScreen) {
+      const prev = currentState?.screen;
+      const isStepBack =
+        (prev === 3 && currentScreen === 2) ||
+        (prev === 4 && currentScreen === 2) ||
+        (prev === 6 && currentScreen === 5) ||
+        (prev === 7 && currentScreen === 6) ||
+        (prev === 10 && (currentScreen === 2 || currentScreen === 5));
+
+      if (isStepBack && historyDepthRef.current > 1) {
+        isPopNavigatingRef.current = true;
+        historyDepthRef.current -= 1;
+        window.history.back();
+        setTimeout(() => {
+          isPopNavigatingRef.current = false;
+        }, 80);
+      } else {
+        historyDepthRef.current += 1;
+        window.history.pushState({ screen: currentScreen, depth: historyDepthRef.current }, '');
+      }
+    }
+  }, [currentScreen]);
 
   // ─── Keep refs and hasPlacedOrderRef in sync with store state ──────────
   React.useEffect(() => {
@@ -285,6 +427,36 @@ function CustomerJourneyContent() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Left-edge swipe back gesture (35px left boundary)
+    if (e.clientX > 35) return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const pid = e.pointerId;
+
+    const onMove = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      const dx = ev.clientX - startX;
+      const dy = Math.abs(ev.clientY - startY);
+      if (dx > 65 && dx > dy * 1.5) {
+        window.removeEventListener('pointermove', onMove);
+        window.removeEventListener('pointerup', onUp);
+        if (typeof window !== 'undefined') {
+          window.history.back();
+        }
+      }
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerId !== pid) return;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
+
   const renderActiveScreen = () => {
     switch (currentScreen) {
       case 1: return <Screen1Welcome />;
@@ -303,6 +475,7 @@ function CustomerJourneyContent() {
 
   return (
     <main
+      onPointerDown={handlePointerDown}
       className="w-full select-none"
       style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
@@ -317,6 +490,83 @@ function CustomerJourneyContent() {
         >
           {renderActiveScreen()}
         </motion.div>
+      </AnimatePresence>
+
+      {/* ── Chair Device Lock Conflict Modal ── */}
+      <AnimatePresence>
+        {chairConflict?.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 15 }}
+              className="bg-[#1C1917] text-white border border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Armchair className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight text-white uppercase">
+                    Chair In Use
+                  </h3>
+                  <p className="text-xs text-stone-400 font-mono">
+                    Table {chairConflict.table} • Chair {chairConflict.occupiedSeat}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-stone-900/80 rounded-2xl p-4 border border-stone-800 text-sm text-stone-300 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                  <p className="leading-snug">
+                    Another guest is currently using <strong className="text-white">Chair {chairConflict.occupiedSeat}</strong> at this table.
+                  </p>
+                </div>
+              </div>
+
+              {chairConflict.vacantSeats && chairConflict.vacantSeats.length > 0 ? (
+                <div className="space-y-2.5">
+                  <p className="text-xs font-bold text-stone-400 uppercase tracking-wider">
+                    Select Your Chair To Continue:
+                  </p>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    {chairConflict.vacantSeats.map((seatNum) => (
+                      <button
+                        key={seatNum}
+                        onClick={() => handleSwitchChair(seatNum)}
+                        className="py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-lg shadow-amber-900/30 border border-amber-500/30"
+                      >
+                        <Armchair className="h-4 w-4" />
+                        <span>Chair {seatNum}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-xl bg-rose-950/40 border border-rose-800/40 text-xs text-rose-300">
+                    All seats at Table {chairConflict.table} are currently occupied. Please notify your waiter.
+                  </div>
+                  <button
+                    onClick={() => {
+                      setChairConflict(null);
+                      useCustomerStore.getState().setCurrentScreen(10);
+                    }}
+                    className="w-full py-3 px-4 rounded-xl bg-stone-800 hover:bg-stone-700 text-white font-bold text-sm flex items-center justify-center gap-2 transition"
+                  >
+                    Call Waiter For Help
+                  </button>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </main>
   );

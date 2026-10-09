@@ -33,6 +33,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Table ${tableNumber} does not exist in floor plan` }, { status: 404 });
     }
 
+    // Chair Device Concurrency & Ownership Protection
+    if (source === 'CUSTOMER') {
+      const { data: currentSeat } = await supabase
+        .from('table_seats')
+        .select('*')
+        .eq('table_number', tableNumber)
+        .eq('seat_number', seatNumber)
+        .maybeSingle();
+
+      if (
+        currentSeat &&
+        currentSeat.status === 'OCCUPIED' &&
+        currentSeat.device_token &&
+        deviceToken &&
+        currentSeat.device_token !== deviceToken
+      ) {
+        const { data: allSeats } = await supabase
+          .from('table_seats')
+          .select('seat_number, status')
+          .eq('table_number', tableNumber)
+          .order('seat_number');
+
+        const vacantSeats = (allSeats || [])
+          .filter((s: any) => s.status === 'VACANT')
+          .map((s: any) => s.seat_number);
+
+        return NextResponse.json(
+          {
+            error: 'CHAIR_OCCUPIED_BY_ANOTHER_DEVICE',
+            message: `Chair ${seatNumber} at Table ${tableNumber} is already active on another device.`,
+            tableNumber,
+            occupiedSeat: seatNumber,
+            vacantSeats,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
     // Calculate financials
     const subtotal = items.reduce((acc: number, item: any) => {
       const price = Number(item.unitPrice || item.price || 0);

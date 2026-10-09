@@ -53,6 +53,24 @@ async function handleVerifySession(tableNumber: string, seatNumber: number, devi
       });
     }
 
+    const isOccupiedByOther = Boolean(
+      seatData &&
+      seatData.status === 'OCCUPIED' &&
+      seatData.device_token &&
+      deviceToken &&
+      seatData.device_token !== deviceToken
+    );
+
+    let vacantSeats: number[] = [];
+    if (isOccupiedByOther) {
+      const { data: tableSeats } = await supabase
+        .from('table_seats')
+        .select('seat_number, status')
+        .eq('table_number', tableNumber)
+        .order('seat_number');
+      vacantSeats = (tableSeats || []).filter((s: any) => s.status === 'VACANT').map((s: any) => s.seat_number);
+    }
+
     // 2. If seat is not vacant or has an active order, find the unpaid order
     if (seatData.status !== 'VACANT' || seatData.active_order_id) {
       let orderQuery = supabase
@@ -97,11 +115,13 @@ async function handleVerifySession(tableNumber: string, seatNumber: number, devi
         };
 
         return NextResponse.json({
-          active: true,
+          active: !isOccupiedByOther,
           tableNumber,
           seatNumber,
-          order: orderObj,
-          activeOrder: orderObj,
+          isOccupiedByOtherDevice: isOccupiedByOther,
+          vacantSeats,
+          order: isOccupiedByOther ? null : orderObj,
+          activeOrder: isOccupiedByOther ? null : orderObj,
         });
       }
     }
@@ -139,6 +159,8 @@ async function handleVerifySession(tableNumber: string, seatNumber: number, devi
           active: true,
           tableNumber,
           seatNumber: tokenOrder.seat_number,
+          isOccupiedByOtherDevice: false,
+          vacantSeats: [],
           order: tokenOrderObj,
           activeOrder: tokenOrderObj,
         });
@@ -149,6 +171,8 @@ async function handleVerifySession(tableNumber: string, seatNumber: number, devi
       active: false,
       tableNumber,
       seatNumber,
+      isOccupiedByOtherDevice: isOccupiedByOther,
+      vacantSeats,
       order: null,
       message: 'No active unpaid order found for this seat',
     });

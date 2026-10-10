@@ -79,7 +79,34 @@ async function handleVerifySession(
         .limit(1);
 
       if (activeOrders && activeOrders.length > 0) {
-        existingActiveOrder = activeOrders[0];
+        const candidate = activeOrders[0];
+        // Validate whether the candidate's table and seat are actually still occupied in the dining room
+        const { data: seatCheck } = await supabase
+          .from('table_seats')
+          .select('status, active_order_id, device_token')
+          .eq('table_number', candidate.table_number)
+          .eq('seat_number', candidate.seat_number)
+          .maybeSingle();
+
+        const { data: tblCheck } = await supabase
+          .from('tables')
+          .select('status, current_bill')
+          .eq('number', candidate.table_number)
+          .maybeSingle();
+
+        // If the table or seat was already vacated or settled (e.g. waiter settled and vacated), the order is stale
+        const isTableVacant = !tblCheck || tblCheck.status === 'VACANT' || (tblCheck.current_bill === 0 && (!tblCheck.status || tblCheck.status === 'VACANT'));
+        const isSeatVacant = !seatCheck || seatCheck.status === 'VACANT' || (!seatCheck.active_order_id && seatCheck.device_token !== deviceToken);
+
+        if (isTableVacant || isSeatVacant) {
+          // Auto-reconcile stale order so customer starts fresh without being prompted for dead session
+          await supabase
+            .from('orders')
+            .update({ status: 'PAID', updated_at: new Date().toISOString() })
+            .eq('id', candidate.id);
+        } else {
+          existingActiveOrder = candidate;
+        }
       }
     }
 

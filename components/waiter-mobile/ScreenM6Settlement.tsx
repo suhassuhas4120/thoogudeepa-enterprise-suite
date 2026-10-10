@@ -419,6 +419,8 @@ export function ScreenM6Settlement({
     // Clear chair items and tickets immediately so no lingering items or bills remain
     if (splitSeatNumber !== null) {
       waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
+    } else if (vacateAfter) {
+      waiterVacatesTable(tableNum);
     }
   };
 

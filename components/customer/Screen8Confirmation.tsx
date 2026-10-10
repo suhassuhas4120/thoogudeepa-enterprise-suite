@@ -56,6 +56,17 @@ export const Screen8Confirmation: React.FC = () => {
 
   const [liveTimecode, setLiveTimecode] = useState('');
   React.useEffect(() => {
+    // Payment is finalized: clear active session keys so re-scanning any chair starts completely fresh
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('thoogudeepa_verified_session');
+        localStorage.removeItem('thoogudeepa_customer_session_v1');
+        if (effectiveTable && seatNumber) {
+          localStorage.removeItem(`thoogudeepa_customer_session_${effectiveTable}_s${seatNumber}`);
+        }
+      } catch {}
+    }
+
     const update = () => {
       const d = new Date();
       setLiveTimecode(
@@ -65,7 +76,7 @@ export const Screen8Confirmation: React.FC = () => {
     update();
     const iv = setInterval(update, 80);
     return () => clearInterval(iv);
-  }, []);
+  }, [effectiveTable, seatNumber]);
 
   const { formattedDate, formattedTime } = useMemo(() => {
     const d = new Date();

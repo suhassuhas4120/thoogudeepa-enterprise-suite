@@ -14,6 +14,7 @@ import { Screen5LiveTracking } from '../components/customer/Screen5LiveTracking'
 import { Screen6PaymentBreakdown } from '../components/customer/Screen6PaymentBreakdown';
 import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGateway';
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
+import { Screen9DigitalBill } from '../components/customer/Screen9DigitalBill';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
 import { ScreenId } from '../types/customer';
 import { getSyncBroadcastChannel } from '../lib/supabase';
@@ -595,7 +596,7 @@ function CustomerJourneyContent() {
       case 6: return <Screen6PaymentBreakdown />;
       case 7: return <Screen7PaymentGateway />;
       case 8: return <Screen8Confirmation />;
-      case 9:
+      case 9: return <Screen9DigitalBill />;
       case 10: return <Screen10WaiterCall />;
       default: return <Screen1Welcome />;
     }

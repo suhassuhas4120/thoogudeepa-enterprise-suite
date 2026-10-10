@@ -134,16 +134,55 @@ export async function POST(req: NextRequest) {
             updated_at: nowIso,
           })
           .eq('number', normFromTable);
+      } else {
+        // Source table still has other occupied seats: recalculate running bill from remaining unpaid orders
+        const { data: srcOrders } = await supabase
+          .from('orders')
+          .select('total_amount, total')
+          .eq('table_number', normFromTable)
+          .eq('status', 'UNPAID');
+        const remainingSrcBill = (srcOrders || []).reduce(
+          (sum, o) => sum + Number(o.total_amount || o.total || 0),
+          0
+        );
+        await supabase
+          .from('tables')
+          .update({
+            current_bill: remainingSrcBill,
+            guest_count: remainingSeats.length,
+            updated_at: nowIso,
+          })
+          .eq('number', normFromTable);
       }
     }
 
     // G. Reconcile destination table
+    // Calculate total unpaid bill on destination table including this transferred order
+    const { data: destOrders } = await supabase
+      .from('orders')
+      .select('total_amount, total')
+      .eq('table_number', normToTable)
+      .eq('status', 'UNPAID');
+
+    const totalDestBill = (destOrders || []).reduce(
+      (sum, o) => sum + Number(o.total_amount || o.total || 0),
+      0
+    ) || orderTotal;
+
+    const { data: destSeats } = await supabase
+      .from('table_seats')
+      .select('id')
+      .eq('table_number', normToTable)
+      .eq('status', 'OCCUPIED');
+
+    const destGuestCount = Math.max(1, destSeats?.length || 1);
+
     await supabase
       .from('tables')
       .update({
         status: 'OCCUPIED',
-        current_bill: orderTotal,
-        guest_count: 1,
+        current_bill: totalDestBill,
+        guest_count: destGuestCount,
         updated_at: nowIso,
       })
       .eq('number', normToTable);

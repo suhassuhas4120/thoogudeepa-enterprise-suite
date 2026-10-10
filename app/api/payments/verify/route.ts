@@ -225,12 +225,13 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', resolvedOrderId);
 
-      // 2. Mark Seat as PAID and release device lock
+      // 2. Release table seat to VACANT and clear device token & active order
       if (resolvedTableNumber && resolvedSeatNumber) {
         await supabase
           .from('table_seats')
           .update({
-            status: 'PAID',
+            status: 'VACANT',
+            active_order_id: null,
             device_token: null,
             updated_at: nowIso,
           })
@@ -247,7 +248,7 @@ export async function POST(req: NextRequest) {
         })
         .eq('order_id', resolvedOrderId);
 
-      // 4. Check if all table orders are settled -> update table to BILLING
+      // 4. Check if all table orders are settled -> vacate table if no unpaid orders remain
       if (resolvedTableNumber) {
         const { data: remainingUnpaid } = await supabase
           .from('orders')
@@ -259,7 +260,10 @@ export async function POST(req: NextRequest) {
           await supabase
             .from('tables')
             .update({
-              status: 'BILLING',
+              status: 'VACANT',
+              current_bill: 0,
+              guest_count: 0,
+              kot_count: 0,
               updated_at: nowIso,
             })
             .eq('number', resolvedTableNumber);

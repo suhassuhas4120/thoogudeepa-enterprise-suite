@@ -266,12 +266,38 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 5. Broadcast real-time payment confirmation across portals
+      // 5. Auto-resolve lingering PAYMENT and BILL pings for this table/seat
+      if (resolvedTableNumber) {
+        try {
+          if (resolvedSeatNumber) {
+            await supabase
+              .from('pings')
+              .update({ status: 'RESOLVED' })
+              .eq('table_number', resolvedTableNumber)
+              .eq('seat_number', resolvedSeatNumber)
+              .in('type', ['PAYMENT', 'BILL']);
+          }
+          await supabase
+            .from('pings')
+            .update({ status: 'RESOLVED' })
+            .eq('table_number', resolvedTableNumber)
+            .in('type', ['PAYMENT', 'BILL']);
+        } catch (pingErr) {
+          console.warn('[Payments] Ping auto-resolve fallback:', pingErr);
+        }
+      }
+
+      // 6. Broadcast real-time payment confirmation and ping purge across portals
       broadcastStateChange('paymentConfirmed', {
         orderId: resolvedOrderId,
         tableNumber: resolvedTableNumber,
         seatNumber: resolvedSeatNumber,
         amount: resolvedAmount,
+      });
+
+      broadcastStateChange('paymentPingsResolved', {
+        tableNumber: resolvedTableNumber,
+        seatNumber: resolvedSeatNumber,
       });
     }
 

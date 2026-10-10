@@ -153,13 +153,31 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // 6. Broadcast real-time update
+        // 6. Auto-resolve lingering PAYMENT and BILL pings for this table/seat
+        if (tableNumber) {
+          try {
+            await supabase
+              .from('pings')
+              .update({ status: 'RESOLVED' })
+              .eq('table_number', tableNumber)
+              .in('type', ['PAYMENT', 'BILL']);
+          } catch (pingErr) {
+            console.warn('[Razorpay Webhook] Ping auto-resolve fallback:', pingErr);
+          }
+        }
+
+        // 7. Broadcast real-time update
         broadcastStateChange('paymentConfirmed', {
           orderId: resolvedOrderId,
           tableNumber,
           seatNumber,
           amount: amountRupees,
           source: 'RAZORPAY_WEBHOOK',
+        });
+
+        broadcastStateChange('paymentPingsResolved', {
+          tableNumber,
+          seatNumber,
         });
       }
     }

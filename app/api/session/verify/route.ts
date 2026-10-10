@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase';
+import { generateTableSignature, verifyTableSignature } from '../../../../lib/qrSignature';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,8 +9,9 @@ export async function GET(req: NextRequest) {
   const table = (searchParams.get('table') || searchParams.get('tableNumber') || '').toUpperCase();
   const seat = parseInt(searchParams.get('seat') || searchParams.get('seatNumber') || '1', 10);
   const deviceToken = searchParams.get('deviceToken') || null;
+  const sig = searchParams.get('sig') || searchParams.get('token') || null;
 
-  return handleVerifySession(table, seat, deviceToken);
+  return handleVerifySession(table, seat, deviceToken, sig);
 }
 
 export async function POST(req: NextRequest) {
@@ -18,8 +20,9 @@ export async function POST(req: NextRequest) {
     const table = (body.table || body.tableNumber || '').toUpperCase();
     const seat = parseInt(body.seat || body.seatNumber || '1', 10);
     const deviceToken = body.deviceToken || null;
+    const sig = body.sig || body.token || null;
 
-    return handleVerifySession(table, seat, deviceToken);
+    return handleVerifySession(table, seat, deviceToken, sig);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON request payload' }, { status: 400 });
   }
@@ -28,10 +31,31 @@ export async function POST(req: NextRequest) {
 async function handleVerifySession(
   tableNumber: string,
   seatNumber: number,
-  deviceToken: string | null
+  deviceToken: string | null,
+  sig?: string | null
 ) {
   if (!tableNumber) {
     return NextResponse.json({ error: 'Table number is required' }, { status: 400 });
+  }
+
+  // Whitelist check: only accept valid tables T-01 to T-34
+  const tableNumMatch = tableNumber.match(/^(?:TABLE\s*|T-?)(\d+)$/i);
+  const parsedNum = tableNumMatch ? parseInt(tableNumMatch[1], 10) : null;
+  if (!parsedNum || parsedNum < 1 || parsedNum > 34) {
+    return NextResponse.json({
+      error: 'INVALID_TABLE',
+      message: 'Table number must be between T-01 and T-34',
+    }, { status: 400 });
+  }
+
+  // Cryptographic signature check (if URL includes signature)
+  if (sig && !verifyTableSignature(tableNumber, seatNumber, sig)) {
+    return NextResponse.json({
+      active: false,
+      isTampered: true,
+      error: 'INVALID_SIGNATURE',
+      message: 'Table parameters do not match physical QR signature. Please scan your physical table QR.',
+    }, { status: 403 });
   }
 
   try {
@@ -55,6 +79,77 @@ async function handleVerifySession(
         order: null,
         message: 'Seat is currently vacant',
       });
+    }
+
+    // 0. Global Hardware Session Engine: check if this device has an active unpaid order in the venue
+    let existingActiveOrder: any = null;
+    if (deviceToken) {
+      const { data: activeOrders } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('device_token', deviceToken)
+        .eq('status', 'UNPAID')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (activeOrders && activeOrders.length > 0) {
+        existingActiveOrder = activeOrders[0];
+      }
+    }
+
+    if (existingActiveOrder) {
+      const isSameTable = existingActiveOrder.table_number.toUpperCase() === tableNumber.toUpperCase();
+      const isSameSeat = Number(existingActiveOrder.seat_number) === Number(seatNumber);
+
+      if (isSameTable && isSameSeat) {
+        // Legitimate diner on their own chair: silent instant resume
+        const { data: items } = await supabase
+          .from('order_items')
+          .select('*')
+          .eq('order_id', existingActiveOrder.id)
+          .order('created_at', { ascending: true });
+
+        const orderObj = {
+          id: existingActiveOrder.id,
+          guestName: existingActiveOrder.guest_name,
+          subtotal: Number(existingActiveOrder.subtotal),
+          tax: Number(existingActiveOrder.tax),
+          total: Number(existingActiveOrder.total || existingActiveOrder.total_amount),
+          status: existingActiveOrder.status,
+          items: items || [],
+          createdAt: existingActiveOrder.created_at,
+        };
+
+        return NextResponse.json({
+          active: true,
+          tableNumber,
+          seatNumber,
+          isOccupiedByOtherDevice: false,
+          hasActiveOrderElsewhere: false,
+          vacantSeats: [],
+          order: orderObj,
+          activeOrder: orderObj,
+        });
+      } else {
+        // Diner has an active unpaid order on a different chair or table
+        return NextResponse.json({
+          active: false,
+          tableNumber,
+          seatNumber,
+          isOccupiedByOtherDevice: false,
+          hasActiveOrderElsewhere: true,
+          existingOrder: {
+            id: existingActiveOrder.id,
+            tableNumber: existingActiveOrder.table_number,
+            seatNumber: existingActiveOrder.seat_number,
+            total: Number(existingActiveOrder.total || existingActiveOrder.total_amount),
+            guestName: existingActiveOrder.guest_name,
+            createdAt: existingActiveOrder.created_at,
+          },
+          order: null,
+          message: `You have an active dining session at Table ${existingActiveOrder.table_number} Chair ${existingActiveOrder.seat_number}`,
+        });
+      }
     }
 
 

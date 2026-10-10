@@ -597,10 +597,28 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         }
       }
 
-      return { settledBills: nextBills, activeSettlementSessions: nextSessions };
+      // Auto-purge lingering PAYMENT and BILL pings for this table/chair
+      const cleanedPings = state.pings.filter(
+        (p) =>
+          !(
+            cleanNum(p.tableNumber) === tNum &&
+            (p.type === 'PAYMENT' || p.type === 'BILL') &&
+            (typeof snapshot.seatNumber !== 'number' || p.seatNumber === snapshot.seatNumber)
+          )
+      );
+
+      return {
+        settledBills: nextBills,
+        activeSettlementSessions: nextSessions,
+        pings: cleanedPings,
+      };
     });
 
     broadcastStateChange('billSettled', timestampedSnapshot);
+    broadcastStateChange('paymentPingsResolved', {
+      tableNumber: normTable,
+      seatNumber: snapshot.seatNumber,
+    });
 
     bridgePost('/api/settlement/session', {
       action: 'RECORD_BILL',
@@ -608,6 +626,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
 
     if (typeof window !== 'undefined') {
+      supabase
+        .from('pings')
+        .update({ status: 'RESOLVED' })
+        .eq('table_number', normTable)
+        .in('type', ['PAYMENT', 'BILL'])
+        .then(() => {}, () => {});
       const billId = `SETTLED-BILL-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       const sessId = `SETTLE-SESSION-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       supabase
@@ -1520,12 +1544,38 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           return { ...t, status: 'BILLING' };
         }),
         kdsTickets: newTickets,
+        pings: state.pings.filter(
+          (p) =>
+            !(
+              cleanNum(p.tableNumber) === targetNum &&
+              (p.type === 'PAYMENT' || p.type === 'BILL') &&
+              (!isChairSettle || p.seatNumber === seatNumber)
+            )
+        ),
         shiftStats: {
           ...state.shiftStats,
           totalRevenue: state.shiftStats.totalRevenue + amount,
           tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1),
         },
       };
+    });
+
+    if (typeof window !== 'undefined') {
+      const normTbl = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+      let pQuery = supabase
+        .from('pings')
+        .update({ status: 'RESOLVED' })
+        .eq('table_number', normTbl)
+        .in('type', ['PAYMENT', 'BILL']);
+      if (typeof seatNumber === 'number') {
+        pQuery = pQuery.eq('seat_number', seatNumber);
+      }
+      pQuery.then(() => {}, () => {});
+    }
+
+    broadcastStateChange('paymentPingsResolved', {
+      tableNumber: `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`,
+      seatNumber,
     });
   },
 
@@ -2105,6 +2155,31 @@ if (typeof window !== 'undefined') {
         applyPersistedState(event.data.payload, true); // suppress re-broadcast
       }
     };
+
+    try {
+      const sbChannel = supabase.channel('restaurant-sync-broadcast');
+      sbChannel
+        .on('broadcast', { event: 'STATE_CHANGED' }, (msg: any) => {
+          const reason = msg?.payload?.reason;
+          const payload = msg?.payload?.payload;
+          if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
+            const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+            const targetTbl = cleanNum(payload.tableNumber);
+            const targetSeat = payload.seatNumber;
+            useSharedBridge.setState((state) => ({
+              pings: state.pings.filter(
+                (p) =>
+                  !(
+                    cleanNum(p.tableNumber) === targetTbl &&
+                    (p.type === 'PAYMENT' || p.type === 'BILL') &&
+                    (!targetSeat || p.seatNumber === targetSeat)
+                  )
+              ),
+            }));
+          }
+        })
+        .subscribe();
+    } catch {}
 
     useSharedBridge.subscribe((state) => {
       // Save state to localStorage on every change (persistence + cross-device fallback)

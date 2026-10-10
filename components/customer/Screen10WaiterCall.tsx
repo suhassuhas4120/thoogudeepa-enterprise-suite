@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -52,12 +52,24 @@ export const Screen10WaiterCall: React.FC = () => {
     });
   }, [activeItems, currentTbl]);
 
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  useEffect(() => {
+    if (cooldownRemaining <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownRemaining]);
+
   const handlePing = (type: WaiterPingType) => {
     if (type === 'PAYMENT') {
       if (!allDishesServed) return;
       setShowPaymentConfirmModal(true);
       return;
     }
+    if (cooldownRemaining > 0) return;
+    setCooldownRemaining(45);
     pingWaiter(type, customText.trim() || undefined);
     if (customText.trim()) setCustomText('');
   };
@@ -166,7 +178,7 @@ export const Screen10WaiterCall: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             {pingButtons.map((btn) => {
               const isPayment = btn.type === 'PAYMENT';
-              const isPaymentDisabled = isPayment && !allDishesServed;
+              const isPaymentDisabled = isPayment ? !allDishesServed : cooldownRemaining > 0;
 
               return (
                 <motion.button
@@ -181,7 +193,11 @@ export const Screen10WaiterCall: React.FC = () => {
                             ? 'bg-stone-50 border-stone-200 opacity-50 cursor-not-allowed'
                             : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 cursor-pointer hover:opacity-90'
                         }`
-                      : 'flex-col items-center justify-center gap-2 p-4 cursor-pointer hover:opacity-90'
+                      : `flex-col items-center justify-center gap-2 p-4 ${
+                          !isPayment && cooldownRemaining > 0
+                            ? 'opacity-60 cursor-not-allowed'
+                            : 'cursor-pointer hover:opacity-90'
+                        }`
                   } rounded-[22px] border shadow-xs transition`}
                   style={
                     !isPayment
@@ -206,7 +222,7 @@ export const Screen10WaiterCall: React.FC = () => {
                       className={`font-black ${isPayment ? 'text-xs text-[#9C3D1E]' : 'text-xs text-center'}`}
                       style={!isPayment ? { color: currentTheme.colors.textPrimary } : undefined}
                     >
-                      {btn.label}
+                      {!isPayment && cooldownRemaining > 0 ? `${btn.label} (${cooldownRemaining}s)` : btn.label}
                     </span>
                     {isPayment && isPaymentDisabled && (
                       <span className="text-[10px] text-stone-500 font-medium">

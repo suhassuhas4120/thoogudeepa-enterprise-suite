@@ -53,6 +53,19 @@ export const Screen8Confirmation: React.FC = () => {
       ? currentTable.serverName
       : 'Floor Captain';
 
+  const [liveTimecode, setLiveTimecode] = useState('');
+  React.useEffect(() => {
+    const update = () => {
+      const d = new Date();
+      setLiveTimecode(
+        d.toLocaleTimeString('en-IN', { hour12: false }) + '.' + String(Math.floor(d.getMilliseconds() / 10)).padStart(2, '0')
+      );
+    };
+    update();
+    const iv = setInterval(update, 80);
+    return () => clearInterval(iv);
+  }, []);
+
   const { formattedDate, formattedTime } = useMemo(() => {
     const d = new Date();
     const formattedDate = d.toLocaleDateString('en-IN', {
@@ -243,6 +256,32 @@ export const Screen8Confirmation: React.FC = () => {
             </div>
             <div className="text-[10px] font-semibold mt-0.5" style={{ color: currentTheme.colors.textMuted }}>
               TXN ID: {txnId} • TABLE {effectiveTable} • SEAT C-{String(seatNumber).padStart(2, '0')}
+            </div>
+          </div>
+
+          {/* Anti-Fraud Dynamic Live Watermark */}
+          <div className="mt-2.5 w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-2.5 flex items-center justify-between text-left">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <div>
+                <div className="text-[9.5px] font-black uppercase tracking-wider text-emerald-400 font-mono">
+                  Verified Live Token
+                </div>
+                <div className="text-[11px] font-mono font-bold text-emerald-100">
+                  {liveTimecode || formattedTime} • LIVE
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[8.5px] font-mono text-emerald-400 font-semibold uppercase">
+                Anti-Spoof
+              </div>
+              <div className="text-[9.5px] font-mono font-black text-emerald-300">
+                ACTIVE
+              </div>
             </div>
           </div>
 

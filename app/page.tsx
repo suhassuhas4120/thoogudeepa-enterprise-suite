@@ -18,7 +18,7 @@ import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
 import { ScreenId } from '../types/customer';
 import { getSyncBroadcastChannel } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
-import { Armchair, AlertCircle, Sparkles, RefreshCw, Check } from 'lucide-react';
+import { Armchair, AlertCircle, Sparkles, RefreshCw, Check, ArrowRight } from 'lucide-react';
 
 // Normalise a raw table param like "T-5", "T05", "5" → "T-05"
 function normTableId(raw: string): string {
@@ -169,7 +169,14 @@ function CustomerJourneyContent() {
     fetch(`/api/session/verify?table=${encodeURIComponent(cleanTable)}&seat=${parsedSeat}&deviceToken=${encodeURIComponent(devToken)}`)
       .then((res) => res.json())
       .then((data) => {
-        if (data.isOccupiedByOtherDevice) {
+        if (data.hasActiveOrderElsewhere && data.existingOrder) {
+          setCrossSeatConflict({
+            isOpen: true,
+            currentTable: cleanTable,
+            currentSeat: parsedSeat,
+            existingOrder: data.existingOrder,
+          });
+        } else if (data.isOccupiedByOtherDevice) {
           setChairConflict({
             isOpen: true,
             occupiedSeat: parsedSeat,
@@ -180,6 +187,62 @@ function CustomerJourneyContent() {
       })
       .catch(() => {});
   }, [setTableNumber, setSeatNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Cross-Seat Active Order State & Handlers ───────────────────────────────
+  const [crossSeatConflict, setCrossSeatConflict] = React.useState<{
+    isOpen: boolean;
+    currentTable: string;
+    currentSeat: number;
+    existingOrder: {
+      id: string;
+      tableNumber: string;
+      seatNumber: number;
+      total: number;
+    };
+  } | null>(null);
+  const [isTransferring, setIsTransferring] = React.useState(false);
+
+  const handleReturnToExistingSeat = () => {
+    if (!crossSeatConflict) return;
+    const { tableNumber, seatNumber } = crossSeatConflict.existingOrder;
+    setCrossSeatConflict(null);
+    if (typeof window !== 'undefined') {
+      window.location.href = `/?table=${encodeURIComponent(tableNumber)}&seat=${seatNumber}`;
+    }
+  };
+
+  const handleTransferToCurrentSeat = async () => {
+    if (!crossSeatConflict) return;
+    setIsTransferring(true);
+    try {
+      const devToken = getOrCreateDeviceToken();
+      const res = await fetch('/api/session/transfer', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deviceToken: devToken,
+          fromTable: crossSeatConflict.existingOrder.tableNumber,
+          fromSeat: crossSeatConflict.existingOrder.seatNumber,
+          toTable: crossSeatConflict.currentTable,
+          toSeat: crossSeatConflict.currentSeat,
+          orderId: crossSeatConflict.existingOrder.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setCrossSeatConflict(null);
+        if (typeof window !== 'undefined') {
+          window.location.reload();
+        }
+      } else {
+        alert(data.error || 'Failed to transfer seat');
+      }
+    } catch {
+      alert('Network error transferring seat');
+    } finally {
+      setIsTransferring(false);
+    }
+  };
 
   // ─── Chair Device Lock Conflict State & Listener ────────────────────────────
   const [chairConflict, setChairConflict] = React.useState<{
@@ -568,6 +631,70 @@ function CustomerJourneyContent() {
                   </button>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Cross-Seat Active Order Conflict Modal ── */}
+      <AnimatePresence>
+        {crossSeatConflict?.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 15 }}
+              className="bg-[#1C1917] text-white border border-stone-800 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                  <Armchair className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight text-white uppercase">
+                    Active Order Detected
+                  </h3>
+                  <p className="text-xs text-stone-400 font-mono">
+                    Table {crossSeatConflict.existingOrder.tableNumber} • Chair {crossSeatConflict.existingOrder.seatNumber}
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-stone-900/80 rounded-2xl p-4 border border-stone-800 text-sm text-stone-300 space-y-2">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+                  <p className="leading-snug">
+                    Your phone has an active dining session with an unpaid order of <strong className="text-white">₹{crossSeatConflict.existingOrder.total}</strong> at <strong className="text-white">Table {crossSeatConflict.existingOrder.tableNumber} Chair {crossSeatConflict.existingOrder.seatNumber}</strong>.
+                  </p>
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                <button
+                  onClick={handleReturnToExistingSeat}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-lg shadow-amber-900/30 border border-amber-500/30"
+                >
+                  <ArrowRight className="h-4 w-4" />
+                  <span>Return to My Order (Chair {crossSeatConflict.existingOrder.seatNumber})</span>
+                </button>
+
+                <button
+                  disabled={isTransferring}
+                  onClick={handleTransferToCurrentSeat}
+                  className="w-full py-3 px-4 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
+                >
+                  {isTransferring ? (
+                    <span>Transferring Session...</span>
+                  ) : (
+                    <span>Move Order to Table {crossSeatConflict.currentTable} Chair {crossSeatConflict.currentSeat}</span>
+                  )}
+                </button>
+              </div>
             </motion.div>
           </motion.div>
         )}

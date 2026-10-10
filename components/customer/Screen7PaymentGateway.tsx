@@ -51,8 +51,8 @@ export const Screen7PaymentGateway: React.FC = () => {
 
   const { waiterRecordsPayment, settledBills, recordSettledBill, waiterClearsChairAfterPayment, tables } = useSharedBridge();
 
-  // Tab State: 'RAZORPAY' | 'UPI' | 'CASH'
-  type PaymentTab = 'RAZORPAY' | 'UPI' | 'CASH';
+  // Tab State: 'RAZORPAY' | 'UPI'
+  type PaymentTab = 'RAZORPAY' | 'UPI';
   const [activeTab, setActiveTab] = useState<PaymentTab>('RAZORPAY');
   const [showSummary, setShowSummary] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -371,11 +371,10 @@ export const Screen7PaymentGateway: React.FC = () => {
     }
   };
 
-  // Dedicated Tab definitions: Pay Online, QR Pay & Cash
+  // Dedicated Tab definitions: Pay Online & QR Pay (Cash is strictly handled by Waiter)
   const paymentTabs = [
     { id: 'RAZORPAY' as const, label: 'Pay Online', icon: <CreditCard className="h-4 w-4" /> },
     { id: 'UPI' as const, label: 'QR Pay', icon: <QrCode className="h-4 w-4" /> },
-    { id: 'CASH' as const, label: 'Cash', icon: <Banknote className="h-4 w-4" /> },
   ];
 
   return (
@@ -675,190 +674,6 @@ export const Screen7PaymentGateway: React.FC = () => {
               </div>
             </motion.div>
           )}
-
-          {/* TAB 2: SMART CASH TENDER (DYNAMIC CALCULATED PILLS & CHANGE DUE) */}
-          {activeTab === 'CASH' && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="space-y-3"
-            >
-              <div
-                className="rounded-2xl border p-4 space-y-3"
-                style={{
-                  backgroundColor: currentTheme.colors.bgElevated,
-                  borderColor: currentTheme.colors.border,
-                }}
-              >
-                <div className="flex items-center gap-2.5">
-                  <div
-                    className="flex h-9 w-9 items-center justify-center rounded-xl"
-                    style={{
-                      backgroundColor: currentTheme.colors.secondaryBg,
-                      color: currentTheme.colors.buttonBg,
-                    }}
-                  >
-                    <Banknote className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <h4
-                      className="text-xs font-black"
-                      style={{ color: currentTheme.colors.textPrimary }}
-                    >
-                      Pay Cash to Floor Captain
-                    </h4>
-                    <p
-                      className="text-[10px] font-medium"
-                      style={{ color: currentTheme.colors.textMuted }}
-                    >
-                      Physical currency collection directly at Table {effectiveTable}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Dynamic Smart Cash Tender Pills */}
-                <div
-                  className="pt-2 border-t"
-                  style={{ borderColor: currentTheme.colors.borderLight }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span
-                      className="text-[10px] font-black uppercase tracking-wider font-mono"
-                      style={{ color: currentTheme.colors.textMuted }}
-                    >
-                      Select Cash Tender Note:
-                    </span>
-                    <span
-                      className="text-[10px] font-bold font-mono"
-                      style={{ color: currentTheme.colors.buttonBg }}
-                    >
-                      Bill: ₹{grandTotal}
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {tenderOptions.map((opt) => {
-                      const isSelected = selectedTender.id === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setSelectedTender(opt)}
-                          style={
-                            isSelected
-                              ? {
-                                  borderColor: currentTheme.colors.pillActiveBorder,
-                                  backgroundColor: currentTheme.colors.pillActiveBg,
-                                  color: currentTheme.colors.pillActiveFg,
-                                }
-                              : {
-                                  borderColor: currentTheme.colors.pillInactiveBorder,
-                                  backgroundColor: currentTheme.colors.pillInactiveBg,
-                                  color: currentTheme.colors.pillInactiveFg,
-                                }
-                          }
-                          className="flex items-center justify-center py-2.5 px-3 rounded-xl border text-xs font-mono font-black transition text-center shadow-2xs active:scale-95"
-                        >
-                          {opt.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Dynamic Cash Tender Collection Summary Card */}
-                  <div
-                    className="mt-3 rounded-xl p-3 border flex items-center justify-between text-xs shadow-2xs"
-                    style={{
-                      backgroundColor: currentTheme.colors.bgSurface,
-                      borderColor: currentTheme.colors.border,
-                    }}
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <div
-                        className="flex h-7 w-7 items-center justify-center rounded-lg font-mono font-black text-xs"
-                        style={{
-                          backgroundColor: currentTheme.colors.secondaryBg,
-                          color: currentTheme.colors.buttonBg,
-                        }}
-                      >
-                        ₹
-                      </div>
-                      <div>
-                        <div
-                          className="text-[10px] font-black uppercase tracking-wider font-mono"
-                          style={{ color: currentTheme.colors.textMuted }}
-                        >
-                          Tender Collection
-                        </div>
-                        <div
-                          className="font-bold text-[11px] mt-0.5"
-                          style={{ color: currentTheme.colors.textPrimary }}
-                        >
-                          {selectedTender.change === 0 ? (
-                            <span className="text-emerald-800 font-black">
-                              Exact Cash • No balance return needed
-                            </span>
-                          ) : (
-                            <span>
-                              Paying <span className="font-mono font-black" style={{ color: currentTheme.colors.buttonBg }}>₹{selectedTender.amount}</span> • Return balance:{' '}
-                              <span className="font-mono font-black text-emerald-800">₹{selectedTender.change}</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <span
-                      style={{
-                        backgroundColor: currentTheme.colors.secondaryBg,
-                        color: currentTheme.colors.secondaryFg,
-                        borderColor: currentTheme.colors.border,
-                      }}
-                      className="font-mono text-[11px] font-black px-2.5 py-1 rounded-lg border shrink-0"
-                    >
-                      {selectedTender.change === 0 ? 'EXACT CASH' : `₹${selectedTender.change} RETURN`}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                className="flex items-center gap-3 rounded-2xl border p-3 text-[11.5px] shadow-2xs"
-                style={{
-                  backgroundColor: currentTheme.colors.bgElevated,
-                  borderColor: currentTheme.colors.border,
-                  color: currentTheme.colors.textSecondary,
-                }}
-              >
-                <div
-                  style={{
-                    backgroundColor: currentTheme.colors.secondaryBg,
-                    color: currentTheme.colors.buttonBg,
-                  }}
-                  className="flex h-8 w-8 items-center justify-center rounded-xl shrink-0"
-                >
-                  <BellRing className="h-4 w-4" />
-                </div>
-                <div className="flex-1 leading-relaxed">
-                  Floor Captain will arrive at <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>Table {effectiveTable}</strong> with your printed tax bill{' '}
-                  {selectedTender.change > 0 ? (
-                    <>
-                      and{' '}
-                      <span className="inline-flex items-center px-2.5 py-0.5 mx-1 rounded-xl bg-emerald-100 border border-emerald-300 font-mono font-black text-base text-emerald-900 shadow-2xs">
-                        ₹{selectedTender.change}
-                      </span>{' '}
-                      return balance.
-                    </>
-                  ) : (
-                    'and payment receipt.'
-                  )}
-                </div>
-              </div>
-            </motion.div>
-          )}
-
-
         </div>
       </div>
 
@@ -880,11 +695,7 @@ export const Screen7PaymentGateway: React.FC = () => {
               ? 'Verifying Settlement...'
               : activeTab === 'RAZORPAY'
               ? `Pay Online ₹${grandTotal} (UPI / Cards / NetBanking)`
-              : activeTab === 'UPI'
-              ? `Confirm QR Pay (₹${grandTotal})`
-              : selectedTender.change === 0
-              ? `Confirm Cash (Exact ₹${grandTotal})`
-              : `Confirm Cash ₹${selectedTender.amount} (Return ₹${selectedTender.change})`}
+              : `Confirm QR Pay (₹${grandTotal})`}
           </span>
           {isProcessing ? (
             <Loader2 className="h-4 w-4 animate-spin" />

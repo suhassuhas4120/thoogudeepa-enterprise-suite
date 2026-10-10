@@ -767,8 +767,8 @@ export const Screen5LiveTracking: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Captain Arrived & opened Settle Bill on Waiter Mobile */}
-          {isCaptainArrived && (
+          {/* Captain Arrived & opened Settle Bill on Waiter Mobile (Only displayed once food is served) */}
+          {allDishesServed && isCaptainArrived && (
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -856,63 +856,45 @@ export const Screen5LiveTracking: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Action buttons: ALWAYS PRESENT and accessible */}
-          {!allDishesServed && trackedDishes.length > 0 && (
-            <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-center text-[10.5px] font-medium text-stone-600">
-              Dishes are being cooked &amp; served. Payment unlocks once all dishes reach your table.
+          {/* Action buttons: Display status badge while cooking; show payment options only when all dishes are served */}
+          {!allDishesServed ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 flex items-center gap-2.5 text-amber-900 shadow-2xs">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <p className="text-xs font-semibold leading-snug">
+                Dishes are actively being prepared &amp; served. Payment options will appear once your food reaches the table.
+              </p>
             </div>
-          )}
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowPayViaWaiterModal(true)}
+                className="flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer"
+              >
+                <CreditCard className="h-4 w-4 stroke-[2.2]" />
+                <span>Pay via Waiter</span>
+              </motion.button>
 
-          <div className="grid grid-cols-2 gap-2">
-            <motion.button
-              disabled={!allDishesServed}
-              whileTap={allDishesServed ? { scale: 0.98 } : undefined}
-              onClick={() => {
-                if (allDishesServed) setShowPayViaWaiterModal(true);
-              }}
-              className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
-                allDishesServed
-                  ? 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
-                  : 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-60'
-              }`}
-            >
-              <CreditCard className="h-4 w-4 stroke-[2.2]" />
-              <span>Pay via Waiter</span>
-            </motion.button>
-
-            <motion.button
-              disabled={!allDishesServed}
-              whileTap={allDishesServed ? { scale: 0.98 } : undefined}
-              onClick={() => {
-                if (allDishesServed) {
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
                   cancelPaymentPing();
                   setIsWaitingForCaptain(false);
                   useCustomerStore.getState().dismissWaiterNotification();
                   setCurrentScreen(6);
-                }
-              }}
-              style={
-                allDishesServed
-                  ? {
-                      backgroundColor: currentTheme.colors.buttonBg,
-                      color: currentTheme.colors.buttonFg,
-                      boxShadow: currentTheme.colors.buttonShadow,
-                    }
-                  : {
-                      backgroundColor: '#E5E7EB',
-                      color: '#9CA3AF',
-                    }
-              }
-              className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
-                allDishesServed
-                  ? 'hover:brightness-105 cursor-pointer shadow-md'
-                  : 'cursor-not-allowed opacity-60'
-              }`}
-            >
-              <span>Self Pay (QR/UPI)</span>
-              <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-            </motion.button>
-          </div>
+                }}
+                style={{
+                  backgroundColor: currentTheme.colors.buttonBg,
+                  color: currentTheme.colors.buttonFg,
+                  boxShadow: currentTheme.colors.buttonShadow,
+                }}
+                className="flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition hover:brightness-105 cursor-pointer shadow-md"
+              >
+                <span>Self Pay (QR/UPI)</span>
+                <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+              </motion.button>
+            </div>
+          )}
         </div>
       </StickyBottomBar>
 

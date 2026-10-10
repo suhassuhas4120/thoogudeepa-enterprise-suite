@@ -42,6 +42,56 @@ export async function POST(req: NextRequest) {
 
     // Chair Device Concurrency & Ownership Protection
     if (source === 'CUSTOMER') {
+      // 1. Strict Cross-Chair/Table Guard: Do not allow customer to place order on a different chair/table if they have an active unpaid order
+      if (deviceToken) {
+        const { data: activeUnpaidOrders } = await supabase
+          .from('orders')
+          .select('id, table_number, seat_number, total, total_amount')
+          .eq('device_token', deviceToken)
+          .eq('status', 'UNPAID')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (activeUnpaidOrders && activeUnpaidOrders.length > 0) {
+          const activeOrd = activeUnpaidOrders[0];
+          const isSameTable = activeOrd.table_number.toUpperCase() === tableNumber.toUpperCase();
+          const isSameSeat = Number(activeOrd.seat_number) === Number(seatNumber);
+
+          if (!isSameTable || !isSameSeat) {
+            // Verify if the active order's chair is still occupied in the dining room
+            const { data: seatCheck } = await supabase
+              .from('table_seats')
+              .select('status, active_order_id, device_token')
+              .eq('table_number', activeOrd.table_number)
+              .eq('seat_number', activeOrd.seat_number)
+              .maybeSingle();
+
+            const isSeatStillOccupied = Boolean(
+              seatCheck &&
+              seatCheck.status === 'OCCUPIED' &&
+              (seatCheck.active_order_id || seatCheck.device_token === deviceToken)
+            );
+
+            if (isSeatStillOccupied) {
+              return NextResponse.json(
+                {
+                  error: 'ACTIVE_ORDER_PENDING',
+                  message: `You already have an active dining order at Table ${activeOrd.table_number} Chair ${activeOrd.seat_number}. Please settle your pending bill before placing orders on another chair.`,
+                  existingOrder: {
+                    id: activeOrd.id,
+                    tableNumber: activeOrd.table_number,
+                    seatNumber: activeOrd.seat_number,
+                    total: Number(activeOrd.total || activeOrd.total_amount || 0),
+                  },
+                },
+                { status: 403 }
+              );
+            }
+          }
+        }
+      }
+
+      // 2. Prevent taking over an already-occupied chair
       const { data: currentSeat } = await supabase
         .from('table_seats')
         .select('*')

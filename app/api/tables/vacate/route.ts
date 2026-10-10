@@ -45,6 +45,14 @@ export async function POST(req: NextRequest) {
         .eq('table_number', tableNumber)
         .eq('seat_number', seatNumber);
 
+      // 1b. Mark any active unpaid orders for this chair as PAID so subsequent scans treat customer as new user
+      await supabase
+        .from('orders')
+        .update({ status: 'PAID', updated_at: now })
+        .eq('table_number', tableNumber)
+        .eq('seat_number', seatNumber)
+        .eq('status', 'UNPAID');
+
       // 2. Fetch and filter active KDS tickets
       const { data: activeTickets } = await supabase
         .from('kds_tickets')
@@ -171,6 +179,13 @@ export async function POST(req: NextRequest) {
         updated_at: now,
       })
       .eq('table_number', tableNumber);
+
+    // 3b. Mark any active unpaid orders for this table as PAID so subsequent scans treat all chairs as fresh new users
+    await supabase
+      .from('orders')
+      .update({ status: 'PAID', updated_at: now })
+      .eq('table_number', tableNumber)
+      .eq('status', 'UNPAID');
 
     // 4. Archive all tickets for this table as COMPLETED
     await supabase

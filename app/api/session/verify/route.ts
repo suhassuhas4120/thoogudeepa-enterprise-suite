@@ -95,8 +95,8 @@ async function handleVerifySession(
           .maybeSingle();
 
         // If the table or seat was already vacated or settled (e.g. waiter settled and vacated), the order is stale
-        const isTableVacant = !tblCheck || tblCheck.status === 'VACANT' || (tblCheck.current_bill === 0 && (!tblCheck.status || tblCheck.status === 'VACANT'));
-        const isSeatVacant = !seatCheck || seatCheck.status === 'VACANT' || (!seatCheck.active_order_id && seatCheck.device_token !== deviceToken);
+        const isTableVacant = !tblCheck || tblCheck.status === 'VACANT' || (Number(tblCheck.current_bill || 0) === 0);
+        const isSeatVacant = !seatCheck || seatCheck.status === 'VACANT' || !seatCheck.active_order_id || seatCheck.device_token !== deviceToken;
 
         if (isTableVacant || isSeatVacant) {
           // Auto-reconcile stale order so customer starts fresh without being prompted for dead session

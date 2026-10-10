@@ -265,7 +265,6 @@ function CustomerJourneyContent() {
       total: number;
     };
   } | null>(null);
-  const [isTransferring, setIsTransferring] = React.useState(false);
 
   const handleReturnToExistingSeat = () => {
     if (!crossSeatConflict) return;
@@ -273,39 +272,6 @@ function CustomerJourneyContent() {
     setCrossSeatConflict(null);
     if (typeof window !== 'undefined') {
       window.location.href = `/?table=${encodeURIComponent(tableNumber)}&seat=${seatNumber}`;
-    }
-  };
-
-  const handleTransferToCurrentSeat = async () => {
-    if (!crossSeatConflict) return;
-    setIsTransferring(true);
-    try {
-      const devToken = getOrCreateDeviceToken();
-      const res = await fetch('/api/session/transfer', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          deviceToken: devToken,
-          fromTable: crossSeatConflict.existingOrder.tableNumber,
-          fromSeat: crossSeatConflict.existingOrder.seatNumber,
-          toTable: crossSeatConflict.currentTable,
-          toSeat: crossSeatConflict.currentSeat,
-          orderId: crossSeatConflict.existingOrder.id,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        setCrossSeatConflict(null);
-        if (typeof window !== 'undefined') {
-          window.location.reload();
-        }
-      } else {
-        alert(data.error || 'Failed to transfer seat');
-      }
-    } catch {
-      alert('Network error transferring seat');
-    } finally {
-      setIsTransferring(false);
     }
   };
 
@@ -815,18 +781,6 @@ function CustomerJourneyContent() {
                 >
                   <ArrowRight className="h-4 w-4" />
                   <span>Return to My Order (Chair {crossSeatConflict.existingOrder.seatNumber})</span>
-                </button>
-
-                <button
-                  disabled={isTransferring}
-                  onClick={handleTransferToCurrentSeat}
-                  className="w-full py-3 px-4 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-300 hover:text-white font-bold text-xs flex items-center justify-center gap-2 transition disabled:opacity-50"
-                >
-                  {isTransferring ? (
-                    <span>Transferring Session...</span>
-                  ) : (
-                    <span>Move Order to Table {crossSeatConflict.currentTable} Chair {crossSeatConflict.currentSeat}</span>
-                  )}
                 </button>
               </div>
             </motion.div>

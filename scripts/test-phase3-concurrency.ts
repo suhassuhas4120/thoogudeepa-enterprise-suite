@@ -29,6 +29,11 @@ async function runPhase3Tests() {
   // Setup: Reset test table
   await db.from('tables').update({ status: 'VACANT', current_bill: 0 }).eq('number', testTable);
   await db.from('table_seats').update({ status: 'VACANT', active_order_id: null, device_token: null }).eq('table_number', testTable);
+  await fetch(`${BASE_URL}/api/settlement/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'CLEAR', tableNumber: testTable }),
+  });
 
   // ── TEST 1: Rapid Double-Tap Idempotency Test ──────────────────────────
   try {
@@ -99,6 +104,9 @@ async function runPhase3Tests() {
       }),
     });
     const initData1 = await initiateRes1.json();
+    if (!initiateRes1.ok) {
+      console.log('DEBUG init1 status:', initiateRes1.status, 'initData1:', initData1);
+    }
     assert(initiateRes1.ok && initData1.success === true, '6. Chair 1 successfully acquires settlement lock for table');
 
     // Chair 2 attempts to initiate settlement simultaneously
@@ -186,6 +194,11 @@ async function runPhase3Tests() {
   await db.from('orders').delete().eq('table_number', testTable);
   await db.from('table_seats').update({ status: 'VACANT', active_order_id: null, device_token: null }).eq('table_number', testTable);
   await db.from('tables').update({ status: 'VACANT', current_bill: 0 }).eq('number', testTable);
+  await fetch(`${BASE_URL}/api/settlement/session`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'CLEAR', tableNumber: testTable }),
+  });
 
   console.log(`\n=====================================================`);
   console.log(`     RESULTS: ${passed}/${total} TESTS PASSED (${Math.round((passed/total)*100)}%)`);

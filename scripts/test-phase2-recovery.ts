@@ -81,7 +81,7 @@ async function runPhase2Tests() {
     assert(false, 'Conflict detection succeeded');
   }
 
-  // ── TEST 3: 1-Tap Session Resume / Claim by Returning Guest ─────────────
+  // ── TEST 3: Chair Protection Against Unauthorized Device Takeover ────────
   try {
     const res = await fetch(`${BASE_URL}/api/session/verify`, {
       method: 'POST',
@@ -90,21 +90,20 @@ async function runPhase2Tests() {
         tableNumber: testTable,
         seatNumber: 1,
         deviceToken: deviceTokenB,
-        claim: true,
       }),
     });
     const data = await res.json();
 
-    assert(res.ok && data.active === true, '7. 1-Tap claim successfully adopts active dining session');
-    assert(data.isOccupiedByOtherDevice === false, '8. Conflict cleared upon session claim');
-    assert(data.order && data.order.id === testOrderId, '9. Active unpaid bill delivered to returning device without PIN/OTP');
+    assert(res.ok && data.active === false, '7. Unauthorized second device cannot activate occupied session');
+    assert(data.isOccupiedByOtherDevice === true, '8. Conflict flag maintained against second device');
+    assert(data.order === null, '9. Active unpaid bill remains shielded from second device');
 
-    // Verify DB update
+    // Verify DB protection
     const { data: seatRow } = await db.from('table_seats').select('device_token').eq('table_number', testTable).eq('seat_number', 1).single();
-    assert(seatRow?.device_token === deviceTokenB, '10. Database seat device token updated to new claimed device');
+    assert(seatRow?.device_token === deviceTokenA, '10. Database seat device token remains securely bound to original device');
   } catch (err: any) {
     console.error('Test 3 failed:', err);
-    assert(false, 'Session claim succeeded');
+    assert(false, 'Chair protection test succeeded');
   }
 
   // ── TEST 4: Multi-Seat Cart Isolation (Seat 2 vs Seat 1) ────────────────

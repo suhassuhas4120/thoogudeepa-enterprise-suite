@@ -30,8 +30,23 @@ export interface SettledBillSnapshot {
 }
 
 // In-memory active settlement storage on Next.js server instance
-export const activeSettlementSessions = new Map<string, ActiveSettlementSession>();
-export const settledBills = new Map<string, SettledBillSnapshot>();
+const globalSettlement = globalThis as unknown as {
+  activeSettlementSessions: Map<string, ActiveSettlementSession>;
+  settledBills: Map<string, SettledBillSnapshot>;
+  clearedSettlementAt: Map<string, number>;
+};
+
+export const activeSettlementSessions =
+  globalSettlement.activeSettlementSessions ??
+  (globalSettlement.activeSettlementSessions = new Map<string, ActiveSettlementSession>());
+
+export const settledBills =
+  globalSettlement.settledBills ??
+  (globalSettlement.settledBills = new Map<string, SettledBillSnapshot>());
+
+export const clearedSettlementAt =
+  globalSettlement.clearedSettlementAt ??
+  (globalSettlement.clearedSettlementAt = new Map<string, number>());
 
 export const normalizeTable = (tbl: string) => {
   const clean = (tbl || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
@@ -47,6 +62,10 @@ export function clearSettledBillInMemory(tableNumber: string, seatNumber?: numbe
     const tblBill = settledBills.get(normTable);
     if (tblBill && (!tblBill.seatNumber || tblBill.seatNumber === seatNumber)) {
       settledBills.delete(normTable);
+    }
+    const tblSession = activeSettlementSessions.get(normTable);
+    if (tblSession && (!tblSession.seatNumber || tblSession.seatNumber === seatNumber)) {
+      activeSettlementSessions.delete(normTable);
     }
   } else {
     settledBills.delete(normTable);

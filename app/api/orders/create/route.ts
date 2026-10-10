@@ -4,7 +4,12 @@ import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
 
-const inFlightOrderLocks = new Map<string, Promise<any>>();
+const globalForOrders = globalThis as unknown as {
+  inFlightOrderLocks: Map<string, Promise<any>>;
+};
+const inFlightOrderLocks =
+  globalForOrders.inFlightOrderLocks ??
+  (globalForOrders.inFlightOrderLocks = new Map<string, Promise<any>>());
 
 export async function POST(req: NextRequest) {
   try {

@@ -18,9 +18,8 @@ export async function POST(req: NextRequest) {
     const table = (body.table || body.tableNumber || '').toUpperCase();
     const seat = parseInt(body.seat || body.seatNumber || '1', 10);
     const deviceToken = body.deviceToken || null;
-    const claimSession = Boolean(body.claim || body.claimSession);
 
-    return handleVerifySession(table, seat, deviceToken, claimSession);
+    return handleVerifySession(table, seat, deviceToken);
   } catch {
     return NextResponse.json({ error: 'Invalid JSON request payload' }, { status: 400 });
   }
@@ -29,8 +28,7 @@ export async function POST(req: NextRequest) {
 async function handleVerifySession(
   tableNumber: string,
   seatNumber: number,
-  deviceToken: string | null,
-  claimSession = false
+  deviceToken: string | null
 ) {
   if (!tableNumber) {
     return NextResponse.json({ error: 'Table number is required' }, { status: 400 });
@@ -59,19 +57,6 @@ async function handleVerifySession(
       });
     }
 
-    // If customer requests 1-tap session claim, bind deviceToken to seat
-    if (claimSession && deviceToken) {
-      await supabase
-        .from('table_seats')
-        .update({
-          device_token: deviceToken,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('table_number', tableNumber)
-        .eq('seat_number', seatNumber);
-
-      seatData.device_token = deviceToken;
-    }
 
     const isOccupiedByOther = Boolean(
       seatData &&

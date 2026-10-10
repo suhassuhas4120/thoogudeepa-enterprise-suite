@@ -3,6 +3,7 @@ import { supabase, broadcastStateChange } from '../../../../lib/supabase';
 import {
   activeSettlementSessions,
   settledBills,
+  clearedSettlementAt,
   normalizeTable,
   ActiveSettlementSession,
   SettledBillSnapshot,
@@ -44,6 +45,10 @@ export async function GET(req: NextRequest) {
           const parsed = JSON.parse(row.message);
           const normTable = normalizeTable(row.table_number);
           if (row.type === 'SETTLEMENT_SESSION') {
+            const lastCleared = clearedSettlementAt.get(normTable);
+            if (lastCleared && Date.now() - lastCleared < 20000) {
+              continue;
+            }
             if (parsed.initiatedAt && Math.abs(now - parsed.initiatedAt) < 1800000) {
               sessionsObj[normTable] = parsed;
               if (typeof parsed.seatNumber === 'number') {
@@ -124,6 +129,7 @@ export async function POST(req: NextRequest) {
         initiatedAt: session.initiatedAt || Date.now(),
       };
 
+      clearedSettlementAt.delete(normTable);
       // Pessimistic settlement lock: Check if another seat or table-wide settlement is active within 3 minutes
       const existingSession = activeSettlementSessions.get(normTable);
       if (
@@ -175,6 +181,7 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(tableNumber);
+      clearedSettlementAt.set(normTable, Date.now());
       activeSettlementSessions.delete(normTable);
       if (typeof seatNumber === 'number') {
         activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
@@ -187,7 +194,12 @@ export async function POST(req: NextRequest) {
         await supabase
           .from('pings')
           .delete()
-          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`);
+          .in('id', [sessId, `SETTLE-SESSION-${normTable}`]);
+        await supabase
+          .from('pings')
+          .delete()
+          .eq('table_number', normTable)
+          .eq('type', 'SETTLEMENT_SESSION');
       } catch {}
 
       return NextResponse.json({ success: true });

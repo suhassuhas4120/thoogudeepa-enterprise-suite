@@ -1552,12 +1552,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         tables: state.tables.map((t) => {
           if (!groupNums.has(t.number) && cleanNum(t.number) !== targetNum) return t;
           if (isChairSettle) {
-            // Reduce currentBill by the chair's settled amount only; keep OCCUPIED
-            const newBill = Math.max(0, (t.currentBill || 0) - amount);
+            // Recompute currentBill strictly as raw subtotal of remaining activeItems
             const remainingActiveItems = (t.activeItems || []).filter(
               (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
             );
-            return { ...t, currentBill: newBill, activeItems: remainingActiveItems };
+            const remainingSubtotal = remainingActiveItems.reduce(
+              (s, ai) => s + (ai.price || 0) * (ai.quantity || 1),
+              0
+            );
+            return { ...t, currentBill: remainingSubtotal, activeItems: remainingActiveItems };
           }
           return { ...t, status: 'BILLING' };
         }),
@@ -1734,7 +1737,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           ? remainingTicketItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0)
           : remainingActiveItems.reduce((s, ai) => s + (ai.price || 0) * (ai.quantity || 1), 0);
 
-        const newBill = Math.round(remainingTotal * 1.05);
+        const newBill = remainingTotal;
         const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
         const activeKotCount = newTickets.filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED').length;
 
@@ -1752,7 +1755,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const nextBills = { ...state.settledBills };
       const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
       delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
-      delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+      // Keep chair settled bill snapshot so the customer receives and views their receipt
 
       const tblRemaining = newTables.find((t) => cleanNum(t.number) === targetNum);
       if (!tblRemaining || tblRemaining.currentBill === 0 || tblRemaining.status === 'VACANT') {
@@ -1874,9 +1877,6 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         }
       } else {
         nextSessions[normTable] = session;
-        for (let s = 1; s <= 6; s++) {
-          nextSessions[`${normTable}-CHAIR-${s}`] = session;
-        }
       }
       return { activeSettlementSessions: nextSessions };
     });

@@ -161,29 +161,13 @@ export const Screen5LiveTracking: React.FC = () => {
 
     const tableCandidate = sessions[normTable];
     if (isValid(tableCandidate)) {
-      if (typeof tableCandidate.seatNumber === 'number') {
-        if (Number(tableCandidate.seatNumber) === effectiveSeat) {
-          return tableCandidate;
-        }
-      } else {
+      if (typeof tableCandidate.seatNumber === 'number' && Number(tableCandidate.seatNumber) === effectiveSeat) {
         return tableCandidate;
       }
     }
 
-    for (const [, sess] of Object.entries(sessions)) {
-      if (!isValid(sess)) continue;
-      if (isTableMatch(sess.tableNumber, effectiveTable)) {
-        if (typeof sess.seatNumber === 'number') {
-          if (Number(sess.seatNumber) === effectiveSeat) {
-            return sess;
-          }
-        } else if (!sess.seatNumber) {
-          return sess;
-        }
-      }
-    }
     return null;
-  }, [activeSettlementSessions, chairKey, normTable, effectiveTable, effectiveSeat]);
+  }, [activeSettlementSessions, chairKey, normTable, effectiveSeat]);
 
   const isCaptainArrived = Boolean(activeSession);
 
@@ -384,7 +368,7 @@ export const Screen5LiveTracking: React.FC = () => {
     };
   }, [effectiveTable]);
 
-  // Total payable amount
+  // Total payable amount strictly scoped to this chair
   const currentBillAmount = useMemo(() => {
     if (activeSession?.grandTotal && activeSession.grandTotal > 0) {
       if (typeof activeSession.seatNumber !== 'number' || Number(activeSession.seatNumber) === effectiveSeat) {
@@ -399,14 +383,11 @@ export const Screen5LiveTracking: React.FC = () => {
         return Math.round(chairSub * 1.05);
       }
     }
-    const cartSub = cart.reduce((sum, it) => sum + it.totalPrice, 0);
+    const cartSub = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat).reduce((sum, it) => sum + it.totalPrice, 0);
     if (cartSub > 0) {
       return Math.round(cartSub * 1.05);
     }
-    if (currentTableObj?.currentBill && currentTableObj.currentBill > 0) {
-      return currentTableObj.currentBill;
-    }
-    return Math.round(cartSub * 1.05);
+    return 0;
   }, [activeSession, tables, effectiveTable, effectiveSeat, cart]);
 
   // Setup camera stream when QR scanner opens

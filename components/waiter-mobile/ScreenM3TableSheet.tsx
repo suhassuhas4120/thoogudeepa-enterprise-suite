@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   ArrowLeft,
   X,
@@ -377,20 +377,55 @@ export function ScreenM3TableSheet({
     };
   };
 
-  // Check if any items are ready to serve
-  const readyOrderedItems = allTableOrderedItems.filter((i) => i.stage === 'Ready');
-  const hasReadyFood = readyOrderedItems.length > 0 || (table.activeItems || []).some((it) => it.status === 'Ready');
+  // Check if any items are ready to serve scoped strictly to current selection
+  const readyOrderedItems = useMemo(() => {
+    if (typeof selectedSeat === 'number') {
+      const chairReady = allTableOrderedItems.filter((i) => i.stage === 'Ready' && i.seatNumber === selectedSeat);
+      if (chairReady.length > 0) return chairReady;
+      return allTableOrderedItems.filter((i) => i.stage === 'Ready' && !i.seatNumber);
+    }
+    if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+      const groupSeats = mergedSeatGroups[selectedSeat];
+      const groupReady = allTableOrderedItems.filter((i) => i.stage === 'Ready' && i.seatNumber && groupSeats.includes(i.seatNumber));
+      if (groupReady.length > 0) return groupReady;
+      return allTableOrderedItems.filter((i) => i.stage === 'Ready' && !i.seatNumber);
+    }
+    return allTableOrderedItems.filter((i) => i.stage === 'Ready');
+  }, [allTableOrderedItems, selectedSeat, mergedSeatGroups]);
+
+  const readyDirectTableItems = useMemo(() => {
+    const active = table.activeItems || [];
+    if (typeof selectedSeat === 'number') {
+      const chairReady = active.filter((it) => it.status === 'Ready' && it.seatNumber === selectedSeat);
+      if (chairReady.length > 0) return chairReady;
+      return active.filter((it) => it.status === 'Ready' && !it.seatNumber);
+    }
+    if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+      const groupSeats = mergedSeatGroups[selectedSeat];
+      const groupReady = active.filter((it) => it.status === 'Ready' && it.seatNumber && groupSeats.includes(it.seatNumber));
+      if (groupReady.length > 0) return groupReady;
+      return active.filter((it) => it.status === 'Ready' && !it.seatNumber);
+    }
+    return active.filter((it) => it.status === 'Ready');
+  }, [table.activeItems, selectedSeat, mergedSeatGroups]);
+
+  const hasReadyFood = readyOrderedItems.length > 0 || readyDirectTableItems.length > 0;
 
   const handleServeReadyFood = () => {
     readyOrderedItems.forEach((it) => {
       waiterMarkKitchenItemServed(it.ticketId, it.id);
     });
-    (table.activeItems || []).forEach((ai) => {
-      if (ai.status === 'Ready' && ai.id) {
+    readyDirectTableItems.forEach((ai) => {
+      if (ai.id) {
         waiterMarkKitchenItemServed('tbl-direct', ai.id);
       }
     });
-    setNotice('✓ Ready dishes marked as served to table');
+    const scopeLabel = typeof selectedSeat === 'number'
+      ? `Chair ${selectedSeat}`
+      : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
+      ? 'Selected Group'
+      : 'Table';
+    setNotice(`✓ Ready dishes marked as served for ${scopeLabel}`);
     setTimeout(() => setNotice(null), 2000);
   };
 
@@ -402,12 +437,20 @@ export function ScreenM3TableSheet({
   let currentSelectionSettleReason = '';
 
   if (selectedSeat === 'ALL') {
-    isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems;
-    currentSelectionSettleReason = !hasTableOrders
-      ? 'No orders placed'
-      : hasUnservedTableItems
-      ? 'Serve all table items to settle'
-      : '';
+    const activeChairsWithOrders = Array.from(
+      new Set(allTableOrderedItems.map((i) => i.seatNumber).filter((s): s is number => typeof s === 'number'))
+    );
+    if (activeChairsWithOrders.length > 1) {
+      isCurrentSelectionSettleDisabled = true;
+      currentSelectionSettleReason = 'Select an individual chair tab above to settle its bill';
+    } else {
+      isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems;
+      currentSelectionSettleReason = !hasTableOrders
+        ? 'No orders placed'
+        : hasUnservedTableItems
+        ? 'Serve all table items to settle'
+        : '';
+    }
   } else if (typeof selectedSeat === 'number') {
     const chairDirectItems = allTableOrderedItems.filter((i) => i.seatNumber === selectedSeat);
     const tableSharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
@@ -1402,7 +1445,13 @@ export function ScreenM3TableSheet({
               }`}
             >
               <Utensils className="h-4 w-4" />
-              <span>Serve Food</span>
+              <span>
+                {typeof selectedSeat === 'number'
+                  ? `Serve Chair ${selectedSeat}`
+                  : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
+                  ? 'Serve Group'
+                  : 'Serve Food'}
+              </span>
             </button>
           </div>
         </div>
@@ -1490,7 +1539,15 @@ export function ScreenM3TableSheet({
                 const bd = getChairBillBreakdown(selectedSeat);
                 onGoToSettle(Math.round(bd.totalDue), `Chairs ${mergedSeatGroups[selectedSeat].join(' & ')}`);
               } else {
-                onGoToSettle();
+                const activeChairs = Array.from(
+                  new Set(allTableOrderedItems.map((i) => i.seatNumber).filter((s): s is number => typeof s === 'number'))
+                );
+                if (activeChairs.length === 1) {
+                  const bd = getChairBillBreakdown(activeChairs[0]);
+                  onGoToSettle(Math.round(bd.totalDue), `Chair ${activeChairs[0]}`);
+                } else {
+                  onGoToSettle();
+                }
               }
             }}
             title={currentSelectionSettleReason || 'Proceed to payment settlement'}
@@ -1501,7 +1558,13 @@ export function ScreenM3TableSheet({
             }`}
           >
             <CreditCard className="h-4 w-4" />
-            <span>{isCurrentSelectionSettleDisabled && hasTableOrders ? 'Serve to Settle' : 'Settle'}</span>
+            <span>
+              {isCurrentSelectionSettleDisabled && hasTableOrders
+                ? currentSelectionSettleReason.startsWith('Select an individual')
+                  ? 'Select Chair'
+                  : 'Serve to Settle'
+                : 'Settle'}
+            </span>
           </motion.button>
         </div>
       </footer>

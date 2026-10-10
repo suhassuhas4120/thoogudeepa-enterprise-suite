@@ -220,8 +220,7 @@ export function ScreenM6Settlement({
   // When settling a specific chair, show that chair's items
   const displayedItems = useMemo(() => {
     if (splitSeatNumber !== null) {
-      const chairItems = allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
-      return chairItems.length > 0 ? chairItems : allOrderedItems.filter((it) => !it.seatNumber);
+      return allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
     }
     return allOrderedItems;
   }, [allOrderedItems, splitSeatNumber]);
@@ -256,17 +255,20 @@ export function ScreenM6Settlement({
       };
     }
 
-    const tableBill = table?.currentBill || 0;
-    if (tableBill > 0) {
-      const calcSub = Math.round(tableBill / 1.05);
-      const calcTax = tableBill - calcSub;
-      return {
-        subtotal: calcSub,
-        totalTax: calcTax,
-        grandTotal: tableBill,
-        cgst: calcTax / 2,
-        sgst: calcTax / 2,
-      };
+    // Only fall back to whole table bill when this is a full-table settlement
+    if (splitSeatNumber === null) {
+      const tableBill = table?.currentBill || 0;
+      if (tableBill > 0) {
+        const calcSub = Math.round(tableBill / 1.05);
+        const calcTax = tableBill - calcSub;
+        return {
+          subtotal: calcSub,
+          totalTax: calcTax,
+          grandTotal: tableBill,
+          cgst: calcTax / 2,
+          sgst: calcTax / 2,
+        };
+      }
     }
 
     return {
@@ -276,7 +278,7 @@ export function ScreenM6Settlement({
       cgst: 0,
       sgst: 0,
     };
-  }, [splitAmount, displayedItemsSum, table?.currentBill]);
+  }, [splitAmount, displayedItemsSum, table?.currentBill, splitSeatNumber]);
 
   const hasUnservedDishes =
     displayedItems.length > 0 &&

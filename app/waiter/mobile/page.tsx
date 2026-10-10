@@ -21,7 +21,7 @@ type ActiveView =
   | { type: 'SETTLE'; tableNum: string; splitAmount?: number; splitLabel?: string };
 
 export default function WaiterMobilePage() {
-  const { pings, kdsTickets } = useSharedBridge();
+  const { pings, kdsTickets, tables } = useSharedBridge();
 
   // Persist session across page reloads without kicking waiter back to login
   const [loggedIn, setLoggedIn] = useState(() => {
@@ -497,13 +497,28 @@ export default function WaiterMobilePage() {
           <ScreenM5Dispatch
             mode="CALLS"
             onNavigateToTable={(num) => navigateView({ type: 'SHEET', tableNum: num, initialSeat: 'ALL' })}
-            onSettleTable={(num, chair) =>
+            onSettleTable={(num, chair) => {
+              let chairDue: number | undefined;
+              if (typeof chair === 'number') {
+                const cleanTarget = num.replace(/^(TABLE\s*|T-?)/i, '').trim();
+                const tbl = (tables || []).find((t) => (t.number || '').replace(/^(TABLE\s*|T-?)/i, '').trim() === cleanTarget);
+                const tks = (kdsTickets || []).filter((tk) => (tk.tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim() === cleanTarget && tk.status !== 'COMPLETED');
+                const chairItems = [
+                  ...tks.flatMap((tk) => tk.items.filter((it) => (it.seatNumber ?? tk.seatNumber) === chair)),
+                  ...(tbl?.activeItems || []).filter((ai) => ai.seatNumber === chair),
+                ];
+                if (chairItems.length > 0) {
+                  const sub = chairItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0);
+                  chairDue = Math.round(sub * 1.05);
+                }
+              }
               navigateView({
                 type: 'SETTLE',
                 tableNum: num,
                 splitLabel: chair ? `Chair ${chair}` : undefined,
-              })
-            }
+                splitAmount: chairDue,
+              });
+            }}
           />
         )}
 

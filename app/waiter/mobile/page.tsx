@@ -23,10 +23,70 @@ type ActiveView =
 export default function WaiterMobilePage() {
   const { pings, kdsTickets } = useSharedBridge();
 
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [waiterName, setWaiterName] = useState('');
-  const [mainTab, setMainTab] = useState<MainTab>('TABLES');
-  const [view, setView] = useState<ActiveView>({ type: 'FLOOR' });
+  // Persist session across page reloads without kicking waiter back to login
+  const [loggedIn, setLoggedIn] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
+        return Boolean(saved && JSON.parse(saved)?.waiterName);
+      } catch {
+        return false;
+      }
+    }
+    return false;
+  });
+
+  const [waiterName, setWaiterName] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
+        return saved ? (JSON.parse(saved)?.waiterName || '') : '';
+      } catch {
+        return '';
+      }
+    }
+    return '';
+  });
+
+  const [assignedSection, setAssignedSection] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
+        return saved ? (JSON.parse(saved)?.assignedSection || 'ALL') : 'ALL';
+      } catch {
+        return 'ALL';
+      }
+    }
+    return 'ALL';
+  });
+
+  const [mainTab, setMainTab] = useState<MainTab>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTab = sessionStorage.getItem('thoogudeepa_waiter_tab');
+        if (savedTab === 'TABLES' || savedTab === 'CALLS' || savedTab === 'READY') {
+          return savedTab as MainTab;
+        }
+      } catch {}
+    }
+    return 'TABLES';
+  });
+
+  const [view, setView] = useState<ActiveView>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedView = sessionStorage.getItem('thoogudeepa_waiter_view');
+        if (savedView) {
+          const parsed = JSON.parse(savedView);
+          if (parsed && typeof parsed === 'object' && parsed.type) {
+            return parsed as ActiveView;
+          }
+        }
+      } catch {}
+    }
+    return { type: 'FLOOR' };
+  });
+
   const [toast, setToast] = useState<string | null>(null);
 
   // Synchronize SPA navigation with native browser/device history & gesture navigation
@@ -34,6 +94,7 @@ export default function WaiterMobilePage() {
     setView(nextView);
     if (typeof window !== 'undefined') {
       try {
+        sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify(nextView));
         if (replace) {
           window.history.replaceState({ view: nextView }, '');
         } else {
@@ -43,38 +104,56 @@ export default function WaiterMobilePage() {
     }
   };
 
+  const changeMainTab = (tab: MainTab) => {
+    setMainTab(tab);
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.setItem('thoogudeepa_waiter_tab', tab);
+      } catch {}
+    }
+  };
+
   const goBack = () => {
-    if (typeof window !== 'undefined' && window.history.state?.view && window.history.state.view.type !== 'FLOOR') {
-      window.history.back();
-    } else {
-      if (view.type === 'ORDER') {
-        navigateView({ type: 'SHEET', tableNum: view.tableNum, initialSeat: view.seatNum });
-      } else if (view.type === 'SETTLE') {
-        navigateView({ type: 'SHEET', tableNum: view.tableNum });
-      } else {
-        navigateView({ type: 'FLOOR' });
+    if (typeof window !== 'undefined') {
+      if (window.history.state?.view && window.history.state.view.type !== 'FLOOR') {
+        window.history.back();
+        return;
       }
+    }
+    if (view.type === 'ORDER') {
+      navigateView({ type: 'SHEET', tableNum: view.tableNum, initialSeat: view.seatNum });
+    } else if (view.type === 'SETTLE') {
+      navigateView({ type: 'SHEET', tableNum: view.tableNum });
+    } else {
+      navigateView({ type: 'FLOOR' });
     }
   };
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
+      // Ensure history stack is populated without blowing away restored view
       if (!window.history.state?.view) {
-        window.history.replaceState({ view: { type: 'FLOOR' } }, '');
+        window.history.replaceState({ view }, '');
       }
 
       const handlePopState = (e: PopStateEvent) => {
         if (e.state && e.state.view) {
           setView(e.state.view);
+          try {
+            sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify(e.state.view));
+          } catch {}
         } else {
           setView({ type: 'FLOOR' });
+          try {
+            sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify({ type: 'FLOOR' }));
+          } catch {}
         }
       };
 
       window.addEventListener('popstate', handlePopState);
       return () => window.removeEventListener('popstate', handlePopState);
     }
-  }, []);
+  }, [view]);
 
   const activePings = pings.filter((p) => p.status === 'PENDING');
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
@@ -112,20 +191,37 @@ export default function WaiterMobilePage() {
     prevPingCountRef.current = activePings.length;
   }, [activePings.length]);
 
-  const [assignedSection, setAssignedSection] = useState('ALL');
-
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2200);
   };
 
   const handleLogin = (name: string, section?: string) => {
+    const sec = section || 'ALL';
     setWaiterName(name);
-    if (section) setAssignedSection(section);
+    setAssignedSection(sec);
     try {
+      sessionStorage.setItem('thoogudeepa_waiter_session', JSON.stringify({ waiterName: name, assignedSection: sec }));
+      sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify({ type: 'FLOOR' }));
+      sessionStorage.setItem('thoogudeepa_waiter_tab', 'TABLES');
       useWaiterStore.getState().setActiveCaptain(name);
     } catch {}
     setLoggedIn(true);
+    setMainTab('TABLES');
+    setView({ type: 'FLOOR' });
+  };
+
+  const handleLogout = () => {
+    try {
+      sessionStorage.removeItem('thoogudeepa_waiter_session');
+      sessionStorage.removeItem('thoogudeepa_waiter_view');
+      sessionStorage.removeItem('thoogudeepa_waiter_tab');
+    } catch {}
+    setLoggedIn(false);
+    setWaiterName('');
+    setAssignedSection('ALL');
+    setMainTab('TABLES');
+    navigateView({ type: 'FLOOR' }, true);
   };
 
   // ── Not logged in ─────────────────────────────────────────────────────────
@@ -323,7 +419,7 @@ export default function WaiterMobilePage() {
 
           <div className="flex items-center gap-1 font-mono text-[10px] font-bold">
             <button
-              onClick={() => { setLoggedIn(false); setWaiterName(''); setAssignedSection('ALL'); navigateView({ type: 'FLOOR' }, true); }}
+              onClick={handleLogout}
               className="p-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl text-rose-700 transition flex items-center gap-1 active:scale-95 shadow-2xs"
               title="Sign out"
             >
@@ -336,7 +432,7 @@ export default function WaiterMobilePage() {
         <nav className="bg-white border-b border-[#EAE5DF] grid grid-cols-3 text-center font-mono text-[13px] font-black shadow-2xs">
           <button
             type="button"
-            onClick={() => { setMainTab('TABLES'); navigateView({ type: 'FLOOR' }, true); }}
+            onClick={() => { changeMainTab('TABLES'); navigateView({ type: 'FLOOR' }, true); }}
             className={`py-3.5 border-b-2 transition flex items-center justify-center gap-2 ${
               mainTab === 'TABLES'
                 ? 'border-[#9C3D1E] text-[#9C3D1E] bg-[#FFF8F5]'
@@ -349,7 +445,7 @@ export default function WaiterMobilePage() {
 
           <button
             type="button"
-            onClick={() => setMainTab('CALLS')}
+            onClick={() => changeMainTab('CALLS')}
             className={`py-3.5 border-b-2 transition flex items-center justify-center gap-2 relative ${
               mainTab === 'CALLS'
                 ? 'border-orange-600 text-orange-700 bg-orange-50/50'
@@ -367,7 +463,7 @@ export default function WaiterMobilePage() {
 
           <button
             type="button"
-            onClick={() => setMainTab('READY')}
+            onClick={() => changeMainTab('READY')}
             className={`py-3.5 border-b-2 transition flex items-center justify-center gap-2 relative ${
               mainTab === 'READY'
                 ? 'border-blue-600 text-blue-700 bg-blue-50/50'

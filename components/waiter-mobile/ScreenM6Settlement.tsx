@@ -118,7 +118,7 @@ export function ScreenM6Settlement({
   const [settledSnapshot, setSettledSnapshot] = useState<SettledBillSnapshot | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrZoomed, setQrZoomed] = useState(false);
-  const [isUpiVerified, setIsUpiVerified] = useState(false);
+  const [isUpiVerified, setIsUpiVerified] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showOrderSummary, setShowOrderSummary] = useState(true);
 

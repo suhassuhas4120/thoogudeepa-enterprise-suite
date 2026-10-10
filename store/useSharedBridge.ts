@@ -1852,6 +1852,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       nextSessions[normTable] = session;
       if (typeof seatNumber === 'number') {
         nextSessions[`${normTable}-CHAIR-${seatNumber}`] = session;
+      } else {
+        for (let s = 1; s <= 6; s++) {
+          nextSessions[`${normTable}-CHAIR-${s}`] = session;
+        }
       }
       return { activeSettlementSessions: nextSessions };
     });
@@ -2176,6 +2180,30 @@ if (typeof window !== 'undefined') {
                   )
               ),
             }));
+          } else if (reason === 'settlementSessionStarted' && payload) {
+            const sess = payload;
+            useSharedBridge.setState((state) => {
+              const nextSessions = { ...state.activeSettlementSessions };
+              nextSessions[sess.tableNumber] = sess;
+              if (typeof sess.seatNumber === 'number') {
+                nextSessions[`${sess.tableNumber}-CHAIR-${sess.seatNumber}`] = sess;
+              } else {
+                for (let s = 1; s <= 6; s++) {
+                  nextSessions[`${sess.tableNumber}-CHAIR-${s}`] = sess;
+                }
+              }
+              return { activeSettlementSessions: nextSessions };
+            });
+          } else if (reason === 'settlementSessionEnded' && payload?.tableNumber) {
+            const normTable = payload.tableNumber;
+            useSharedBridge.setState((state) => {
+              const nextSessions = { ...state.activeSettlementSessions };
+              delete nextSessions[normTable];
+              for (let s = 1; s <= 6; s++) {
+                delete nextSessions[`${normTable}-CHAIR-${s}`];
+              }
+              return { activeSettlementSessions: nextSessions };
+            });
           }
         })
         .subscribe();

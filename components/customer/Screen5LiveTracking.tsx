@@ -153,14 +153,17 @@ export const Screen5LiveTracking: React.FC = () => {
     const isValid = (sess: any) => sess && (!sess.initiatedAt || Math.abs(now - sess.initiatedAt) < 1800000);
 
     if (isValid(sessions[chairKey])) return sessions[chairKey];
+    if (isValid(sessions[normTable])) return sessions[normTable];
     for (const [, sess] of Object.entries(sessions)) {
       if (!isValid(sess)) continue;
-      if (isTableMatch(sess.tableNumber, effectiveTable) && Number(sess.seatNumber) === effectiveSeat) {
-        return sess;
+      if (isTableMatch(sess.tableNumber, effectiveTable)) {
+        if (typeof sess.seatNumber !== 'number' || Number(sess.seatNumber) === effectiveSeat) {
+          return sess;
+        }
       }
     }
     return null;
-  }, [activeSettlementSessions, chairKey, effectiveTable, effectiveSeat]);
+  }, [activeSettlementSessions, chairKey, normTable, effectiveTable, effectiveSeat]);
 
   const isCaptainArrived = Boolean(activeSession);
 

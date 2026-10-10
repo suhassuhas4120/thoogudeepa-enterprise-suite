@@ -42,7 +42,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
     const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
 
-    const matchingSnapshot = settledBills[chairKey];
+    const matchingSnapshot = settledBills[chairKey] || settledBills[normTable];
     if (matchingSnapshot && matchingSnapshot.timestamp) {
       const seatNum = typeof matchingSnapshot.seatNumber === 'number'
         ? matchingSnapshot.seatNumber
@@ -50,7 +50,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
       const now = Date.now();
       const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
       const isAfterOrder = matchingSnapshot.timestamp > orderPlacedAt + 500;
-      if (seatNum === effectiveSeat && isRecent && isAfterOrder) {
+      if ((typeof seatNum !== 'number' || seatNum === effectiveSeat) && isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }

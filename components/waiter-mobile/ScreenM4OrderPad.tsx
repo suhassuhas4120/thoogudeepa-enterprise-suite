@@ -48,12 +48,33 @@ export function ScreenM4OrderPad({
 }: Props) {
   const { waiterFiresKOT, tables, inventory86, waiterSeatsGuests } = useSharedBridge();
 
+  const draftKey = `thoogudeepa_order_pad_draft_${tableNum}_${seatNum ?? 'all'}`;
+
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [toastNotice, setToastNotice] = useState<string | null>(null);
-  const [cart, setCart] = useState<OrderPadItem[]>([]);
+  const [cart, setCart] = useState<OrderPadItem[]>(() => {
+    if (typeof window === 'undefined') return [];
+    try {
+      const saved = sessionStorage.getItem(`thoogudeepa_order_pad_draft_${tableNum}_${seatNum ?? 'all'}`);
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
   const [kotFired, setKotFired] = useState(false);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+
+  // Auto-save cart to sessionStorage to prevent data loss on refresh
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      if (cart.length > 0) {
+        sessionStorage.setItem(draftKey, JSON.stringify(cart));
+      } else {
+        sessionStorage.removeItem(draftKey);
+      }
+    } catch {}
+  }, [cart, draftKey]);
 
   // Quick Customize Bottom Sheet State
   const [drawerOpen, setDrawerOpen] = useState(false);

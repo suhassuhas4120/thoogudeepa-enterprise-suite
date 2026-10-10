@@ -18,7 +18,7 @@ import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
 import { ScreenId } from '../types/customer';
 import { getSyncBroadcastChannel } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
-import { Armchair, AlertCircle, Sparkles, RefreshCw, Check, ArrowRight } from 'lucide-react';
+import { Armchair, AlertCircle, Sparkles, RefreshCw, Check, ArrowRight, ShieldAlert, QrCode } from 'lucide-react';
 
 // Normalise a raw table param like "T-5", "T05", "5" → "T-05"
 function normTableId(raw: string): string {
@@ -49,8 +49,22 @@ function CustomerJourneyContent() {
     if (typeof window === 'undefined') return;
 
     const params = new URLSearchParams(window.location.search);
-    const tblParam = params.get('table') || params.get('t');
-    const seatParam = params.get('seat') || params.get('chair') || params.get('s');
+    let tblParam = params.get('table') || params.get('t');
+    let seatParam = params.get('seat') || params.get('chair') || params.get('s');
+    let sigParam = params.get('sig') || params.get('token');
+
+    // If query string is masked/empty, restore verified session from sessionStorage
+    let storedSession: any = null;
+    try {
+      const raw = sessionStorage.getItem('thoogudeepa_verified_session');
+      if (raw) storedSession = JSON.parse(raw);
+    } catch {}
+
+    if (!tblParam && storedSession?.table) {
+      tblParam = storedSession.table;
+      seatParam = String(storedSession.seat || 1);
+      sigParam = storedSession.sig;
+    }
 
     let cleanTable = 'T-01';
     let parsedSeat = 1;
@@ -92,9 +106,7 @@ function CustomerJourneyContent() {
     // Step 2: Restore a table+seat specific saved session only if:
     //   a) The bridge sync left the cart empty
     //   b) The saved payload belongs to THIS exact table AND seat
-    //   c) The saved session actually has placed orders (isOrdered items) —
-    //      meaning it's a mid-session restore, not a stale pre-order browsing state.
-    //      If no placed orders exist, the customer should just start fresh on Screen 1.
+    //   c) The saved session actually has placed orders (isOrdered items)
     try {
       const scopedKey = `thoogudeepa_customer_session_${cleanTable}_s${parsedSeat}`;
       const saved = localStorage.getItem(scopedKey);
@@ -108,18 +120,14 @@ function CustomerJourneyContent() {
         const tableMatches = savedTable === cleanTable && savedSeat === parsedSeat;
 
         if (!tableMatches) {
-          // Stale entry for a different table/seat — discard silently
           try { localStorage.removeItem(scopedKey); } catch {}
         } else if (tableMatches && curStore.cart.length === 0 && hasSavedCart) {
           if (parsed.isSettled || parsed.currentScreen === 8) {
-            // Already paid/settled in previous customer session — wipe so new customer starts fresh
             try { localStorage.removeItem(scopedKey); } catch {}
           } else {
-            // Check if there are any placed orders in the saved cart
             const hasPlacedOrders = parsed.cart.some((ci: { isOrdered?: boolean }) => ci.isOrdered === true);
 
             if (hasPlacedOrders) {
-              // Check bridge — verify if THIS specific chair has active orders in bridge
               const bridgeState = useSharedBridge.getState();
               const bridgeTbl = bridgeState.tables.find(
                 (t) => cleanTableNum(t.number) === cleanTableNum(cleanTable)
@@ -135,7 +143,6 @@ function CustomerJourneyContent() {
               const chairHasActiveOrdersInBridge = seatActiveItems.length > 0 || seatTickets.length > 0;
 
               if (chairHasActiveOrdersInBridge) {
-                // Restore the active mid-session
                 useCustomerStore.setState({
                   cart: parsed.cart,
                   currentScreen: parsed.currentScreen || 1,
@@ -146,11 +153,9 @@ function CustomerJourneyContent() {
                 });
                 hasPlacedOrderRef.current = true;
               } else {
-                // Chair was vacated or finished in kitchen/bridge — wipe stale session
                 try { localStorage.removeItem(scopedKey); } catch {}
               }
             } else {
-              // Only unplaced browsing state — don't restore; let them start fresh
               try { localStorage.removeItem(scopedKey); } catch {}
             }
           }
@@ -158,17 +163,42 @@ function CustomerJourneyContent() {
       }
     } catch {}
 
-    // Also track if there are already placed orders in the current store (restored from syncWithActiveSession)
     const storeAfterSync = useCustomerStore.getState();
     if (storeAfterSync.cart.some((ci) => ci.isOrdered)) {
       hasPlacedOrderRef.current = true;
     }
 
-    // Chair Device Lock Check: verify if this chair is already occupied by a different device
+    // Chair Device Lock & Cryptographic Anti-Tampering Check
     const devToken = getOrCreateDeviceToken();
-    fetch(`/api/session/verify?table=${encodeURIComponent(cleanTable)}&seat=${parsedSeat}&deviceToken=${encodeURIComponent(devToken)}`)
+    const queryParts = [
+      `table=${encodeURIComponent(cleanTable)}`,
+      `seat=${parsedSeat}`,
+      `deviceToken=${encodeURIComponent(devToken)}`,
+    ];
+    if (sigParam) {
+      queryParts.push(`sig=${encodeURIComponent(sigParam)}`);
+    }
+
+    fetch(`/api/session/verify?${queryParts.join('&')}`)
       .then((res) => res.json())
       .then((data) => {
+        // Tamper or Invalid Signature Detection
+        if (
+          data.isTampered ||
+          data.error === 'SIGNATURE_REQUIRED' ||
+          data.error === 'INVALID_SIGNATURE' ||
+          data.error === 'INVALID_TABLE' ||
+          data.error === 'INVALID_SEAT'
+        ) {
+          setTamperConflict({
+            isOpen: true,
+            table: cleanTable,
+            seat: parsedSeat,
+            message: data.message || 'Physical table QR verification required.',
+          });
+          return;
+        }
+
         if (data.hasActiveOrderElsewhere && data.existingOrder) {
           setCrossSeatConflict({
             isOpen: true,
@@ -176,17 +206,51 @@ function CustomerJourneyContent() {
             currentSeat: parsedSeat,
             existingOrder: data.existingOrder,
           });
-        } else if (data.isOccupiedByOtherDevice) {
+          return;
+        }
+
+        if (data.isOccupiedByOtherDevice) {
           setChairConflict({
             isOpen: true,
             occupiedSeat: parsedSeat,
             table: cleanTable,
             vacantSeats: data.vacantSeats || [],
           });
+          return;
+        }
+
+        // Successfully verified authentic table session!
+        try {
+          sessionStorage.setItem(
+            'thoogudeepa_verified_session',
+            JSON.stringify({
+              table: cleanTable,
+              seat: parsedSeat,
+              sig: sigParam || data.sessionToken,
+              timestamp: Date.now(),
+            })
+          );
+        } catch {}
+
+        // Mask address bar: remove raw query params so URL cannot be tampered in browser
+        if (typeof window !== 'undefined' && window.history?.replaceState) {
+          window.history.replaceState(
+            { screen: useCustomerStore.getState().currentScreen || 1 },
+            document.title,
+            window.location.pathname || '/'
+          );
         }
       })
       .catch(() => {});
   }, [setTableNumber, setSeatNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Tamper Protection Conflict State ───────────────────────────────────────
+  const [tamperConflict, setTamperConflict] = React.useState<{
+    isOpen: boolean;
+    table: string;
+    seat: number;
+    message?: string;
+  } | null>(null);
 
   // ─── Cross-Seat Active Order State & Handlers ───────────────────────────────
   const [crossSeatConflict, setCrossSeatConflict] = React.useState<{
@@ -631,6 +695,75 @@ function CustomerJourneyContent() {
                   </button>
                 </div>
               )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Tamper Protection / Physical QR Required Modal ── */}
+      <AnimatePresence>
+        {tamperConflict?.isOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
+          >
+            <motion.div
+              initial={{ scale: 0.92, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.92, y: 15 }}
+              className="bg-[#1C1917] text-white border border-rose-900/50 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5"
+            >
+              <div className="flex items-center gap-3">
+                <div className="h-12 w-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                  <ShieldAlert className="h-6 w-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black tracking-tight text-white uppercase">
+                    Physical QR Scan Required
+                  </h3>
+                  <p className="text-xs text-rose-400 font-mono font-bold">
+                    Anti-Tampering Active
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-stone-900/80 rounded-2xl p-4 border border-stone-800 text-sm text-stone-300 space-y-2">
+                <p className="leading-snug text-xs text-stone-300">
+                  {tamperConflict.message ||
+                    'Manual editing or direct URL entry of table and seat parameters is blocked to protect guest dining sessions.'}
+                </p>
+                <div className="rounded-xl bg-stone-950 p-2.5 border border-stone-800/80 text-[11px] font-mono text-stone-400">
+                  Please scan the authentic physical QR code placed on your dining table tent or coaster to begin.
+                </div>
+              </div>
+
+              <div className="space-y-2.5 pt-1">
+                <button
+                  onClick={() => {
+                    setTamperConflict(null);
+                    if (typeof window !== 'undefined') {
+                      try {
+                        sessionStorage.removeItem('thoogudeepa_verified_session');
+                      } catch {}
+                      window.location.href = '/';
+                    }
+                  }}
+                  className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-rose-700 to-amber-700 hover:from-rose-600 hover:to-amber-600 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-lg border border-rose-500/30"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  <span>Return to Welcome Screen</span>
+                </button>
+
+                <a
+                  href="/qr-deck"
+                  className="w-full py-2.5 px-4 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-400 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition text-center"
+                >
+                  <QrCode className="h-3.5 w-3.5" />
+                  <span>Open Table QR Directory</span>
+                </a>
+              </div>
             </motion.div>
           </motion.div>
         )}

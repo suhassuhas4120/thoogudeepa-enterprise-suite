@@ -31,6 +31,7 @@ export const Screen8Confirmation: React.FC = () => {
     cart,
     venueName,
     resetSession,
+    seatNumber: contextSeatNumber,
   } = useCustomer();
 
   const [selectedChips, setSelectedChips] = useState<string[]>(['Super Quick Service']);
@@ -40,9 +41,9 @@ export const Screen8Confirmation: React.FC = () => {
   const [shareMsg, setShareMsg] = useState(false);
   const [rating, setRating] = useState(0);
 
-  // Read seat from URL
+  // Read seat from context with URL fallback
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const seatNumber = parseInt(params.get('seat') || '1', 10);
+  const seatNumber = contextSeatNumber || parseInt(params.get('seat') || '1', 10);
   const effectiveTable = tableNumber || 'T-01';
 
   // Floor Captain details from shared bridge

@@ -17,6 +17,7 @@ export const Screen9DigitalBill: React.FC = () => {
     tableNumber,
     venueName,
     resetSession,
+    seatNumber: contextSeatNumber,
   } = useCustomer();
 
   const [downloadMsg, setDownloadMsg] = useState(false);
@@ -42,9 +43,9 @@ export const Screen9DigitalBill: React.FC = () => {
   const sgst = totalTax - cgst;
   const paidTotal = payment.totalAmount > 0 ? payment.totalAmount : subtotal + totalTax + payment.tipAmount;
 
-  // Read seat from URL
+  // Read seat from context with URL fallback
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const seatNumber = parseInt(params.get('seat') || '1', 10);
+  const seatNumber = contextSeatNumber || parseInt(params.get('seat') || '1', 10);
   const invoiceNumber = payment.invoiceNumber || `INV-${tableNumber.replace('-', '')}-${Date.now().toString().slice(-4)}`;
 
   const handleDownload = () => {

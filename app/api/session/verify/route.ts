@@ -48,6 +48,14 @@ async function handleVerifySession(
     }, { status: 400 });
   }
 
+  // Seat check: must be a valid seat number (1-6)
+  if (isNaN(seatNumber) || seatNumber < 1 || seatNumber > 6) {
+    return NextResponse.json({
+      error: 'INVALID_SEAT',
+      message: 'Seat number must be between 1 and 6',
+    }, { status: 400 });
+  }
+
   // Cryptographic signature check (if URL includes signature)
   if (sig && !verifyTableSignature(tableNumber, seatNumber, sig)) {
     return NextResponse.json({
@@ -59,6 +67,32 @@ async function handleVerifySession(
   }
 
   try {
+    // 0. Global Hardware Session Engine: check if this device has an active unpaid order in the venue
+    let existingActiveOrder: any = null;
+    if (deviceToken) {
+      const { data: activeOrders } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('device_token', deviceToken)
+        .eq('status', 'UNPAID')
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (activeOrders && activeOrders.length > 0) {
+        existingActiveOrder = activeOrders[0];
+      }
+    }
+
+    // Require authentic physical QR signature if device does not hold an active order
+    if (!sig && !existingActiveOrder) {
+      return NextResponse.json({
+        active: false,
+        isTampered: true,
+        error: 'SIGNATURE_REQUIRED',
+        message: 'Physical QR verification required. Table parameters must not be manually entered.',
+      }, { status: 403 });
+    }
+
     // 1. Check seat status in table_seats
     const { data: seatData, error: sErr } = await supabase
       .from('table_seats')
@@ -76,25 +110,11 @@ async function handleVerifySession(
         active: false,
         tableNumber,
         seatNumber,
+        signatureVerified: Boolean(sig),
+        sessionToken: sig ? generateTableSignature(tableNumber, seatNumber) : undefined,
         order: null,
         message: 'Seat is currently vacant',
       });
-    }
-
-    // 0. Global Hardware Session Engine: check if this device has an active unpaid order in the venue
-    let existingActiveOrder: any = null;
-    if (deviceToken) {
-      const { data: activeOrders } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('device_token', deviceToken)
-        .eq('status', 'UNPAID')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (activeOrders && activeOrders.length > 0) {
-        existingActiveOrder = activeOrders[0];
-      }
     }
 
     if (existingActiveOrder) {

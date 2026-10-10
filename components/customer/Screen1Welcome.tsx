@@ -82,10 +82,15 @@ export const Screen1Welcome: React.FC = () => {
   const handleSelectSeat = (newSeat: number) => {
     setSeatNumber(newSeat);
     if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('table', activeTable.number);
-      url.searchParams.set('seat', newSeat.toString());
-      window.history.replaceState({}, '', url.toString());
+      try {
+        const stored = sessionStorage.getItem('thoogudeepa_verified_session');
+        const parsed = stored ? JSON.parse(stored) : {};
+        sessionStorage.setItem('thoogudeepa_verified_session', JSON.stringify({
+          ...parsed,
+          seat: newSeat,
+        }));
+      } catch {}
+      window.history.replaceState({}, '', window.location.pathname || '/');
     }
     syncWithActiveSession(activeTable.number, newSeat);
   };

@@ -67,9 +67,9 @@ export async function POST(req: NextRequest) {
               .maybeSingle();
 
             const isSeatStillOccupied = Boolean(
-              seatCheck &&
-              seatCheck.status === 'OCCUPIED' &&
-              (seatCheck.active_order_id || seatCheck.device_token === deviceToken)
+              !seatCheck ||
+              (seatCheck.status === 'OCCUPIED' &&
+                (seatCheck.active_order_id || seatCheck.device_token === deviceToken))
             );
 
             if (isSeatStillOccupied) {

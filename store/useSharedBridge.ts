@@ -582,6 +582,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       // Key by chair if specific chair; otherwise key by whole table
       if (typeof snapshot.seatNumber === 'number') {
         nextBills[`${normTable}-CHAIR-${snapshot.seatNumber}`] = timestampedSnapshot;
+        if (nextBills[normTable]?.seatNumber === snapshot.seatNumber) {
+          delete nextBills[normTable];
+        }
       } else {
         nextBills[normTable] = timestampedSnapshot;
       }
@@ -590,6 +593,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const nextSessions = { ...state.activeSettlementSessions };
       if (typeof snapshot.seatNumber === 'number') {
         delete nextSessions[`${normTable}-CHAIR-${snapshot.seatNumber}`];
+        if (nextSessions[normTable]?.seatNumber === snapshot.seatNumber) {
+          delete nextSessions[normTable];
+        }
       } else {
         delete nextSessions[normTable];
         for (let s = 1; s <= 12; s++) {
@@ -626,12 +632,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
 
     if (typeof window !== 'undefined') {
-      supabase
+      let pingQuery = supabase
         .from('pings')
         .update({ status: 'RESOLVED' })
         .eq('table_number', normTable)
-        .in('type', ['PAYMENT', 'BILL'])
-        .then(() => {}, () => {});
+        .in('type', ['PAYMENT', 'BILL']);
+      if (typeof snapshot.seatNumber === 'number') {
+        pingQuery = pingQuery.eq('seat_number', snapshot.seatNumber);
+      }
+      pingQuery.then(() => {}, () => {});
+
       const billId = `SETTLED-BILL-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       const sessId = `SETTLE-SESSION-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       supabase
@@ -647,11 +657,19 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         })
         .then(() => {}, () => {});
 
-      supabase
-        .from('pings')
-        .delete()
-        .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
-        .then(() => {}, () => {});
+      if (typeof snapshot.seatNumber === 'number') {
+        supabase
+          .from('pings')
+          .delete()
+          .eq('id', sessId)
+          .then(() => {}, () => {});
+      } else {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
+          .then(() => {}, () => {});
+      }
     }
   },
 
@@ -1849,10 +1867,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextSessions = { ...state.activeSettlementSessions };
-      nextSessions[normTable] = session;
       if (typeof seatNumber === 'number') {
         nextSessions[`${normTable}-CHAIR-${seatNumber}`] = session;
+        if (nextSessions[normTable]?.seatNumber === seatNumber) {
+          delete nextSessions[normTable];
+        }
       } else {
+        nextSessions[normTable] = session;
         for (let s = 1; s <= 6; s++) {
           nextSessions[`${normTable}-CHAIR-${s}`] = session;
         }
@@ -1893,9 +1914,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextSessions = { ...state.activeSettlementSessions };
-      delete nextSessions[normTable];
       if (typeof seatNumber === 'number') {
         delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
+        if (nextSessions[normTable]?.seatNumber === seatNumber) {
+          delete nextSessions[normTable];
+        }
+      } else {
+        delete nextSessions[normTable];
+        for (let s = 1; s <= 12; s++) {
+          delete nextSessions[`${normTable}-CHAIR-${s}`];
+        }
       }
       return { activeSettlementSessions: nextSessions };
     });
@@ -1910,11 +1938,19 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     if (typeof window !== 'undefined') {
       const sessId = `SETTLE-SESSION-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
-      supabase
-        .from('pings')
-        .delete()
-        .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
-        .then(() => {}, () => {});
+      if (typeof seatNumber === 'number') {
+        supabase
+          .from('pings')
+          .delete()
+          .eq('id', sessId)
+          .then(() => {}, () => {});
+      } else {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
+          .then(() => {}, () => {});
+      }
     }
   },
 

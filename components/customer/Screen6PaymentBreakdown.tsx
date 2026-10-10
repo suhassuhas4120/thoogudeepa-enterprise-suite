@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, SettledBillSnapshot } from '../../store/useSharedBridge';
 import { useCustomerStore } from '../../store/useCustomerStore';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -42,15 +42,30 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
     const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
 
-    const matchingSnapshot = settledBills[chairKey] || settledBills[normTable];
+    let matchingSnapshot: SettledBillSnapshot | null = null;
+    if (settledBills[chairKey]) {
+      const b = settledBills[chairKey];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === effectiveSeat) {
+        matchingSnapshot = b;
+      }
+    } else if (settledBills[normTable]) {
+      const b = settledBills[normTable];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (typeof seatNum !== 'number') {
+        matchingSnapshot = b;
+      }
+    }
+
     if (matchingSnapshot && matchingSnapshot.timestamp) {
-      const seatNum = typeof matchingSnapshot.seatNumber === 'number'
-        ? matchingSnapshot.seatNumber
-        : (matchingSnapshot.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSnapshot.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
       const now = Date.now();
       const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
       const isAfterOrder = matchingSnapshot.timestamp > orderPlacedAt + 500;
-      if ((typeof seatNum !== 'number' || seatNum === effectiveSeat) && isRecent && isAfterOrder) {
+      if (isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }

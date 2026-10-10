@@ -45,18 +45,19 @@ export async function GET(req: NextRequest) {
           const parsed = JSON.parse(row.message);
           const normTable = normalizeTable(row.table_number);
           if (row.type === 'SETTLEMENT_SESSION') {
-            const lastCleared = clearedSettlementAt.get(normTable);
+            const lastCleared = typeof parsed.seatNumber === 'number'
+              ? (clearedSettlementAt.get(`${normTable}-CHAIR-${parsed.seatNumber}`) || clearedSettlementAt.get(normTable))
+              : clearedSettlementAt.get(normTable);
             if (lastCleared && Date.now() - lastCleared < 20000) {
               continue;
             }
             if (parsed.initiatedAt && Math.abs(now - parsed.initiatedAt) < 1800000) {
-              sessionsObj[normTable] = parsed;
               if (typeof parsed.seatNumber === 'number') {
                 sessionsObj[`${normTable}-CHAIR-${parsed.seatNumber}`] = parsed;
-              }
-              activeSettlementSessions.set(normTable, parsed);
-              if (typeof parsed.seatNumber === 'number') {
                 activeSettlementSessions.set(`${normTable}-CHAIR-${parsed.seatNumber}`, parsed);
+              } else {
+                sessionsObj[normTable] = parsed;
+                activeSettlementSessions.set(normTable, parsed);
               }
             }
           } else if (row.type === 'SETTLED_BILL') {
@@ -129,30 +130,19 @@ export async function POST(req: NextRequest) {
         initiatedAt: session.initiatedAt || Date.now(),
       };
 
-      clearedSettlementAt.delete(normTable);
-      // Pessimistic settlement lock: Check if another seat or table-wide settlement is active within 3 minutes
-      const existingSession = activeSettlementSessions.get(normTable);
-      if (
-        existingSession &&
-        existingSession.initiatedAt &&
-        Date.now() - existingSession.initiatedAt < 180000 &&
-        typeof session.seatNumber === 'number' &&
-        typeof existingSession.seatNumber === 'number' &&
-        existingSession.seatNumber !== session.seatNumber
-      ) {
-        return NextResponse.json(
-          {
-            error: 'TABLE_SETTLEMENT_LOCKED',
-            message: `Table ${normTable} is currently being settled by Chair ${existingSession.seatNumber}. Please wait.`,
-            existingSession,
-          },
-          { status: 409 }
-        );
+      if (typeof session.seatNumber === 'number') {
+        clearedSettlementAt.delete(`${normTable}-CHAIR-${session.seatNumber}`);
+      } else {
+        clearedSettlementAt.delete(normTable);
       }
 
-      activeSettlementSessions.set(normTable, cleanSession);
       if (typeof session.seatNumber === 'number') {
         activeSettlementSessions.set(`${normTable}-CHAIR-${session.seatNumber}`, cleanSession);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === session.seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
+      } else {
+        activeSettlementSessions.set(normTable, cleanSession);
       }
 
       broadcastStateChange('settlementSessionStarted', cleanSession);
@@ -181,25 +171,40 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(tableNumber);
-      clearedSettlementAt.set(normTable, Date.now());
-      activeSettlementSessions.delete(normTable);
       if (typeof seatNumber === 'number') {
+        clearedSettlementAt.set(`${normTable}-CHAIR-${seatNumber}`, Date.now());
         activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
+      } else {
+        clearedSettlementAt.set(normTable, Date.now());
+        activeSettlementSessions.delete(normTable);
+        for (let s = 1; s <= 12; s++) {
+          activeSettlementSessions.delete(`${normTable}-CHAIR-${s}`);
+        }
       }
 
       broadcastStateChange('settlementSessionCleared', { normTable, seatNumber });
 
       const sessId = `SETTLE-SESSION-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
       try {
-        await supabase
-          .from('pings')
-          .delete()
-          .in('id', [sessId, `SETTLE-SESSION-${normTable}`]);
-        await supabase
-          .from('pings')
-          .delete()
-          .eq('table_number', normTable)
-          .eq('type', 'SETTLEMENT_SESSION');
+        if (typeof seatNumber === 'number') {
+          await supabase
+            .from('pings')
+            .delete()
+            .eq('id', sessId);
+        } else {
+          await supabase
+            .from('pings')
+            .delete()
+            .in('id', [sessId, `SETTLE-SESSION-${normTable}`]);
+          await supabase
+            .from('pings')
+            .delete()
+            .eq('table_number', normTable)
+            .eq('type', 'SETTLEMENT_SESSION');
+        }
       } catch {}
 
       return NextResponse.json({ success: true });
@@ -224,7 +229,13 @@ export async function POST(req: NextRequest) {
 
       if (typeof seatNumber === 'number') {
         settledBills.set(`${normTable}-CHAIR-${seatNumber}`, enrichedSnapshot);
+        if (settledBills.get(normTable)?.seatNumber === seatNumber) {
+          settledBills.delete(normTable);
+        }
         activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
       } else {
         settledBills.set(normTable, enrichedSnapshot);
         activeSettlementSessions.delete(normTable);
@@ -247,10 +258,17 @@ export async function POST(req: NextRequest) {
           message: JSON.stringify(enrichedSnapshot),
           status: 'RESOLVED',
         });
-        await supabase
-          .from('pings')
-          .delete()
-          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`);
+        if (typeof seatNumber === 'number') {
+          await supabase
+            .from('pings')
+            .delete()
+            .eq('id', sessId);
+        } else {
+          await supabase
+            .from('pings')
+            .delete()
+            .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`);
+        }
       } catch {}
 
       return NextResponse.json({ success: true, snapshot: enrichedSnapshot });
@@ -264,20 +282,21 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(tableNumber);
-      settledBills.delete(normTable);
       if (typeof seatNumber === 'number') {
         settledBills.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (settledBills.get(normTable)?.seatNumber === seatNumber) {
+          settledBills.delete(normTable);
+        }
+        activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
       } else {
+        settledBills.delete(normTable);
         for (let s = 1; s <= 12; s++) {
           settledBills.delete(`${normTable}-CHAIR-${s}`);
         }
-      }
-
-      activeSettlementSessions.delete(normTable);
-      if (typeof seatNumber === 'number') {
-        activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
-      } else {
-        // Clear all chairs for this table
+        activeSettlementSessions.delete(normTable);
         for (let s = 1; s <= 12; s++) {
           activeSettlementSessions.delete(`${normTable}-CHAIR-${s}`);
         }

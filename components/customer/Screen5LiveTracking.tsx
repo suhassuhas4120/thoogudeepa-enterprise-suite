@@ -152,12 +152,32 @@ export const Screen5LiveTracking: React.FC = () => {
     const now = Date.now();
     const isValid = (sess: any) => sess && (!sess.initiatedAt || Math.abs(now - sess.initiatedAt) < 1800000);
 
-    if (isValid(sessions[chairKey])) return sessions[chairKey];
-    if (isValid(sessions[normTable])) return sessions[normTable];
+    const chairCandidate = sessions[chairKey];
+    if (isValid(chairCandidate)) {
+      if (typeof chairCandidate.seatNumber !== 'number' || Number(chairCandidate.seatNumber) === effectiveSeat) {
+        return chairCandidate;
+      }
+    }
+
+    const tableCandidate = sessions[normTable];
+    if (isValid(tableCandidate)) {
+      if (typeof tableCandidate.seatNumber === 'number') {
+        if (Number(tableCandidate.seatNumber) === effectiveSeat) {
+          return tableCandidate;
+        }
+      } else {
+        return tableCandidate;
+      }
+    }
+
     for (const [, sess] of Object.entries(sessions)) {
       if (!isValid(sess)) continue;
       if (isTableMatch(sess.tableNumber, effectiveTable)) {
-        if (typeof sess.seatNumber !== 'number' || Number(sess.seatNumber) === effectiveSeat) {
+        if (typeof sess.seatNumber === 'number') {
+          if (Number(sess.seatNumber) === effectiveSeat) {
+            return sess;
+          }
+        } else if (!sess.seatNumber) {
           return sess;
         }
       }
@@ -367,18 +387,25 @@ export const Screen5LiveTracking: React.FC = () => {
   // Total payable amount
   const currentBillAmount = useMemo(() => {
     if (activeSession?.grandTotal && activeSession.grandTotal > 0) {
-      return activeSession.grandTotal;
+      if (typeof activeSession.seatNumber !== 'number' || Number(activeSession.seatNumber) === effectiveSeat) {
+        return activeSession.grandTotal;
+      }
     }
     const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
-    if (currentTableObj?.currentBill && currentTableObj.currentBill > 0) {
-      const myChairItems = (currentTableObj.activeItems || []).filter((ai) => ai.seatNumber === effectiveSeat);
+    if (currentTableObj?.activeItems && currentTableObj.activeItems.length > 0) {
+      const myChairItems = currentTableObj.activeItems.filter((ai) => ai.seatNumber === effectiveSeat);
       if (myChairItems.length > 0) {
         const chairSub = myChairItems.reduce((sum, it) => sum + (it.price || 220) * it.quantity, 0);
         return Math.round(chairSub * 1.05);
       }
-      return currentTableObj.currentBill;
     }
     const cartSub = cart.reduce((sum, it) => sum + it.totalPrice, 0);
+    if (cartSub > 0) {
+      return Math.round(cartSub * 1.05);
+    }
+    if (currentTableObj?.currentBill && currentTableObj.currentBill > 0) {
+      return currentTableObj.currentBill;
+    }
     return Math.round(cartSub * 1.05);
   }, [activeSession, tables, effectiveTable, effectiveSeat, cart]);
 

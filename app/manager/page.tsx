@@ -22,6 +22,7 @@ import { ScreenM13PettyExpenses } from '../../components/manager/ScreenM13PettyE
 import { ScreenM14AttendanceTips } from '../../components/manager/ScreenM14AttendanceTips';
 import { ScreenM15PrinterHealth } from '../../components/manager/ScreenM15PrinterHealth';
 import { ScreenM16DayCloseZReport } from '../../components/manager/ScreenM16DayCloseZReport';
+import { ScreenMAudit1000 } from '../../components/manager/ScreenMAudit1000';
 
 import {
   Briefcase,
@@ -83,6 +84,7 @@ export default function ManagerPortalPage() {
     { id: 14 as ManagerScreenId, name: '14. Attendance & Tips', comp: <ScreenM14AttendanceTips /> },
     { id: 15 as ManagerScreenId, name: '15. Printer Health', comp: <ScreenM15PrinterHealth /> },
     { id: 16 as ManagerScreenId, name: '16. Day Close Z-Report', comp: <ScreenM16DayCloseZReport /> },
+    { id: 17 as ManagerScreenId, name: '17. Resilience Deck (1,000)', comp: <ScreenMAudit1000 /> },
   ];
 
   const renderActiveScreen = () => {
@@ -147,9 +149,25 @@ export default function ManagerPortalPage() {
             </Link>
             <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Briefcase className="h-3.5 w-3.5 fill-white" />
-              <span>MANAGER (16)</span>
+              <span>MANAGER (17)</span>
             </span>
           </div>
+
+          {/* Resilience Deck Quick Access */}
+          <button
+            onClick={() => {
+              setViewMode('single');
+              setCurrentScreen(17 as ManagerScreenId);
+            }}
+            className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-xs font-mono font-bold transition border shadow-xs ${
+              currentScreen === 17
+                ? 'bg-emerald-800 text-white border-emerald-900'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+            }`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>RESILIENCE DECK (1,000)</span>
+          </button>
 
           {/* View Mode Switcher */}
           <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
@@ -173,7 +191,7 @@ export default function ManagerPortalPage() {
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 16 SCREENS</span>
+              <span>ALL 17 SCREENS</span>
             </button>
           </div>
         </div>

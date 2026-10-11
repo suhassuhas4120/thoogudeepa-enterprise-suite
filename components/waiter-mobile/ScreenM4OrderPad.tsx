@@ -18,8 +18,12 @@ import {
   Flame,
   Armchair,
   X,
+  Zap,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { WAITER_QUICK_CODES, lookupQuickCode, WaiterQuickCode } from '../../data/quickCodes';
 
 interface Props {
   tableNum: string;
@@ -63,6 +67,8 @@ export function ScreenM4OrderPad({
   });
   const [kotFired, setKotFired] = useState(false);
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+  const [pocketLockActive, setPocketLockActive] = useState(false);
+  const [quickCodeInput, setQuickCodeInput] = useState('');
 
   // Auto-save cart to sessionStorage to prevent data loss on refresh
   React.useEffect(() => {
@@ -88,8 +94,14 @@ export function ScreenM4OrderPad({
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return INITIAL_MENU_ITEMS.filter((item) => {
+      // Direct quick code matching
+      const codeMatch = WAITER_QUICK_CODES.some(
+        (qc) => qc.dishId === item.id && (qc.code.toLowerCase() === term || qc.nameKn.toLowerCase().includes(term))
+      );
+
       const matchesSearch =
         !term ||
+        codeMatch ||
         item.name.toLowerCase().includes(term) ||
         item.description.toLowerCase().includes(term) ||
         item.category.toLowerCase().includes(term) ||
@@ -217,6 +229,28 @@ export function ScreenM4OrderPad({
     }
   };
 
+  const handleQuickCodePunch = (codeStr: string) => {
+    const foundCode = lookupQuickCode(codeStr);
+    if (!foundCode) {
+      setToastNotice(`Unknown code "${codeStr}". Try CB, MB, KF, BR, CK`);
+      setTimeout(() => setToastNotice(null), 2500);
+      return;
+    }
+    const menuItem = INITIAL_MENU_ITEMS.find((m) => m.id === foundCode.dishId);
+    if (!menuItem) return;
+
+    const stockInfo = inventory86?.find((e) => e.id === menuItem.id);
+    if (stockInfo?.is86) {
+      setToastNotice(`${menuItem.name} (${foundCode.code}) is 86'd in Kitchen!`);
+      setTimeout(() => setToastNotice(null), 2500);
+      return;
+    }
+
+    addItemToCart(menuItem, undefined, [], 1);
+    setToastNotice(`Punched +1 ${foundCode.nameEn} (${foundCode.nameKn})`);
+    setTimeout(() => setToastNotice(null), 2000);
+  };
+
   const handlePlaceOrder = () => {
     if (cart.length === 0) return;
     const targetTable = tables.find((t) => t.number === tableNum);
@@ -275,17 +309,37 @@ export function ScreenM4OrderPad({
   return (
     <div className="bg-[#FAF8F5] flex flex-col font-sans relative select-none overflow-hidden h-full min-h-screen">
       {/* Waiter Sticky Header */}
-      <header className="sticky top-0 z-40 bg-white/95 border-b-2 border-stone-200 px-4 py-2.5 flex items-center justify-between shadow-2xs backdrop-blur-md shrink-0">
+      <header className="sticky top-0 z-40 bg-white/95 border-b-2 border-stone-200 px-4 py-2 flex items-center justify-between shadow-2xs backdrop-blur-md shrink-0">
         <button
           type="button"
           onClick={onBack}
-          className="flex items-center gap-1.5 font-mono text-xs font-black text-stone-700 hover:text-[#9C3D1E] py-1.5 px-3 rounded-xl bg-stone-50 border border-[#EAE5DF] transition cursor-pointer"
+          disabled={pocketLockActive}
+          className="flex items-center gap-1.5 font-mono text-xs font-black text-stone-700 hover:text-[#9C3D1E] py-1.5 px-3 rounded-xl bg-stone-50 border border-[#EAE5DF] transition cursor-pointer disabled:opacity-40"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Back</span>
         </button>
 
         <div className="flex items-center gap-2">
+          {/* One-handed Pocket Protection Lock */}
+          <button
+            type="button"
+            onClick={() => {
+              setPocketLockActive(!pocketLockActive);
+              setToastNotice(pocketLockActive ? 'Pocket Lock Released' : 'Pocket Lock Engaged — Touches Guarded');
+              setTimeout(() => setToastNotice(null), 2000);
+            }}
+            className={`flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-mono font-black border transition cursor-pointer ${
+              pocketLockActive
+                ? 'bg-amber-500 text-stone-950 border-amber-600 shadow-xs'
+                : 'bg-stone-100 text-stone-600 border-stone-200 hover:bg-stone-200'
+            }`}
+            title="Toggle Pocket Touch Guard"
+          >
+            {pocketLockActive ? <Lock className="h-3.5 w-3.5 stroke-[2.5]" /> : <Unlock className="h-3.5 w-3.5" />}
+            <span>{pocketLockActive ? 'LOCKED' : 'LOCK'}</span>
+          </button>
+
           <span className="font-mono text-xs font-black uppercase text-[#9C3D1E] bg-[#FFF8F5] border-2 border-[#9C3D1E]/40 px-3 py-1 rounded-xl shadow-2xs flex items-center gap-1.5">
             <Armchair className="h-4 w-4 stroke-[2.4]" />
             <span>{seatNum ? `Chair ${seatNum}` : 'All Table'}</span>
@@ -297,7 +351,7 @@ export function ScreenM4OrderPad({
       </header>
 
       {/* Prominent Chair Context Banner */}
-      <div className="bg-gradient-to-r from-amber-50 to-[#FFF8F5] border-b-2 border-amber-200/80 px-4 py-2 flex items-center justify-between font-mono text-xs shrink-0 shadow-2xs">
+      <div className="bg-gradient-to-r from-amber-50 to-[#FFF8F5] border-b-2 border-amber-200/80 px-4 py-1.5 flex items-center justify-between font-mono text-xs shrink-0 shadow-2xs">
         <div className="flex items-center gap-2">
           <div className="h-6 w-6 rounded-lg bg-[#9C3D1E] text-white flex items-center justify-center font-black text-xs shadow-2xs">
             {seatNum ? seatNum : 'T'}
@@ -311,16 +365,40 @@ export function ScreenM4OrderPad({
         </span>
       </div>
 
+      {/* High-Velocity Kannada / English Quick Punch Bar */}
+      <div className="bg-stone-900 text-stone-100 px-3 py-1.5 flex items-center gap-2 shrink-0 border-b border-stone-800 overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-1 font-mono text-[10px] font-black text-amber-400 shrink-0 uppercase tracking-wider">
+          <Zap className="h-3 w-3 fill-amber-400" />
+          <span>Quick:</span>
+        </div>
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          {WAITER_QUICK_CODES.slice(0, 8).map((qc) => (
+            <button
+              key={qc.code}
+              type="button"
+              disabled={pocketLockActive}
+              onClick={() => handleQuickCodePunch(qc.code)}
+              className="px-2 py-0.5 rounded-lg bg-stone-800 hover:bg-stone-700 active:scale-95 border border-stone-700 text-[10.5px] font-mono font-black text-stone-100 flex items-center gap-1 cursor-pointer transition shrink-0 disabled:opacity-50"
+              title={`${qc.nameEn} (${qc.nameKn})`}
+            >
+              <span className="text-amber-300">{qc.code}</span>
+              <span className="text-[9.5px] text-stone-400 hidden sm:inline">{qc.nameKn}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Sticky Search Bar and Cart Icon (Pinned at top when scrolled) */}
-      <div className="sticky top-0 z-30 bg-[#FAF8F5]/98 backdrop-blur-md px-4 pt-3 pb-2.5 flex items-center gap-2.5 border-b border-stone-200/80 shrink-0 shadow-xs">
+      <div className="sticky top-0 z-30 bg-[#FAF8F5]/98 backdrop-blur-md px-4 pt-2.5 pb-2 flex items-center gap-2.5 border-b border-stone-200/80 shrink-0 shadow-xs">
         <div className="relative flex-1 flex items-center">
           <Search className="absolute left-3.5 h-5 w-5 text-[#9C3D1E]" />
           <input
             type="text"
             value={searchTerm}
+            disabled={pocketLockActive}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search Dishes, Donne Biryani, Starters..."
-            className="w-full rounded-2xl border-2 border-stone-300 bg-white pl-11 pr-10 py-3 text-sm font-bold text-stone-950 placeholder:text-stone-400 shadow-xs focus:border-[#9C3D1E] focus:outline-none"
+            placeholder="Search code (CB, MB, KF) or dish..."
+            className="w-full rounded-2xl border-2 border-stone-300 bg-white pl-11 pr-10 py-2.5 text-sm font-bold text-stone-950 placeholder:text-stone-400 shadow-xs focus:border-[#9C3D1E] focus:outline-none disabled:opacity-50"
           />
           {searchTerm && (
             <button
@@ -337,8 +415,9 @@ export function ScreenM4OrderPad({
         {/* Cart Icon Button directly beside Search Bar */}
         <button
           type="button"
+          disabled={pocketLockActive}
           onClick={() => setIsCartDrawerOpen(true)}
-          className="relative h-12 w-12 rounded-2xl bg-white border-2 border-stone-300 hover:border-[#9C3D1E] active:scale-95 text-[#9C3D1E] flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer group"
+          className="relative h-11 w-11 rounded-2xl bg-white border-2 border-stone-300 hover:border-[#9C3D1E] active:scale-95 text-[#9C3D1E] flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer group disabled:opacity-50"
           title="View Order Cart"
           aria-label="View Order Cart"
         >
@@ -518,13 +597,15 @@ export function ScreenM4OrderPad({
         <div className="fixed bottom-0 inset-x-0 z-40 p-3 bg-white/95 border-t-2 border-stone-200 shadow-xl backdrop-blur-md">
           <motion.button
             whileTap={{ scale: 0.98 }}
-            disabled={kotFired}
+            disabled={kotFired || pocketLockActive}
             onClick={handlePlaceOrder}
             className="flex w-full items-center justify-between rounded-2xl bg-[#9C3D1E] hover:bg-[#853216] px-5 py-4 text-xs font-black uppercase tracking-wider text-white shadow-md transition cursor-pointer disabled:opacity-75"
           >
             <div className="flex items-center gap-2">
               <Flame className="h-5 w-5 text-amber-300" />
-              <span className="text-sm">{kotFired ? 'Order Placed!' : 'Place Order'}</span>
+              <span className="text-sm">
+                {pocketLockActive ? 'Pocket Locked (Tap Unlock)' : kotFired ? 'Order Placed!' : 'Place Order'}
+              </span>
               <span className="rounded-full bg-white/20 px-2.5 py-0.5 text-xs font-black text-white font-mono">
                 {totalCartCount} Items
               </span>

@@ -34,6 +34,54 @@ function cleanTableNum(s: string): string {
   return (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
 }
 
+function NetworkConnectivityPill() {
+  const [isOnline, setIsOnline] = React.useState(true);
+  const [showRestored, setShowRestored] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    setIsOnline(navigator.onLine);
+
+    const handleOnline = () => {
+      setIsOnline(true);
+      setShowRestored(true);
+      const timer = setTimeout(() => setShowRestored(false), 2500);
+      return () => clearTimeout(timer);
+    };
+
+    const handleOffline = () => {
+      setIsOnline(false);
+      setShowRestored(false);
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (isOnline && !showRestored) return null;
+
+  return (
+    <div className="fixed top-2 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300">
+      {!isOnline ? (
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-900/95 border border-amber-500/50 text-amber-200 text-[10.5px] font-bold shadow-lg backdrop-blur-md animate-pulse">
+          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+          <span>Reconnecting to restaurant network...</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-900/95 border border-emerald-500/50 text-emerald-200 text-[10.5px] font-bold shadow-lg backdrop-blur-md">
+          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+          <span>Connection Restored • Synchronized</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CustomerJourneyContent() {
   const { currentScreen, setTableNumber, setSeatNumber } = useCustomer();
 
@@ -157,7 +205,12 @@ function CustomerJourneyContent() {
                 try { localStorage.removeItem(scopedKey); } catch {}
               }
             } else {
-              try { localStorage.removeItem(scopedKey); } catch {}
+              // Restore unplaced draft items so accidental page refresh doesn't lose diner's configured dishes
+              useCustomerStore.setState({
+                cart: parsed.cart,
+                currentScreen: parsed.currentScreen && parsed.currentScreen <= 4 ? parsed.currentScreen : 2,
+                payment: parsed.payment || curStore.payment,
+              });
             }
           }
         }
@@ -788,6 +841,7 @@ function CustomerJourneyContent() {
       className="w-full select-none"
       style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
+      <NetworkConnectivityPill />
       <AnimatePresence mode="wait">
         <motion.div
           key={currentScreen}

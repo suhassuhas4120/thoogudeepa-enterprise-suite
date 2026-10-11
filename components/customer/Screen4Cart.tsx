@@ -16,6 +16,7 @@ import {
   UtensilsCrossed,
   CookingPot,
   Flame,
+  Loader2,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -34,11 +35,22 @@ export const Screen4Cart: React.FC = () => {
 
   const { currentTheme } = useCustomerTheme();
   const [notice, setNotice] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSeparateOrder = (cartItemId: string, name: string) => {
     orderSeparately(cartItemId);
     setNotice(`Fired as priority starter for ${name}!`);
     setTimeout(() => setNotice(null), 2500);
+  };
+
+  const handlePlaceOrders = () => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      placeAllOrders();
+    } finally {
+      setTimeout(() => setIsSubmitting(false), 2000);
+    }
   };
 
   const unplacedCount = cart.filter((c) => !c.isOrdered).length;
@@ -385,9 +397,10 @@ export const Screen4Cart: React.FC = () => {
       {cart.length > 0 && (
         <StickyBottomBar>
           <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={placeAllOrders}
-            className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105"
+            whileTap={!isSubmitting ? { scale: 0.98 } : undefined}
+            onClick={handlePlaceOrders}
+            disabled={isSubmitting}
+            className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105 disabled:opacity-75 disabled:cursor-not-allowed"
             style={{
               backgroundColor: currentTheme.colors.buttonBg,
               color: currentTheme.colors.buttonFg,
@@ -395,8 +408,18 @@ export const Screen4Cart: React.FC = () => {
             }}
           >
             <div className="flex items-center gap-2">
-              <CookingPot className="h-4 w-4 stroke-[2.2]" />
-              <span>{unplacedCount > 0 ? 'Send Order to Kitchen' : 'Track Live Order'}</span>
+              {isSubmitting ? (
+                <Loader2 className="h-4 w-4 stroke-[2.5] animate-spin" />
+              ) : (
+                <CookingPot className="h-4 w-4 stroke-[2.2]" />
+              )}
+              <span>
+                {isSubmitting
+                  ? 'Sending Order to Kitchen...'
+                  : unplacedCount > 0
+                  ? 'Send Order to Kitchen'
+                  : 'Track Live Order'}
+              </span>
             </div>
             <ArrowRight className="h-4 w-4 stroke-[2.5]" />
           </motion.button>

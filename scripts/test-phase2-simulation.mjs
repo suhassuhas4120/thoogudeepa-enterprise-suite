@@ -69,7 +69,7 @@ function evaluate30Vectors(testId, context, response, expectedStatus) {
   vectors.push({ id: 15, name: 'Zero Stale Balance Carryover Across Tables', pass: true });
 
   // 16-20: Cryptographic Signature & Origin Verification
-  vectors.push({ id: 16, name: 'Table-Specific HMAC Token Length (10)', pass: !context.sig || context.sig.length === 10 });
+  vectors.push({ id: 16, name: 'Table-Specific HMAC Token Length (10)', pass: context.isTampered || !context.sig || context.sig.length === 10 });
   vectors.push({ id: 17, name: 'Cross-Table Signature Tamper Rejection', pass: !context.isTampered || response.status === 403 || response.status === 400 });
   vectors.push({ id: 18, name: 'Unique Device Token per Customer', pass: Boolean(context.deviceToken) });
   vectors.push({ id: 19, name: 'Local/Tunnel Routing Integrity', pass: true });
@@ -230,8 +230,8 @@ async function runPhase2Suite() {
           table,
           seat,
           latency: t1 - t0,
-          sig,
-          isTampered: i % 45 === 0,
+          sig: scen.id === '2.1' && i % 45 === 0 ? 'tampered_qr' : sig,
+          isTampered: scen.id === '2.1' && i % 45 === 0,
           deviceToken,
         };
 

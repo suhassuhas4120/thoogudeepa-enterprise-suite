@@ -617,41 +617,40 @@ function CustomerJourneyContent() {
         const evtSeat = event?.payload?.seatNumber;
         if (evtTable && cleanTableNum(evtTable) !== cleanTableNum(tableId)) return;
         if (typeof evtSeat === 'number' && evtSeat !== seatId) return;
-      }
 
-      const bridgeState = useSharedBridge.getState();
-
-      // Check bridge — reset if our specific chair is now cleared or entire table is VACANT
-      const bridgeTbl = bridgeState.tables.find(
-        (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
-      );
-      const seatActiveItems = (bridgeTbl?.activeItems || []).filter(
-        (ai) => ai.seatNumber === seatId
-      );
-      const seatTickets = bridgeState.kdsTickets.filter(
-        (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tableId) &&
-                tk.status !== 'COMPLETED' &&
-                (tk.seatNumber === seatId || tk.items.some((i) => i.seatNumber === seatId))
-      );
-      const chairHasRemainingOrders = seatActiveItems.length > 0 || seatTickets.length > 0;
-
-      if (!chairHasRemainingOrders || (bridgeTbl && bridgeTbl.status === 'VACANT')) {
         try {
           localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
           localStorage.removeItem('thoogudeepa_customer_session_v1');
         } catch {}
         curStore.resetSession();
         hasPlacedOrderRef.current = false;
+        return;
+      }
+
+      if (reason === 'tableVacated') {
+        const evtTable = event?.payload?.tableNumber;
+        if (evtTable && cleanTableNum(evtTable) !== cleanTableNum(tableId)) return;
+
+        const bridgeState = useSharedBridge.getState();
+        const bridgeTbl = bridgeState.tables.find(
+          (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
+        );
+        if (bridgeTbl && bridgeTbl.status === 'VACANT') {
+          try {
+            localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
+            localStorage.removeItem('thoogudeepa_customer_session_v1');
+          } catch {}
+          curStore.resetSession();
+          hasPlacedOrderRef.current = false;
+        }
+        return;
       }
     };
 
     channel.on('broadcast', { event: 'STATE_CHANGED' }, handleBroadcast);
 
-    // Safety-net poll every 8 seconds — only acts if:
-    //   1. Customer has placed an order (not pre-order browsing)
-    //   2. Table or chair is confirmed cleared/VACANT in bridge (not just absent)
-    //   3. Customer is on an active post-order screen (5, 6, 7, 9, 10)
-    const vacateCheckInterval = setInterval(() => {
+    // Safety-net poll: verifies with server endpoint so other chairs' sessions are never interrupted
+    const vacateCheckInterval = setInterval(async () => {
       if (!hasPlacedOrderRef.current) return;
 
       const curStore = useCustomerStore.getState();
@@ -662,31 +661,24 @@ function CustomerJourneyContent() {
       const postOrderScreens = [5, 6, 7, 9, 10];
       if (!postOrderScreens.includes(curStore.currentScreen)) return;
 
-      const bridgeState = useSharedBridge.getState();
-
-      const bridgeTbl = bridgeState.tables.find(
-        (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
-      );
-      const seatActiveItems = (bridgeTbl?.activeItems || []).filter(
-        (ai) => ai.seatNumber === seatId
-      );
-      const seatTickets = bridgeState.kdsTickets.filter(
-        (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tableId) &&
-                tk.status !== 'COMPLETED' &&
-                (tk.seatNumber === seatId || tk.items.some((i) => i.seatNumber === seatId))
-      );
-      const chairHasRemainingOrders = seatActiveItems.length > 0 || seatTickets.length > 0;
-
-      // Reset if chair has no active orders in bridge or table is explicitly VACANT
-      if (!chairHasRemainingOrders || (bridgeTbl && bridgeTbl.status === 'VACANT')) {
-        try {
-          localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
-          localStorage.removeItem('thoogudeepa_customer_session_v1');
-        } catch {}
-        curStore.resetSession();
-        hasPlacedOrderRef.current = false;
-      }
-    }, 8000);
+      try {
+        const token = getOrCreateDeviceToken();
+        const res = await fetch(
+          `/api/session/verify?table=${encodeURIComponent(tableId)}&seat=${seatId}&deviceToken=${encodeURIComponent(token)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'VACANT' && !data.active && (!data.order || !data.order.items || data.order.items.length === 0)) {
+            try {
+              localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
+              localStorage.removeItem('thoogudeepa_customer_session_v1');
+            } catch {}
+            curStore.resetSession();
+            hasPlacedOrderRef.current = false;
+          }
+        }
+      } catch {}
+    }, 12000);
 
     return () => {
       clearInterval(vacateCheckInterval);

@@ -1757,13 +1757,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
         const activeKotCount = newTickets.filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED').length;
 
+        const hasOtherGuests = (t.guestCount || 1) > 1 || hasRemainingOrders;
+        const nextStatus = hasOtherGuests ? ('OCCUPIED' as const) : ('VACANT' as const);
+
         return {
           ...t,
           activeItems: remainingActiveItems,
           currentBill: newBill,
-          guestCount: hasRemainingOrders ? Math.max(1, (t.guestCount || 2) - 1) : 0,
+          guestCount: hasOtherGuests ? Math.max(1, (t.guestCount || 2) - 1) : 0,
           kotCount: hasRemainingOrders ? activeKotCount : 0,
-          status: hasRemainingOrders ? ('OCCUPIED' as const) : ('VACANT' as const),
+          status: nextStatus,
         };
       });
 
@@ -1780,6 +1783,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       }
 
       return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions, settledBills: nextBills };
+    });
+
+    broadcastStateChange('chairCleared', {
+      tableNumber: normTable,
+      seatNumber,
     });
 
     // Clear server settlement session & settled bills for this chair
@@ -2178,8 +2186,7 @@ if (typeof window !== 'undefined') {
           return t;
         });
 
-        // Filter out COMPLETED tickets on rehydration and orphan tickets for tables with 0 bill
-        const liveTickets = Array.isArray(parsed.kdsTickets)
+        const incomingTickets: SharedKDSTicket[] = Array.isArray(parsed.kdsTickets)
           ? (parsed.kdsTickets as SharedKDSTicket[])
               .filter((tk) => tk && tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber))
               .map((tk, idx) => {
@@ -2190,11 +2197,49 @@ if (typeof window !== 'undefined') {
               })
           : [];
 
+        // Merge tickets non-destructively by ID so one chair's update never purges another chair's tickets
+        const currentBridge = useSharedBridge.getState();
+        const currentTickets = currentBridge.kdsTickets || [];
+        const ticketMap = new Map<string, SharedKDSTicket>();
+        currentTickets.forEach((tk: SharedKDSTicket) => {
+          if (tk?.id) ticketMap.set(tk.id, tk);
+        });
+        incomingTickets.forEach((tk: SharedKDSTicket) => {
+          if (tk?.id) ticketMap.set(tk.id, tk);
+        });
+        const mergedLiveTickets = Array.from(ticketMap.values()).filter(
+          (tk) => tk.status !== 'COMPLETED' && (activeTableNums.has(tk.tableNumber) || (tk.items && tk.items.length > 0))
+        );
+
+        // Merge active items across chairs so multi-diner tables retain all chairs' orders
+        const currentTables = currentBridge.tables || [];
+        const mergedTables = sanitizedTables.map((t) => {
+          const localTbl = currentTables.find((lt: SharedTable) => lt.number === t.number);
+          if (!localTbl) return t;
+
+          const itemMap = new Map<string, any>();
+          (localTbl.activeItems || []).forEach((ai: any) => {
+            const key = ai.id || `${ai.name}-s${ai.seatNumber}`;
+            itemMap.set(key, ai);
+          });
+          (t.activeItems || []).forEach((ai: any) => {
+            const key = ai.id || `${ai.name}-s${ai.seatNumber}`;
+            itemMap.set(key, ai);
+          });
+          const mergedActiveItems = Array.from(itemMap.values());
+          const hasItems = mergedActiveItems.length > 0;
+          return {
+            ...t,
+            activeItems: mergedActiveItems,
+            status: hasItems ? 'OCCUPIED' : t.status,
+          };
+        });
+
         isBroadcasting = true;
         useSharedBridge.setState({
           ...parsed,
-          tables: sanitizedTables,
-          kdsTickets: liveTickets,
+          tables: mergedTables,
+          kdsTickets: mergedLiveTickets,
           // kitchenNotifications are session-only, don't persist them
           kitchenNotifications: [],
         });
@@ -2205,13 +2250,13 @@ if (typeof window !== 'undefined') {
           localStorage.setItem(BRIDGE_STORAGE_KEY, JSON.stringify({
             ...parsed,
             tables: sanitizedTables,
-            kdsTickets: liveTickets,
+            kdsTickets: mergedLiveTickets,
           }));
         } catch {}
 
         // Safely recover ticket counter
-        if (liveTickets.length > 0) {
-          const validNums = liveTickets
+        if (mergedLiveTickets.length > 0) {
+          const validNums = mergedLiveTickets
             .map((tk: SharedKDSTicket) => {
               const cleaned = (tk.id || '').replace(/^KDS-/, '').split('-')[0];
               const parsedInt = parseInt(cleaned, 10);

@@ -37,20 +37,37 @@ export const Screen10WaiterCall: React.FC = () => {
   };
 
   const tableTickets = kdsTickets.filter((tk) => isTableMatch(tk.tableNumber, effectiveTable));
-  const activeItems = tableTickets.flatMap((t) => t.items);
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
 
-  // Strict check: only enabled when all ordered dishes are served
-  const allDishesServed = useMemo(() => {
-    if (!activeItems.length) return false;
-    return activeItems.every((it) => {
+  // Latch served status so transient reconciliation frames never cause payment options to flicker
+  const [hasEverBeenFullyServed, setHasEverBeenFullyServed] = useState(false);
+
+  const rawAllDishesServed = useMemo(() => {
+    const chairTickets = kdsTickets.filter(
+      (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+    );
+    const chairItems = chairTickets.flatMap((t) => t.items).filter(
+      (it) => it.seatNumber === effectiveSeat || !it.seatNumber
+    );
+    if (!chairItems.length) return false;
+    return chairItems.every((it) => {
       if (it.stage === 'SERVED') return true;
       const matched = currentTbl?.activeItems?.find(
-        (ai) => ai.name.toLowerCase().includes(it.name.toLowerCase()) || it.name.toLowerCase().includes(ai.name.toLowerCase())
+        (ai: any) => ai.seatNumber === effectiveSeat &&
+                (ai.name.toLowerCase().includes(it.name.toLowerCase()) || it.name.toLowerCase().includes(ai.name.toLowerCase()))
       );
       return matched?.status === 'Served';
     });
-  }, [activeItems, currentTbl]);
+  }, [kdsTickets, currentTbl, effectiveTable, effectiveSeat]);
+
+  useEffect(() => {
+    if (rawAllDishesServed) {
+      setHasEverBeenFullyServed(true);
+    }
+  }, [rawAllDishesServed]);
+
+  const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 

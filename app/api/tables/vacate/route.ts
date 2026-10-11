@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabase, broadcastStateChange } from '../../../../lib/supabase';
 import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
@@ -52,6 +52,25 @@ export async function POST(req: NextRequest) {
         .eq('table_number', tableNumber)
         .eq('seat_number', seatNumber)
         .eq('status', 'UNPAID');
+
+      // 1c. Check if other seats are still OCCUPIED or have UNPAID orders
+      const { data: otherOccupiedSeats } = await supabase
+        .from('table_seats')
+        .select('seat_number')
+        .eq('table_number', tableNumber)
+        .eq('status', 'OCCUPIED')
+        .neq('seat_number', seatNumber);
+
+      const { data: otherUnpaidOrders } = await supabase
+        .from('orders')
+        .select('id, total, seat_number')
+        .eq('table_number', tableNumber)
+        .eq('status', 'UNPAID')
+        .neq('seat_number', seatNumber);
+
+      const hasOtherOccupiedSeats = Boolean(otherOccupiedSeats && otherOccupiedSeats.length > 0);
+      const hasOtherUnpaidOrders = Boolean(otherUnpaidOrders && otherUnpaidOrders.length > 0);
+      const otherUnpaidTotal = (otherUnpaidOrders || []).reduce((s, o) => s + Number(o.total || 0), 0);
 
       // 2. Fetch and filter active KDS tickets
       const { data: activeTickets } = await supabase
@@ -113,10 +132,15 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. Update table bill and status
-      const newBill = Math.round(remainingItemsTotal * 1.05);
-      const newStatus = hasOtherSeatItems ? 'OCCUPIED' : 'VACANT';
-      const newGuestCount = hasOtherSeatItems ? Math.max(1, (table.guest_count || 2) - 1) : 0;
-      const newKotCount = hasOtherSeatItems ? Math.max(1, (table.kot_count || 1) - 1) : 0;
+      const isTableStillActive = hasOtherOccupiedSeats || hasOtherUnpaidOrders || hasOtherSeatItems;
+      const newStatus = isTableStillActive ? 'OCCUPIED' : 'VACANT';
+      const newBill = isTableStillActive
+        ? (otherUnpaidTotal > 0 ? otherUnpaidTotal : Math.round(remainingItemsTotal * 1.05))
+        : 0;
+      const newGuestCount = isTableStillActive
+        ? Math.max(1, (otherOccupiedSeats?.length || 0), (table.guest_count || 2) - 1)
+        : 0;
+      const newKotCount = isTableStillActive ? Math.max(1, (table.kot_count || 1) - 1) : 0;
 
       await supabase
         .from('tables')
@@ -129,10 +153,21 @@ export async function POST(req: NextRequest) {
         })
         .eq('number', tableNumber);
 
+      broadcastStateChange('chairCleared', {
+        tableNumber,
+        seatNumber,
+      });
+
+      if (!isTableStillActive) {
+        broadcastStateChange('tableVacated', {
+          tableNumber,
+        });
+      }
+
       // Clear settled bills for this specific chair
       try {
         clearSettledBillInMemory(tableNumber, seatNumber);
-        if (!hasOtherSeatItems) {
+        if (!isTableStillActive) {
           clearSettledBillInMemory(tableNumber);
         }
         await supabase
@@ -206,6 +241,10 @@ export async function POST(req: NextRequest) {
         .delete()
         .or(`id.ilike.SETTLE-SESSION-${nTable}%,id.ilike.SETTLED-BILL-${nTable}%`);
     } catch {}
+
+    broadcastStateChange('tableVacated', {
+      tableNumber,
+    });
 
     return NextResponse.json({
       success: true,

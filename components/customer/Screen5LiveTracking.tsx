@@ -287,8 +287,10 @@ export const Screen5LiveTracking: React.FC = () => {
     return [];
   }, [bridgeTickets, effectiveTable, supabaseTickets, cart, effectiveSeat, currentTbl]);
 
-  // Strict check: all orders must be SERVED to enable calling captain to pay
-  const allDishesServed = useMemo(() => {
+  // Latch served status so transient reconciliation frames never cause payment buttons to flicker
+  const [hasEverBeenFullyServed, setHasEverBeenFullyServed] = useState(false);
+
+  const rawAllDishesServed = useMemo(() => {
     if (!trackedDishes.length) return false;
     return trackedDishes.every((d) => {
       if (d.stage === 'SERVED') return true;
@@ -298,6 +300,14 @@ export const Screen5LiveTracking: React.FC = () => {
       return matched?.status === 'Served';
     });
   }, [trackedDishes, currentTbl, effectiveSeat]);
+
+  useEffect(() => {
+    if (rawAllDishesServed) {
+      setHasEverBeenFullyServed(true);
+    }
+  }, [rawAllDishesServed]);
+
+  const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
   // Auto-transition to Screen 8 immediately when waiter confirms payment
   const matchingSnapshot = useMemo(() => {
@@ -341,8 +351,7 @@ export const Screen5LiveTracking: React.FC = () => {
     }
   }, [matchingSnapshot, trackedDishes, orderPlacedAt]);
 
-  // Dedicated high-priority 1-second polling loop to guarantee instantaneous synchronization
-  // when customer is waiting for captain or settlement
+  // Synchronize settlement session without causing broadcast loops across tabs
   useEffect(() => {
     let isCancelled = false;
     const fetchSession = async () => {
@@ -351,17 +360,22 @@ export const Screen5LiveTracking: React.FC = () => {
         if (res.ok && !isCancelled) {
           const data = await res.json();
           if (data?.sessions !== undefined || data?.settledBills !== undefined) {
-            useSharedBridge.setState({
-              activeSettlementSessions: data.sessions || {},
-              settledBills: data.settledBills || {},
-            });
+            const currentBridge = useSharedBridge.getState();
+            const sessionsChanged = JSON.stringify(currentBridge.activeSettlementSessions) !== JSON.stringify(data.sessions || {});
+            const billsChanged = JSON.stringify(currentBridge.settledBills) !== JSON.stringify(data.settledBills || {});
+            if (sessionsChanged || billsChanged) {
+              useSharedBridge.setState({
+                activeSettlementSessions: data.sessions || {},
+                settledBills: data.settledBills || {},
+              });
+            }
           }
         }
       } catch {}
     };
 
     fetchSession();
-    const interval = setInterval(fetchSession, 1000);
+    const interval = setInterval(fetchSession, 1200);
     return () => {
       isCancelled = true;
       clearInterval(interval);

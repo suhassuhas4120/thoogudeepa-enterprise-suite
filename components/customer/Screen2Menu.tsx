@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -392,17 +393,30 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                 >
                   {/* Photo / Illustration Container */}
                   <div
-                    className="relative flex h-28 w-full items-center justify-center overflow-hidden rounded-2xl"
+                    className="relative flex h-28 w-full items-center justify-center overflow-hidden rounded-2xl bg-stone-100"
                     style={{
                       backgroundColor: currentTheme.colors.bgElevated,
                     }}
                   >
-                    <div className="transition-transform duration-300 group-hover:scale-105">
-                      {getItemIcon(item)}
-                    </div>
+                    {item.image ? (
+                      <div className="relative h-full w-full">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="(max-width: 640px) 50vw, 240px"
+                          className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                          priority={filteredItems.indexOf(item) < 4}
+                        />
+                      </div>
+                    ) : (
+                      <div className="transition-transform duration-300 group-hover:scale-105">
+                        {getItemIcon(item)}
+                      </div>
+                    )}
 
                     {/* Veg / Non-Veg Indicator */}
-                    <div className="absolute top-1.5 left-1.5 flex h-4 w-4 items-center justify-center rounded-sm bg-white/95 p-0.5 shadow-2xs">
+                    <div className="absolute top-1.5 left-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-sm bg-white/95 p-0.5 shadow-2xs">
                       <div
                         className={`h-2.5 w-2.5 rounded-full ${
                           isVeg ? 'bg-emerald-600' : 'bg-rose-700'
@@ -412,7 +426,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
                     {/* Kitchen Prep Delay Badge */}
                     {prepDelay > 0 && !is86 && (
-                      <div className="absolute top-1.5 left-7 flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-2xs">
+                      <div className="absolute top-1.5 left-7 z-10 flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-2xs">
                         <Clock className="h-2.5 w-2.5" />
                         <span>+{prepDelay}m</span>
                       </div>
@@ -421,7 +435,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                     {/* Badge */}
                     {item.badge && !is86 && (
                       <div
-                        className="absolute top-1.5 right-1.5 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider shadow-2xs"
+                        className="absolute top-1.5 right-1.5 z-10 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider shadow-2xs"
                         style={{
                           backgroundColor: currentTheme.colors.primary,
                           color: currentTheme.colors.primaryFg,

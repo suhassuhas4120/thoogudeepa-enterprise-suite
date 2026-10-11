@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { MenuItem } from '../../types/customer';
 import { Plus, Minus, X, Check, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -72,31 +73,64 @@ export const ItemDrawer: React.FC<ItemDrawerProps> = ({
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative z-10 flex max-h-[85%] w-full flex-col rounded-t-[28px] bg-white shadow-2xl border-t border-slate-200"
+            className="relative z-10 flex max-h-[85%] w-full flex-col overflow-hidden rounded-t-[28px] bg-white shadow-2xl border-t border-slate-200"
           >
-            {/* Pull Bar */}
-            <div className="flex justify-center pt-2.5 pb-1">
-              <div className="h-1.5 w-10 rounded-full bg-slate-300" />
-            </div>
-
-            {/* Sheet Header */}
-            <div className="flex items-center justify-between px-4 pb-2 pt-1 border-b border-slate-100">
-              <div className="min-w-0 pr-2">
-                <span className="text-[9.5px] font-bold uppercase tracking-wider text-orange-600 font-mono">
-                  {item.category} &bull; {item.prepMode}
-                </span>
-                <h3 className="truncate text-sm font-extrabold text-slate-900">
-                  {item.name}
-                </h3>
+            {/* Food Hero Image Banner */}
+            {item.image && (
+              <div className="relative w-full h-40 bg-stone-100 shrink-0 overflow-hidden">
+                <Image
+                  src={item.image}
+                  alt={item.name}
+                  fill
+                  sizes="(max-width: 640px) 100vw, 400px"
+                  className="object-cover object-center"
+                  priority
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <button
+                  onClick={() => onOpenChange(false)}
+                  className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition shadow-md cursor-pointer"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+                <div className="absolute bottom-2.5 left-4 right-4">
+                  <span className="text-[9.5px] font-black uppercase tracking-wider text-amber-300 font-mono">
+                    {item.category} &bull; {item.prepMode}
+                  </span>
+                  <h3 className="truncate text-base font-black text-white drop-shadow-sm">
+                    {item.name}
+                  </h3>
+                </div>
               </div>
-              <button
-                onClick={() => onOpenChange(false)}
-                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200"
-                title="Close"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
+            )}
+
+            {/* Pull Bar & Header (when no image available) */}
+            {!item.image && (
+              <>
+                <div className="flex justify-center pt-2.5 pb-1">
+                  <div className="h-1.5 w-10 rounded-full bg-slate-300" />
+                </div>
+
+                <div className="flex items-center justify-between px-4 pb-2 pt-1 border-b border-slate-100">
+                  <div className="min-w-0 pr-2">
+                    <span className="text-[9.5px] font-bold uppercase tracking-wider text-orange-600 font-mono">
+                      {item.category} &bull; {item.prepMode}
+                    </span>
+                    <h3 className="truncate text-sm font-extrabold text-slate-900">
+                      {item.name}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => onOpenChange(false)}
+                    className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 cursor-pointer"
+                    title="Close"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </>
+            )}
 
             {/* Scrollable Sheet Content */}
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5">

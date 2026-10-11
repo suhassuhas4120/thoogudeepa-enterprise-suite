@@ -8,6 +8,7 @@ export interface MenuItem {
   badge?: string;
   description: string;
   imagePlaceholder: string;
+  image?: string;
   prepMode: string;
   optionsGroup1: {
     title: string;

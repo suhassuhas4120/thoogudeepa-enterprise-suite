@@ -1957,15 +1957,32 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   resetToFreshDemoState: () => {
     if (typeof window !== 'undefined') {
       try {
+        localStorage.removeItem('thoogudeepa_bridge_v3');
         localStorage.removeItem('thoogudeepa_bridge_live_v2');
         localStorage.removeItem('thoogudeepa_bridge_v1');
+        localStorage.removeItem('thoogudeepa_shared_bridge_state');
       } catch {}
     }
     ticketCounter = 1;
     notifCounter = 1;
     itemIdCounter = 1;
     set({
-      tables: freshTables,
+      tables: freshTables.map((t) => ({
+        ...t,
+        status: 'VACANT' as const,
+        currentBill: 0,
+        guestCount: 0,
+        activeItems: [],
+        seatedTime: '--',
+        kotCount: 0,
+        mergedWith: undefined,
+        mergeGroupPeers: undefined,
+        isMergeConfirmed: undefined,
+        preMergeCapacity: undefined,
+        preMergeBill: undefined,
+        preMergeGuests: undefined,
+        preMergeStatus: undefined,
+      })),
       kdsTickets: [],
       pings: [],
       inventory86: freshInventory86,
@@ -1985,7 +2002,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
 if (typeof window !== 'undefined') {
   let isBroadcasting = false;
-  const BRIDGE_STORAGE_KEY = 'thoogudeepa_bridge_live_v2';
+  const BRIDGE_STORAGE_KEY = 'thoogudeepa_bridge_v3';
+
+  // Purge any stale legacy bridge state from previous versions
+  try {
+    localStorage.removeItem('thoogudeepa_bridge_live_v2');
+    localStorage.removeItem('thoogudeepa_bridge_v1');
+    localStorage.removeItem('thoogudeepa_shared_bridge_state');
+  } catch {}
 
   const applyPersistedState = (parsed: Record<string, unknown>, suppressBroadcast = false) => {
     if (!parsed || !Array.isArray(parsed.tables)) return;
@@ -2191,6 +2215,21 @@ if (typeof window !== 'undefined') {
     syncChannel = new BroadcastChannel('thoogudeepa_bridge_sync');
 
     syncChannel.onmessage = (event) => {
+      if (
+        event.data?.type === 'VENUE_CLEAN_RESET' ||
+        event.data?.type === 'VENUE_FRESH_RESET' ||
+        event.data?.type === 'RESET_ALL'
+      ) {
+        useSharedBridge.getState().resetToFreshDemoState();
+        try {
+          localStorage.removeItem(BRIDGE_STORAGE_KEY);
+          localStorage.removeItem('thoogudeepa_bridge_v3');
+          localStorage.removeItem('thoogudeepa_bridge_live_v2');
+          localStorage.removeItem('thoogudeepa_bridge_v1');
+          localStorage.removeItem('thoogudeepa_shared_bridge_state');
+        } catch {}
+        return;
+      }
       if (event.data?.type === 'SYNC_STATE' && event.data.payload) {
         applyPersistedState(event.data.payload, true); // suppress re-broadcast
       }
@@ -2202,6 +2241,25 @@ if (typeof window !== 'undefined') {
         .on('broadcast', { event: 'STATE_CHANGED' }, (msg: any) => {
           const reason = msg?.payload?.reason;
           const payload = msg?.payload?.payload;
+          if (
+            reason === 'VENUE_CLEAN_RESET' ||
+            reason === 'VENUE_FRESH_RESET' ||
+            reason === 'venueReset' ||
+            reason === 'RESET_ALL'
+          ) {
+            useSharedBridge.getState().resetToFreshDemoState();
+            try {
+              localStorage.removeItem(BRIDGE_STORAGE_KEY);
+              localStorage.removeItem('thoogudeepa_bridge_v3');
+              localStorage.removeItem('thoogudeepa_bridge_live_v2');
+              localStorage.removeItem('thoogudeepa_bridge_v1');
+              localStorage.removeItem('thoogudeepa_shared_bridge_state');
+            } catch {}
+            try {
+              syncChannel?.postMessage({ type: 'VENUE_CLEAN_RESET' });
+            } catch {}
+            return;
+          }
           if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
             const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
             const targetTbl = cleanNum(payload.tableNumber);

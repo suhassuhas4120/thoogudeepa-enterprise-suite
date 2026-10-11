@@ -321,6 +321,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    if (action === 'RESET_ALL' || action === 'VENUE_CLEAN_RESET') {
+      activeSettlementSessions.clear();
+      settledBills.clear();
+      clearedSettlementAt.clear();
+
+      try {
+        await supabase
+          .from('pings')
+          .delete()
+          .or('type.eq.SETTLEMENT_SESSION,type.eq.SETTLED_BILL');
+      } catch {}
+
+      broadcastStateChange('VENUE_CLEAN_RESET', { timestamp: Date.now() });
+      return NextResponse.json({ success: true, message: 'All venue sessions reset successfully' });
+    }
+
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });

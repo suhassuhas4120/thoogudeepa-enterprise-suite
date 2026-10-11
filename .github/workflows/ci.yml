@@ -53,26 +53,9 @@ jobs:
       - run: npm ci
       # No secrets, no network: safe for forks. CI=true makes the runner keep going,
       # so one red suite can never hide the results of the others.
+      # Executes all 8 comprehensive static suites (Phases 3, 5, 6, 7, 8, 9, 10, Waiter matrix)
       - name: Run static suites
         run: npm run test:static
-
-  quarantined-tests:
-    name: Quarantined Suites (non-blocking)
-    needs: type-check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-node@v6
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      # Phase 5 and Phase 7 currently have stale assertions. Kept visible, not blocking.
-      # Fix them, then move them to group 'static' in scripts/run-all-tests.ts.
-      - name: Run quarantined suites
-        run: npm run test:quarantine
 
   build-validation:
     name: Production Build Verification
@@ -108,10 +91,10 @@ jobs:
   live-tests:
     name: Live Integration Suites (Supabase TEST project)
     needs: [static-tests, build-validation]
-    # Never runs on fork PRs (no secrets) and never against production.
-    # Enable by setting repo variable LIVE_TESTS_ENABLED=true, or run manually.
+    # Runs when LIVE_TESTS_ENABLED=true, run_live=true, or when TEST_SUPABASE_URL secret is configured.
+    # Never runs on untrusted fork PRs and never against production.
     if: >-
-      (vars.LIVE_TESTS_ENABLED == 'true' || inputs.run_live == true) &&
+      (vars.LIVE_TESTS_ENABLED == 'true' || inputs.run_live == true || (secrets.TEST_SUPABASE_URL != '' && secrets.TEST_SUPABASE_PUBLISHABLE_KEY != '')) &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20

@@ -13,6 +13,7 @@ This Master Test Plan provides a complete inventory of the testing coverage acro
 1. **Features & Components Already Tested** (including existing test scripts and phase coverage).
 2. **Features & Components Yet to be Tested** (uncovered functionality and gap analysis).
 3. **Execution Commands** to run the current test suites.
+4. **Interactive Multi-Party Manual Testing**: See [MANUAL_MULTI_USER_TEST_PLAN.md](file:///c:/Users/Manjunath/thoogudeepa-enterprise-suite/MANUAL_MULTI_USER_TEST_PLAN.md) for live end-to-end 4-tester synchronous execution protocol (Customer, Waiter, Chef, Manager).
 
 ---
 

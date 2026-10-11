@@ -283,6 +283,46 @@ function CustomerJourneyContent() {
     vacantSeats: number[];
   } | null>(null);
 
+  const [chairTakenNotice, setChairTakenNotice] = React.useState<{
+    seat: number;
+    message: string;
+    shakeKey: number;
+  } | null>(null);
+
+  const [isCheckingSeat, setIsCheckingSeat] = React.useState<number | null>(null);
+
+  const getOccupiedSeatsFromBridge = (targetTable: string): Set<number> => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetClean = cleanNum(targetTable);
+    const bridge = useSharedBridge.getState();
+    const occupied = new Set<number>();
+
+    const tbl = bridge.tables.find((t) => cleanNum(t.number) === targetClean);
+    if (tbl?.activeItems) {
+      for (const item of tbl.activeItems) {
+        if (item.seatNumber && item.seatNumber >= 1 && item.seatNumber <= 6) {
+          occupied.add(item.seatNumber);
+        }
+      }
+    }
+
+    const tickets = bridge.kdsTickets.filter(
+      (tk) => cleanNum(tk.tableNumber) === targetClean && tk.status !== 'COMPLETED'
+    );
+    for (const tk of tickets) {
+      if (tk.seatNumber && tk.seatNumber >= 1 && tk.seatNumber <= 6) {
+        occupied.add(tk.seatNumber);
+      }
+      for (const item of tk.items || []) {
+        const s = item.seatNumber || (item as any).seat_number;
+        if (s && s >= 1 && s <= 6) {
+          occupied.add(s);
+        }
+      }
+    }
+    return occupied;
+  };
+
   React.useEffect(() => {
     if (typeof window === 'undefined') return;
 
@@ -290,19 +330,151 @@ function CustomerJourneyContent() {
       const customEvent = e as CustomEvent<{ vacantSeats?: number[] }>;
       const detail = customEvent.detail || {};
       const curStore = useCustomerStore.getState();
+      const currentTable = curStore.tableNumber || tableRef.current;
+      const occupiedInBridge = getOccupiedSeatsFromBridge(currentTable);
+      const incomingVacant = (detail.vacantSeats || []).filter((s) => !occupiedInBridge.has(s));
+
+      setChairTakenNotice(null);
       setChairConflict({
         isOpen: true,
         occupiedSeat: curStore.seatNumber || seatRef.current,
-        table: curStore.tableNumber || tableRef.current,
-        vacantSeats: detail.vacantSeats || [],
+        table: currentTable,
+        vacantSeats: incomingVacant,
+      });
+    };
+
+    const handleRealtimeSeatOccupied = (e: Event) => {
+      const customEvent = e as CustomEvent<{ tableNumber?: string; seatNumber?: number }>;
+      const { tableNumber, seatNumber } = customEvent.detail || {};
+      if (!tableNumber || !seatNumber) return;
+
+      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      setChairConflict((prev) => {
+        if (!prev || !prev.isOpen) return prev;
+        if (cleanNum(prev.table) !== cleanNum(tableNumber)) return prev;
+
+        const updatedVacant = prev.vacantSeats.filter((s) => s !== seatNumber);
+
+        if (prev.vacantSeats.includes(seatNumber)) {
+          let noticeText = '';
+          if (updatedVacant.length === 0) {
+            noticeText = `Chair ${seatNumber} just taken. All seats at Table ${tableNumber} are currently occupied.`;
+          } else if (updatedVacant.length === 1) {
+            noticeText = `Chair ${seatNumber} just taken, please tap ${updatedVacant[0]}`;
+          } else if (updatedVacant.length === 2) {
+            noticeText = `Chair ${seatNumber} just taken, please tap ${updatedVacant[0]} or ${updatedVacant[1]}`;
+          } else {
+            const last = updatedVacant[updatedVacant.length - 1];
+            const rest = updatedVacant.slice(0, -1).join(', ');
+            noticeText = `Chair ${seatNumber} just taken, please tap ${rest} or ${last}`;
+          }
+          setChairTakenNotice({
+            seat: seatNumber,
+            message: noticeText,
+            shakeKey: Date.now(),
+          });
+        }
+
+        return {
+          ...prev,
+          vacantSeats: updatedVacant,
+        };
       });
     };
 
     window.addEventListener('chairConflictDetected', handleConflict);
-    return () => window.removeEventListener('chairConflictDetected', handleConflict);
+    window.addEventListener('seatOccupiedRealtime', handleRealtimeSeatOccupied);
+    return () => {
+      window.removeEventListener('chairConflictDetected', handleConflict);
+      window.removeEventListener('seatOccupiedRealtime', handleRealtimeSeatOccupied);
+    };
   }, []);
 
-  const handleSwitchChair = (newSeat: number) => {
+  // Real-time sync listener while conflict modal is actively open
+  React.useEffect(() => {
+    if (!chairConflict?.isOpen) return;
+
+    const unsubscribe = useSharedBridge.subscribe(() => {
+      const occupiedInBridge = getOccupiedSeatsFromBridge(chairConflict.table);
+      setChairConflict((prev) => {
+        if (!prev || !prev.isOpen) return prev;
+        const remainingVacant = prev.vacantSeats.filter((s) => !occupiedInBridge.has(s));
+        if (remainingVacant.length !== prev.vacantSeats.length) {
+          return { ...prev, vacantSeats: remainingVacant };
+        }
+        return prev;
+      });
+    });
+
+    return () => unsubscribe();
+  }, [chairConflict?.isOpen, chairConflict?.table]);
+
+  const handleSwitchChair = async (newSeat: number) => {
+    if (isCheckingSeat !== null) return;
+    setIsCheckingSeat(newSeat);
+
+    const cleanTable = tableRef.current || (chairConflict?.table ?? '');
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const normTable = `T-${String(parseInt(cleanNum(cleanTable), 10) || 1).padStart(2, '0')}`;
+
+    // 1. Instant check against local shared bridge state
+    const occupiedSeats = getOccupiedSeatsFromBridge(normTable);
+    const isTakenLocally = occupiedSeats.has(newSeat);
+
+    // 2. Fast check against server endpoint
+    let isTakenOnServer = false;
+    let latestServerVacant: number[] | null = null;
+
+    if (!isTakenLocally) {
+      try {
+        const token = getOrCreateDeviceToken();
+        const res = await fetch(
+          `/api/session/verify?table=${encodeURIComponent(normTable)}&seat=${newSeat}&deviceToken=${encodeURIComponent(token)}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isOccupiedByOtherDevice || (data.active && data.order && data.order.items?.length > 0)) {
+            isTakenOnServer = true;
+          }
+          if (Array.isArray(data.vacantSeats)) {
+            latestServerVacant = data.vacantSeats;
+          }
+        }
+      } catch {}
+    }
+
+    const isSeatTaken = isTakenLocally || isTakenOnServer;
+
+    if (isSeatTaken) {
+      setIsCheckingSeat(null);
+      const currentVacant = latestServerVacant || (chairConflict?.vacantSeats || []);
+      const remaining = currentVacant.filter((s) => s !== newSeat && !occupiedSeats.has(s));
+
+      let noticeText = '';
+      if (remaining.length === 0) {
+        noticeText = `Chair ${newSeat} just taken. All seats at Table ${normTable} are currently occupied.`;
+      } else if (remaining.length === 1) {
+        noticeText = `Chair ${newSeat} just taken, please tap ${remaining[0]}`;
+      } else if (remaining.length === 2) {
+        noticeText = `Chair ${newSeat} just taken, please tap ${remaining[0]} or ${remaining[1]}`;
+      } else {
+        const last = remaining[remaining.length - 1];
+        const rest = remaining.slice(0, -1).join(', ');
+        noticeText = `Chair ${newSeat} just taken, please tap ${rest} or ${last}`;
+      }
+
+      setChairConflict((prev) => (prev ? { ...prev, vacantSeats: remaining } : null));
+      setChairTakenNotice({
+        seat: newSeat,
+        message: noticeText,
+        shakeKey: Date.now(),
+      });
+      return;
+    }
+
+    // Seat is confirmed open!
+    setIsCheckingSeat(null);
+    setChairTakenNotice(null);
     seatRef.current = newSeat;
     setSeatNumber(newSeat);
     setChairConflict(null);
@@ -315,11 +487,10 @@ function CustomerJourneyContent() {
       } catch {}
     }
 
-    const cleanTable = tableRef.current;
     const curStore = useCustomerStore.getState();
     curStore.setSeatNumber(newSeat);
     curStore.resetSession();
-    curStore.syncWithActiveSession(cleanTable, newSeat);
+    curStore.syncWithActiveSession(normTable, newSeat);
   };
 
 
@@ -625,6 +796,21 @@ function CustomerJourneyContent() {
                 </div>
               </div>
 
+              {chairTakenNotice && (
+                <motion.div
+                  key={chairTakenNotice.shakeKey}
+                  initial={{ x: 0, opacity: 0 }}
+                  animate={{ x: [-10, 10, -7, 7, -3, 3, 0], opacity: 1 }}
+                  transition={{ duration: 0.45, ease: 'easeInOut' }}
+                  className="p-3 rounded-2xl bg-amber-500/15 border-2 border-amber-500/80 text-amber-200 text-xs font-bold flex items-center gap-2.5 shadow-lg shadow-amber-950/40"
+                >
+                  <AlertCircle className="h-4 w-4 text-amber-400 shrink-0 animate-pulse" />
+                  <span className="flex-1 font-mono tracking-tight text-amber-100">
+                    {chairTakenNotice.message}
+                  </span>
+                </motion.div>
+              )}
+
               {chairConflict.vacantSeats && chairConflict.vacantSeats.length > 0 && (
                 <div className="space-y-2.5 pt-1">
                   <p className="text-xs text-stone-300 font-medium text-center">
@@ -635,10 +821,17 @@ function CustomerJourneyContent() {
                     {chairConflict.vacantSeats.map((seatNum) => (
                       <button
                         key={seatNum}
+                        disabled={isCheckingSeat !== null}
                         onClick={() => handleSwitchChair(seatNum)}
-                        className="py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-lg shadow-amber-900/30 border border-amber-500/30"
+                        className={`py-3 px-4 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white font-black text-sm flex items-center justify-center gap-2 active:scale-95 transition shadow-lg shadow-amber-900/30 border border-amber-500/30 ${
+                          isCheckingSeat === seatNum ? 'opacity-70 cursor-wait' : ''
+                        }`}
                       >
-                        <Armchair className="h-4 w-4" />
+                        {isCheckingSeat === seatNum ? (
+                          <RefreshCw className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Armchair className="h-4 w-4" />
+                        )}
                         <span>Chair {seatNum}</span>
                       </button>
                     ))}

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabase, broadcastStateChange } from '../../../../lib/supabase';
 import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
@@ -317,7 +317,14 @@ export async function POST(req: NextRequest) {
       })
       .eq('number', tableNumber);
 
-      return NextResponse.json({
+    broadcastStateChange('seatOccupied', {
+      tableNumber,
+      seatNumber,
+      orderId,
+      timestamp: Date.now(),
+    });
+
+    return NextResponse.json({
         success: true,
         orderId,
         ticketId,

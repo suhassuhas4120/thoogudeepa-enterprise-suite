@@ -479,6 +479,22 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       };
     });
 
+    broadcastStateChange('seatOccupied', {
+      tableNumber,
+      seatNumber: assignedSeat,
+    });
+    if (typeof window !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.postMessage({
+          type: 'SEAT_OCCUPIED',
+          tableNumber,
+          seatNumber: assignedSeat,
+        });
+        bc.close();
+      } catch {}
+    }
+
     bridgePost(
       '/api/orders/create',
       {
@@ -2230,6 +2246,18 @@ if (typeof window !== 'undefined') {
         } catch {}
         return;
       }
+      if (event.data?.type === 'SEAT_OCCUPIED' && event.data.tableNumber && event.data.seatNumber) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('seatOccupiedRealtime', {
+              detail: {
+                tableNumber: event.data.tableNumber,
+                seatNumber: Number(event.data.seatNumber),
+              },
+            })
+          );
+        }
+      }
       if (event.data?.type === 'SYNC_STATE' && event.data.payload) {
         applyPersistedState(event.data.payload, true); // suppress re-broadcast
       }
@@ -2259,6 +2287,18 @@ if (typeof window !== 'undefined') {
               syncChannel?.postMessage({ type: 'VENUE_CLEAN_RESET' });
             } catch {}
             return;
+          }
+          if (reason === 'seatOccupied' && payload?.tableNumber && payload?.seatNumber) {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('seatOccupiedRealtime', {
+                  detail: {
+                    tableNumber: payload.tableNumber,
+                    seatNumber: Number(payload.seatNumber),
+                  },
+                })
+              );
+            }
           }
           if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
             const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();

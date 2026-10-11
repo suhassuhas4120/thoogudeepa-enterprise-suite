@@ -91,10 +91,10 @@ jobs:
   live-tests:
     name: Live Integration Suites (Supabase TEST project)
     needs: [static-tests, build-validation]
-    # Runs when LIVE_TESTS_ENABLED=true, run_live=true, or when TEST_SUPABASE_URL secret is configured.
+    # Runs when LIVE_TESTS_ENABLED=true or run_live=true.
     # Never runs on untrusted fork PRs and never against production.
     if: >-
-      (vars.LIVE_TESTS_ENABLED == 'true' || inputs.run_live == true || (secrets.TEST_SUPABASE_URL != '' && secrets.TEST_SUPABASE_PUBLISHABLE_KEY != '')) &&
+      (vars.LIVE_TESTS_ENABLED == 'true' || inputs.run_live == true) &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 20

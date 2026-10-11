@@ -14,36 +14,70 @@ async function performVenueReset() {
   settledBills.clear();
   clearedSettlementAt.clear();
 
-  // 2. Reset Supabase tables
+  // 2. Reset all tables to VACANT with 0 bill and 0 guest count
   await supabase
     .from('tables')
-    .update({ status: 'VACANT', current_bill: 0 })
-    .neq('status', 'VACANT');
+    .update({
+      status: 'VACANT',
+      current_bill: 0,
+      guest_count: 0,
+      kot_count: 0,
+      merged_with: null,
+      updated_at: new Date().toISOString(),
+    })
+    .neq('id', 'non_existent_id');
 
-  // 3. Reset Supabase table seats
+  // 3. Reset all table seats to VACANT with null active orders
   await supabase
     .from('table_seats')
-    .update({ status: 'VACANT', active_order_id: null, device_token: null })
-    .neq('status', 'VACANT');
+    .update({
+      status: 'VACANT',
+      active_order_id: null,
+      device_token: null,
+      updated_at: new Date().toISOString(),
+    })
+    .neq('id', 'non_existent_id');
 
-  // 4. Mark all pending orders paid and items served
+  // 4. Delete all lingering KDS tickets
+  await supabase
+    .from('kds_tickets')
+    .delete()
+    .neq('id', 'non_existent_id');
+
+  // 5. Mark all open/unpaid orders as PAID
   await supabase
     .from('orders')
-    .update({ status: 'PAID' })
+    .update({
+      status: 'PAID',
+      updated_at: new Date().toISOString(),
+    })
     .neq('status', 'PAID')
     .neq('status', 'CANCELLED');
 
+  // 6. Mark all order items as SERVED
   await supabase
     .from('order_items')
-    .update({ stage: 'SERVED' })
+    .update({
+      stage: 'SERVED',
+      updated_at: new Date().toISOString(),
+    })
     .neq('stage', 'SERVED');
 
+  // 7. Mark all pings as RESOLVED
   await supabase
     .from('pings')
-    .update({ status: 'RESOLVED' })
+    .update({
+      status: 'RESOLVED',
+    })
     .neq('status', 'RESOLVED');
 
-  // 5. Broadcast real-time reset event across all connected devices
+  // 8. Delete all temporary settlement pings
+  await supabase
+    .from('pings')
+    .delete()
+    .or('type.eq.SETTLEMENT_SESSION,type.eq.SETTLED_BILL');
+
+  // 9. Broadcast real-time reset event across all connected devices
   broadcastStateChange('VENUE_CLEAN_RESET', { timestamp: Date.now() });
 }
 

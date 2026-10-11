@@ -155,6 +155,14 @@ async function cleanAndResetVenue() {
 
     if (pingErr) console.warn('    pings update warning:', pingErr.message);
     else console.log('    All pending pings marked RESOLVED.');
+
+    const { error: kdsErr } = await supabase
+      .from('kds_tickets')
+      .delete()
+      .neq('id', 'non_existent_id');
+
+    if (kdsErr) console.warn('    kds_tickets deletion warning:', kdsErr.message);
+    else console.log('    All KDS kitchen tickets deleted.');
   } catch (err) {
     console.warn('    Database cleanup error:', err.message);
   }

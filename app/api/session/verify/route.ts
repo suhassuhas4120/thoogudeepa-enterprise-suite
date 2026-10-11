@@ -94,11 +94,11 @@ async function handleVerifySession(
           .eq('number', candidate.table_number)
           .maybeSingle();
 
-        // If the table or seat was already vacated or settled (e.g. waiter settled and vacated), the order is stale
-        const isTableVacant = !tblCheck || tblCheck.status === 'VACANT' || (Number(tblCheck.current_bill || 0) === 0);
-        const isSeatVacant = !seatCheck || seatCheck.status === 'VACANT' || !seatCheck.active_order_id || seatCheck.device_token !== deviceToken;
+        // Validate whether the candidate's table and seat are actually still occupied in the dining room
+        const isSeatOccupied = Boolean(seatCheck && seatCheck.status === 'OCCUPIED' && seatCheck.active_order_id === candidate.id);
+        const isTableActive = Boolean(tblCheck && tblCheck.status !== 'VACANT');
 
-        if (isTableVacant || isSeatVacant) {
+        if (!isSeatOccupied || !isTableActive) {
           // Auto-reconcile stale order so customer starts fresh without being prompted for dead session
           await supabase
             .from('orders')

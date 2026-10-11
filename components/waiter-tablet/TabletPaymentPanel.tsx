@@ -42,7 +42,7 @@ export function TabletPaymentPanel({
   splitAmount,
   splitLabel,
 }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, recordSettledBill } = useSharedBridge();
+  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill } = useSharedBridge();
   const { cart } = useCustomer();
   const table = tables.find((t) => t.number === tableNum);
 
@@ -246,8 +246,12 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
 
     setSettled(true);
     setTimeout(() => {
-      if (vacateAfter && !splitAmount && !splitSeatNum) {
-        waiterVacatesTable(tableNum);
+      if (vacateAfter) {
+        if (splitSeatNum) {
+          waiterClearsChairAfterPayment(tableNum, splitSeatNum);
+        } else if (!splitAmount) {
+          waiterVacatesTable(tableNum);
+        }
       }
       setSettled(false);
       setCashTendered('');

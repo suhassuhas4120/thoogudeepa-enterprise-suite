@@ -17,7 +17,7 @@ interface Props {
 type PayMethod = 'CASH' | 'UPI' | 'CARD';
 
 export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount, splitLabel }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, recordSettledBill } = useSharedBridge();
+  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill } = useSharedBridge();
   const table = tables.find((t) => t.number === tableNum);
 
   const [method, setMethod] = useState<PayMethod>('UPI');
@@ -124,8 +124,12 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
 
     setSettled(true);
     setTimeout(() => {
-      if (vacateAfter && !splitAmount && !splitSeatNum) {
-        waiterVacatesTable(tableNum);
+      if (vacateAfter) {
+        if (splitSeatNum) {
+          waiterClearsChairAfterPayment(tableNum, splitSeatNum);
+        } else if (!splitAmount) {
+          waiterVacatesTable(tableNum);
+        }
       }
       setSettled(false);
       setCashTendered('');

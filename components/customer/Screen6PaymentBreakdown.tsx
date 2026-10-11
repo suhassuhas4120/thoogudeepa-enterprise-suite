@@ -56,7 +56,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
       const seatNum = typeof b.seatNumber === 'number'
         ? b.seatNumber
         : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-      if (typeof seatNum !== 'number') {
+      if (seatNum === effectiveSeat) {
         matchingSnapshot = b;
       }
     }

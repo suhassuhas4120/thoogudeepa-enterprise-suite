@@ -173,7 +173,11 @@ export async function POST(req: NextRequest) {
         await supabase
           .from('pings')
           .delete()
-          .or(`id.eq.SETTLED-BILL-${tableNumber}-S${seatNumber},id.eq.SETTLE-SESSION-${tableNumber}-S${seatNumber},id.eq.SETTLED-BILL-${tableNumber}`);
+          .or(
+            isTableStillActive
+              ? `id.eq.SETTLED-BILL-${tableNumber}-S${seatNumber},id.eq.SETTLE-SESSION-${tableNumber}-S${seatNumber}`
+              : `id.eq.SETTLED-BILL-${tableNumber}-S${seatNumber},id.eq.SETTLE-SESSION-${tableNumber}-S${seatNumber},id.eq.SETTLED-BILL-${tableNumber}`
+          );
       } catch {}
 
       return NextResponse.json({

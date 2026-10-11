@@ -596,27 +596,71 @@ function CustomerJourneyContent() {
 
     const channel = getSyncBroadcastChannel();
 
-    const handleBroadcast = (event: { payload?: { reason?: string; tableNumber?: string; seatNumber?: number } }) => {
+    const handleBroadcast = (event: any) => {
       const reason = event?.payload?.reason;
-      if (reason !== 'tableVacated' && reason !== 'chairCleared') return;
+      if (
+        reason !== 'tableVacated' &&
+        reason !== 'chairCleared' &&
+        reason !== 'billSettled' &&
+        reason !== 'settledBillRecorded'
+      ) return;
 
       // Only act if the customer has already placed an order
-      // (pre-order browsing must never be disrupted by unrelated vacate events)
+      // (pre-order browsing must never be disrupted by unrelated events)
       if (!hasPlacedOrderRef.current) return;
 
       const curStore = useCustomerStore.getState();
       const tableId = curStore.tableNumber || tableRef.current;
       const seatId = curStore.seatNumber || seatRef.current;
 
-      // Don't interrupt Screen 8 (confirmation) — payment already shown
+      // Extract inner payload defensively across direct and wrapped structures
+      const inner = (event?.payload?.payload || event?.payload || {}) as Record<string, any>;
+      const rawTable = inner.tableNumber || inner.tableName || event?.payload?.tableNumber;
+      const evtTable = typeof rawTable === 'string' ? rawTable : undefined;
+      const rawSeat = inner.seatNumber !== undefined ? inner.seatNumber : event?.payload?.seatNumber;
+      const evtSeat = rawSeat !== undefined && rawSeat !== null ? Number(rawSeat) : undefined;
+
+      // If the event targets a specific table that is not ours, ignore it
+      if (evtTable && cleanTableNum(evtTable) !== cleanTableNum(tableId)) return;
+
+      // ── SETTLEMENT BILL ARRIVED: Show Screen 8 directly ──
+      if (reason === 'billSettled' || reason === 'settledBillRecorded') {
+        const snapshot = (event?.payload?.payload || event?.payload) as any;
+        if (!snapshot || !snapshot.invoiceNumber) return;
+        const snapSeat = typeof snapshot.seatNumber === 'number'
+          ? snapshot.seatNumber
+          : (snapshot.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(snapshot.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
+        // Transition to confirmation invoice screen if this bill is for our seat or entire table
+        if (snapSeat === undefined || snapSeat === seatId) {
+          if (curStore.currentScreen !== 8) {
+            curStore.handleBillSettledByWaiter(snapshot);
+          }
+        }
+        return;
+      }
+
+      // Don't interrupt Screen 8 (confirmation) — payment invoice is already actively displayed
       if (curStore.currentScreen === 8) return;
 
-      // If this is a chairCleared event for a different chair or table, ignore it completely
+      // ── CHAIR CLEARED EVENT ──
       if (reason === 'chairCleared') {
-        const evtTable = event?.payload?.tableNumber;
-        const evtSeat = event?.payload?.seatNumber;
-        if (evtTable && cleanTableNum(evtTable) !== cleanTableNum(tableId)) return;
+        // If seat number is provided and does NOT match our seat, IGNORE completely!
         if (typeof evtSeat === 'number' && evtSeat !== seatId) return;
+
+        // If seat number is not a number, DO NOT reset our session if we have active ordered items
+        if (typeof evtSeat !== 'number') return;
+
+        // If this IS our seat: check if there is an active settled bill snapshot to display Screen 8
+        const bridgeState = useSharedBridge.getState();
+        const cleanT = cleanTableNum(tableId);
+        const normTbl = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+        const chairBill = bridgeState.settledBills?.[`${normTbl}-CHAIR-${seatId}`] || bridgeState.settledBills?.[normTbl];
+
+        if (chairBill) {
+          curStore.handleBillSettledByWaiter(chairBill);
+          return;
+        }
 
         try {
           localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
@@ -627,15 +671,22 @@ function CustomerJourneyContent() {
         return;
       }
 
+      // ── TABLE VACATED EVENT ──
       if (reason === 'tableVacated') {
-        const evtTable = event?.payload?.tableNumber;
-        if (evtTable && cleanTableNum(evtTable) !== cleanTableNum(tableId)) return;
+        // Multi-seat protection: If this customer holds ordered dishes in their cart,
+        // do not reset unless the bridge table status is truly VACANT and no active items remain
+        const hasActiveOrderedItems = curStore.cart.some((ci) => ci && ci.isOrdered);
 
         const bridgeState = useSharedBridge.getState();
         const bridgeTbl = bridgeState.tables.find(
           (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
         );
-        if (bridgeTbl && bridgeTbl.status === 'VACANT') {
+
+        if (hasActiveOrderedItems && bridgeTbl && bridgeTbl.status !== 'VACANT') {
+          return; // Another chair was vacated or partial vacate; keep this customer active
+        }
+
+        if (bridgeTbl && bridgeTbl.status === 'VACANT' && !hasActiveOrderedItems) {
           try {
             localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
             localStorage.removeItem('thoogudeepa_customer_session_v1');

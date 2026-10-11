@@ -889,12 +889,19 @@ export const Screen5LiveTracking: React.FC = () => {
           ) : (
             <div className="grid grid-cols-2 gap-2">
               <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setShowPayViaWaiterModal(true)}
-                className="flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer"
+                disabled={isSummoned}
+                whileTap={!isSummoned ? { scale: 0.98 } : undefined}
+                onClick={() => {
+                  if (!isSummoned) setShowPayViaWaiterModal(true);
+                }}
+                className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
+                  isSummoned
+                    ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-80 cursor-not-allowed'
+                    : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
+                }`}
               >
                 <CreditCard className="h-4 w-4 stroke-[2.2]" />
-                <span>Pay via Waiter</span>
+                <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
               </motion.button>
 
               <motion.button

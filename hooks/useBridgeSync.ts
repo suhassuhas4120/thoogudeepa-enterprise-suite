@@ -79,6 +79,7 @@ interface DbMenu86Row {
 interface DbPingRow {
   id: string;
   table_number: string;
+  seat_number?: number | string;
   type: string;
   message: string | null;
   guest_name: string;
@@ -318,6 +319,7 @@ async function reconcileAllState(): Promise<void> {
         nextPings.push({
           id: row.id,
           tableNumber: row.table_number,
+          seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
           type: row.type,
           message: row.message ?? undefined,
           timestamp: row.created_at

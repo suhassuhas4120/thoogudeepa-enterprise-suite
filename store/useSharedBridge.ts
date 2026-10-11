@@ -547,13 +547,18 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     // Deduplication: prevent duplicate pending pings from same table & chair for same reason
     const currentPings = get().pings;
-    const hasDuplicate = currentPings.some(
-      (p) =>
-        cleanNum(p.tableNumber) === targetNum &&
-        p.type === type &&
-        p.status === 'PENDING' &&
-        (!seatNumber || !p.seatNumber || p.seatNumber === seatNumber)
-    );
+    const hasDuplicate = currentPings.some((p) => {
+      if (cleanNum(p.tableNumber) !== targetNum) return false;
+      if (p.type !== type || p.status !== 'PENDING') return false;
+      // If a specific chair is pinging, only treat as duplicate if that SAME chair already has a pending ping
+      if (typeof seatNumber === 'number' && typeof p.seatNumber === 'number') {
+        return p.seatNumber === seatNumber;
+      }
+      if (typeof seatNumber === 'number' && p.seatNumber === undefined) {
+        return false; // Do not block chair-specific ping if an existing ping had no chair
+      }
+      return !seatNumber && !p.seatNumber;
+    });
     if (hasDuplicate) return;
 
     const ping: SharedPing = {
@@ -1527,6 +1532,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     // 1. Optimistic: remove ping immediately from UI
     set((state) => ({ pings: state.pings.filter((p) => p.id !== pingId) }));
 
+    broadcastStateChange('waiterPingResolved', { pingId });
+
     // 2. Persist to Supabase
     bridgePost(
       '/api/pings/resolve',
@@ -2344,6 +2351,20 @@ if (typeof window !== 'undefined') {
                 })
               );
             }
+          }
+          if (reason === 'waiterPingCreated' && payload) {
+            const newPing = payload as SharedPing;
+            if (newPing && newPing.tableNumber) {
+              useSharedBridge.setState((state) => {
+                if (state.pings.some((p) => p.id === newPing.id)) return state;
+                return { pings: [newPing, ...state.pings] };
+              });
+            }
+          }
+          if (reason === 'waiterPingResolved' && payload?.pingId) {
+            useSharedBridge.setState((state) => ({
+              pings: state.pings.filter((p) => p.id !== payload.pingId),
+            }));
           }
           if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
             const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();

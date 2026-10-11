@@ -69,6 +69,20 @@ export const Screen10WaiterCall: React.FC = () => {
 
   const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
+  // Check if payment ping is active for this chair to prevent spamming
+  const hasActivePaymentPing = useMemo(() => {
+    return (
+      (waiterNotification?.active && waiterNotification.type === 'PAYMENT') ||
+      pings.some(
+        (p) =>
+          isTableMatch(p.tableNumber, effectiveTable) &&
+          p.type === 'PAYMENT' &&
+          p.status === 'PENDING' &&
+          p.seatNumber === effectiveSeat
+      )
+    );
+  }, [pings, effectiveTable, effectiveSeat, waiterNotification]);
+
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   useEffect(() => {
@@ -195,7 +209,9 @@ export const Screen10WaiterCall: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             {pingButtons.map((btn) => {
               const isPayment = btn.type === 'PAYMENT';
-              const isPaymentDisabled = isPayment ? !allDishesServed : cooldownRemaining > 0;
+              const isPaymentDisabled = isPayment
+                ? !allDishesServed || hasActivePaymentPing
+                : cooldownRemaining > 0;
 
               return (
                 <motion.button
@@ -207,7 +223,9 @@ export const Screen10WaiterCall: React.FC = () => {
                     isPayment
                       ? `col-span-2 flex-row items-center justify-center gap-3 p-3.5 border ${
                           isPaymentDisabled
-                            ? 'bg-stone-50 border-stone-200 opacity-50 cursor-not-allowed'
+                            ? hasActivePaymentPing
+                              ? 'bg-amber-50 border-amber-300 text-amber-800 opacity-80 cursor-not-allowed'
+                              : 'bg-stone-50 border-stone-200 opacity-50 cursor-not-allowed'
                             : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 cursor-pointer hover:opacity-90'
                         }`
                       : `flex-col items-center justify-center gap-2 p-4 ${
@@ -239,13 +257,21 @@ export const Screen10WaiterCall: React.FC = () => {
                       className={`font-black ${isPayment ? 'text-xs text-[#9C3D1E]' : 'text-xs text-center'}`}
                       style={!isPayment ? { color: currentTheme.colors.textPrimary } : undefined}
                     >
-                      {!isPayment && cooldownRemaining > 0 ? `${btn.label} (${cooldownRemaining}s)` : btn.label}
+                      {isPayment && hasActivePaymentPing
+                        ? 'Captain Summoned'
+                        : !isPayment && cooldownRemaining > 0
+                        ? `${btn.label} (${cooldownRemaining}s)`
+                        : btn.label}
                     </span>
-                    {isPayment && isPaymentDisabled && (
+                    {isPayment && hasActivePaymentPing ? (
+                      <span className="text-[10px] text-amber-700 font-medium">
+                        (Captain on the way to Chair {effectiveSeat})
+                      </span>
+                    ) : isPayment && !allDishesServed ? (
                       <span className="text-[10px] text-stone-500 font-medium">
                         (Unlocks once all dishes are served to your chair)
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </motion.button>
               );

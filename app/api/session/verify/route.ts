@@ -224,6 +224,7 @@ async function handleVerifySession(
         .from('orders')
         .select('*')
         .eq('table_number', tableNumber)
+        .eq('seat_number', seatNumber)
         .eq('status', 'UNPAID')
         .order('created_at', { ascending: false })
         .limit(1);
@@ -233,6 +234,7 @@ async function handleVerifySession(
           .from('orders')
           .select('*')
           .eq('id', seatData.active_order_id)
+          .eq('seat_number', seatNumber)
           .eq('status', 'UNPAID')
           .limit(1);
       }

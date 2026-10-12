@@ -194,22 +194,23 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // Re-verify seat occupancy under mutex lock to completely eliminate race conditions
+      // Atomic Database-Level Seat Reservation
+      // Eliminates multi-worker / multi-device race conditions when two phones place orders at the exact same millisecond
       if (source === 'CUSTOMER') {
-        const { data: lockedSeat } = await supabase
+        const { data: claimedSeats, error: claimErr } = await supabase
           .from('table_seats')
-          .select('*')
+          .update({
+            status: 'OCCUPIED',
+            device_token: deviceToken,
+            updated_at: new Date().toISOString(),
+          })
           .eq('table_number', tableNumber)
           .eq('seat_number', seatNumber)
-          .maybeSingle();
+          .or(deviceToken ? `status.eq.VACANT,device_token.eq.${deviceToken}` : 'status.eq.VACANT')
+          .select('id, table_number, seat_number, status, device_token');
 
-        if (
-          lockedSeat &&
-          lockedSeat.status === 'OCCUPIED' &&
-          lockedSeat.device_token &&
-          deviceToken &&
-          lockedSeat.device_token !== deviceToken
-        ) {
+        if (claimErr || !claimedSeats || claimedSeats.length === 0) {
+          // The atomic update matched 0 rows, meaning the seat is already occupied by another device!
           const { data: allSeats } = await supabase
             .from('table_seats')
             .select('seat_number, status')

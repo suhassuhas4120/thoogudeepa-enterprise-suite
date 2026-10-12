@@ -46,6 +46,7 @@ interface CustomerStoreState {
   removeCartItem: (cartItemId: string) => void;
   orderSeparately: (cartItemId: string) => void;
   placeAllOrders: () => void;
+  rollBackUnplacedOrders: () => void;
   setOrderStage: (stage: OrderStage) => void;
   setItemTracking: (items: IndividualItemTracking[]) => void;
   updateTip: (tip: number) => void;
@@ -669,6 +670,18 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         };
       });
     }
+  },
+
+  rollBackUnplacedOrders: () => {
+    set((state) => {
+      // Revert newly marked ordered items that failed backend creation
+      const revertedCart = state.cart.filter((c) => c.isOrdered);
+      const prevScreen = state.previousScreen || 4;
+      return {
+        cart: revertedCart.length > 0 ? revertedCart : state.cart.map((c) => ({ ...c, isOrdered: false })),
+        currentScreen: revertedCart.length > 0 ? 5 : 4,
+      };
+    });
   },
 
   dismissWaiterNotification: () => {

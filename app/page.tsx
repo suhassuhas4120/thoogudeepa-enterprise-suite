@@ -387,6 +387,7 @@ function CustomerJourneyContent() {
       const customEvent = e as CustomEvent<{ vacantSeats?: number[] }>;
       const detail = customEvent.detail || {};
       const curStore = useCustomerStore.getState();
+      curStore.rollBackUnplacedOrders();
       const currentTable = curStore.tableNumber || tableRef.current;
       const occupiedInBridge = getOccupiedSeatsFromBridge(currentTable);
       const incomingVacant = (detail.vacantSeats || []).filter((s) => !occupiedInBridge.has(s));

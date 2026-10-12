@@ -3,8 +3,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useSharedBridge } from '../../../store/useSharedBridge';
 import { useWaiterStore } from '../../../store/useWaiterStore';
-import { Smartphone, Bell, UtensilsCrossed, Utensils, Flame, Briefcase, LogOut, CheckCircle2 } from 'lucide-react';
+import { Smartphone, Bell, UtensilsCrossed, Utensils, Flame, Briefcase, LogOut, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { waiterLocalOutbox, QueuedAction } from '../../../lib/waiterOutbox';
 
 import { ScreenM1StaffLogin } from '../../../components/waiter-mobile/ScreenM1StaffLogin';
 import { ScreenM2FloorGrid } from '../../../components/waiter-mobile/ScreenM2FloorGrid';
@@ -88,6 +89,29 @@ export default function WaiterMobilePage() {
   });
 
   const [toast, setToast] = useState<string | null>(null);
+  const [outboxPendingCount, setOutboxPendingCount] = useState<number>(0);
+  const [isOnline, setIsOnline] = useState<boolean>(true);
+
+  // Subscribe to persistent local outbox queue updates
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      setIsOnline(navigator.onLine);
+      const handleOnline = () => setIsOnline(true);
+      const handleOffline = () => setIsOnline(false);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      const unsubscribe = waiterLocalOutbox.subscribe((queue: QueuedAction[]) => {
+        setOutboxPendingCount(queue.length);
+      });
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+        unsubscribe();
+      };
+    }
+  }, []);
 
   // Synchronize SPA navigation with native browser/device history & gesture navigation
   const navigateView = (nextView: ActiveView, replace = false) => {
@@ -417,7 +441,42 @@ export default function WaiterMobilePage() {
             </div>
           </div>
 
-          <div className="flex items-center gap-1 font-mono text-[10px] font-bold">
+          <div className="flex items-center gap-1.5 font-mono text-[10px] font-bold">
+            {/* Local-First Outbox Synchronization Badge */}
+            <div
+              className={`px-2 py-1 rounded-xl flex items-center gap-1 border shadow-2xs transition-colors ${
+                !isOnline
+                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                  : outboxPendingCount > 0
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse'
+                  : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+              }`}
+              title={
+                !isOnline
+                  ? 'Device Offline: Orders saved locally'
+                  : outboxPendingCount > 0
+                  ? `${outboxPendingCount} actions pending sync`
+                  : 'All orders synced to cloud'
+              }
+            >
+              {!isOnline ? (
+                <>
+                  <WifiOff className="h-3 w-3" />
+                  <span>OFFLINE</span>
+                </>
+              ) : outboxPendingCount > 0 ? (
+                <>
+                  <div className="h-2 w-2 rounded-full bg-blue-500 animate-ping" />
+                  <span>SYNCING ({outboxPendingCount})</span>
+                </>
+              ) : (
+                <>
+                  <Wifi className="h-3 w-3 text-emerald-600" />
+                  <span>SYNCED</span>
+                </>
+              )}
+            </div>
+
             <button
               onClick={handleLogout}
               className="p-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl text-rose-700 transition flex items-center gap-1 active:scale-95 shadow-2xs"

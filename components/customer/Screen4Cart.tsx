@@ -90,8 +90,11 @@ export const Screen4Cart: React.FC = () => {
       />
 
       <div
-        className="flex-1 overflow-y-auto p-4 space-y-3 transition-colors duration-200"
-        style={{ backgroundColor: currentTheme.colors.bgApp }}
+        className="flex-1 overflow-y-auto p-5 space-y-4 pb-8 transition-colors duration-300 relative select-none"
+        style={{
+          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
+          color: '#FAF7F2',
+        }}
       >
         {/* Notice Banner */}
         <AnimatePresence>
@@ -100,339 +103,240 @@ export const Screen4Cart: React.FC = () => {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="flex items-center gap-2 rounded-2xl px-3.5 py-2.5 text-xs font-black shadow-md"
-              style={{
-                backgroundColor: currentTheme.colors.primary,
-                color: currentTheme.colors.primaryFg,
-              }}
+              className="flex items-center gap-2 rounded-2xl p-3 text-xs font-bold border border-amber-400/40 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 text-amber-200 shadow-lg backdrop-blur-md"
             >
-              <CheckCircle2 className="h-4 w-4 text-amber-200" />
+              <CheckCircle2 className="h-4 w-4 text-amber-400" />
               <span>{notice}</span>
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Dine-In Order Context Banner */}
+        {/* Exquisite Minimal Summary Card with Delicate Gold Borders */}
         {cart.length > 0 && (
-          <div
-            className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
-            style={{
-              backgroundColor: currentTheme.colors.bgSurface,
-              borderColor: currentTheme.colors.border,
-            }}
-          >
-            <div className="flex items-center gap-2.5">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-xl"
-                style={{
-                  backgroundColor: currentTheme.colors.secondaryBg,
-                  color: currentTheme.colors.primary,
-                }}
-              >
-                <UtensilsCrossed className="h-4 w-4" />
-              </div>
+          <div className="rounded-[28px] p-5 border border-amber-500/30 bg-gradient-to-r from-stone-900/90 to-black/90 shadow-[0_12px_30px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+            <div className="flex items-center justify-between">
               <div>
-                <div
-                  className="text-[11px] font-black"
-                  style={{ color: currentTheme.colors.textPrimary }}
-                >
-                  Dine-In ({tableNumber} • Chair C-{String(seatNumber || 1).padStart(2, '0')})
+                <div className="text-xl font-bold font-serif-luxury text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-200 to-amber-400">
+                  Table {tableNumber} &bull; Seat {seatNumber || 1}
                 </div>
-                <div
-                  className="text-[9.5px] font-bold font-mono"
-                  style={{ color: currentTheme.colors.primary }}
-                >
-                  {totalItemCount} {totalItemCount === 1 ? 'Dish' : 'Dishes'} in Your Selection
+                <div className="text-[10px] font-medium tracking-widest uppercase text-stone-400 mt-0.5">
+                  Gourmet Dining Selection &bull; {totalItemCount} {totalItemCount === 1 ? 'Dish' : 'Dishes'}
                 </div>
               </div>
+              <span className="rounded-full px-3 py-1 text-[10px] font-bold border border-amber-400/40 bg-amber-500/10 text-amber-300">
+                Active Order
+              </span>
             </div>
-            <span
-              className="rounded-full px-2.5 py-0.5 text-[9.5px] font-bold font-mono border"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.secondaryFg,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
-              Table Ready
+          </div>
+        )}
+
+        {/* Dish Order List Header */}
+        {cart.length > 0 && (
+          <div className="flex items-center justify-between px-1 pt-1">
+            <span className="text-sm font-bold font-serif-luxury text-amber-200 tracking-wide">
+              Dish Order List
+            </span>
+            <span className="text-[10px] text-stone-400 font-medium">
+              Fine Dining Ledger
             </span>
           </div>
         )}
 
         {/* Cart Items List */}
         {cart.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-12 text-center my-auto space-y-3">
-            <div
-              className="flex h-16 w-16 items-center justify-center rounded-3xl"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.primary,
-              }}
-            >
+          <div className="flex flex-col items-center justify-center p-14 text-center my-auto space-y-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-400 border border-amber-400/20 shadow-inner">
               <ShoppingBag className="h-8 w-8 stroke-[1.8]" />
             </div>
-            <h4
-              className="text-sm font-black"
-              style={{ color: currentTheme.colors.textPrimary }}
-            >
-              Your Cart is Empty
+            <h4 className="text-lg font-bold font-serif-luxury text-amber-100">
+              Your Selection is Empty
             </h4>
-            <p
-              className="text-xs max-w-[200px]"
-              style={{ color: currentTheme.colors.textMuted }}
-            >
-              Discover authentic Donne Dum Biryanis and nati military dishes.
+            <p className="text-xs max-w-[220px] text-stone-400 font-normal">
+              Discover authentic Donne Dum Biryanis and military cuisine.
             </p>
             <button
               onClick={() => setCurrentScreen(2)}
-              className="mt-2 rounded-2xl px-4 py-2 text-xs font-black shadow-sm transition"
+              className="mt-3 rounded-2xl px-6 py-3 text-xs font-bold text-amber-950 shadow-lg transition"
               style={{
-                backgroundColor: currentTheme.colors.primary,
-                color: currentTheme.colors.primaryFg,
-                boxShadow: currentTheme.colors.primaryShadow,
+                background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)',
               }}
             >
               Browse Menu
             </button>
           </div>
         ) : (
-          <AnimatePresence>
-            {cart.map((ci) => {
-              const isOrdered = ci.isOrdered;
-              const isVeg = isVegItem(ci.menuItem.name, ci.menuItem.category);
+          <div className="space-y-3">
+            <AnimatePresence>
+              {cart.map((ci) => {
+                const isOrdered = ci.isOrdered;
+                const isVeg = isVegItem(ci.menuItem.name, ci.menuItem.category);
 
-              return (
-                <motion.div
-                  key={ci.cartItemId}
-                  layout
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  className="rounded-2xl border p-3.5 shadow-xs space-y-2.5 transition-colors duration-200"
-                  style={{
-                    backgroundColor: currentTheme.colors.bgSurface,
-                    borderColor: currentTheme.colors.border,
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-xs bg-white p-0.5 shadow-2xs border border-slate-200">
-                          <div
-                            className={`h-2 w-2 rounded-full ${
-                              isVeg ? 'bg-emerald-600' : 'bg-rose-700'
-                            }`}
-                          />
+                return (
+                  <motion.div
+                    key={ci.cartItemId}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="rounded-[28px] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] space-y-3.5 transition-all border border-amber-500/20 bg-gradient-to-b from-stone-900/80 to-black/90 backdrop-blur-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-xs bg-black/60 p-0.5 border border-white/20">
+                            <div
+                              className={`h-2 w-2 rounded-full ${
+                                isVeg ? 'bg-emerald-400' : 'bg-rose-500'
+                              }`}
+                            />
+                          </div>
+                          <h4 className="truncate text-base font-bold font-serif-luxury text-amber-100">
+                            {ci.menuItem.name}
+                          </h4>
                         </div>
-                        <h4
-                          className="truncate text-xs font-black"
-                          style={{ color: currentTheme.colors.textPrimary }}
-                        >
-                          {ci.menuItem.name}
-                        </h4>
+
+                        {/* Flavour & Add-ons Badges */}
+                        <div className="mt-1.5 flex flex-wrap gap-1.5">
+                          {ci.selectedOption && (
+                            <span className="rounded-full px-2.5 py-0.5 text-[9.5px] font-bold border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                              {ci.selectedOption}
+                            </span>
+                          )}
+                          {ci.selectedAddOns?.map((add) => (
+                            <span
+                              key={add}
+                              className="rounded-full px-2.5 py-0.5 text-[9.5px] font-semibold border border-white/10 bg-white/5 text-stone-300"
+                            >
+                              + {add}
+                            </span>
+                          ))}
+                        </div>
                       </div>
 
-                      {/* Flavour & Add-ons Badges */}
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {ci.selectedOption && (
-                          <span
-                            className="rounded px-1.5 py-0.5 text-[9px] font-bold font-mono border"
-                            style={{
-                              backgroundColor: currentTheme.colors.secondaryBg,
-                              color: currentTheme.colors.secondaryFg,
-                              borderColor: currentTheme.colors.borderLight,
-                            }}
+                      {/* Quantity Stepper (Circular Brass Counter) */}
+                      {!isOrdered ? (
+                        <div className="flex items-center gap-2.5">
+                          <button
+                            onClick={() => updateCartQuantity(ci.cartItemId, -1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition active:scale-90"
+                            title="Decrease quantity"
                           >
-                            {ci.selectedOption}
+                            <Minus className="h-3 w-3 stroke-[2.5]" />
+                          </button>
+                          <span className="font-mono text-sm font-black text-amber-200 min-w-4 text-center">
+                            {ci.quantity}
                           </span>
-                        )}
-                        {ci.selectedAddOns?.map((add) => (
-                          <span
-                            key={add}
-                            className="rounded px-1.5 py-0.5 text-[9px] font-bold border"
-                            style={{
-                              backgroundColor: currentTheme.colors.bgElevated,
-                              color: currentTheme.colors.primary,
-                              borderColor: currentTheme.colors.borderLight,
-                            }}
+                          <button
+                            onClick={() => updateCartQuantity(ci.cartItemId, 1)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition active:scale-90"
+                            title="Increase quantity"
                           >
-                            + {add}
-                          </span>
-                        ))}
-                      </div>
+                            <Plus className="h-3 w-3 stroke-[2.5]" />
+                          </button>
+                        </div>
+                      ) : (
+                        <span className="rounded-full px-3 py-1 text-[10px] font-bold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
+                          In Kitchen
+                        </span>
+                      )}
                     </div>
 
-                    {isOrdered ? (
-                      <span className="rounded-full bg-emerald-100 border border-emerald-300 px-2 py-0.5 text-[9.5px] font-black text-emerald-800 font-mono">
-                        Sent to Kitchen
-                      </span>
-                    ) : (
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[9.5px] font-bold font-mono border"
-                        style={{
-                          backgroundColor: currentTheme.colors.secondaryBg,
-                          color: currentTheme.colors.secondaryFg,
-                          borderColor: currentTheme.colors.border,
-                        }}
-                      >
-                        Ready to Fire
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Quantity and Price Bar */}
-                  <div
-                    className="flex items-center justify-between border-t pt-2"
-                    style={{ borderColor: currentTheme.colors.borderLight }}
-                  >
-                    <div>
-                      <div className="flex items-baseline gap-1.5">
-                        <span
-                          className="font-mono text-sm font-black"
-                          style={{ color: currentTheme.colors.textPrimary }}
-                        >
+                    {/* Price & Priority Starter Row */}
+                    <div className="flex items-center justify-between border-t border-white/10 pt-3">
+                      <div>
+                        <span className="text-base font-extrabold text-amber-300 font-mono">
                           ₹{ci.totalPrice}
                         </span>
                         {ci.quantity > 1 && (
-                          <span
-                            className="font-mono text-[10px]"
-                            style={{ color: currentTheme.colors.textMuted }}
-                          >
+                          <span className="text-[10px] text-stone-400 font-medium ml-1.5">
                             (₹{Math.round(ci.totalPrice / ci.quantity)} each)
                           </span>
                         )}
                       </div>
+
+                      {!isOrdered && (
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleSeparateOrder(ci.cartItemId, ci.menuItem.name)}
+                            className="flex items-center gap-1 text-[11px] font-bold text-amber-300/90 hover:text-amber-200 transition"
+                          >
+                            <Flame className="h-3.5 w-3.5 text-amber-400" />
+                            <span>Priority</span>
+                          </button>
+                          <button
+                            onClick={() => removeCartItem(ci.cartItemId)}
+                            className="flex items-center gap-1 text-[11px] font-semibold text-rose-400 hover:text-rose-300 transition"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      )}
                     </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
 
-                    {/* Stepper or Ordered Badge (Harmonized with Theme Button Color) */}
-                    {!isOrdered ? (
-                      <div
-                        className="flex items-center gap-1 rounded-xl border p-0.5 shadow-2xs"
-                        style={{
-                          backgroundColor: currentTheme.colors.bgElevated,
-                          borderColor: currentTheme.colors.border,
-                        }}
-                      >
-                        <button
-                          onClick={() => updateCartQuantity(ci.cartItemId, -1)}
-                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
-                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
-                          title="Decrease quantity"
-                        >
-                          <Minus className="h-2.5 w-2.5 stroke-[3]" />
-                        </button>
-                        <span
-                          className="px-1.5 text-xs font-black font-mono"
-                          style={{ color: currentTheme.colors.textPrimary }}
-                        >
-                          {ci.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateCartQuantity(ci.cartItemId, 1)}
-                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
-                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
-                          title="Increase quantity"
-                        >
-                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="font-mono text-xs font-black"
-                          style={{ color: currentTheme.colors.textPrimary }}
-                        >
-                          Qty: {ci.quantity}
-                        </span>
-                        <button
-                          onClick={() => updateCartQuantity(ci.cartItemId, 1)}
-                          className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-black transition active:scale-95 shadow-2xs cursor-pointer hover:brightness-105"
-                          style={{
-                            backgroundColor: currentTheme.colors.buttonBg,
-                            color: currentTheme.colors.buttonFg,
-                            borderColor: currentTheme.colors.primaryBorder,
-                          }}
-                          title="Add another serving to order"
-                        >
-                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
-                          <span>Add More</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+            {/* Itemized Subtotal Breakdown with Thin Gold Separator Lines */}
+            <div className="rounded-[28px] p-5 border border-amber-500/20 bg-black/60 shadow-inner backdrop-blur-md space-y-2.5">
+              <div className="flex justify-between text-xs text-stone-400">
+                <span>Subtotal</span>
+                <span className="font-mono text-stone-200">
+                  ₹{cart.reduce((sum, item) => sum + item.totalPrice, 0)}
+                </span>
+              </div>
+              <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
+              <div className="flex justify-between text-xs text-stone-400">
+                <span>Taxes & Service (GST 5%)</span>
+                <span className="font-mono text-stone-200">
+                  ₹{Math.round(cart.reduce((sum, item) => sum + item.totalPrice, 0) * 0.05)}
+                </span>
+              </div>
+              <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
+              <div className="flex justify-between text-sm font-bold font-serif-luxury text-amber-200 pt-1">
+                <span>Grand Total</span>
+                <span className="font-mono text-base font-extrabold text-amber-300">
+                  ₹{Math.round(cart.reduce((sum, item) => sum + item.totalPrice, 0) * 1.05)}
+                </span>
+              </div>
+            </div>
 
-                  {/* Actions for unplaced items */}
-                  {!isOrdered && (
-                    <div
-                      className="flex items-center justify-between border-t pt-2 text-[10px]"
-                      style={{ borderColor: currentTheme.colors.borderLight }}
-                    >
-                      <button
-                        onClick={() => handleSeparateOrder(ci.cartItemId, ci.menuItem.name)}
-                        className="font-bold hover:underline flex items-center gap-1"
-                        style={{ color: currentTheme.colors.buttonBg }}
-                      >
-                        <Flame className="h-3 w-3" />
-                        <span>Serve as Priority Starter</span>
-                      </button>
-                      <button
-                        onClick={() => removeCartItem(ci.cartItemId)}
-                        className="flex items-center gap-1 font-bold text-rose-500 hover:text-rose-700 transition"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                        <span>Remove</span>
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-        )}
-
-        {/* Add More Items Button */}
-        {cart.length > 0 && (
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setCurrentScreen(2)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-3 text-xs font-black transition shadow-2xs hover:brightness-105"
-            style={{
-              borderColor: currentTheme.colors.border,
-              backgroundColor: currentTheme.colors.bgSurface,
-              color: currentTheme.colors.buttonBg,
-            }}
-          >
-            <Plus className="h-4 w-4 stroke-[2.5]" />
-            <span>Add More Dishes from Menu</span>
-          </motion.button>
+            {/* Add More Items Button */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setCurrentScreen(2)}
+              className="flex w-full items-center justify-center gap-2 rounded-[24px] border border-dashed border-amber-500/30 py-3.5 text-xs font-bold text-amber-300/80 bg-white/5 hover:bg-white/10 transition"
+            >
+              <Plus className="h-4 w-4 stroke-[2.5]" />
+              <span>Add More Delicacies from Menu</span>
+            </motion.button>
+          </div>
         )}
       </div>
 
-      {/* Sticky Bottom Bar */}
+      {/* Sticky Bottom Bar: Expansive Glowing Terracotta-Gold CTA Bar */}
       {cart.length > 0 && (
         <StickyBottomBar>
           <motion.button
             whileTap={!isSubmitting ? { scale: 0.98 } : undefined}
             onClick={handlePlaceOrders}
             disabled={isSubmitting}
-            className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105 disabled:opacity-75 disabled:cursor-not-allowed"
+            className="flex w-full items-center justify-between rounded-[24px] px-6 py-4 text-center shadow-[0_12px_36px_rgba(217,119,6,0.5)] transition hover:brightness-105 disabled:opacity-75 disabled:cursor-not-allowed border border-amber-300/60 font-serif-luxury text-base font-bold tracking-wide text-amber-950"
             style={{
-              backgroundColor: currentTheme.colors.buttonBg,
-              color: currentTheme.colors.buttonFg,
-              boxShadow: currentTheme.colors.buttonShadow,
+              background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
             }}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {isSubmitting ? (
-                <Loader2 className="h-4 w-4 stroke-[2.5] animate-spin" />
+                <Loader2 className="h-4.5 w-4.5 stroke-[2.5] animate-spin" />
               ) : (
-                <CookingPot className="h-4 w-4 stroke-[2.2]" />
+                <CookingPot className="h-4.5 w-4.5 stroke-[2.2]" />
               )}
               <span>
                 {isSubmitting
-                  ? 'Sending Order to Kitchen...'
+                  ? 'Dispatching to Kitchen...'
                   : unplacedCount > 0
-                  ? 'Send Order to Kitchen'
+                  ? 'Dispatch Order to Kitchen'
                   : 'Track Live Order'}
               </span>
             </div>

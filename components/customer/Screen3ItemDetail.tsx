@@ -8,7 +8,7 @@ import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
-import { ArrowRight, Check, UtensilsCrossed, Ban, Plus, Minus } from 'lucide-react';
+import { ArrowRight, Check, UtensilsCrossed, Ban, Plus, Minus, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Screen3ItemDetail: React.FC = () => {
@@ -58,7 +58,7 @@ export const Screen3ItemDetail: React.FC = () => {
       <WireHeader
         title={
           <span className="inline-flex items-center gap-2">
-            <span>Item Details</span>
+            <span>Delicacy Details</span>
             <span
               className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
               style={{
@@ -79,16 +79,14 @@ export const Screen3ItemDetail: React.FC = () => {
       />
 
       <div
-        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-200"
-        style={{ backgroundColor: currentTheme.colors.bgApp }}
+        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-300 relative select-none"
+        style={{
+          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
+          color: '#FAF7F2',
+        }}
       >
         {/* Dish Showcase Card */}
-        <div
-          className="relative flex h-60 w-full flex-col items-center justify-center rounded-[28px] overflow-hidden border shadow-sm text-center bg-stone-100"
-          style={{
-            borderColor: currentTheme.colors.border,
-          }}
-        >
+        <div className="relative flex h-64 w-full flex-col items-center justify-center rounded-[32px] overflow-hidden border border-amber-500/30 shadow-[0_16px_36px_rgba(0,0,0,0.6)] text-center bg-stone-950">
           {item.image ? (
             <div className="relative h-full w-full">
               <Image
@@ -99,161 +97,101 @@ export const Screen3ItemDetail: React.FC = () => {
                 className="object-cover object-center"
                 priority
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/25" />
-              <div className="absolute bottom-3 left-4 right-4 text-left">
-                <span className="font-mono text-[10px] font-black uppercase tracking-wider text-amber-300 drop-shadow-sm">
+              <div className="absolute inset-0 bg-gradient-to-t from-[#110F0D] via-black/30 to-black/10" />
+              <div className="absolute bottom-4 left-5 right-5 text-left">
+                <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-300">
                   {item.prepMode || 'Traditional Military Dum'}
                 </span>
-                <h3 className="truncate text-base font-black text-white drop-shadow-sm">
+                <h3 className="truncate text-2xl font-bold text-white drop-shadow-md font-serif-luxury mt-0.5">
                   {item.name}
                 </h3>
               </div>
             </div>
           ) : (
-            <div
-              className="flex h-full w-full flex-col items-center justify-center p-4"
-              style={{
-                backgroundColor: currentTheme.colors.bgElevated,
-              }}
-            >
+            <div className="flex h-full w-full flex-col items-center justify-center p-4 bg-stone-900/60">
               {isSoldOut ? (
-                <Ban className="h-16 w-16 text-stone-400" />
+                <Ban className="h-16 w-16 text-stone-500" />
               ) : (
-                <UtensilsCrossed className="h-16 w-16" style={{ color: currentTheme.colors.primary }} />
+                <UtensilsCrossed className="h-16 w-16 text-amber-500" />
               )}
-              <span
-                className="mt-2 font-mono text-xs font-black uppercase tracking-wider"
-                style={{ color: currentTheme.colors.primary }}
-              >
+              <span className="mt-2 text-xs font-bold uppercase tracking-wider text-amber-300">
                 {item.prepMode || 'Traditional Military Dum'}
               </span>
             </div>
           )}
 
           {item.badge && !isSoldOut && (
-            <div
-              className="absolute top-3 right-3 z-10 rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-wider shadow-xs"
-              style={{
-                backgroundColor: currentTheme.colors.primary,
-                color: currentTheme.colors.primaryFg,
-              }}
-            >
+            <div className="absolute top-3.5 right-3.5 z-10 rounded-full px-3 py-1 text-[9.5px] font-extrabold uppercase tracking-wider shadow-lg border border-amber-400/50 bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 font-mono">
               {item.badge}
             </div>
           )}
 
           {isSoldOut && (
-            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 font-mono text-sm font-black uppercase tracking-wider text-rose-300">
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/75 font-mono text-sm font-black uppercase tracking-widest text-rose-300">
               Sold Out
             </div>
           )}
         </div>
 
         {/* Item Title & Pricing */}
-        <div
-          className="rounded-[24px] border p-4 shadow-xs"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
+        <div className="rounded-[28px] p-5 border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-md">
           <div className="flex items-start justify-between gap-3">
             <div>
-              <h2
-                className="text-base font-black"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
+              <h2 className="text-xl font-bold font-serif-luxury text-amber-100">
                 {item.name}
               </h2>
-              <span
-                className="mt-1 inline-block rounded-md border px-2 py-0.5 font-mono text-[10px] font-black uppercase tracking-wide"
-                style={{
-                  backgroundColor: currentTheme.colors.secondaryBg,
-                  color: currentTheme.colors.secondaryFg,
-                  borderColor: currentTheme.colors.border,
-                }}
-              >
+              <span className="mt-1 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide border border-amber-500/30 bg-amber-500/10 text-amber-300 font-mono">
                 {item.category}
               </span>
             </div>
             <div className="text-right">
-              <span
-                className="font-mono text-lg font-black"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
+              <span className="inline-flex items-center rounded-2xl px-3.5 py-1 text-lg font-black font-mono border border-amber-400/40 bg-gradient-to-b from-amber-500/20 to-amber-950/40 text-amber-300 shadow-sm">
                 ₹{item.price}
               </span>
             </div>
           </div>
-          <p
-            className="mt-2 text-xs font-medium leading-relaxed"
-            style={{ color: currentTheme.colors.textMuted }}
-          >
+          <p className="mt-3 text-xs font-normal leading-relaxed text-stone-300">
             {item.description}
           </p>
         </div>
 
-        {/* Flavours / Preparation Option */}
+        {/* Radiant Gem Spice / Preparation Selector */}
         {item.optionsGroup1?.choices?.length > 0 && (
-          <div
-            className="rounded-2xl border p-3 shadow-2xs"
-            style={{
-              backgroundColor: currentTheme.colors.bgSurface,
-              borderColor: currentTheme.colors.border,
-            }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span
-                className="text-[11.5px] font-extrabold"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                {item.optionsGroup1.title === 'Toss Style' ? 'Flavours' : item.optionsGroup1.title}
+          <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 p-4 shadow-inner backdrop-blur-md">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-amber-200 uppercase tracking-widest font-serif-luxury">
+                {item.optionsGroup1.title === 'Toss Style' ? 'Spice & Style' : item.optionsGroup1.title}
               </span>
-              <span
-                className="text-[9.5px] font-bold border px-2 py-0.5 rounded-full font-mono"
-                style={{
-                  backgroundColor: currentTheme.colors.secondaryBg,
-                  color: currentTheme.colors.secondaryFg,
-                  borderColor: currentTheme.colors.border,
-                }}
-              >
-                Choose 1
+              <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/30 font-mono">
+                Select 1
               </span>
             </div>
-            <div className="space-y-1.5">
-              {item.optionsGroup1.choices.map((choice) => {
+            <div className="grid grid-cols-3 gap-2">
+              {item.optionsGroup1.choices.map((choice, idx) => {
                 const isSelected = selectedOption === choice;
+                const gemGradients = [
+                  'from-emerald-400 to-emerald-700',
+                  'from-amber-300 to-amber-700',
+                  'from-rose-400 to-rose-700',
+                ];
+                const gemTone = gemGradients[idx % 3];
+
                 return (
                   <div
                     key={choice}
                     onClick={() => setSelectedOption(choice)}
-                    className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition"
-                    style={
+                    className={`flex flex-col items-center justify-center p-3 rounded-2xl cursor-pointer border transition-all text-center ${
                       isSelected
-                        ? {
-                            borderColor: currentTheme.colors.pillActiveBorder,
-                            backgroundColor: currentTheme.colors.pillActiveBg,
-                            color: currentTheme.colors.pillActiveFg,
-                          }
-                        : {
-                            borderColor: currentTheme.colors.pillInactiveBorder,
-                            backgroundColor: currentTheme.colors.pillInactiveBg,
-                            color: currentTheme.colors.pillInactiveFg,
-                          }
-                    }
+                        ? 'border-amber-400 bg-gradient-to-b from-amber-500/30 to-amber-900/40 shadow-[0_0_20px_rgba(245,158,11,0.35)]'
+                        : 'border-white/10 bg-white/5 hover:border-amber-400/30'
+                    }`}
                   >
-                    <span className="font-bold">{choice}</span>
-                    <div
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition"
-                      style={{
-                        borderColor: isSelected ? currentTheme.colors.pillActiveBorder : '#94A3B8',
-                        backgroundColor: isSelected ? currentTheme.colors.pillActiveBorder : 'transparent',
-                      }}
-                    >
-                      {isSelected && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                      )}
+                    <div className={`h-7 w-7 rounded-xl bg-gradient-to-br ${gemTone} shadow-md flex items-center justify-center mb-1.5 border border-white/30`}>
+                      <Sparkles className="h-3.5 w-3.5 text-white drop-shadow-sm" />
                     </div>
+                    <span className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-amber-200' : 'text-stone-300'}`}>
+                      {choice}
+                    </span>
                   </div>
                 );
               })}
@@ -261,68 +199,42 @@ export const Screen3ItemDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Add-ons */}
+        {/* Accompaniments (Circular Pill Tags) */}
         {item.optionsGroup2?.addOns?.length > 0 && (
-          <div
-            className="rounded-2xl border p-3 shadow-2xs"
-            style={{
-              backgroundColor: currentTheme.colors.bgSurface,
-              borderColor: currentTheme.colors.border,
-            }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span
-                className="text-[11.5px] font-extrabold"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                {item.optionsGroup2.title || 'Popular Add-Ons'}
+          <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 p-4 shadow-inner backdrop-blur-md">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold text-amber-200 uppercase tracking-widest font-serif-luxury">
+                {item.optionsGroup2.title || 'Accompaniments'}
               </span>
-              <span
-                className="text-[9.5px] font-bold font-mono"
-                style={{ color: currentTheme.colors.textMuted }}
-              >
+              <span className="text-[10px] font-semibold text-stone-400 font-mono">
                 Optional
               </span>
             </div>
-            <div className="space-y-1.5">
+            <div className="grid grid-cols-2 gap-2">
               {item.optionsGroup2.addOns.map((addon) => {
                 const isSelected = selectedAddOns.includes(addon.name);
                 return (
                   <div
                     key={addon.name}
                     onClick={() => handleToggleAddOn(addon.name)}
-                    className="flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition"
-                    style={
+                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer border transition-all ${
                       isSelected
-                        ? {
-                            borderColor: currentTheme.colors.pillActiveBorder,
-                            backgroundColor: currentTheme.colors.pillActiveBg,
-                            color: currentTheme.colors.pillActiveFg,
-                          }
-                        : {
-                            borderColor: currentTheme.colors.pillInactiveBorder,
-                            backgroundColor: currentTheme.colors.pillInactiveBg,
-                            color: currentTheme.colors.pillInactiveFg,
-                          }
-                    }
+                        ? 'border-amber-400 bg-gradient-to-b from-amber-500/25 to-amber-900/30 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                        : 'border-white/10 bg-white/5 text-stone-300 hover:border-amber-400/30'
+                    }`}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold">{addon.name}</span>
-                      <span
-                        className="font-mono text-xs font-bold"
-                        style={{ color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textSecondary }}
-                      >
-                        (+₹ {addon.extraPrice})
-                      </span>
+                    <div className="min-w-0 pr-1">
+                      <div className="text-xs font-bold truncate">{addon.name}</div>
+                      <div className="text-[10px] font-extrabold text-amber-400 font-mono">
+                        +₹{addon.extraPrice}
+                      </div>
                     </div>
                     <div
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition"
-                      style={{
-                        borderColor: isSelected ? currentTheme.colors.pillActiveBorder : '#94A3B8',
-                        backgroundColor: isSelected ? currentTheme.colors.pillActiveBorder : 'transparent',
-                      }}
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition ${
+                        isSelected ? 'border-amber-400 bg-amber-400 text-amber-950 font-bold' : 'border-stone-600'
+                      }`}
                     >
-                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3] text-white" />}
+                      {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
                     </div>
                   </div>
                 );
@@ -331,81 +243,58 @@ export const Screen3ItemDetail: React.FC = () => {
           </div>
         )}
 
-        {/* Quantity Stepper */}
-        <div
-          className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <span
-            className="text-xs font-extrabold"
-            style={{ color: currentTheme.colors.textPrimary }}
-          >
-            Quantity
+        {/* Quantity Stepper (Brass Stepper Counter) */}
+        <div className="flex items-center justify-between rounded-[24px] border border-amber-500/25 bg-black/40 p-4 backdrop-blur-md">
+          <span className="text-xs font-bold uppercase tracking-wider text-amber-200 font-serif-luxury">
+            Servings
           </span>
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-3">
             <motion.button
               whileTap={{ scale: 0.9 }}
               type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-lg font-bold transition active:scale-95 shadow-2xs"
-              style={{
-                backgroundColor: currentTheme.colors.buttonBg,
-                color: currentTheme.colors.buttonFg,
-              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition active:scale-90"
               onClick={() => setQuantity(Math.max(1, quantity - 1))}
             >
-              <Minus className="h-3 w-3 stroke-[3]" />
+              <Minus className="h-3.5 w-3.5 stroke-[2.5]" />
             </motion.button>
-            <span
-              className="min-w-5 text-center font-mono text-xs font-black"
-              style={{ color: currentTheme.colors.textPrimary }}
-            >
+            <span className="min-w-6 text-center font-mono text-base font-black text-amber-200">
               {quantity}
             </span>
             <motion.button
               whileTap={{ scale: 0.9 }}
               type="button"
-              className="flex h-7 w-7 items-center justify-center rounded-lg font-bold transition active:scale-95 shadow-2xs"
-              style={{
-                backgroundColor: currentTheme.colors.buttonBg,
-                color: currentTheme.colors.buttonFg,
-              }}
+              className="flex h-8 w-8 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition active:scale-90"
               onClick={() => setQuantity(quantity + 1)}
             >
-              <Plus className="h-3 w-3 stroke-[3]" />
+              <Plus className="h-3.5 w-3.5 stroke-[2.5]" />
             </motion.button>
           </div>
         </div>
       </div>
 
-      {/* Sticky Bottom Bar */}
+      {/* Sticky Bottom Bar with Sculpted Gold Floating Button */}
       <StickyBottomBar>
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={handleAddAndGoToCart}
           disabled={isSoldOut}
-          className="flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
+          className="flex w-full items-center justify-between rounded-[24px] px-6 py-4 shadow-[0_12px_32px_rgba(217,119,6,0.45)] transition hover:brightness-105 border border-amber-300/60 font-serif-luxury text-base font-bold tracking-wide text-amber-950"
           style={
             isSoldOut
               ? {
-                  backgroundColor: '#CBD5E1',
-                  color: '#64748B',
+                  backgroundColor: '#44403C',
+                  color: '#A8A29E',
                   cursor: 'not-allowed',
+                  border: '1px solid #78716C',
                 }
               : {
-                  backgroundColor: currentTheme.colors.buttonBg,
-                  color: currentTheme.colors.buttonFg,
-                  boxShadow: currentTheme.colors.buttonShadow,
+                  background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
                 }
           }
         >
-          <span>{isSoldOut ? 'Item Sold Out' : 'Add to Cart & Review'}</span>
-          <div className="flex items-center gap-2">
-            <span
-              className="font-mono text-sm font-bold opacity-90"
-            >
+          <span>{isSoldOut ? 'Sold Out' : 'Add to Dining Order'} &bull; {quantity} Serving{quantity > 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-2.5">
+            <span className="text-base font-extrabold font-mono">
               ₹{currentTotal * quantity}
             </span>
             <ArrowRight className="h-4 w-4 stroke-[2.5]" />

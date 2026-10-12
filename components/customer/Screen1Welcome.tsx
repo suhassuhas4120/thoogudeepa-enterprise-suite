@@ -107,339 +107,127 @@ export const Screen1Welcome: React.FC = () => {
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
       <div
-        className="flex-1 overflow-y-auto flex flex-col p-4 space-y-3 pb-6 transition-colors duration-200"
-        style={{ backgroundColor: currentTheme.colors.bgApp }}
+        className="flex-1 overflow-y-auto flex flex-col items-center justify-between p-6 pb-10 transition-colors duration-300 relative select-none"
+        style={{
+          background: 'radial-gradient(ellipse at top, #241E17 0%, #12100E 50%, #0A0908 100%)',
+          color: '#FAF7F2',
+        }}
       >
-        {/* Card 1: Restaurant Brand Header - Logo in Row 1, Hotel Name in Row 2 */}
+        {/* Soft Ambient Gold Backlight in Background */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full blur-[90px] opacity-25 pointer-events-none bg-amber-500" />
+
+        {/* Top Header: Majestic Golden Brass Restaurant Monogram & Crest */}
         <motion.div
-          initial={{ opacity: 0, y: -6 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          className="rounded-3xl border p-4 shadow-xs text-center flex flex-col items-center transition-colors duration-200"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
+          transition={{ duration: 0.6 }}
+          className="flex flex-col items-center text-center pt-4 z-10"
         >
-          {/* Row 1: Dedicated Hotel Logo Icon */}
-          <div className="relative mb-2">
-            <div
-              className="relative flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md ring-2"
-              style={{
-                backgroundColor: currentTheme.colors.primary,
-                boxShadow: currentTheme.colors.primaryShadow,
-                borderColor: currentTheme.colors.primaryBorder,
-              }}
-            >
-              <CookingPot className="h-7 w-7 stroke-[2]" />
-              <div
-                className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full shadow-xs ring-2 ring-white"
-                style={{
-                  backgroundColor: currentTheme.colors.accent,
-                  color: currentTheme.colors.accentFg,
-                }}
-              >
-                <Crown className="h-3 w-3 fill-current stroke-[2.2]" />
-              </div>
-            </div>
-          </div>
-
-          {/* Row 2: Human Time Greeting, Hotel Name & Tagline */}
-          <div
-            className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[9.5px] font-bold mb-1 border"
-            style={{
-              backgroundColor: currentTheme.colors.secondaryBg,
-              color: currentTheme.colors.secondaryFg,
-              borderColor: currentTheme.colors.border,
-            }}
-          >
-            <span>{timeGreeting}</span>
-          </div>
-
-          <h1
-            className="text-sm font-black tracking-tight uppercase"
-            style={{ color: currentTheme.colors.textPrimary }}
-          >
-            {venueName}
-          </h1>
-
-          <div
-            className="flex items-center justify-center gap-1.5 mt-0.5 text-[10.5px] font-semibold"
-            style={{ color: currentTheme.colors.textSecondary }}
-          >
-            <Flame className="h-3 w-3" style={{ color: currentTheme.colors.primary }} />
-            <span>Authentic Military Donne Biryani</span>
-          </div>
-        </motion.div>
-
-        {/* Card 2: Scanned Table Information */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.05 }}
-          className="rounded-2xl border p-3 shadow-xs transition-colors duration-200"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="flex h-8 w-8 items-center justify-center rounded-xl text-white shadow-xs"
-                style={{ backgroundColor: currentTheme.colors.primary }}
-              >
-                <QrCode className="h-4 w-4" />
-              </div>
-              <div>
-                <div
-                  className="text-xs font-black font-mono"
-                  style={{ color: currentTheme.colors.textPrimary }}
-                >
-                  {activeTable.number} • C-{String(currentSeat).padStart(2, '0')}
-                </div>
-                <div
-                  className="text-[10px] font-bold"
-                  style={{ color: currentTheme.colors.primary }}
-                >
-                  {activeTable.section} • Dine-In Verified
-                </div>
-              </div>
-            </div>
-            <span
-              className="flex items-center gap-1.5 rounded-full px-3 py-1 text-[10px] font-black font-mono shadow-2xs border"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.secondaryFg,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
-              <span
-                className="h-1.5 w-1.5 rounded-full animate-ping"
-                style={{ backgroundColor: currentTheme.colors.primary }}
-              />
-              VERIFIED
-            </span>
-          </div>
-        </motion.div>
-
-        {/* Card 3: Interactive Chair / Seat Matrix */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="rounded-2xl border p-3.5 shadow-xs space-y-2.5 transition-colors duration-200"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5">
-              <Armchair className="h-4 w-4" style={{ color: currentTheme.colors.primary }} />
-              <span
-                className="font-mono text-[10px] font-black uppercase tracking-wider"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                SELECT YOUR CHAIR
+          {/* Antique Brass Monogram Frame */}
+          <div className="relative mb-3">
+            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/40 bg-gradient-to-b from-amber-500/20 to-amber-950/40 text-amber-300 shadow-[0_8px_30px_rgba(217,119,6,0.25)] backdrop-blur-md">
+              <span className="font-serif-luxury text-3xl font-extrabold tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-200 via-amber-400 to-amber-600">
+                TH
               </span>
             </div>
-            <span
-              className="rounded-full px-2.5 py-0.5 font-mono text-[10px] font-black border"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.secondaryFg,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
-              C-{String(currentSeat).padStart(2, '0')}
-            </span>
+            {/* Crown flourish */}
+            <div className="absolute -top-2 left-1/2 -translate-x-1/2 text-amber-400 drop-shadow-md">
+              <Crown className="h-4 w-4 fill-current stroke-[1.5]" />
+            </div>
           </div>
 
-          {/* Interactive Chair Buttons */}
-          <div className={`grid gap-2 pt-0.5 ${tableCapacity <= 3 ? 'grid-cols-3' : tableCapacity <= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
-            {Array.from({ length: tableCapacity }, (_, i) => i + 1).map((chairNum) => {
-              const isSelected = currentSeat === chairNum;
+          <h1 className="text-2xl font-bold tracking-tight font-serif-luxury text-transparent bg-clip-text bg-gradient-to-r from-amber-100 via-amber-200 to-amber-400">
+            Thoogudeepa
+          </h1>
+          <span className="text-[11px] font-medium tracking-[0.2em] uppercase text-amber-200/70 mt-0.5">
+            Heritage 1978 &bull; Military Mane
+          </span>
+        </motion.div>
 
-              return (
-                <motion.button
-                  key={chairNum}
-                  whileTap={{ scale: 0.92 }}
-                  type="button"
-                  onClick={() => handleSelectSeat(chairNum)}
-                  className="flex flex-col items-center justify-center rounded-2xl border p-2.5 transition-all text-center relative"
-                  style={
-                    isSelected
-                      ? {
-                          borderColor: currentTheme.colors.pillActiveBorder,
-                          backgroundColor: currentTheme.colors.pillActiveBg,
-                          color: currentTheme.colors.pillActiveFg,
-                          boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                        }
-                      : {
-                          borderColor: currentTheme.colors.pillInactiveBorder,
-                          backgroundColor: currentTheme.colors.pillInactiveBg,
-                          color: currentTheme.colors.pillInactiveFg,
-                        }
-                  }
-                >
-                  <span className="text-base">🪑</span>
-                  <span
-                    className="font-mono text-[11px] font-black mt-0.5"
-                    style={{
-                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textPrimary,
-                    }}
+        {/* Centerpiece: Exquisite Curved Frosted Glass Table Sanctuary Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
+          className="w-full max-w-sm rounded-[36px] p-6 text-center relative border border-amber-500/30 shadow-[0_20px_50px_rgba(0,0,0,0.7)] backdrop-blur-xl z-10 my-auto"
+          style={{
+            background: 'linear-gradient(145deg, rgba(42, 35, 27, 0.75) 0%, rgba(20, 17, 14, 0.85) 100%)',
+          }}
+        >
+          {/* Subtle Botanical / Filigree Flourish Top */}
+          <div className="flex items-center justify-center gap-2 mb-2 text-amber-400/60">
+            <span className="h-[1px] w-8 bg-gradient-to-r from-transparent to-amber-400/50" />
+            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+            <span className="h-[1px] w-8 bg-gradient-to-l from-transparent to-amber-400/50" />
+          </div>
+
+          <div className="text-2xl font-bold font-serif-luxury text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-amber-300 to-amber-500 tracking-wide">
+            {activeTable.number} &bull; Seat C-{String(currentSeat).padStart(2, '0')}
+          </div>
+
+          <p className="text-[11px] font-medium text-stone-400 mt-1">
+            {activeTable.section} &bull; Verified Dine-In Sanctuary
+          </p>
+
+          {/* Chair Selector Matrix (Polished Gem Pills) */}
+          <div className="mt-5 pt-4 border-t border-amber-500/20">
+            <div className="flex items-center justify-between mb-2.5 px-1 text-[11px]">
+              <span className="text-amber-200/80 font-medium">Select Position</span>
+              <span className="text-stone-400">{tableCapacity} Seater</span>
+            </div>
+            <div className={`grid gap-2 ${tableCapacity <= 3 ? 'grid-cols-3' : tableCapacity <= 4 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+              {Array.from({ length: tableCapacity }, (_, i) => i + 1).map((chairNum) => {
+                const isSelected = currentSeat === chairNum;
+                return (
+                  <button
+                    key={chairNum}
+                    type="button"
+                    onClick={() => handleSelectSeat(chairNum)}
+                    className={`py-2 px-1 rounded-2xl text-xs font-bold transition-all border ${
+                      isSelected
+                        ? 'border-amber-400 bg-gradient-to-b from-amber-500/30 to-amber-800/40 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.3)]'
+                        : 'border-white/10 bg-white/5 text-stone-400 hover:border-amber-400/30'
+                    }`}
                   >
-                    C-{String(chairNum).padStart(2, '0')}
-                  </span>
-                  <span
-                    className="text-[9.5px] font-bold mt-0.5 font-mono"
-                    style={{
-                      color: isSelected ? currentTheme.colors.pillActiveFg : currentTheme.colors.textMuted,
-                    }}
-                  >
-                    {isSelected ? '✓ Your Seat' : 'Available'}
-                  </span>
-                </motion.button>
-              );
-            })}
+                    Seat {chairNum}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </motion.div>
 
-        {/* Card 4: Diner Name */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.15 }}
-          className="rounded-2xl border p-3.5 shadow-xs space-y-2 transition-colors duration-200"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="flex items-center gap-1.5">
-            <User className="h-4 w-4" style={{ color: currentTheme.colors.buttonBg }} />
-            <label
-              className="font-mono text-[10px] font-black uppercase tracking-wider"
-              style={{ color: currentTheme.colors.textPrimary }}
-            >
-              YOUR NAME
-            </label>
-          </div>
-
+        {/* Bottom Section: Minimal Seamless Guest Name & Glowing Amber Button */}
+        <div className="w-full max-w-sm space-y-4 z-10">
+          {/* Seamless Minimal Input with Glowing Border */}
           <div className="relative">
             <input
               type="text"
               value={guestName}
               onChange={(e) => setGuestName(e.target.value)}
-              placeholder="Enter your name (Optional)"
-              className="w-full rounded-xl border px-3.5 py-2.5 text-xs font-semibold placeholder:text-slate-400 focus:outline-none transition shadow-2xs"
-              style={{
-                backgroundColor: currentTheme.colors.bgApp,
-                borderColor: currentTheme.colors.border,
-                color: currentTheme.colors.textPrimary,
-              }}
+              placeholder="Guest Name (Optional)"
+              className="w-full rounded-2xl border border-amber-500/30 bg-black/40 px-5 py-3.5 text-xs font-medium text-amber-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 focus:shadow-[0_0_20px_rgba(217,119,6,0.25)] transition backdrop-blur-md"
             />
             {guestName.trim() && (
-              <span
-                className="absolute right-3 top-1/2 -translate-y-1/2 flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold"
-                style={{
-                  backgroundColor: currentTheme.colors.pillActiveBg,
-                  color: currentTheme.colors.pillActiveFg,
-                }}
-              >
+              <span className="absolute right-4 top-1/2 -translate-y-1/2 text-amber-400 text-xs font-bold">
                 ✓
               </span>
             )}
           </div>
-        </motion.div>
 
-        {/* Card 5: Connections (Action Button + Secondary Option) */}
-        <motion.div
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="space-y-2.5 pt-1"
-        >
+          {/* Majestic Glowing Amber-Gold Rounded Button */}
           <motion.button
             whileTap={{ scale: 0.98 }}
-            whileHover={{ y: -1 }}
+            whileHover={{ y: -2 }}
             type="button"
             onClick={handleConnectWifi}
-            className="flex w-full items-center justify-between rounded-2xl p-4 shadow-md transition-all text-left group"
+            className="w-full rounded-[24px] py-4 px-6 text-center shadow-[0_12px_32px_rgba(217,119,6,0.45)] transition-all font-serif-luxury text-base font-bold tracking-wide text-amber-950 border border-amber-300/60"
             style={{
-              backgroundColor: currentTheme.colors.buttonBg,
-              color: currentTheme.colors.buttonFg,
-              boxShadow: currentTheme.colors.buttonShadow,
+              background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
             }}
           >
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
-                <Wifi className="h-5 w-5 stroke-[2.4]" />
-              </div>
-              <div>
-                <div className="text-xs font-black tracking-wide">
-                  Connect With Free Restaurant Wi-Fi
-                </div>
-                <div className="text-[10px] font-medium opacity-90 mt-0.5">
-                  High-Speed Dine-In Network • Instant Menu Access
-                </div>
-              </div>
-            </div>
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition shrink-0" />
+            Enter Dining Sanctuary
           </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            whileHover={{ y: -1 }}
-            type="button"
-            onClick={handleContinueMobileData}
-            className="flex w-full items-center justify-between rounded-2xl border p-3.5 shadow-2xs transition-all text-left group"
-            style={{
-              backgroundColor: currentTheme.colors.bgSurface,
-              borderColor: currentTheme.colors.border,
-              color: currentTheme.colors.textPrimary,
-            }}
-          >
-            <div className="flex items-center gap-3">
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  backgroundColor: currentTheme.colors.bgElevated,
-                  color: currentTheme.colors.textSecondary,
-                }}
-              >
-                <Smartphone className="h-5 w-5 stroke-[2]" />
-              </div>
-              <div>
-                <div className="text-xs font-bold">
-                  Continue With Mobile Data
-                </div>
-                <div className="text-[10px]" style={{ color: currentTheme.colors.textMuted }}>
-                  Browse using 4G / 5G cellular connection
-                </div>
-              </div>
-            </div>
-            <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 transition shrink-0" style={{ color: currentTheme.colors.textMuted }} />
-          </motion.button>
-        </motion.div>
-
-        {/* Footer: Properly Enclosed Badge Container for "Powered by Nelja" */}
-        <div className="flex items-center justify-center pt-3 pb-2">
-          <div
-            className="inline-flex items-center gap-2 rounded-full border px-4 py-1.5 shadow-xs backdrop-blur-md"
-            style={{
-              backgroundColor: currentTheme.colors.bgSurface,
-              borderColor: currentTheme.colors.border,
-            }}
-          >
-            <Sparkles className="h-3 w-3 animate-pulse" style={{ color: currentTheme.colors.primary }} />
-            <span
-              className="text-[10px] font-bold font-mono tracking-wider"
-              style={{ color: currentTheme.colors.textSecondary }}
-            >
-              Powered by <span className="font-black" style={{ color: currentTheme.colors.primary }}>Nelja</span>
-            </span>
-          </div>
         </div>
       </div>
     </ScreenHousing>

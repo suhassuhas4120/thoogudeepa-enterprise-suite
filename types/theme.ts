@@ -60,59 +60,59 @@ export interface CustomerThemeConfig {
 }
 
 export const CUSTOMER_THEMES: CustomerThemeConfig[] = [
-  // ── 7. TERRACOTTA DUM (Authentic Donne Biryani Mane - Clean & Light) ─
+  // ── 7. OBSIDIAN GOLD & WARM STONE (Ultra Luxury Michelin Fine Dining) ─
   {
     id: 'terracotta-dum',
-    name: '7. Terracotta Dum',
-    archetype: 'Donne Biryani Mane',
-    subtitle: 'Terracotta Button • Warm Sand Pill',
-    badge: 'SIGNATURE DUM',
-    dotColor1: '#C2410C', // Terracotta button
-    dotColor2: '#FFF7ED', // Warm sand pill
+    name: 'Obsidian Gold Sanctuary',
+    archetype: 'Michelin Fine Dining',
+    subtitle: 'Brushed Gold • Obsidian Slate',
+    badge: 'LUXURY SANCTUARY',
+    dotColor1: '#D97706',
+    dotColor2: '#1C1917',
     colors: {
-      bgApp: '#FAF8F5',
-      bgSurface: '#FFFFFF',
-      bgElevated: '#F5EFE8',
-      border: '#E7E5E4',
-      borderLight: '#F3ECE3',
+      bgApp: '#0F0E0C',
+      bgSurface: '#181614',
+      bgElevated: '#24211D',
+      border: 'rgba(217, 119, 6, 0.25)',
+      borderLight: 'rgba(217, 119, 6, 0.15)',
 
-      // Button: Warm Woodfire Terracotta
-      buttonBg: '#C2410C',
-      buttonHover: '#9A3412',
+      // Button: Sculpted Amber Gold
+      buttonBg: 'linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)',
+      buttonHover: '#B45309',
       buttonFg: '#FFFFFF',
-      buttonShadow: '0 4px 14px rgba(194, 65, 12, 0.25)',
-      primary: '#C2410C',
-      primaryHover: '#9A3412',
+      buttonShadow: '0 12px 30px -4px rgba(217, 119, 6, 0.45)',
+      primary: '#D97706',
+      primaryHover: '#B45309',
       primaryFg: '#FFFFFF',
-      primaryBorder: '#9A3412',
-      primaryShadow: '0 4px 14px rgba(194, 65, 12, 0.25)',
+      primaryBorder: '#F59E0B',
+      primaryShadow: '0 12px 30px -4px rgba(217, 119, 6, 0.45)',
       buttonText: '#FFFFFF',
 
-      // Pill: Light Warm Sand with Deep Clay Text (Never Black!)
-      pillActiveBg: '#FFF7ED',
-      pillActiveFg: '#7C2D12',
-      pillActiveBorder: '#EA580C',
-      pillInactiveBg: '#FFFFFF',
-      pillInactiveFg: '#44403C',
-      pillInactiveBorder: '#E7E5E4',
-      pillBg: '#FFF7ED',
+      // Pill: Frosted Dark Slate with Glowing Gold Border
+      pillActiveBg: 'rgba(217, 119, 6, 0.18)',
+      pillActiveFg: '#FDE68A',
+      pillActiveBorder: '#F59E0B',
+      pillInactiveBg: 'rgba(255, 255, 255, 0.04)',
+      pillInactiveFg: '#D6D3D1',
+      pillInactiveBorder: 'rgba(255, 255, 255, 0.08)',
+      pillBg: 'rgba(217, 119, 6, 0.15)',
 
-      secondaryBg: '#FFEDD5',
-      secondaryFg: '#7C2D12',
-      accent: '#C2410C',
-      accentFg: '#FFFFFF',
+      secondaryBg: 'rgba(217, 119, 6, 0.12)',
+      secondaryFg: '#FDE68A',
+      accent: '#F59E0B',
+      accentFg: '#0F0E0C',
 
-      textPrimary: '#1C1917',
-      textSecondary: '#44403C',
-      textMuted: '#78716C',
+      textPrimary: '#FAF7F2',
+      textSecondary: '#D6D3D1',
+      textMuted: '#A8A29E',
 
-      headerBg: 'rgba(255, 255, 255, 0.95)',
-      headerFg: '#1C1917',
-      bottomBg: 'rgba(255, 255, 255, 0.96)',
-      phoneBezel: '#292524',
-      statusBarBg: '#FFFFFF',
-      statusBarFg: '#1C1917',
-      isDark: false,
+      headerBg: 'rgba(15, 14, 12, 0.88)',
+      headerFg: '#FAF7F2',
+      bottomBg: 'rgba(15, 14, 12, 0.92)',
+      phoneBezel: '#0C0A09',
+      statusBarBg: '#0F0E0C',
+      statusBarFg: '#FAF7F2',
+      isDark: true,
     },
   },
 ];

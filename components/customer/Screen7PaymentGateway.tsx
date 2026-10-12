@@ -418,21 +418,18 @@ export const Screen7PaymentGateway: React.FC = () => {
         showCart={false}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
+      <div
+        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-300 relative select-none"
+        style={{
+          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
+          color: '#FAF7F2',
+        }}
+      >
         {/* Money Card: Total Amount Due */}
-        <div
-          className="rounded-[28px] border p-4 shadow-xs"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
+        <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
           <div className="flex items-center justify-between">
             <div>
-              <div
-                className="text-[10px] font-black uppercase tracking-[0.2em] font-mono"
-                style={{ color: currentTheme.colors.textMuted }}
-              >
+              <div className="text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
                 Total Amount Due
               </div>
               <div
@@ -683,22 +680,20 @@ export const Screen7PaymentGateway: React.FC = () => {
           whileTap={{ scale: 0.98 }}
           onClick={activeTab === 'RAZORPAY' ? handleRazorpayCheckout : handleCompletePayment}
           disabled={isProcessing}
+          className="flex w-full items-center justify-between rounded-[22px] px-6 py-4 shadow-[0_12px_32px_rgba(217,119,6,0.45)] transition hover:brightness-105 disabled:opacity-75 border border-amber-300/60 font-serif-luxury text-base font-bold tracking-wide text-amber-950"
           style={{
-            backgroundColor: currentTheme.colors.buttonBg,
-            color: currentTheme.colors.buttonFg,
-            boxShadow: currentTheme.colors.buttonShadow,
+            background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
           }}
-          className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105 disabled:opacity-75"
         >
           <span>
             {isProcessing
               ? 'Verifying Settlement...'
               : activeTab === 'RAZORPAY'
-              ? `Pay Online ₹${grandTotal} (UPI / Cards / NetBanking)`
+              ? `Pay Online ₹${grandTotal}`
               : `Confirm QR Pay (₹${grandTotal})`}
           </span>
           {isProcessing ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin text-amber-950" />
           ) : (
             <ArrowRight className="h-4 w-4 stroke-[2.5]" />
           )}

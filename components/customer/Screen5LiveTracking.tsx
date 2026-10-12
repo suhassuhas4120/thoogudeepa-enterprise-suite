@@ -595,7 +595,13 @@ export const Screen5LiveTracking: React.FC = () => {
       />
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto p-4 pb-36 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
+      <div
+        className="flex-1 overflow-y-auto p-4 pb-36 space-y-4 transition-colors duration-300 relative select-none"
+        style={{
+          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
+          color: '#FAF7F2',
+        }}
+      >
         {/* Floor Captain Attended Notification Banner */}
         <AnimatePresence>
           {waiterNotification?.active && waiterNotification?.attended && (
@@ -603,25 +609,25 @@ export const Screen5LiveTracking: React.FC = () => {
               initial={{ opacity: 0, y: -8, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-4 shadow-sm"
+              className="rounded-[24px] border border-emerald-500/40 bg-gradient-to-r from-emerald-950/70 via-stone-900/80 to-emerald-950/70 p-4 shadow-lg backdrop-blur-md"
             >
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 shadow-xs">
                   <CheckCircle2 className="h-5 w-5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                    <span className="text-xs font-bold text-emerald-200 uppercase tracking-widest font-serif-luxury">
                       Request Attended
                     </span>
                     <button
                       onClick={() => useCustomerStore.getState().dismissWaiterNotification()}
-                      className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
+                      className="text-stone-400 hover:text-white p-0.5 rounded cursor-pointer"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <p className="text-[11px] font-bold text-emerald-800 mt-0.5 leading-snug">
+                  <p className="text-[11px] font-medium text-emerald-100/90 mt-0.5 leading-snug">
                     {waiterNotification.message || 'Floor Captain has attended to your request.'}
                   </p>
                 </div>
@@ -631,61 +637,34 @@ export const Screen5LiveTracking: React.FC = () => {
         </AnimatePresence>
 
         {/* Table Connection Status Bar */}
-        <div
-          className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="flex items-center gap-2">
-            <div
-              className="flex h-8 w-8 items-center justify-center rounded-xl"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.buttonBg,
-              }}
-            >
+        <div className="flex items-center justify-between rounded-[24px] border border-amber-500/30 bg-gradient-to-r from-stone-900/85 to-black/90 p-4 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-2xl border border-amber-400/40 bg-gradient-to-b from-amber-500/20 to-amber-950/40 text-amber-300 shadow-sm">
               <CookingPot className="h-4 w-4" />
             </div>
             <div>
-              <div
-                className="text-[11px] font-black"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                {effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`} • C-{String(effectiveSeat).padStart(2, '0')}
+              <div className="text-xs font-bold font-serif-luxury text-amber-200">
+                {effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`} &bull; Seat C-{String(effectiveSeat).padStart(2, '0')}
               </div>
-              <div
-                className="text-[9.5px] font-bold font-mono"
-                style={{ color: currentTheme.colors.buttonBg }}
-              >
+              <div className="text-[10px] font-medium text-amber-400/80">
                 {trackedDishes.length} {trackedDishes.length === 1 ? 'Dish' : 'Dishes'} in Active Preparation
               </div>
             </div>
           </div>
-          <span className="flex items-center gap-1.5 rounded-full bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[9.5px] font-black text-emerald-800 font-mono">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
-            <Wifi className="h-3 w-3 text-emerald-600" />
+          <span className="flex items-center gap-1.5 rounded-full bg-emerald-950/70 border border-emerald-500/40 px-3 py-1 text-[10px] font-bold text-emerald-300 font-mono shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+            <Wifi className="h-3 w-3 text-emerald-400" />
             <span>Kitchen Linked</span>
           </span>
         </div>
 
-        {/* Particular Dish Status Section (Overall Kitchen Status Removed as Requested) */}
-        <div
-          className="rounded-3xl border p-4 shadow-xs space-y-3"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="flex items-center justify-between">
-            <div
-              className="text-[9.5px] font-black uppercase tracking-[0.2em] font-mono"
-              style={{ color: currentTheme.colors.textMuted }}
-            >
+        {/* Particular Dish Status Section */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between px-1">
+            <div className="text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
               Particular Dish Status
             </div>
-            <span className="text-[10px] font-bold font-mono" style={{ color: currentTheme.colors.buttonBg }}>
+            <span className="text-[10px] font-bold text-amber-400/90 font-mono">
               Live Dish Tracking
             </span>
           </div>
@@ -705,53 +684,46 @@ export const Screen5LiveTracking: React.FC = () => {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="rounded-2xl border p-3.5 shadow-2xs space-y-3"
-                      style={{
-                        backgroundColor: currentTheme.colors.bgSurface,
-                        borderColor: currentTheme.colors.borderLight,
-                      }}
+                      className="rounded-[28px] p-5 space-y-4 border border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl"
                     >
                       {/* Dish Header */}
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex items-start gap-2.5">
                           {/* FSSAI Veg / Non-Veg Icon */}
                           <div
-                            className={`flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-xs border p-0.5 mt-0.5 ${
+                            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-xs border p-0.5 mt-0.5 ${
                               isVeg
-                                ? 'border-emerald-600 bg-emerald-50/50'
-                                : 'border-rose-600 bg-rose-50/50'
+                                ? 'border-emerald-500 bg-emerald-950/60'
+                                : 'border-rose-500 bg-rose-950/60'
                             }`}
                             title={isVeg ? 'Vegetarian' : 'Non-Vegetarian'}
                           >
                             <div
-                              className={`h-1.5 w-1.5 rounded-full ${
-                                isVeg ? 'bg-emerald-600' : 'bg-rose-600'
+                              className={`h-2 w-2 rounded-full ${
+                                isVeg ? 'bg-emerald-400' : 'bg-rose-400'
                               }`}
                             />
                           </div>
 
                           <div>
-                            <h4
-                              className="text-xs font-black"
-                              style={{ color: currentTheme.colors.textPrimary }}
-                            >
-                              {it.quantity}× {it.name}
+                            <h4 className="text-sm font-bold font-serif-luxury text-amber-100">
+                              {it.quantity}&times; {it.name}
                             </h4>
                             {(it.prepMode || it.options || (it.addOns && it.addOns.length > 0)) && (
-                              <div className="mt-0.5 flex flex-wrap gap-1">
+                              <div className="mt-1 flex flex-wrap gap-1.5">
                                 {it.prepMode && (
-                                  <span className="text-[9.5px] font-bold font-mono" style={{ color: currentTheme.colors.buttonBg }}>
+                                  <span className="text-[10px] font-bold text-amber-300/90 font-mono">
                                     {it.prepMode}
                                   </span>
                                 )}
                                 {it.options && (
-                                  <span className="text-[9.5px] font-medium" style={{ color: currentTheme.colors.textMuted }}>
-                                    • {it.options}
+                                  <span className="text-[10px] font-medium text-stone-400">
+                                    &bull; {it.options}
                                   </span>
                                 )}
                                 {it.addOns?.map((addon) => (
-                                  <span key={addon} className="text-[9.5px] font-medium" style={{ color: currentTheme.colors.buttonBg }}>
-                                    • +{addon}
+                                  <span key={addon} className="text-[10px] font-medium text-amber-400">
+                                    &bull; +{addon}
                                   </span>
                                 ))}
                               </div>
@@ -762,28 +734,28 @@ export const Screen5LiveTracking: React.FC = () => {
                         {/* Top Live Badge */}
                         <div className="shrink-0">
                           {isDishServed ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100/70 px-2 py-0.5 text-[9px] font-black text-emerald-900 font-mono">
-                              <CheckCheck className="h-3 w-3 text-emerald-700" />
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/60 px-2.5 py-0.5 text-[9.5px] font-bold text-emerald-300 font-mono">
+                              <CheckCheck className="h-3 w-3 text-emerald-400" />
                               <span>Served</span>
                             </span>
                           ) : it.stage === 'PLACED' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[9px] font-bold text-slate-700 font-mono">
-                              <ClipboardList className="h-3 w-3 text-slate-500" />
+                            <span className="inline-flex items-center gap-1 rounded-full border border-stone-700 bg-stone-800/80 px-2.5 py-0.5 text-[9.5px] font-bold text-stone-300 font-mono">
+                              <ClipboardList className="h-3 w-3 text-stone-400" />
                               <span>Placed</span>
                             </span>
                           ) : it.stage === 'RECEIVED' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[9px] font-black text-emerald-800 font-mono animate-pulse">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            <span className="inline-flex items-center gap-1 rounded-full border border-teal-500/40 bg-teal-950/60 px-2.5 py-0.5 text-[9.5px] font-bold text-teal-300 font-mono animate-pulse">
+                              <CheckCircle2 className="h-3 w-3 text-teal-400" />
                               <span>Received</span>
                             </span>
                           ) : it.stage === 'PREP' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800 font-mono animate-pulse">
-                              <Flame className="h-3 w-3 text-amber-600" />
+                            <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-950/60 px-2.5 py-0.5 text-[9.5px] font-bold text-amber-300 font-mono animate-pulse">
+                              <Flame className="h-3 w-3 text-amber-400" />
                               <span>Preparing</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[9px] font-black text-emerald-800 font-mono shadow-xs animate-pulse">
-                              <UtensilsCrossed className="h-3 w-3 text-emerald-600" />
+                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-950/60 px-2.5 py-0.5 text-[9.5px] font-bold text-emerald-300 font-mono shadow-xs animate-pulse">
+                              <UtensilsCrossed className="h-3 w-3 text-emerald-400" />
                               <span>Ready</span>
                             </span>
                           )}
@@ -791,14 +763,14 @@ export const Screen5LiveTracking: React.FC = () => {
                       </div>
 
                       {/* Matching 4-Stage Dish Live Progress Tracker: PLACED -> RECEIVED -> PREPARING -> READY */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <div className="relative flex justify-between items-center px-1">
+                      <div className="pt-3 border-t border-white/10">
+                        <div className="relative flex justify-between items-center px-2">
                           {/* Background connecting line */}
-                          <div className="absolute top-3 left-4 right-4 h-0.5 bg-slate-100 -z-0" />
+                          <div className="absolute top-3.5 left-5 right-5 h-0.5 bg-stone-800 -z-0" />
 
                           {/* Active fill line */}
                           <div
-                            className="absolute top-3 left-4 h-0.5 bg-emerald-600 -z-0 transition-all duration-500"
+                            className="absolute top-3.5 left-5 h-0.5 bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400 -z-0 transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
                             style={{
                               width: `${Math.min(100, Math.max(0, (dishCurrentIdx / 3) * 88))}%`,
                             }}
@@ -811,41 +783,41 @@ export const Screen5LiveTracking: React.FC = () => {
                             const Icon = stg.icon;
 
                             return (
-                              <div key={stg.key} className="relative z-10 flex flex-col items-center gap-1">
+                              <div key={stg.key} className="relative z-10 flex flex-col items-center gap-1.5">
                                 <div
-                                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black transition-all shadow-2xs ${
+                                  className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-black transition-all shadow-md ${
                                     isPast
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-100'
+                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-500/40'
                                       : isReceivedActive
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-200 shadow-xs animate-pulse'
+                                      ? 'bg-teal-600 text-white ring-2 ring-teal-400 shadow-[0_0_12px_rgba(20,184,166,0.5)] animate-pulse'
                                       : isCurrent && stg.key === 'PREPARING'
-                                      ? 'bg-amber-600 text-white ring-2 ring-amber-200 animate-pulse'
+                                      ? 'bg-gradient-to-br from-amber-500 to-amber-700 text-white ring-2 ring-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)] animate-pulse'
                                       : isCurrent && stg.key === 'READY'
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-200 animate-pulse'
+                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse'
                                       : isCurrent
-                                      ? 'bg-[#9C3D1E] text-white ring-2 ring-orange-200'
-                                      : 'border border-slate-200 bg-white text-slate-400'
+                                      ? 'bg-amber-600 text-white ring-2 ring-amber-400'
+                                      : 'border border-stone-800 bg-stone-900 text-stone-500'
                                   }`}
                                 >
                                   {isPast ? (
-                                    <Check className="h-3 w-3 stroke-[3]" />
+                                    <Check className="h-3.5 w-3.5 stroke-[3]" />
                                   ) : (
-                                    <Icon className="h-3 w-3" />
+                                    <Icon className="h-3.5 w-3.5" />
                                   )}
                                 </div>
                                 <span
-                                  className={`text-[9px] font-mono tracking-tight font-black leading-none ${
+                                  className={`text-[9.5px] font-serif-luxury tracking-wide font-medium leading-none ${
                                     isPast
-                                      ? 'text-emerald-700'
+                                      ? 'text-emerald-400 font-bold'
                                       : isReceivedActive
-                                      ? 'text-emerald-700'
+                                      ? 'text-teal-300 font-bold'
                                       : isCurrent && stg.key === 'PREPARING'
-                                      ? 'text-amber-700'
+                                      ? 'text-amber-300 font-bold'
                                       : isCurrent && stg.key === 'READY'
-                                      ? 'text-emerald-700'
+                                      ? 'text-emerald-300 font-bold'
                                       : isCurrent
-                                      ? 'text-[#9C3D1E]'
-                                      : 'text-slate-400'
+                                      ? 'text-amber-300 font-bold'
+                                      : 'text-stone-500'
                                   }`}
                                 >
                                   {stg.label}
@@ -912,12 +884,7 @@ export const Screen5LiveTracking: React.FC = () => {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => setCurrentScreen(2)}
-          style={{
-            borderColor: currentTheme.colors.border,
-            backgroundColor: currentTheme.colors.bgSurface,
-            color: currentTheme.colors.buttonBg,
-          }}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-3 text-xs font-black transition shadow-2xs hover:brightness-105 cursor-pointer"
+          className="flex w-full items-center justify-center gap-2 rounded-[24px] border border-amber-500/30 bg-black/40 py-3.5 text-xs font-bold font-serif-luxury tracking-wide text-amber-300 transition shadow-lg hover:border-amber-400/50 hover:bg-black/60 cursor-pointer backdrop-blur-md"
         >
           <Plus className="h-4 w-4 stroke-[2.5]" />
           <span>Add More Dishes to Same Bill</span>
@@ -932,22 +899,22 @@ export const Screen5LiveTracking: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-amber-300 bg-amber-50 p-3 shadow-xs space-y-1.5"
+              className="rounded-[24px] border border-amber-500/30 bg-gradient-to-r from-amber-950/60 to-black/80 p-3.5 shadow-lg space-y-1.5 backdrop-blur-md"
             >
-              <div className="flex items-center justify-between text-xs font-black text-amber-900">
-                <div className="flex items-center gap-1.5">
-                  <Bell className="h-4 w-4 text-amber-600 animate-bounce" />
-                  <span>Floor Captain Summoned</span>
+              <div className="flex items-center justify-between text-xs font-bold text-amber-200">
+                <div className="flex items-center gap-2">
+                  <Bell className="h-4 w-4 text-amber-400 animate-bounce" />
+                  <span className="font-serif-luxury">Floor Captain Summoned</span>
                 </div>
                 <button
                   type="button"
                   onClick={cancelPaymentPing}
-                  className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950 cursor-pointer"
+                  className="text-[11px] font-medium text-amber-400 underline hover:text-amber-200 cursor-pointer"
                 >
                   Cancel Call
                 </button>
               </div>
-              <p className="text-[11px] text-amber-800 leading-snug font-medium">
+              <p className="text-[11px] text-stone-300 leading-snug font-normal">
                 Captain Suresh is walking over to Chair C-{String(effectiveSeat).padStart(2, '0')}. You can also use Self Pay below.
               </p>
             </motion.div>
@@ -958,16 +925,16 @@ export const Screen5LiveTracking: React.FC = () => {
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="rounded-2xl border-2 border-[#9C3D1E] bg-[#FFF8F5] p-3.5 shadow-md space-y-2.5"
+              className="rounded-[28px] border border-amber-500/40 bg-gradient-to-b from-stone-900/95 to-black/95 p-4 shadow-xl space-y-3 backdrop-blur-xl"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-black text-stone-900 uppercase">
+                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                  <span className="text-xs font-bold text-amber-100 uppercase tracking-wider font-serif-luxury">
                     Floor Captain Arrived at {effectiveTable}
                   </span>
                 </div>
-                <span className="rounded-full bg-[#9C3D1E] text-white px-2 py-0.5 text-[10px] font-mono font-black">
+                <span className="rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 px-2.5 py-0.5 text-[10px] font-mono font-bold">
                   Payable: ₹{currentBillAmount}
                 </span>
               </div>
@@ -977,11 +944,11 @@ export const Screen5LiveTracking: React.FC = () => {
                 <div className="space-y-2.5">
                   {activeSession.isUpiVerified ? (
                     <>
-                      <div className="flex items-center gap-1.5 text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                        <span>QR Terminal Verified by Captain Suresh • Ready to Pay</span>
+                      <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 bg-emerald-950/60 border border-emerald-500/40 px-3 py-2 rounded-2xl">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                        <span>QR Terminal Verified by Captain Suresh &bull; Ready to Pay</span>
                       </div>
-                      <p className="text-[11px] text-stone-700 font-medium">
+                      <p className="text-[11px] text-stone-300 font-normal">
                         Select your UPI payment app to scan captain's QR code:
                       </p>
                       <div className="grid grid-cols-5 gap-1.5 pt-1">
@@ -992,10 +959,10 @@ export const Screen5LiveTracking: React.FC = () => {
                               setSelectedUpiApp(app.name as any);
                               setIsScannerOpen(true);
                             }}
-                            className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-50/50 hover:border-emerald-500 transition shadow-xs active:scale-95 cursor-pointer ring-1 ring-emerald-200"
+                            className="flex flex-col items-center justify-center gap-1 p-2 rounded-2xl border border-white/10 bg-white/5 hover:border-amber-400/40 transition shadow-xs active:scale-95 cursor-pointer"
                           >
                             {app.logo}
-                            <span className="text-[9px] font-bold text-stone-800 truncate w-full text-center">
+                            <span className="text-[9px] font-bold text-stone-300 truncate w-full text-center">
                               {app.shortName}
                             </span>
                           </button>
@@ -1003,19 +970,22 @@ export const Screen5LiveTracking: React.FC = () => {
                       </div>
                       <button
                         onClick={() => setIsScannerOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black shadow-xs transition cursor-pointer active:scale-98"
+                        className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-[22px] text-stone-950 font-serif-luxury text-sm font-bold shadow-lg transition cursor-pointer active:scale-98 border border-amber-300/60"
+                        style={{
+                          background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
+                        }}
                       >
                         <QrCode className="h-4 w-4" />
                         <span>Scan Floor Captain&apos;s QR Code (₹{currentBillAmount})</span>
                       </button>
                     </>
                   ) : (
-                    <div className="bg-amber-50/80 p-3 rounded-xl border border-amber-200 space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
-                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                    <div className="bg-amber-950/40 p-3.5 rounded-2xl border border-amber-500/30 space-y-1.5">
+                      <div className="flex items-center gap-2 text-xs font-bold text-amber-200">
+                        <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
                         <span>Floor Captain Suresh is setting up UPI QR Terminal...</span>
                       </div>
-                      <p className="text-[11px] text-amber-800 leading-snug">
+                      <p className="text-[11px] text-stone-300 leading-snug">
                         Please wait a moment while the captain verifies your QR payment on the terminal.
                       </p>
                     </div>
@@ -1025,16 +995,16 @@ export const Screen5LiveTracking: React.FC = () => {
 
               {/* Sub-case 2B: Waiter selected Cash on Waiter Mobile */}
               {activeSession?.method === 'CASH' && (
-                <div className="space-y-2 bg-amber-50/70 p-3 rounded-xl border border-amber-200">
-                  <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
-                    <Banknote className="h-4 w-4 text-amber-700" />
+                <div className="space-y-2 bg-amber-950/40 p-3.5 rounded-2xl border border-amber-500/30">
+                  <div className="flex items-center gap-2 text-xs font-bold text-amber-200">
+                    <Banknote className="h-4 w-4 text-amber-400" />
                     <span>Cash Payment Selected</span>
                   </div>
-                  <p className="text-[11px] text-amber-800 leading-snug">
-                    Please hand <span className="font-bold">₹{currentBillAmount}</span> in cash directly to Floor Captain Suresh.
+                  <p className="text-[11px] text-stone-300 leading-snug">
+                    Please hand <span className="font-bold text-amber-300">₹{currentBillAmount}</span> in cash directly to Floor Captain Suresh.
                   </p>
-                  <div className="flex items-center gap-1.5 text-[10.5px] font-bold text-amber-900 pt-1 border-t border-amber-200/60">
-                    <span className="h-2 w-2 rounded-full bg-amber-600 animate-ping" />
+                  <div className="flex items-center gap-2 text-[10.5px] font-bold text-amber-300/80 pt-1.5 border-t border-white/10">
+                    <span className="h-2 w-2 rounded-full bg-amber-400 animate-ping" />
                     <span>Please wait for Floor Captain's cash confirmation...</span>
                   </div>
                 </div>
@@ -1044,27 +1014,27 @@ export const Screen5LiveTracking: React.FC = () => {
 
           {/* Action buttons: Display status badge while cooking; show payment options only when all dishes are served */}
           {!allDishesServed ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 flex items-center gap-2.5 text-amber-900 shadow-2xs">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <p className="text-xs font-semibold leading-snug">
+            <div className="rounded-[24px] border border-amber-500/30 bg-gradient-to-r from-amber-950/40 via-black/60 to-amber-950/40 px-4 py-3.5 flex items-center gap-3 text-amber-200 shadow-lg backdrop-blur-md">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)] animate-pulse shrink-0" />
+              <p className="text-xs font-medium leading-snug text-amber-100/90">
                 Dishes are actively being prepared &amp; served. Payment options will appear once your food reaches the table.
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-2.5">
               <motion.button
                 disabled={isSummoned}
                 whileTap={!isSummoned ? { scale: 0.98 } : undefined}
                 onClick={() => {
                   if (!isSummoned) setShowPayViaWaiterModal(true);
                 }}
-                className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
+                className={`flex items-center justify-center gap-2 rounded-[22px] border py-3.5 text-xs font-bold transition shadow-md font-serif-luxury ${
                   isSummoned
-                    ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-80 cursor-not-allowed'
-                    : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
+                    ? 'border-amber-500/30 bg-amber-950/30 text-amber-400/60 opacity-80 cursor-not-allowed'
+                    : 'border-amber-500/40 bg-stone-900/80 text-amber-200 hover:bg-stone-800 cursor-pointer'
                 }`}
               >
-                <CreditCard className="h-4 w-4 stroke-[2.2]" />
+                <CreditCard className="h-4 w-4 stroke-[2]" />
                 <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
               </motion.button>
 
@@ -1076,12 +1046,10 @@ export const Screen5LiveTracking: React.FC = () => {
                   useCustomerStore.getState().dismissWaiterNotification();
                   setCurrentScreen(6);
                 }}
+                className="flex items-center justify-center gap-2 rounded-[22px] py-3.5 text-xs font-bold tracking-wide transition hover:brightness-105 cursor-pointer shadow-[0_12px_28px_rgba(217,119,6,0.4)] text-stone-950 font-serif-luxury border border-amber-300/60"
                 style={{
-                  backgroundColor: currentTheme.colors.buttonBg,
-                  color: currentTheme.colors.buttonFg,
-                  boxShadow: currentTheme.colors.buttonShadow,
+                  background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
                 }}
-                className="flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition hover:brightness-105 cursor-pointer shadow-md"
               >
                 <span>Self Pay (QR/UPI)</span>
                 <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
@@ -1094,36 +1062,39 @@ export const Screen5LiveTracking: React.FC = () => {
       {/* Confirmation Modal: "Are you sure want to call waiter for payment?" */}
       <AnimatePresence>
         {showPayViaWaiterModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl border border-stone-200"
+              className="w-full max-w-sm rounded-[32px] bg-gradient-to-b from-[#1C1610] to-[#0E0B08] p-6 shadow-2xl border border-amber-500/40 text-center"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 mb-3 mx-auto">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 mb-3 mx-auto">
                 <CreditCard className="h-6 w-6 stroke-[2]" />
               </div>
-              <h3 className="text-base font-black text-stone-900 text-center">
+              <h3 className="text-base font-bold text-amber-100 font-serif-luxury">
                 Call Floor Captain for Payment?
               </h3>
-              <p className="mt-1.5 text-xs text-stone-600 text-center leading-relaxed">
-                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-stone-900">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
+              <p className="mt-2 text-xs text-stone-300 leading-relaxed font-normal">
+                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-amber-300">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
               </p>
-              <p className="mt-1 text-[11px] text-stone-500 text-center">
+              <p className="mt-1 text-[11px] text-stone-400 font-normal">
                 A captain will visit your seat with the payment terminal and QR scanner.
               </p>
 
-              <div className="mt-5 grid grid-cols-2 gap-2.5">
+              <div className="mt-6 grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setShowPayViaWaiterModal(false)}
-                  className="rounded-2xl border border-stone-200 bg-stone-100 py-3 text-xs font-bold text-stone-700 transition hover:bg-stone-200 active:scale-95 cursor-pointer"
+                  className="rounded-[20px] border border-white/10 bg-white/5 py-3 text-xs font-bold text-stone-300 transition hover:bg-white/10 active:scale-95 cursor-pointer"
                 >
                   No, Go Back
                 </button>
                 <button
                   onClick={handleConfirmCallCaptain}
-                  className="rounded-2xl bg-[#9C3D1E] py-3 text-xs font-black text-white shadow-md transition hover:bg-[#853218] active:scale-95 cursor-pointer"
+                  className="rounded-[20px] py-3 text-xs font-bold text-stone-950 shadow-md transition hover:brightness-105 active:scale-95 cursor-pointer font-serif-luxury border border-amber-300/60"
+                  style={{
+                    background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
+                  }}
                 >
                   Yes, Call Captain
                 </button>

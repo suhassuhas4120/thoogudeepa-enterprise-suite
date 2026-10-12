@@ -189,11 +189,11 @@ export const Screen5LiveTracking: React.FC = () => {
   const trackedDishes = useMemo(() => {
     const myBridgeTickets = bridgeTickets.filter(
       (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
-              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+              (tk.seatNumber === effectiveSeat || tk.items?.some((i) => i.seatNumber === effectiveSeat))
     );
     const bridgeItems = myBridgeTickets.flatMap((tk) =>
-      tk.items
-        .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+      (tk.items || [])
+        .filter((it) => it.seatNumber === effectiveSeat)
         .map((it) => ({
           id: it.id,
           ticketId: tk.id,
@@ -210,11 +210,11 @@ export const Screen5LiveTracking: React.FC = () => {
 
     const mySupabaseTickets = supabaseTickets.filter(
       (tk) => isTableMatch(tk.tableId, effectiveTable) &&
-              (tk.seatNumber === effectiveSeat || tk.items.some((i: any) => i.seatNumber === effectiveSeat))
+              (tk.seatNumber === effectiveSeat || tk.items?.some((i: any) => (i.seat_number || i.seatNumber) === effectiveSeat))
     );
     const supabaseItems = mySupabaseTickets.flatMap((tk) =>
-      tk.items
-        .filter((it: any) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+      (tk.items || [])
+        .filter((it: any) => (it.seat_number || it.seatNumber) === effectiveSeat)
         .map((it) => ({
           id: it.id,
           ticketId: tk.id,
@@ -229,7 +229,7 @@ export const Screen5LiveTracking: React.FC = () => {
         }))
     );
 
-    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && (!ci.seatNumber || ci.seatNumber === effectiveSeat));
+    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && ci.seatNumber === effectiveSeat);
 
     if (orderedCart.length > 0) {
       return orderedCart.map((ci) => {

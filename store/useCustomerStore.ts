@@ -516,8 +516,8 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     // Chair has active unpaid orders!
     // Extract real dishes from KDS tickets or table activeItems strictly for THIS chair
     const ticketItems = seatTickets.flatMap((tk) =>
-      tk.items
-        .filter((it) => it.seatNumber === seatNumber || (!it.seatNumber && tk.seatNumber === seatNumber))
+      (tk.items || [])
+        .filter((it) => (it.seatNumber || (it as any).seat_number) === seatNumber)
         .map((it) => ({
           ...it,
           ticketId: tk.id,

@@ -542,6 +542,14 @@ function CustomerJourneyContent() {
         url.searchParams.set('seat', String(newSeat));
         window.history.replaceState({ screen: useCustomerStore.getState().currentScreen }, '', url.toString());
       } catch {}
+      try {
+        const raw = sessionStorage.getItem('thoogudeepa_verified_session');
+        if (raw) {
+          const sess = JSON.parse(raw);
+          sess.seat = newSeat;
+          sessionStorage.setItem('thoogudeepa_verified_session', JSON.stringify(sess));
+        }
+      } catch {}
     }
 
     const curStore = useCustomerStore.getState();

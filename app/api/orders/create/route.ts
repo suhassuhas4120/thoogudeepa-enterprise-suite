@@ -194,6 +194,45 @@ export async function POST(req: NextRequest) {
     }
 
     try {
+      // Re-verify seat occupancy under mutex lock to completely eliminate race conditions
+      if (source === 'CUSTOMER') {
+        const { data: lockedSeat } = await supabase
+          .from('table_seats')
+          .select('*')
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber)
+          .maybeSingle();
+
+        if (
+          lockedSeat &&
+          lockedSeat.status === 'OCCUPIED' &&
+          lockedSeat.device_token &&
+          deviceToken &&
+          lockedSeat.device_token !== deviceToken
+        ) {
+          const { data: allSeats } = await supabase
+            .from('table_seats')
+            .select('seat_number, status')
+            .eq('table_number', tableNumber)
+            .order('seat_number');
+
+          const vacantSeats = (allSeats || [])
+            .filter((s: any) => s.status === 'VACANT')
+            .map((s: any) => s.seat_number);
+
+          return NextResponse.json(
+            {
+              error: 'CHAIR_OCCUPIED_BY_ANOTHER_DEVICE',
+              message: `Chair ${seatNumber} at Table ${tableNumber} is already active on another device.`,
+              tableNumber,
+              occupiedSeat: seatNumber,
+              vacantSeats,
+            },
+            { status: 409 }
+          );
+        }
+      }
+
       // 1. Fast Resilient Idempotency Check (Sub-second burst protection with LRU TTL)
       const cachedOrder = recentOrdersCache.get(lockKey) || enterpriseCache.get<{ orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>(`order:${lockKey}`);
       if (cachedOrder && (Date.now() - cachedOrder.createdAt) < 45000) {

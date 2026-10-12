@@ -59,6 +59,10 @@ class ResilientEnterpriseCache {
     return this.store.delete(key);
   }
 
+  public clear(): void {
+    this.store.clear();
+  }
+
   public has(key: string): boolean {
     return this.get(key) !== null;
   }

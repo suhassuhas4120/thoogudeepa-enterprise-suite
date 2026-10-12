@@ -9,10 +9,14 @@ import {
 export const dynamic = 'force-dynamic';
 
 async function performVenueReset() {
-  // 1. Clear in-memory maps
+  // 1. Clear in-memory maps and distributed caches
   activeSettlementSessions.clear();
   settledBills.clear();
   clearedSettlementAt.clear();
+  try {
+    const { enterpriseCache } = await import('../../../../lib/enterpriseCache');
+    enterpriseCache.clear();
+  } catch {}
 
   // 2. Reset all tables to VACANT with 0 bill and 0 guest count
   await supabase
@@ -38,47 +42,39 @@ async function performVenueReset() {
     })
     .neq('id', 'non_existent_id');
 
-  // 4. Delete all lingering KDS tickets
+  // 4. Delete all KDS tickets
   await supabase
     .from('kds_tickets')
     .delete()
     .neq('id', 'non_existent_id');
 
-  // 5. Mark all open/unpaid orders as PAID
-  await supabase
-    .from('orders')
-    .update({
-      status: 'PAID',
-      updated_at: new Date().toISOString(),
-    })
-    .neq('status', 'PAID')
-    .neq('status', 'CANCELLED');
-
-  // 6. Mark all order items as SERVED
+  // 5. Delete all order items
   await supabase
     .from('order_items')
-    .update({
-      stage: 'SERVED',
-      updated_at: new Date().toISOString(),
-    })
-    .neq('stage', 'SERVED');
+    .delete()
+    .neq('id', 'non_existent_id');
 
-  // 7. Mark all pings as RESOLVED
+  // 6. Delete all orders
   await supabase
-    .from('pings')
-    .update({
-      status: 'RESOLVED',
-    })
-    .neq('status', 'RESOLVED');
+    .from('orders')
+    .delete()
+    .neq('id', 'non_existent_id');
 
-  // 8. Delete all temporary settlement pings
+  // 7. Delete all pings completely
   await supabase
     .from('pings')
     .delete()
-    .or('type.eq.SETTLEMENT_SESSION,type.eq.SETTLED_BILL');
+    .neq('id', 'non_existent_id');
+
+  // 8. Delete all payments
+  await supabase
+    .from('payments')
+    .delete()
+    .neq('id', 'non_existent_id');
 
   // 9. Broadcast real-time reset event across all connected devices
   broadcastStateChange('VENUE_CLEAN_RESET', { timestamp: Date.now() });
+  broadcastStateChange('tableVacated', { tableNumber: 'ALL', timestamp: Date.now() });
 }
 
 export async function GET() {

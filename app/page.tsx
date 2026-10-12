@@ -664,6 +664,20 @@ function CustomerJourneyContent() {
 
     const handleBroadcast = (event: any) => {
       const reason = event?.payload?.reason;
+      if (reason === 'VENUE_CLEAN_RESET') {
+        const curStore = useCustomerStore.getState();
+        const tableId = curStore.tableNumber || tableRef.current;
+        const seatId = curStore.seatNumber || seatRef.current;
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+          sessionStorage.removeItem('thoogudeepa_verified_session');
+        } catch {}
+        curStore.resetSession();
+        hasPlacedOrderRef.current = false;
+        return;
+      }
+
       if (
         reason !== 'tableVacated' &&
         reason !== 'chairCleared' &&

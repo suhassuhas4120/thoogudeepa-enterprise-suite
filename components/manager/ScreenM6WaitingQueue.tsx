@@ -12,7 +12,7 @@ export function ScreenM6WaitingQueue() {
   const [guestName, setGuestName] = useState('');
   const [phone, setPhone] = useState('');
   const [pax, setPax] = useState('4');
-  const [section, setSection] = useState('Ground AC');
+  const [section, setSection] = useState('Main Dining Hall');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -154,9 +154,11 @@ export function ScreenM6WaitingQueue() {
                   onChange={(e) => setSection(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none font-bold"
                 >
-                  <option value="Ground AC">Ground AC</option>
-                  <option value="Family AC">Family AC</option>
-                  <option value="Terrace VIP">Terrace VIP</option>
+                  <option value="Express / Couple Hall">Express / Couple Hall</option>
+                  <option value="Main Dining Hall">Main Dining Hall</option>
+                  <option value="Family Section">Family Section</option>
+                  <option value="Courtyard Garden">Courtyard Garden</option>
+                  <option value="Grand Feast Hall">Grand Feast Hall</option>
                 </select>
               </div>
             </div>

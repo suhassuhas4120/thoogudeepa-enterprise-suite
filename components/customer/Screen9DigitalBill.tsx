@@ -7,6 +7,7 @@ import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { Download, Share2, RotateCcw, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { downloadPdfBill } from '../../lib/generatePdfBill';
 
 export const Screen9DigitalBill: React.FC = () => {
   const {
@@ -48,7 +49,37 @@ export const Screen9DigitalBill: React.FC = () => {
   const seatNumber = contextSeatNumber || parseInt(params.get('seat') || '1', 10);
   const invoiceNumber = payment.invoiceNumber || `INV-${tableNumber.replace('-', '')}-${Date.now().toString().slice(-4)}`;
 
+  const { formattedDate, formattedTime } = useMemo(() => {
+    const d = new Date();
+    return {
+      formattedDate: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      formattedTime: d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+    };
+  }, []);
+
   const handleDownload = () => {
+    downloadPdfBill({
+      invoiceNumber,
+      tableNumber,
+      seatNumber,
+      formattedDate,
+      formattedTime,
+      items: activeItems.map((it: any) => ({
+        name: it.menuItem?.name || it.name || 'Dish',
+        quantity: it.quantity || 1,
+        price: Math.round((it.totalPrice || it.price * it.quantity || 0) / (it.quantity || 1)),
+      })),
+      subtotal,
+      cgst,
+      sgst,
+      totalTax,
+      discount: payment.discount || 0,
+      tipAmount: payment.tipAmount || 0,
+      paidAmount: paidTotal,
+      paymentMethod: payment.paymentMethod || 'UPI',
+      bankUtr: payment.paymentMethod === 'CASH' ? 'CASH-SETTLED' : 'PAID-SETTLED',
+      captainName: 'Floor Captain',
+    });
     setDownloadMsg(true);
     setTimeout(() => setDownloadMsg(false), 2200);
   };

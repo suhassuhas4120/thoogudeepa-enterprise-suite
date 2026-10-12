@@ -29,6 +29,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase, getSyncBroadcastChannel } from '../lib/supabase';
 import { useSharedBridge, type SharedTable } from '../store/useSharedBridge';
+import { useCustomerStore } from '../store/useCustomerStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // ── Supabase row shapes (only fields we need) ────────────────────────
@@ -948,6 +949,18 @@ export function useBridgeSync() {
             }
             return { settledBills: nextBills, activeSettlementSessions: nextSessions };
           });
+        } else if (payload?.reason === 'waiterPingResolved' && payload?.payload) {
+          const p = payload.payload;
+          try {
+            const curStore = useCustomerStore.getState();
+            const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+            const isMatch =
+              cleanNum(curStore.tableNumber) === cleanNum(p.tableNumber) &&
+              (!p.seatNumber || curStore.seatNumber === p.seatNumber);
+            if (isMatch) {
+              curStore.setWaiterAttended(p.type, p.message);
+            }
+          } catch {}
         }
         reconcileAllState();
       });

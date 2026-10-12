@@ -24,7 +24,7 @@ interface CustomerStoreState {
   orderStage: OrderStage;
   itemTracking: IndividualItemTracking[];
   payment: PaymentDetails;
-  waiterNotification: { active: boolean; type: string; message: string } | null;
+  waiterNotification: { active: boolean; type: string; message: string; attended?: boolean; attendedAt?: number } | null;
   isSettled: boolean;
   orderPlacedAt: number;
 
@@ -55,6 +55,7 @@ interface CustomerStoreState {
   toggleRedeemPoints: () => void;
   confirmAndPay: () => void;
   pingWaiter: (type: WaiterPingType, customMsg?: string) => void;
+  setWaiterAttended: (pingType?: string, message?: string) => void;
   handleBillSettledByWaiter: (snapshot: SettledBillSnapshot) => void;
   syncWithActiveSession: (tableNumber: string, seatNumber: number) => void;
   dismissWaiterNotification: () => void;
@@ -472,6 +473,45 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     });
   },
 
+  setWaiterAttended: (pingType, message) => {
+    if (typeof window !== 'undefined') {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        }
+      } catch {}
+    }
+
+    set({
+      waiterNotification: {
+        active: true,
+        attended: true,
+        type: pingType || 'CALL',
+        message: message || 'Floor Captain Suresh has attended to your request.',
+        attendedAt: Date.now(),
+      },
+    });
+
+    setTimeout(() => {
+      const cur = useCustomerStore.getState().waiterNotification;
+      if (cur?.attended) {
+        useCustomerStore.getState().dismissWaiterNotification();
+      }
+    }, 6000);
+  },
+
   handleBillSettledByWaiter: (snapshot) => {
     set((state) => {
       // Transition immediately to Screen 8, skipping Screen 6 and 7
@@ -759,6 +799,20 @@ if (typeof window !== 'undefined') {
           `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`
         );
         localStorage.removeItem('thoogudeepa_customer_session_v1');
+      }
+    } catch {}
+  });
+
+  window.addEventListener('waiterPingAttended', (event: any) => {
+    try {
+      const p = event.detail;
+      const curStore = useCustomerStore.getState();
+      const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const isMatch =
+        cleanNum(curStore.tableNumber) === cleanNum(p?.tableNumber) &&
+        (!p?.seatNumber || curStore.seatNumber === p.seatNumber);
+      if (isMatch) {
+        curStore.setWaiterAttended(p?.type, p?.message);
       }
     } catch {}
   });

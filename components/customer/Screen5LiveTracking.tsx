@@ -297,13 +297,15 @@ export const Screen5LiveTracking: React.FC = () => {
         );
 
         // Check if table active item is marked Served
+        // Check if table active item is marked Served for this EXACT ticket item ID
         const tableActiveItem = currentTbl?.activeItems?.find(
-          (ai) => ai && getCanonicalKey(ai.name) === key && ai.seatNumber === effectiveSeat
+          (ai) => ai && (ai.id === ti.id || (getCanonicalKey(ai.name) === key && ai.seatNumber === effectiveSeat && ti.stage === 'SERVED'))
         );
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
 
-        const liveStage: OrderStage = tableStage || ti.stage || 'PLACED';
+        // If the ticket item stage is already PLACED, RECEIVED, PREP, or PLATED, it is authoritative!
+        const liveStage: OrderStage = ti.stage ? ti.stage : (tableStage || 'PLACED');
 
         return {
           id: ti.id,
@@ -357,20 +359,17 @@ export const Screen5LiveTracking: React.FC = () => {
 
   const rawAllDishesServed = useMemo(() => {
     if (!trackedDishes.length) return false;
-    return trackedDishes.every((d) => {
-      if (d.stage === 'SERVED') return true;
-      const matched = currentTbl?.activeItems?.find(
-        (ai) => getCanonicalKey(ai.name) === getCanonicalKey(d.name) && ai.seatNumber === effectiveSeat
-      );
-      return matched?.status === 'Served';
-    });
-  }, [trackedDishes, currentTbl, effectiveSeat]);
+    return trackedDishes.every((d) => d.stage === 'SERVED');
+  }, [trackedDishes]);
 
   useEffect(() => {
     if (rawAllDishesServed) {
       setHasEverBeenFullyServed(true);
+    } else if (trackedDishes.some((d) => d.stage !== 'SERVED')) {
+      // Reset latch if any newly placed/cooking item is currently pending in kitchen
+      setHasEverBeenFullyServed(false);
     }
-  }, [rawAllDishesServed]);
+  }, [rawAllDishesServed, trackedDishes]);
 
   const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
@@ -563,6 +562,40 @@ export const Screen5LiveTracking: React.FC = () => {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-4 pb-36 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
+        {/* Floor Captain Attended Notification Banner */}
+        <AnimatePresence>
+          {waiterNotification?.active && waiterNotification?.attended && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-4 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                      Request Attended
+                    </span>
+                    <button
+                      onClick={() => useCustomerStore.getState().dismissWaiterNotification()}
+                      className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] font-bold text-emerald-800 mt-0.5 leading-snug">
+                    {waiterNotification.message || 'Floor Captain has attended to your request.'}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Table Connection Status Bar */}
         <div
           className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"

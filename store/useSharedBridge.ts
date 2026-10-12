@@ -1530,11 +1530,31 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   
   waiterResolvePing: (pingId) => {
     const prevPings = get().pings;
+    const targetPing = prevPings.find((p) => p.id === pingId);
 
     // 1. Optimistic: remove ping immediately from UI
     set((state) => ({ pings: state.pings.filter((p) => p.id !== pingId) }));
 
-    broadcastStateChange('waiterPingResolved', { pingId });
+    const resolvedPayload = {
+      pingId,
+      tableNumber: targetPing?.tableNumber,
+      seatNumber: targetPing?.seatNumber,
+      type: targetPing?.type,
+      message: targetPing?.type
+        ? `Floor Captain attended your request for ${targetPing.type}.`
+        : 'Floor Captain attended your request.',
+    };
+
+    broadcastStateChange('waiterPingResolved', resolvedPayload);
+
+    // Broadcast event locally for any customer store listening on this client
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('waiterPingAttended', {
+          detail: resolvedPayload,
+        })
+      );
+    }
 
     // 2. Persist to Supabase
     bridgePost(

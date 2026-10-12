@@ -8,8 +8,9 @@ import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { WaiterPingType } from '../../types/customer';
-import { Droplets, Scroll, Utensils, Sparkles, Send, ArrowRight, CreditCard, AlertCircle } from 'lucide-react';
+import { Droplets, Scroll, Utensils, Sparkles, Send, ArrowRight, CreditCard, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCustomerStore } from '../../store/useCustomerStore';
 
 export const Screen10WaiterCall: React.FC = () => {
   const { currentTheme } = useCustomerTheme();
@@ -175,17 +176,43 @@ export const Screen10WaiterCall: React.FC = () => {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm text-center"
+              className={`rounded-2xl border p-4 shadow-sm text-center ${
+                waiterNotification.attended
+                  ? 'border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50'
+                  : 'border-amber-300 bg-amber-50'
+              }`}
             >
-              <div className="flex items-center justify-center gap-2 font-black text-xs text-amber-900 mb-1">
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                <span>Floor Captain notified. Please wait at your seat.</span>
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-              </div>
-              {waiterNotification.message && (
-                <p className="text-xs font-medium text-amber-800 leading-relaxed">
-                  {waiterNotification.message}
-                </p>
+              {waiterNotification.attended ? (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 font-black text-xs text-emerald-950">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span>Request Attended!</span>
+                    </div>
+                    <button
+                      onClick={() => useCustomerStore.getState().dismissWaiterNotification()}
+                      className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-xs font-bold text-emerald-800 text-left leading-relaxed">
+                    {waiterNotification.message || 'Floor Captain has attended to your request.'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-2 font-black text-xs text-amber-900 mb-1">
+                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                    <span>Floor Captain notified. Please wait at your seat.</span>
+                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                  </div>
+                  {waiterNotification.message && (
+                    <p className="text-xs font-medium text-amber-800 leading-relaxed">
+                      {waiterNotification.message}
+                    </p>
+                  )}
+                </>
               )}
             </motion.div>
           )}

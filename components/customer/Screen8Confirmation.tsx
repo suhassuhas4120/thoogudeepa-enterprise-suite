@@ -20,6 +20,7 @@ import {
   Check,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { downloadPdfBill } from '../../lib/generatePdfBill';
 
 export const Screen8Confirmation: React.FC = () => {
   const { currentTheme } = useCustomerTheme();
@@ -149,7 +150,60 @@ export const Screen8Confirmation: React.FC = () => {
     );
   };
 
+  const billPdfData = useMemo(() => ({
+    invoiceNumber,
+    tableNumber: effectiveTable,
+    seatNumber,
+    formattedDate,
+    formattedTime,
+    items: activeItems.map((it: any) => ({
+      name: it.menuItem?.name || it.name || 'Dish',
+      quantity: it.quantity || 1,
+      price: Math.round((it.totalPrice || it.price * it.quantity || 0) / (it.quantity || 1)),
+    })),
+    subtotal,
+    cgst,
+    sgst,
+    totalTax,
+    discount,
+    tipAmount: payment.tipAmount || 0,
+    paidAmount,
+    paymentMethod: payment.paymentMethod || 'UPI',
+    bankUtr,
+    captainName,
+  }), [
+    invoiceNumber,
+    effectiveTable,
+    seatNumber,
+    formattedDate,
+    formattedTime,
+    activeItems,
+    subtotal,
+    cgst,
+    sgst,
+    totalTax,
+    discount,
+    payment.tipAmount,
+    paidAmount,
+    payment.paymentMethod,
+    bankUtr,
+    captainName,
+  ]);
+
+  // Automatically trigger bill download in PDF on landing on confirmation screen
+  const autoDownloadedRef = React.useRef(false);
+  React.useEffect(() => {
+    if (!autoDownloadedRef.current && activeItems.length > 0) {
+      autoDownloadedRef.current = true;
+      const t = setTimeout(() => {
+        downloadPdfBill(billPdfData);
+      }, 700);
+      return () => clearTimeout(t);
+    }
+  }, [billPdfData, activeItems]);
+
   const handleDownload = () => {
+    downloadPdfBill(billPdfData);
     setDownloadMsg(true);
     setTimeout(() => setDownloadMsg(false), 2200);
   };

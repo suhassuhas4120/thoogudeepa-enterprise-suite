@@ -210,7 +210,7 @@ async function reconcileAllState(): Promise<void> {
       }>
     >();
     mappedTickets.forEach((tk) => {
-      if (tk.status !== 'COMPLETED' && tk.status !== 'SERVED') {
+      if (tk.status !== 'COMPLETED') {
         const list = itemsByTable.get(tk.tableNumber) || [];
         tk.items.forEach((it) => {
           list.push({

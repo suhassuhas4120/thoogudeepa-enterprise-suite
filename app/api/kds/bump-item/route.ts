@@ -148,7 +148,7 @@ export async function POST(req: NextRequest) {
       const anyActive = updatedTicketItems.some((it: any) => it.stage === 'PREP' || it.stage === 'PLATED' || it.stage === 'RECEIVED');
 
       if (allServed) {
-        ticketStatus = 'COMPLETED';
+        ticketStatus = 'SERVED';
       } else if (allPlated) {
         ticketStatus = 'READY';
       } else if (anyActive) {

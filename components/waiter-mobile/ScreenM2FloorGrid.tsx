@@ -62,10 +62,11 @@ function getOccupiedSeatsForTable(
     }
   }
 
-  // If table has running bill or active tickets/items but no chair tagged:
-  const hasBill = typeof table.currentBill === 'number' && table.currentBill > 0;
-  const hasOrders = hasBill || matchingTickets.length > 0 || (table.activeItems && table.activeItems.length > 0);
-  if (occupied.size === 0 && hasOrders) {
+  // If table is actively occupied/billing or has matching uncompleted tickets, but no chair tagged:
+  const isTableActive = table.status === 'OCCUPIED' || table.status === 'BILLING';
+  const hasActiveTickets = matchingTickets.length > 0;
+  const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
+  if (occupied.size === 0 && (hasActiveTickets || hasActiveItems || (isTableActive && (table.currentBill || 0) > 0))) {
     occupied.add(1);
   }
 

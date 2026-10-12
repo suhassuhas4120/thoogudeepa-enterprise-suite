@@ -1866,7 +1866,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        return { ...t, items: newItems, status: allServed ? ('COMPLETED' as const) : t.status }; // status: allServed ? 'COMPLETED' : t.status
+        return { ...t, items: newItems, status: allServed ? ('SERVED' as const) : t.status };
       });
 
       if (!targetTableNumber) {

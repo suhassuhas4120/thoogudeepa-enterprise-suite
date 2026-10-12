@@ -7,16 +7,21 @@ export const dynamic = 'force-dynamic';
 
 const globalForOrders = globalThis as unknown as {
   inFlightOrderLocks: Map<string, Promise<any>>;
+  recentOrdersCache: Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>;
 };
 const inFlightOrderLocks =
   globalForOrders.inFlightOrderLocks ??
   (globalForOrders.inFlightOrderLocks = new Map<string, Promise<any>>());
+const recentOrdersCache =
+  globalForOrders.recentOrdersCache ??
+  (globalForOrders.recentOrdersCache = new Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>());
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const tableNumber = (body.tableNumber || body.table || '').toUpperCase();
-    const seatNumber = parseInt(body.seatNumber || body.seat || '1', 10);
+    const rawSeat = body.seatNumber !== undefined ? body.seatNumber : body.seat !== undefined ? body.seat : '1';
+    const seatNumber = parseInt(String(rawSeat), 10);
     const guestName = body.guestName || `Seat ${seatNumber}`;
     const guestCount = parseInt(body.guestCount || '1', 10);
     const items = body.items || [];
@@ -26,8 +31,26 @@ export async function POST(req: NextRequest) {
     if (!tableNumber) {
       return NextResponse.json({ error: 'tableNumber is required' }, { status: 400 });
     }
-    if (!items.length) {
+    if (isNaN(seatNumber) || seatNumber < 1 || seatNumber > 12) {
+      return NextResponse.json({ error: 'seatNumber must be a valid number between 1 and 12' }, { status: 400 });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Order must contain at least one item' }, { status: 400 });
+    }
+
+    // Strict Schema Fuzzing Guard: Validate each item and quantity
+    for (const it of items) {
+      if (!it || typeof it !== 'object') {
+        return NextResponse.json({ error: 'Invalid item object in payload' }, { status: 400 });
+      }
+      const rawQty = it.quantity;
+      const numQty = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty), 10);
+      if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty) || numQty > 50) {
+        return NextResponse.json({
+          error: 'INVALID_QUANTITY',
+          message: `Quantity for item "${it.name || it.id || 'Dish'}" must be a positive integer between 1 and 50`,
+        }, { status: 400 });
+      }
     }
 
     // Verify table exists
@@ -170,11 +193,31 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // Idempotency check: Look for identical order created in the last 45 seconds
+      // 1. Fast In-Memory Idempotency Check (Sub-second burst protection)
+      const cachedOrder = recentOrdersCache.get(lockKey);
+      if (cachedOrder && (Date.now() - cachedOrder.createdAt) < 45000) {
+        if (Math.abs(cachedOrder.total - total) < 0.01 && cachedOrder.itemCount === items.length) {
+          return NextResponse.json({
+            success: true,
+            orderId: cachedOrder.orderId,
+            ticketId: cachedOrder.ticketId,
+            tableNumber,
+            seatNumber,
+            subtotal,
+            tax,
+            total,
+            itemCount: items.length,
+            idempotent: true,
+            message: 'Order accepted idempotently from fast memory lock',
+          });
+        }
+      }
+
+      // 2. Database Idempotency fallback check: Look for identical order created in the last 45 seconds
       const fortyFiveSecsAgo = new Date(Date.now() - 45000).toISOString();
       const { data: recentOrder } = await supabase
         .from('orders')
-        .select('id, table_number, seat_number, total_amount, status, created_at')
+        .select('id, table_number, seat_number, total, total_amount, status, created_at')
         .eq('table_number', tableNumber)
         .eq('seat_number', seatNumber)
         .eq('status', 'UNPAID')
@@ -183,18 +226,19 @@ export async function POST(req: NextRequest) {
         .limit(1)
         .maybeSingle();
 
-      if (recentOrder && Math.abs(Number(recentOrder.total_amount) - total) < 0.01) {
+      const existingTotal = recentOrder ? Number(recentOrder.total || recentOrder.total_amount || 0) : 0;
+      if (recentOrder && Math.abs(existingTotal - total) < 0.01) {
         const { data: recentItems } = await supabase
           .from('order_items')
           .select('name, quantity')
           .eq('order_id', recentOrder.id);
 
         const itemsMatch =
-          recentItems &&
-          recentItems.length === items.length &&
-          items.every((it: any) =>
-            recentItems.some((ri: any) => ri.name === it.name && Number(ri.quantity) === Number(it.quantity || 1))
-          );
+          !recentItems || recentItems.length === 0 ||
+          (recentItems.length === items.length &&
+            items.every((it: any) =>
+              recentItems.some((ri: any) => ri.name === it.name && Number(ri.quantity) === Number(it.quantity || 1))
+            ));
 
         if (itemsMatch) {
           return NextResponse.json({
@@ -203,6 +247,8 @@ export async function POST(req: NextRequest) {
             ticketId: `KOT-${tableNumber.replace(/[^a-zA-Z0-9]/g, '')}-${recentOrder.id.slice(-4)}`,
             tableNumber,
             seatNumber,
+            subtotal,
+            tax,
             total,
             source,
             idempotent: true,
@@ -335,6 +381,15 @@ export async function POST(req: NextRequest) {
       seatNumber,
       orderId,
       timestamp: Date.now(),
+    });
+
+    // Update fast in-memory idempotency cache
+    recentOrdersCache.set(lockKey, {
+      orderId,
+      ticketId,
+      total,
+      itemCount: items.length,
+      createdAt: Date.now(),
     });
 
     return NextResponse.json({

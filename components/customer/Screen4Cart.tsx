@@ -337,12 +337,27 @@ export const Screen4Cart: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <span
-                        className="font-mono text-xs font-black"
-                        style={{ color: currentTheme.colors.textPrimary }}
-                      >
-                        Qty: {ci.quantity}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="font-mono text-xs font-black"
+                          style={{ color: currentTheme.colors.textPrimary }}
+                        >
+                          Qty: {ci.quantity}
+                        </span>
+                        <button
+                          onClick={() => updateCartQuantity(ci.cartItemId, 1)}
+                          className="flex items-center gap-1 rounded-lg border px-2 py-1 text-[10px] font-black transition active:scale-95 shadow-2xs cursor-pointer hover:brightness-105"
+                          style={{
+                            backgroundColor: currentTheme.colors.buttonBg,
+                            color: currentTheme.colors.buttonFg,
+                            borderColor: currentTheme.colors.primaryBorder,
+                          }}
+                          title="Add another serving to order"
+                        >
+                          <Plus className="h-2.5 w-2.5 stroke-[3]" />
+                          <span>Add More</span>
+                        </button>
+                      </div>
                     )}
                   </div>
 

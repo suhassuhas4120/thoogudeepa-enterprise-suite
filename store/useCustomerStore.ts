@@ -188,6 +188,62 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
   updateCartQuantity: (cartItemId, delta) => {
     set((state) => {
+      const targetItem = state.cart.find((ci) => ci.cartItemId === cartItemId);
+      if (!targetItem) return state;
+
+      // If item was already sent to kitchen
+      if (targetItem.isOrdered) {
+        if (delta > 0) {
+          // Add incremental quantity as an unplaced draft item
+          const unitPrice = targetItem.totalPrice / targetItem.quantity;
+          const unplacedIndex = state.cart.findIndex(
+            (ci) =>
+              !ci.isOrdered &&
+              ci.menuItem.id === targetItem.menuItem.id &&
+              ci.selectedOption === targetItem.selectedOption &&
+              JSON.stringify([...ci.selectedAddOns].sort()) ===
+                JSON.stringify([...targetItem.selectedAddOns].sort())
+          );
+
+          let newCart: CartItem[];
+          if (unplacedIndex > -1) {
+            newCart = state.cart.map((ci, idx) => {
+              if (idx === unplacedIndex) {
+                const newQty = ci.quantity + delta;
+                return {
+                  ...ci,
+                  quantity: newQty,
+                  totalPrice: newQty * unitPrice,
+                };
+              }
+              return ci;
+            });
+          } else {
+            const incrementalCartItem: CartItem = {
+              cartItemId: 'c-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+              menuItem: targetItem.menuItem,
+              selectedOption: targetItem.selectedOption,
+              selectedAddOns: targetItem.selectedAddOns,
+              quantity: delta,
+              totalPrice: unitPrice * delta,
+              prepMode: targetItem.prepMode,
+              seatNumber: state.seatNumber || 1,
+              isOrdered: false,
+            };
+            newCart = [...state.cart, incrementalCartItem];
+          }
+
+          return {
+            cart: newCart,
+            payment: calculatePaymentTotals(newCart, state.payment),
+          };
+        } else {
+          // Cannot reduce items that are already placed/cooking in kitchen
+          return state;
+        }
+      }
+
+      // Normal unplaced item quantity update
       const newCart = state.cart
         .map((ci) => {
           if (ci.cartItemId === cartItemId) {

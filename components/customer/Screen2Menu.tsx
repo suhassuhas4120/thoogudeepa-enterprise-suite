@@ -201,9 +201,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   const handleIncrement = (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
-    const existing = cart.find((ci) => ci.menuItem.id === item.id);
-    if (existing) {
-      updateCartQuantity(existing.cartItemId, 1);
+    const existingUnplaced = cart.find((ci) => ci.menuItem.id === item.id && !ci.isOrdered);
+    if (existingUnplaced) {
+      updateCartQuantity(existingUnplaced.cartItemId, 1);
     } else {
       addToCart(item);
     }
@@ -211,9 +211,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   const handleDecrement = (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
-    const existing = cart.find((ci) => ci.menuItem.id === itemId);
-    if (existing) {
-      updateCartQuantity(existing.cartItemId, -1);
+    const existingUnplaced = cart.find((ci) => ci.menuItem.id === itemId && !ci.isOrdered);
+    if (existingUnplaced) {
+      updateCartQuantity(existingUnplaced.cartItemId, -1);
     }
   };
 

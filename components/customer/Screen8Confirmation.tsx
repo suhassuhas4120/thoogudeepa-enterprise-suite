@@ -195,17 +195,6 @@ export const Screen8Confirmation: React.FC = () => {
     captainName,
   ]);
 
-  // Automatically trigger bill download in PDF on landing on confirmation screen
-  const autoDownloadedRef = React.useRef(false);
-  React.useEffect(() => {
-    if (!autoDownloadedRef.current && activeItems.length > 0) {
-      autoDownloadedRef.current = true;
-      const t = setTimeout(() => {
-        downloadPdfBill(billPdfData);
-      }, 700);
-      return () => clearTimeout(t);
-    }
-  }, [billPdfData, activeItems]);
 
   const handleDownload = () => {
     downloadPdfBill(billPdfData);

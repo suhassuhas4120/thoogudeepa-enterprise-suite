@@ -19,6 +19,7 @@ import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
 import { ScreenId } from '../types/customer';
 import { getSyncBroadcastChannel } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
+import { useTabLifecycleSync } from '../hooks/useTabLifecycleSync';
 import { Armchair, AlertCircle, Sparkles, RefreshCw, Check, ArrowRight, ShieldAlert, QrCode } from 'lucide-react';
 
 // Normalise a raw table param like "T-5", "T05", "5" → "T-05"
@@ -88,6 +89,9 @@ function CustomerJourneyContent() {
   // Parsed once from URL; stable for the lifetime of this page load
   const tableRef = React.useRef('T-01');
   const seatRef = React.useRef(1);
+
+  // Enterprise Tab Lifecycle Sync: Automatically re-syncs state when diner unlocks phone
+  useTabLifecycleSync(tableRef.current);
 
   // Track whether the customer has placed at least one order (sent to kitchen).
   // Only after this point should a table VACANT status trigger a session reset.

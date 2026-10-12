@@ -150,6 +150,11 @@ export const Screen8Confirmation: React.FC = () => {
     );
   };
 
+  const effectiveTip =
+    payment.tipAmount > 0
+      ? payment.tipAmount
+      : Math.max(0, paidAmount - (subtotal + totalTax - discount));
+
   const billPdfData = useMemo(() => ({
     invoiceNumber,
     tableNumber: effectiveTable,
@@ -159,14 +164,14 @@ export const Screen8Confirmation: React.FC = () => {
     items: activeItems.map((it: any) => ({
       name: it.menuItem?.name || it.name || 'Dish',
       quantity: it.quantity || 1,
-      price: Math.round((it.totalPrice || it.price * it.quantity || 0) / (it.quantity || 1)),
+      price: Math.round(it.totalPrice || (it.price && it.quantity ? it.price * it.quantity : it.price) || 0),
     })),
     subtotal,
     cgst,
     sgst,
     totalTax,
     discount,
-    tipAmount: payment.tipAmount || 0,
+    tipAmount: effectiveTip,
     paidAmount,
     paymentMethod: payment.paymentMethod || 'UPI',
     bankUtr,
@@ -183,7 +188,7 @@ export const Screen8Confirmation: React.FC = () => {
     sgst,
     totalTax,
     discount,
-    payment.tipAmount,
+    effectiveTip,
     paidAmount,
     payment.paymentMethod,
     bankUtr,
@@ -478,10 +483,10 @@ export const Screen8Confirmation: React.FC = () => {
               <span className="font-medium">SGST (2.5%)</span>
               <span className="font-mono font-semibold" style={{ color: currentTheme.colors.textPrimary }}>₹{sgst}</span>
             </div>
-            {payment.tipAmount > 0 && (
+            {effectiveTip > 0 && (
               <div className="flex justify-between font-bold font-sans" style={{ color: currentTheme.colors.buttonBg }}>
-                <span className="font-semibold">Staff Tip (Captain & Team)</span>
-                <span className="font-mono font-black">+₹{payment.tipAmount}</span>
+                <span className="font-semibold">Waiter Tip</span>
+                <span className="font-mono font-black">+₹{effectiveTip}</span>
               </div>
             )}
             {discount > 0 && (

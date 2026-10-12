@@ -537,14 +537,28 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         seatNumber: it.seatNumber || state.seatNumber,
       }));
 
+      const snapshotTip =
+        (snapshot as any).tipAmount !== undefined && (snapshot as any).tipAmount > 0
+          ? (snapshot as any).tipAmount
+          : (state.payment.tipAmount > 0
+              ? state.payment.tipAmount
+              : Math.max(0, snapshot.grandTotal - (snapshot.subtotal + snapshot.totalTax)));
+
+      const derivedMethod: PaymentDetails['paymentMethod'] =
+        snapshot.method === 'CASH'
+          ? 'CASH'
+          : snapshot.method === 'UPI' || snapshot.method === 'RAZORPAY' || snapshot.method === 'CARD' || snapshot.method === 'NET_BANKING'
+            ? (snapshot.method as any)
+            : (state.payment.paymentMethod || 'UPI');
+
       const newPayment: PaymentDetails = {
         ...state.payment,
         subtotal: snapshot.subtotal,
         tax: snapshot.totalTax,
-        tipAmount: 0,
-        discount: 0,
+        tipAmount: snapshotTip,
+        discount: state.payment.discount || 0,
         totalAmount: snapshot.grandTotal,
-        paymentMethod: (snapshot.method as any) || 'UPI',
+        paymentMethod: derivedMethod,
         transactionId: snapshot.invoiceNumber,
         invoiceNumber: snapshot.invoiceNumber,
         settledItems: snapshot.items,

@@ -611,6 +611,12 @@ export function ScreenM6Settlement({
                 <span>Total GST (5%):</span>
                 <span>₹{s.totalTax.toFixed(2)}</span>
               </div>
+              {s.grandTotal > s.subtotal + s.totalTax && (
+                <div className="flex justify-between text-xs font-bold text-[#9C3D1E]">
+                  <span>Waiter Tip:</span>
+                  <span>+₹{(s.grandTotal - (s.subtotal + s.totalTax)).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm font-black text-stone-900 pt-1.5 border-t border-stone-200">
                 <span>GRAND TOTAL PAID:</span>
                 <span className="text-[#9C3D1E] text-base">₹{s.grandTotal.toFixed(2)}</span>

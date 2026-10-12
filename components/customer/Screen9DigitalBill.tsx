@@ -57,6 +57,11 @@ export const Screen9DigitalBill: React.FC = () => {
     };
   }, []);
 
+  const effectiveTip =
+    payment.tipAmount > 0
+      ? payment.tipAmount
+      : Math.max(0, paidTotal - (subtotal + totalTax - (payment.discount || 0)));
+
   const handleDownload = () => {
     downloadPdfBill({
       invoiceNumber,
@@ -67,14 +72,14 @@ export const Screen9DigitalBill: React.FC = () => {
       items: activeItems.map((it: any) => ({
         name: it.menuItem?.name || it.name || 'Dish',
         quantity: it.quantity || 1,
-        price: Math.round((it.totalPrice || it.price * it.quantity || 0) / (it.quantity || 1)),
+        price: Math.round(it.totalPrice || (it.price && it.quantity ? it.price * it.quantity : it.price) || 0),
       })),
       subtotal,
       cgst,
       sgst,
       totalTax,
       discount: payment.discount || 0,
-      tipAmount: payment.tipAmount || 0,
+      tipAmount: effectiveTip,
       paidAmount: paidTotal,
       paymentMethod: payment.paymentMethod || 'UPI',
       bankUtr: payment.paymentMethod === 'CASH' ? 'CASH-SETTLED' : 'PAID-SETTLED',
@@ -179,10 +184,10 @@ export const Screen9DigitalBill: React.FC = () => {
               <span>SGST (2.5%)</span>
               <span>₹{sgst}</span>
             </div>
-            {payment.tipAmount > 0 && (
+            {effectiveTip > 0 && (
               <div className="flex justify-between font-bold text-[#8A4228]">
-                <span className="font-sans">Staff Tip</span>
-                <span>+₹{payment.tipAmount}</span>
+                <span className="font-sans">Waiter Tip</span>
+                <span>+₹{effectiveTip}</span>
               </div>
             )}
             <div className="flex items-center justify-between border-t border-[#E8D5C3] pt-2 text-sm font-black text-[#5B5049]">

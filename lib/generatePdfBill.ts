@@ -95,47 +95,53 @@ export function buildPdfBillString(data: PdfBillData): string {
   // Financial Subtotals & Tax Breakdown
   content.push(`BT /F1 8.5 Tf 200 ${y} Td (Subtotal:) Tj ET`);
   content.push(`BT /F2 8.5 Tf 330 ${y} Td (Rs.${data.subtotal}) Tj ET`);
-  y -= 14;
+  y -= 15;
   content.push(`BT /F1 8.5 Tf 200 ${y} Td (CGST (2.5%):) Tj ET`);
   content.push(`BT /F1 8.5 Tf 330 ${y} Td (Rs.${data.cgst}) Tj ET`);
-  y -= 14;
+  y -= 15;
   content.push(`BT /F1 8.5 Tf 200 ${y} Td (SGST (2.5%):) Tj ET`);
   content.push(`BT /F1 8.5 Tf 330 ${y} Td (Rs.${data.sgst}) Tj ET`);
-  y -= 14;
+  y -= 15;
 
-  if (data.tipAmount && data.tipAmount > 0) {
+  const effectiveTip =
+    data.tipAmount !== undefined && data.tipAmount > 0
+      ? data.tipAmount
+      : Math.max(0, data.paidAmount - (data.subtotal + data.totalTax - (data.discount || 0)));
+
+  if (effectiveTip > 0) {
     content.push(brand);
-    content.push(`BT /F2 8.5 Tf 200 ${y} Td (Staff Tip:) Tj ET`);
-    content.push(`BT /F2 8.5 Tf 330 ${y} Td (+Rs.${data.tipAmount}) Tj ET`);
-    y -= 14;
+    content.push(`BT /F2 8.5 Tf 200 ${y} Td (Waiter Tip:) Tj ET`);
+    content.push(`BT /F2 8.5 Tf 330 ${y} Td (+Rs.${effectiveTip}) Tj ET`);
+    y -= 15;
   }
 
   if (data.discount && data.discount > 0) {
     content.push(green);
     content.push(`BT /F2 8.5 Tf 200 ${y} Td (Discount:) Tj ET`);
     content.push(`BT /F2 8.5 Tf 330 ${y} Td (-Rs.${data.discount}) Tj ET`);
-    y -= 14;
+    y -= 15;
   }
 
-  // Grand Total Box
-  content.push(`0.95 0.95 0.95 rg 195 ${y - 5} 170 20 re f`);
+  // Grand Total Box - Drop y by 6pt before drawing box so box top never touches preceding text
+  y -= 8;
+  content.push(`0.95 0.95 0.95 rg 195 ${y - 4} 170 20 re f`);
   content.push(dark);
-  content.push(`BT /F2 10 Tf 200 ${y} Td (TOTAL PAID:) Tj ET`);
-  content.push(`BT /F2 11 Tf 325 ${y} Td (Rs.${data.paidAmount}) Tj ET`);
-  y -= 25;
+  content.push(`BT /F2 10 Tf 200 ${y + 2} Td (TOTAL PAID:) Tj ET`);
+  content.push(`BT /F2 11 Tf 325 ${y + 2} Td (Rs.${data.paidAmount}) Tj ET`);
+  y -= 28;
 
   // Payment Settlement Verification Badge
-  content.push(`0.9 0.97 0.92 rg 35 ${y - 5} 330 22 re f`);
+  content.push(`0.9 0.97 0.92 rg 35 ${y - 4} 330 22 re f`);
   content.push(green);
   content.push(
-    `BT /F2 8.5 Tf 45 ${y} Td (VERIFIED PAYMENT: ${escapePdf(data.paymentMethod || 'UPI')} | Ref: ${escapePdf(data.bankUtr || 'PAID')}) Tj ET`
+    `BT /F2 8.5 Tf 45 ${y + 3} Td (VERIFIED PAYMENT: ${escapePdf(data.paymentMethod || 'UPI')} | Ref: ${escapePdf(data.bankUtr || 'PAID')}) Tj ET`
   );
-  y -= 25;
+  y -= 26;
 
   // Statutory Footer
   content.push(gray);
   content.push(`BT /F1 7.5 Tf 75 ${y} Td (GSTIN: 29AABCT1332L1Z9 | FSSAI Lic: 11223334000182) Tj ET`);
-  y -= 12;
+  y -= 14;
   content.push(`BT /F2 8.5 Tf 130 ${y} Td (Thank You! Visit Again) Tj ET`);
 
   const streamBody = content.join('\n');

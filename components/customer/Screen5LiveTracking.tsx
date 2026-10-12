@@ -229,14 +229,65 @@ export const Screen5LiveTracking: React.FC = () => {
         }))
     );
 
-    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && ci.seatNumber === effectiveSeat);
+    // Combine bridge items and supabase items authoritative from kitchen tickets for this chair
+    const combinedTicketItems: Array<{
+      id: string;
+      ticketId?: string;
+      name: string;
+      quantity: number;
+      stage: OrderStage;
+      prepMode?: string;
+      options?: string;
+      addOns?: string[];
+      notes?: string;
+      seatNumber: number;
+    }> = [];
 
-    if (orderedCart.length > 0) {
-      return orderedCart.map((ci) => {
-        const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
-        const key = getCanonicalKey(dishName);
-        const bridgeMatch = bridgeItems.find((bi) => bi && getCanonicalKey(bi.name) === key);
-        const supabaseMatch = supabaseItems.find((si) => si && getCanonicalKey(si.name) === key);
+    // Map bridge items first (most reactive, in-memory + broadcast)
+    bridgeItems.forEach((bi) => {
+      combinedTicketItems.push({
+        id: bi.id,
+        ticketId: bi.ticketId,
+        name: bi.name,
+        quantity: bi.quantity,
+        stage: bi.stage,
+        prepMode: bi.prepMode,
+        options: bi.options,
+        addOns: bi.addOns,
+        notes: bi.notes,
+        seatNumber: effectiveSeat,
+      });
+    });
+
+    // Supplement with supabase items if not already present in bridge
+    supabaseItems.forEach((si) => {
+      const alreadyInBridge = combinedTicketItems.some(
+        (ci) => getCanonicalKey(ci.name) === getCanonicalKey(si.name) && ci.ticketId === si.ticketId
+      );
+      if (!alreadyInBridge) {
+        combinedTicketItems.push({
+          id: si.id,
+          ticketId: si.ticketId,
+          name: si.name,
+          quantity: si.quantity,
+          stage: si.stage,
+          prepMode: 'Military Dum Handi',
+          options: si.options,
+          addOns: si.addOns,
+          notes: si.notes,
+          seatNumber: effectiveSeat,
+        });
+      }
+    });
+
+    // If kitchen tickets exist for this chair, they are authoritative!
+    // They represent all confirmed orders placed for this chair across all devices.
+    if (combinedTicketItems.length > 0) {
+      return combinedTicketItems.map((ti) => {
+        const key = getCanonicalKey(ti.name);
+        const cartMatch = (cart || []).find(
+          (c) => c && c.isOrdered && c.seatNumber === effectiveSeat && getCanonicalKey(c.menuItem?.name || '') === key
+        );
 
         // Check if table active item is marked Served
         const tableActiveItem = currentTbl?.activeItems?.find(
@@ -245,19 +296,43 @@ export const Screen5LiveTracking: React.FC = () => {
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
 
-        const liveStage: OrderStage =
-          tableStage ||
-          bridgeMatch?.stage ||
-          supabaseMatch?.stage ||
-          'PLACED';
+        const liveStage: OrderStage = tableStage || ti.stage || 'PLACED';
 
         return {
-          id: bridgeMatch?.id || `cart-${ci.cartItemId || Math.random()}`,
+          id: ti.id,
+          cartItemId: cartMatch?.cartItemId,
+          ticketId: ti.ticketId,
+          name: ti.name,
+          quantity: ti.quantity,
+          stage: liveStage,
+          prepMode: ti.prepMode || cartMatch?.prepMode || 'Military Dum Handi',
+          options: ti.options || cartMatch?.selectedOption || '',
+          addOns: ti.addOns && ti.addOns.length > 0 ? ti.addOns : cartMatch?.selectedAddOns || [],
+          notes: ti.notes || '',
+          seatNumber: effectiveSeat,
+        };
+      });
+    }
+
+    // Fallback to local ordered cart if ticket stream hasn't populated yet
+    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && ci.seatNumber === effectiveSeat);
+    if (orderedCart.length > 0) {
+      return orderedCart.map((ci) => {
+        const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
+        const key = getCanonicalKey(dishName);
+
+        const tableActiveItem = currentTbl?.activeItems?.find(
+          (ai) => ai && getCanonicalKey(ai.name) === key && ai.seatNumber === effectiveSeat
+        );
+        const tableStage: OrderStage | undefined =
+          tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
+
+        return {
+          id: `cart-${ci.cartItemId || Math.random()}`,
           cartItemId: ci.cartItemId,
-          ticketId: bridgeMatch?.ticketId,
           name: dishName,
           quantity: ci.quantity || 1,
-          stage: liveStage,
+          stage: tableStage || 'PLACED',
           prepMode: ci.prepMode || ci.menuItem?.prepMode || 'Military Dum Handi',
           options: ci.selectedOption,
           addOns: ci.selectedAddOns || [],
@@ -265,23 +340,6 @@ export const Screen5LiveTracking: React.FC = () => {
           seatNumber: effectiveSeat,
         };
       });
-    }
-
-    if (bridgeItems.length > 0) {
-      return bridgeItems.map((bi) => ({
-        ...bi,
-        cartItemId: undefined,
-      }));
-    }
-
-    if (supabaseItems.length > 0) {
-      return supabaseItems.map((si) => ({
-        ...si,
-        cartItemId: undefined,
-        prepMode: undefined,
-        options: undefined,
-        addOns: undefined,
-      }));
     }
 
     return [];
@@ -429,8 +487,9 @@ export const Screen5LiveTracking: React.FC = () => {
     };
   }, [isScannerOpen]);
 
-  const getDishStageIdx = (stage: OrderStage, dishName?: string): number => {
-    if (stage === 'SERVED') return 4;
+  const getDishStageIdx = (stage: string | OrderStage, dishName?: string): number => {
+    const s = String(stage || '').toUpperCase();
+    if (s === 'SERVED') return 4;
     // Check if table activeItems says Served
     if (dishName && currentTbl?.activeItems) {
       const matched = currentTbl.activeItems.find(
@@ -438,9 +497,9 @@ export const Screen5LiveTracking: React.FC = () => {
       );
       if (matched?.status === 'Served') return 4;
     }
-    if (stage === 'PLATED') return 3;
-    if (stage === 'PREP') return 2;
-    if (stage === 'RECEIVED') return 1;
+    if (s === 'PLATED' || s === 'READY') return 3;
+    if (s === 'PREP' || s === 'PREPARING') return 2;
+    if (s === 'RECEIVED') return 1;
     return 0; // PLACED
   };
 

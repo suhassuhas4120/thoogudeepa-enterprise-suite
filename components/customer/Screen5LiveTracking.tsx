@@ -269,7 +269,7 @@ export const Screen5LiveTracking: React.FC = () => {
     // Supplement with supabase items if not already present in bridge
     supabaseItems.forEach((si) => {
       const alreadyInBridge = combinedTicketItems.some(
-        (ci) => getCanonicalKey(ci.name) === getCanonicalKey(si.name) && ci.ticketId === si.ticketId
+        (ci) => ci.id === si.id || (getCanonicalKey(ci.name) === getCanonicalKey(si.name) && ci.ticketId === si.ticketId)
       );
       if (!alreadyInBridge) {
         combinedTicketItems.push({
@@ -296,7 +296,7 @@ export const Screen5LiveTracking: React.FC = () => {
           (c) => c && c.isOrdered && c.seatNumber === effectiveSeat && getCanonicalKey(c.menuItem?.name || '') === key
         );
 
-        // Check if this specific ticket item was marked Served
+        // Check if this specific ticket item was marked Served strictly by its unique item ID
         const tableActiveItem = currentTbl?.activeItems?.find((ai) => ai && ai.id === ti.id);
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
@@ -325,10 +325,9 @@ export const Screen5LiveTracking: React.FC = () => {
     if (orderedCart.length > 0) {
       return orderedCart.map((ci) => {
         const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
-        const key = getCanonicalKey(dishName);
-
+        // In fallback mode, match strictly by unique cart item ID rather than dish name to prevent cross-order stage contamination
         const tableActiveItem = currentTbl?.activeItems?.find(
-          (ai) => ai && getCanonicalKey(ai.name) === key && ai.seatNumber === effectiveSeat
+          (ai) => ai && ai.id === ci.cartItemId
         );
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;

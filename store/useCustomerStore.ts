@@ -571,7 +571,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
     // Tickets strictly for THIS chair
     const myTickets = bridge.kdsTickets.filter(
-      (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED'
+      (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED' && tk.status !== 'SERVED'
     );
     const seatActiveItems = (currentTbl?.activeItems || []).filter(
       (ai) => ai.seatNumber === seatNumber

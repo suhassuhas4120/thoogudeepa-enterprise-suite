@@ -463,14 +463,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                 kotCount: t.kotCount + 1,
                 activeItems: [
                   ...(t.activeItems || []),
-                  ...items.map((i, idx) => ({
-                    id: `ai-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
-                    name: i.item.name,
-                    quantity: i.quantity,
+                  ...ticket.items.map((it) => ({
+                    id: it.id,
+                    name: it.name,
+                    quantity: it.quantity,
                     status: 'Placed',
                     seatNumber: assignedSeat,
-                    price: i.item.price,
-                    options: i.selectedOption,
+                    price: it.price,
+                    options: it.options,
                   })),
                 ],
               }
@@ -840,7 +840,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
                 const matchedTicketItem = targetTicket.items.find(
-                  (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+                  (ti) => ti.id === ai.id
                 );
                 if (!matchedTicketItem) return ai;
                 return {
@@ -974,7 +974,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
                 const isTicketItem = targetTicket.items.some(
-                  (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+                  (ti) => ti.id === ai.id
                 );
                 return isTicketItem ? { ...ai, status: 'Ready' } : ai;
               }),
@@ -1880,13 +1880,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             return {
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
-                const matchesItem = ai.id === itemId;
-                const matchesFallback =
-                  Boolean(targetItemName) &&
-                  ai.name === targetItemName &&
-                  (targetSeatNumber !== undefined ? ai.seatNumber === targetSeatNumber : true) &&
-                  ai.status === 'Ready';
-                return matchesItem || matchesFallback
+                return ai.id === itemId
                   ? { ...ai, status: 'Served' }
                   : ai;
               }),

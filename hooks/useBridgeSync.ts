@@ -210,7 +210,7 @@ async function reconcileAllState(): Promise<void> {
       }>
     >();
     mappedTickets.forEach((tk) => {
-      if (tk.status !== 'COMPLETED') {
+      if (tk.status !== 'COMPLETED' && tk.status !== 'SERVED') {
         const list = itemsByTable.get(tk.tableNumber) || [];
         tk.items.forEach((it) => {
           list.push({
@@ -554,9 +554,7 @@ export function useBridgeSync() {
                   return {
                     ...tbl,
                     activeItems: (tbl.activeItems || []).map((ai) => {
-                      const matched = parsedItems.find(
-                        (pi) => pi.id === ai.id || (pi.name === ai.name && pi.seatNumber === ai.seatNumber)
-                      );
+                      const matched = parsedItems.find((pi) => pi.id === ai.id);
                       if (!matched) return ai;
                       return {
                         ...ai,

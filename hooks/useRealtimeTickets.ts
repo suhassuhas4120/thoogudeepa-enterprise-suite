@@ -94,12 +94,18 @@ export function useRealtimeTickets(tableId: string) {
         name: i.name,
         quantity: i.quantity,
         stage: (i.stage as ItemStage) || 'PLACED',
-        seatNumber: parseSeatFromItemName(i.name),
+        seatNumber:
+          (i.seat_number !== undefined && i.seat_number !== null ? Number(i.seat_number) : null) ??
+          (i.seatNumber !== undefined && i.seatNumber !== null ? Number(i.seatNumber) : null) ??
+          parseSeatFromItemName(i.name) ??
+          (t.seat_number !== undefined && t.seat_number !== null ? Number(t.seat_number) : null),
         unitPrice: Number(i.unit_price) || 0,
         notes: [i.prep_mode, i.selected_option].filter(Boolean).join(' • '),
       }));
 
-      const detectedSeat = items.find((it) => it.seatNumber !== null)?.seatNumber || null;
+      const detectedSeat =
+        (t.seat_number !== undefined && t.seat_number !== null ? Number(t.seat_number) : null) ??
+        (items.find((it) => it.seatNumber !== null)?.seatNumber || null);
 
       return {
         id: t.id,

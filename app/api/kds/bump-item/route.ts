@@ -56,23 +56,29 @@ export async function POST(req: NextRequest) {
         .neq('status', 'COMPLETED');
       targetTicket = (allActiveTickets || []).find((t: any) =>
         Array.isArray(t.items) &&
-        t.items.some((it: any) => {
-          const itName = (it.name || '').trim().toLowerCase();
-          return it.id === itemId || itName === normSearch || (itName && normSearch.includes(itName));
-        })
+        t.items.some((it: any) => it.id === itemId)
       );
+
+      if (!targetTicket) {
+        // Fallback for direct dish name matching, but only target unserved items
+        targetTicket = (allActiveTickets || []).find((t: any) =>
+          Array.isArray(t.items) &&
+          t.items.some((it: any) => {
+            const itName = (it.name || '').trim().toLowerCase();
+            return (itName === normSearch || (itName && normSearch.includes(itName))) && it.stage !== 'SERVED';
+          })
+        );
+      }
     }
 
     if (!item && !targetTicket) {
       const { data: anyTicket } = await supabase
         .from('kds_tickets')
-        .select('*');
+        .select('*')
+        .neq('status', 'COMPLETED');
       targetTicket = (anyTicket || []).find((t: any) =>
         Array.isArray(t.items) &&
-        t.items.some((it: any) => {
-          const itName = (it.name || '').trim().toLowerCase();
-          return it.id === itemId || itName === normSearch || (itName && normSearch.includes(itName));
-        })
+        t.items.some((it: any) => it.id === itemId)
       );
     }
 
@@ -84,7 +90,7 @@ export async function POST(req: NextRequest) {
     if (!ticketItem && targetTicket?.items) {
       ticketItem = targetTicket.items.find((it: any) => {
         const itName = (it.name || '').trim().toLowerCase();
-        return itName === normSearch || (itName && normSearch.includes(itName));
+        return (itName === normSearch || (itName && normSearch.includes(itName))) && it.stage !== 'SERVED';
       });
     }
 
@@ -128,12 +134,9 @@ export async function POST(req: NextRequest) {
     let ticketStatus = 'NEW';
     if (targetTicket) {
       const updatedTicketItems = (targetTicket.items || []).map((it: any) => {
-        const itName = (it.name || '').trim().toLowerCase();
         const isMatch =
           it.id === itemId ||
-          (ticketItem && it.id === ticketItem.id) ||
-          itName === normSearch ||
-          (itName && normSearch.includes(itName));
+          (ticketItem && it.id === ticketItem.id);
         if (isMatch) {
           return { ...it, stage: nextStage };
         }
@@ -145,7 +148,7 @@ export async function POST(req: NextRequest) {
       const anyActive = updatedTicketItems.some((it: any) => it.stage === 'PREP' || it.stage === 'PLATED' || it.stage === 'RECEIVED');
 
       if (allServed) {
-        ticketStatus = 'SERVED';
+        ticketStatus = 'COMPLETED';
       } else if (allPlated) {
         ticketStatus = 'READY';
       } else if (anyActive) {

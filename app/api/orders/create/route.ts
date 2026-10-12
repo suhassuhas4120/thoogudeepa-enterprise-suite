@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, broadcastStateChange } from '../../../../lib/supabase';
 import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
+import { INITIAL_MENU_ITEMS } from '../../../../data/menuItems';
 
 export const dynamic = 'force-dynamic';
 
@@ -129,10 +130,22 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Calculate financials
+    // Calculate financials strictly from canonical server menu catalogue to prevent client price tampering
     const subtotal = items.reduce((acc: number, item: any) => {
-      const price = Number(item.unitPrice || item.price || 0);
-      const qty = Number(item.quantity || 1);
+      const canonical = INITIAL_MENU_ITEMS.find((m) => m.id === item.id || m.name.toLowerCase() === (item.name || '').toLowerCase());
+      const basePrice = canonical ? canonical.price : Number(item.unitPrice || item.price || 0);
+      
+      // Calculate add-ons against canonical catalog options
+      let addOnCost = 0;
+      if (Array.isArray(item.addOns) && canonical?.optionsGroup2?.addOns) {
+        for (const ao of item.addOns) {
+          const aoRecord = canonical.optionsGroup2.addOns.find((a) => a.name === ao);
+          if (aoRecord) addOnCost += aoRecord.extraPrice;
+        }
+      }
+      
+      const price = basePrice + addOnCost;
+      const qty = Math.max(1, Math.min(25, Number(item.quantity || 1)));
       return acc + price * qty;
     }, 0);
 

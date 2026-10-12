@@ -296,16 +296,13 @@ export const Screen5LiveTracking: React.FC = () => {
           (c) => c && c.isOrdered && c.seatNumber === effectiveSeat && getCanonicalKey(c.menuItem?.name || '') === key
         );
 
-        // Check if table active item is marked Served
-        // Check if table active item is marked Served for this EXACT ticket item ID
-        const tableActiveItem = currentTbl?.activeItems?.find(
-          (ai) => ai && (ai.id === ti.id || (getCanonicalKey(ai.name) === key && ai.seatNumber === effectiveSeat && ti.stage === 'SERVED'))
-        );
+        // Check if this specific ticket item was marked Served
+        const tableActiveItem = currentTbl?.activeItems?.find((ai) => ai && ai.id === ti.id);
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
 
-        // If the ticket item stage is already PLACED, RECEIVED, PREP, or PLATED, it is authoritative!
-        const liveStage: OrderStage = ti.stage ? ti.stage : (tableStage || 'PLACED');
+        // Authoritative stage: specific ticket item stage, fallback to specific active item stage, fallback to PLACED
+        const liveStage: OrderStage = ti.stage || tableStage || 'PLACED';
 
         return {
           id: ti.id,
@@ -493,14 +490,12 @@ export const Screen5LiveTracking: React.FC = () => {
     };
   }, [isScannerOpen]);
 
-  const getDishStageIdx = (stage: string | OrderStage, dishName?: string): number => {
+  const getDishStageIdx = (stage: string | OrderStage, dishItemId?: string): number => {
     const s = String(stage || '').toUpperCase();
     if (s === 'SERVED') return 4;
-    // Check if table activeItems says Served
-    if (dishName && currentTbl?.activeItems) {
-      const matched = currentTbl.activeItems.find(
-        (ai) => getCanonicalKey(ai.name) === getCanonicalKey(dishName) && (!ai.seatNumber || ai.seatNumber === effectiveSeat)
-      );
+    // Check if table activeItems says Served for this exact item ID
+    if (dishItemId && currentTbl?.activeItems) {
+      const matched = currentTbl.activeItems.find((ai) => ai.id === dishItemId);
       if (matched?.status === 'Served') return 4;
     }
     if (s === 'PLATED' || s === 'READY') return 3;
@@ -661,7 +656,7 @@ export const Screen5LiveTracking: React.FC = () => {
               {trackedDishes.length > 0 ? (
                 trackedDishes.map((it) => {
                   const isVeg = isVegItem(it.name);
-                  const dishCurrentIdx = getDishStageIdx(it.stage, it.name);
+                  const dishCurrentIdx = getDishStageIdx(it.stage, it.id);
                   const isDishServed = dishCurrentIdx === 4;
 
                   return (

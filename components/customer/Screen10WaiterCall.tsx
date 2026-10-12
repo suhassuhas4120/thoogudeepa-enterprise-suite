@@ -52,21 +52,25 @@ export const Screen10WaiterCall: React.FC = () => {
       (it) => it.seatNumber === effectiveSeat || !it.seatNumber
     );
     if (!chairItems.length) return false;
-    return chairItems.every((it) => {
-      if (it.stage === 'SERVED') return true;
-      const matched = currentTbl?.activeItems?.find(
-        (ai: any) => ai.seatNumber === effectiveSeat &&
-                (ai.name.toLowerCase().includes(it.name.toLowerCase()) || it.name.toLowerCase().includes(ai.name.toLowerCase()))
-      );
-      return matched?.status === 'Served';
-    });
-  }, [kdsTickets, currentTbl, effectiveTable, effectiveSeat]);
+    return chairItems.every((it) => it.stage === 'SERVED');
+  }, [kdsTickets, effectiveTable, effectiveSeat]);
 
   useEffect(() => {
     if (rawAllDishesServed) {
       setHasEverBeenFullyServed(true);
+    } else {
+      const chairTickets = kdsTickets.filter(
+        (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
+                (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+      );
+      const chairItems = chairTickets.flatMap((t) => t.items).filter(
+        (it) => it.seatNumber === effectiveSeat || !it.seatNumber
+      );
+      if (chairItems.some((it) => it.stage !== 'SERVED')) {
+        setHasEverBeenFullyServed(false);
+      }
     }
-  }, [rawAllDishesServed]);
+  }, [rawAllDishesServed, kdsTickets, effectiveTable, effectiveSeat]);
 
   const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 

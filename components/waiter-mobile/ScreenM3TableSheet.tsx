@@ -156,18 +156,14 @@ export function ScreenM3TableSheet({
   const groupPeers: string[] = table.mergeGroupPeers ?? [tableNum];
   const groupTables = groupPeers.map((n) => tables.find((t) => t.number === n)).filter(Boolean) as typeof tables;
 
-  const isVacant = table.status === 'VACANT';
+  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+  const tickets = kdsTickets.filter((tk) =>
+    groupPeers.some((peer) => cleanTableNum(peer) === cleanTableNum(tk.tableNumber)) &&
+    tk.status !== 'COMPLETED'
+  );
+
   const inMergeGroup = groupPeers.length > 1;
   const mergePeerLabel = groupPeers.filter((n) => n !== tableNum).join(', ');
-
-  // Tickets for table — exclude COMPLETED (settled/archived) and vacant table tickets
-  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
-  const tickets = isVacant
-    ? []
-    : kdsTickets.filter((tk) =>
-        groupPeers.some((peer) => cleanTableNum(peer) === cleanTableNum(tk.tableNumber)) &&
-        tk.status !== 'COMPLETED'
-      );
 
   // Unified collection of all ordered items on this table (from KDS tickets and table.activeItems)
   const allTableOrderedItems: {
@@ -184,74 +180,90 @@ export function ScreenM3TableSheet({
     ticketNumber: string;
   }[] = [];
 
-  if (!isVacant) {
-    tickets.forEach((tk) => {
-      tk.items.forEach((it) => {
-        const fallbackPrice =
-          INITIAL_MENU_ITEMS.find(
-            (m) =>
-              m.name.toLowerCase() === it.name.toLowerCase() ||
-              m.name.toLowerCase().includes(it.name.toLowerCase()) ||
-              it.name.toLowerCase().includes(m.name.toLowerCase())
-          )?.price || 220;
-        const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
-        const stageLabel =
-          it.stage === 'SERVED'
-            ? 'Served'
-            : it.stage === 'PLATED'
-            ? 'Ready'
-            : it.stage === 'PREP'
-            ? 'Cooking'
-            : it.stage === 'RECEIVED'
-            ? 'Received'
-            : 'Placed';
-        allTableOrderedItems.push({
-          id: it.id,
-          name: it.name,
-          quantity: it.quantity,
-          price: unitPrice,
-          totalPrice: unitPrice * it.quantity,
-          options: it.options,
-          addOns: it.addOns || [],
-          stage: stageLabel,
-          seatNumber: it.seatNumber || tk.seatNumber,
-          ticketId: tk.id,
-          ticketNumber: tk.id.slice(-4),
-        });
+  tickets.forEach((tk) => {
+    tk.items.forEach((it) => {
+      const fallbackPrice =
+        INITIAL_MENU_ITEMS.find(
+          (m) =>
+            m.name.toLowerCase() === it.name.toLowerCase() ||
+            m.name.toLowerCase().includes(it.name.toLowerCase()) ||
+            it.name.toLowerCase().includes(m.name.toLowerCase())
+        )?.price || 220;
+      const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
+      const stageLabel =
+        it.stage === 'SERVED'
+          ? 'Served'
+          : it.stage === 'PLATED'
+          ? 'Ready'
+          : it.stage === 'PREP'
+          ? 'Cooking'
+          : it.stage === 'RECEIVED'
+          ? 'Received'
+          : 'Placed';
+      const resolvedSeat = it.seatNumber !== undefined && it.seatNumber !== null
+        ? Number(it.seatNumber)
+        : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+        ? Number((it as any).seat_number)
+        : (tk.seatNumber ? Number(tk.seatNumber) : undefined);
+      allTableOrderedItems.push({
+        id: it.id,
+        name: it.name,
+        quantity: it.quantity,
+        price: unitPrice,
+        totalPrice: unitPrice * it.quantity,
+        options: it.options,
+        addOns: it.addOns || [],
+        stage: stageLabel,
+        seatNumber: resolvedSeat,
+        ticketId: tk.id,
+        ticketNumber: tk.id.slice(-4),
       });
     });
+  });
 
-    if (allTableOrderedItems.length === 0) {
-      // Pull activeItems from ALL group members (since each table keeps its own items now)
-      groupTables.forEach((gt) => {
-        if (gt.activeItems && gt.activeItems.length > 0) {
-          gt.activeItems.forEach((ai, idx) => {
-            const fallbackPrice =
-              INITIAL_MENU_ITEMS.find(
-                (m) =>
-                  m.name.toLowerCase() === ai.name.toLowerCase() ||
-                  m.name.toLowerCase().includes(ai.name.toLowerCase()) ||
-                  ai.name.toLowerCase().includes(m.name.toLowerCase())
-              )?.price || 220;
-            const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
-            allTableOrderedItems.push({
-              id: ai.id || `ai-${gt.number}-${idx}`,
-              name: ai.name,
-              quantity: ai.quantity,
-              price: unitPrice,
-              totalPrice: unitPrice * ai.quantity,
-              options: ai.options,
-              addOns: (ai as any).addOns || [],
-              stage: ai.status || 'Placed',
-              seatNumber: ai.seatNumber,
-              ticketId: 'tbl-direct',
-              ticketNumber: 'TBL',
-            });
+  if (allTableOrderedItems.length === 0) {
+    // Pull activeItems from ALL group members (since each table keeps its own items now)
+    groupTables.forEach((gt) => {
+      if (gt.activeItems && gt.activeItems.length > 0) {
+        gt.activeItems.forEach((ai, idx) => {
+          const fallbackPrice =
+            INITIAL_MENU_ITEMS.find(
+              (m) =>
+                m.name.toLowerCase() === ai.name.toLowerCase() ||
+                m.name.toLowerCase().includes(ai.name.toLowerCase()) ||
+                ai.name.toLowerCase().includes(m.name.toLowerCase())
+            )?.price || 220;
+          const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
+          const resolvedSeat = ai.seatNumber !== undefined && ai.seatNumber !== null
+            ? Number(ai.seatNumber)
+            : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+            ? Number((ai as any).seat_number)
+            : undefined;
+          allTableOrderedItems.push({
+            id: ai.id || `ai-${gt.number}-${idx}`,
+            name: ai.name,
+            quantity: ai.quantity,
+            price: unitPrice,
+            totalPrice: unitPrice * ai.quantity,
+            options: ai.options,
+            addOns: (ai as any).addOns || [],
+            stage: ai.status || 'Placed',
+            seatNumber: resolvedSeat,
+            ticketId: 'tbl-direct',
+            ticketNumber: 'TBL',
           });
-        }
-      });
-    }
+        });
+      }
+    });
   }
+
+  // Derive true table occupancy from presence of active tickets/items or running bill
+  const rawGroupBill = groupTables.reduce((s, t) => s + (t.currentBill || 0), 0);
+  const isVacant =
+    table.status === 'VACANT' &&
+    allTableOrderedItems.length === 0 &&
+    tickets.length === 0 &&
+    rawGroupBill === 0;
 
   const chairsWithOrders = new Set<number>();
   allTableOrderedItems.forEach((it) => {
@@ -261,8 +273,7 @@ export function ScreenM3TableSheet({
   // Dynamic capacity & bill calculations — sum across ALL group members
   const totalChairs = groupTables.reduce((sum, t) => sum + (t.capacity || 4), 0) || (table.capacity || 4);
   const itemsSubtotal = allTableOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
-  // Sum bills across ALL group members (each table keeps its own bill now)
-  const groupBill = isVacant ? 0 : groupTables.reduce((s, t) => s + (t.currentBill || 0), 0);
+  const groupBill = isVacant ? 0 : rawGroupBill;
 
   // Clean, consistent, zero double-tax pricing:
   // When ordered items are listed, subtotal is strictly the pre-tax dishes total (itemsSubtotal).
@@ -335,17 +346,21 @@ export function ScreenM3TableSheet({
     const directItems = allTableOrderedItems.filter(
       (i) => i.seatNumber && seatsInTarget.includes(i.seatNumber)
     );
+    const fallbackChair1Direct = (seatsInTarget.includes(1) && directItems.length === 0 && (!anyChairHasSpecificOrders || (chairsWithOrders.size === 1 && chairsWithOrders.has(1))))
+      ? allTableOrderedItems
+      : [];
+    const effectiveDirectItems = directItems.length > 0 ? directItems : fallbackChair1Direct;
     const sharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
 
-    const directSub = directItems.reduce((s, i) => s + i.totalPrice, 0);
+    const directSub = effectiveDirectItems.reduce((s, i) => s + i.totalPrice, 0);
 
     let calculatedSub = 0;
-    if (directItems.length > 0) {
+    if (effectiveDirectItems.length > 0) {
       const sharedPerPerson =
         occupiedChairsCount > 0
           ? sharedItems.reduce((s, i) => s + i.totalPrice, 0) / occupiedChairsCount
           : 0;
-      calculatedSub = directSub + sharedPerPerson * Math.max(1, seatsInTarget.length);
+      calculatedSub = directSub + (effectiveDirectItems === allTableOrderedItems ? 0 : sharedPerPerson * Math.max(1, seatsInTarget.length));
     } else if (!anyChairHasSpecificOrders && sharedItems.length > 0) {
       // ONLY when orders were placed by entire table (no chair-specific items on table)
       // then table amount is split equally across occupied chairs
@@ -1253,7 +1268,12 @@ export function ScreenM3TableSheet({
             // Dedicated Single Chair View
             (() => {
               const thisSeatNum = Number(selectedSeat);
-              const thisSeatItems = allTableOrderedItems.filter((i) => i.seatNumber === thisSeatNum);
+              const exactSeatItems = allTableOrderedItems.filter((i) => i.seatNumber === thisSeatNum);
+              // If this is Chair 1 and all items on the table have no chair tagged or only chair 1 has orders, associate them
+              const fallbackItems = (thisSeatNum === 1 && exactSeatItems.length === 0 && (chairsWithOrders.size === 0 || (chairsWithOrders.size === 1 && chairsWithOrders.has(1))))
+                ? allTableOrderedItems
+                : [];
+              const thisSeatItems = exactSeatItems.length > 0 ? exactSeatItems : fallbackItems;
               const hasSeatItems = thisSeatItems.length > 0;
               const isSeatOccupied = hasSeatItems || chairsWithOrders.has(thisSeatNum) || (chairsWithOrders.size === 0 && thisSeatNum <= occupiedChairsCount);
               const thisSeatSubtotal = thisSeatItems.reduce((sum, i) => sum + i.totalPrice, 0);

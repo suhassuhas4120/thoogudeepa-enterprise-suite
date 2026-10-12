@@ -194,13 +194,33 @@ export const Screen5LiveTracking: React.FC = () => {
 
   // Unified items list with live stage resolved across Bridge, Supabase, and local Cart
   const trackedDishes = useMemo(() => {
-    const myBridgeTickets = bridgeTickets.filter(
-      (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
-              (tk.seatNumber === effectiveSeat || tk.items?.some((i) => i.seatNumber === effectiveSeat))
-    );
-    const bridgeItems = myBridgeTickets.flatMap((tk) =>
-      (tk.items || [])
-        .filter((it) => it.seatNumber === effectiveSeat)
+    const myBridgeTickets = bridgeTickets.filter((tk) => {
+      if (!isTableMatch(tk.tableNumber, effectiveTable)) return false;
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (
+        tkSeat === effectiveSeat ||
+        tk.items?.some((i) => {
+          const itemSeat = i.seatNumber !== undefined && i.seatNumber !== null
+            ? Number(i.seatNumber)
+            : (i as any).seat_number !== undefined && (i as any).seat_number !== null
+            ? Number((i as any).seat_number)
+            : tkSeat;
+          return itemSeat === effectiveSeat;
+        })
+      );
+    });
+
+    const bridgeItems = myBridgeTickets.flatMap((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (tk.items || [])
+        .filter((it) => {
+          const itemSeat = it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+            ? Number((it as any).seat_number)
+            : tkSeat;
+          return itemSeat === effectiveSeat;
+        })
         .map((it) => ({
           id: it.id,
           ticketId: tk.id,
@@ -212,16 +232,36 @@ export const Screen5LiveTracking: React.FC = () => {
           addOns: it.addOns,
           notes: it.notes,
           seatNumber: effectiveSeat,
-        }))
-    );
+        }));
+    });
 
-    const mySupabaseTickets = supabaseTickets.filter(
-      (tk) => isTableMatch(tk.tableId, effectiveTable) &&
-              (tk.seatNumber === effectiveSeat || tk.items?.some((i: any) => (i.seat_number || i.seatNumber) === effectiveSeat))
-    );
-    const supabaseItems = mySupabaseTickets.flatMap((tk) =>
-      (tk.items || [])
-        .filter((it: any) => (it.seat_number || it.seatNumber) === effectiveSeat)
+    const mySupabaseTickets = supabaseTickets.filter((tk) => {
+      if (!isTableMatch(tk.tableId, effectiveTable)) return false;
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (
+        tkSeat === effectiveSeat ||
+        tk.items?.some((i: any) => {
+          const itemSeat = i.seat_number !== undefined && i.seat_number !== null
+            ? Number(i.seat_number)
+            : (i.seatNumber !== undefined && i.seatNumber !== null
+            ? Number(i.seatNumber)
+            : tkSeat);
+          return itemSeat === effectiveSeat;
+        })
+      );
+    });
+
+    const supabaseItems = mySupabaseTickets.flatMap((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (tk.items || [])
+        .filter((it: any) => {
+          const itemSeat = it.seat_number !== undefined && it.seat_number !== null
+            ? Number(it.seat_number)
+            : (it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : tkSeat);
+          return itemSeat === effectiveSeat;
+        })
         .map((it) => ({
           id: it.id,
           ticketId: tk.id,
@@ -233,8 +273,8 @@ export const Screen5LiveTracking: React.FC = () => {
           addOns: [] as string[],
           notes: it.notes,
           seatNumber: effectiveSeat,
-        }))
-    );
+        }));
+    });
 
     // Combine bridge items and supabase items authoritative from kitchen tickets for this chair
     const combinedTicketItems: Array<{

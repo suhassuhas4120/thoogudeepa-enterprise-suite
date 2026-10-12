@@ -583,21 +583,36 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     const bridge = useSharedBridge.getState();
     const currentTbl = bridge.tables.find((t) => cleanNum(t.number) === targetTableNum);
 
-    // Tickets strictly for THIS chair
+    // Tickets strictly for THIS chair (exclude only settled/COMPLETED tickets)
     const myTickets = bridge.kdsTickets.filter(
-      (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED' && tk.status !== 'SERVED'
+      (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED'
     );
     const seatActiveItems = (currentTbl?.activeItems || []).filter(
-      (ai) => ai.seatNumber === seatNumber
+      (ai) => {
+        const itemSeat = ai.seatNumber !== undefined && ai.seatNumber !== null
+          ? Number(ai.seatNumber)
+          : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+          ? Number((ai as any).seat_number)
+          : 1;
+        return itemSeat === seatNumber;
+      }
     );
-    const seatTickets = myTickets.filter(
-      (tk) => tk.seatNumber === seatNumber || tk.items.some((i) => i.seatNumber === seatNumber)
-    );
+    const seatTickets = myTickets.filter((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return tkSeat === seatNumber || tk.items.some((i) => {
+        const iSeat = i.seatNumber !== undefined && i.seatNumber !== null
+          ? Number(i.seatNumber)
+          : (i as any).seat_number !== undefined && (i as any).seat_number !== null
+          ? Number((i as any).seat_number)
+          : tkSeat;
+        return iSeat === seatNumber;
+      });
+    });
 
     const hasActiveOrders = Boolean(
-      currentTbl &&
-      currentTbl.status !== 'VACANT' &&
-      (seatActiveItems.length > 0 || seatTickets.length > 0)
+      (currentTbl && currentTbl.status !== 'VACANT' && ((currentTbl.currentBill || 0) > 0 || (currentTbl.activeItems || []).length > 0)) ||
+      seatActiveItems.length > 0 ||
+      seatTickets.length > 0
     );
 
     if (!hasActiveOrders) {
@@ -626,14 +641,22 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
     // Chair has active unpaid orders!
     // Extract real dishes from KDS tickets or table activeItems strictly for THIS chair
-    const ticketItems = seatTickets.flatMap((tk) =>
-      (tk.items || [])
-        .filter((it) => (it.seatNumber || (it as any).seat_number) === seatNumber)
+    const ticketItems = seatTickets.flatMap((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (tk.items || [])
+        .filter((it) => {
+          const itemSeat = it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+            ? Number((it as any).seat_number)
+            : tkSeat;
+          return itemSeat === seatNumber;
+        })
         .map((it) => ({
           ...it,
           ticketId: tk.id,
-        }))
-    );
+        }));
+    });
 
     const activeList = ticketItems.length > 0 ? ticketItems : seatActiveItems;
 

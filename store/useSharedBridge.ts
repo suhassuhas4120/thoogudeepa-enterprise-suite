@@ -4,6 +4,7 @@ import { MenuItem } from '../types/customer';
 import { OrderStage } from '../types/customer';
 import { broadcastStateChange, supabase } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
+import { useManagerStore } from './useManagerStore';
 
 
 export interface SharedKDSItem {
@@ -1637,6 +1638,17 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         pQuery = pQuery.eq('seat_number', seatNumber);
       }
       pQuery.then(() => {}, () => {});
+    }
+
+    // Automatically sync cash collection into Manager Staff Roster (M9 Waiter Cash Handover)
+    if (String(method).toUpperCase() === 'CASH' && amount > 0) {
+      try {
+        const targetTbl = get().tables.find((t) => cleanNum(t.number) === targetNum);
+        const serverRef = targetTbl?.serverName || targetTbl?.section || 'Floor Captain';
+        useManagerStore.getState().recordStaffCashCollection(serverRef, amount);
+      } catch (err) {
+        console.error('[Bridge] Failed to sync cash collection to manager roster:', err);
+      }
     }
 
     broadcastStateChange('paymentPingsResolved', {

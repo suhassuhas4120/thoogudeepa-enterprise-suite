@@ -674,12 +674,28 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
   rollBackUnplacedOrders: () => {
     set((state) => {
-      // Revert newly marked ordered items that failed backend creation
-      const revertedCart = state.cart.filter((c) => c.isOrdered);
-      const prevScreen = state.previousScreen || 4;
+      const bridge = useSharedBridge.getState();
+      const currentChair = state.seatNumber || 1;
+      const confirmedTickets = bridge.kdsTickets.filter(
+        (tk) => tk.tableNumber === state.tableNumber &&
+                (tk.seatNumber === currentChair || tk.items?.some((i) => i.seatNumber === currentChair))
+      );
+      const hasConfirmedOrders = confirmedTickets.length > 0;
+
+      const resetCart = state.cart.map((c) => {
+        const inConfirmed = confirmedTickets.some((tk) =>
+          tk.items?.some((it) => it.name === c.menuItem.name)
+        );
+        return {
+          ...c,
+          isOrdered: inConfirmed,
+        };
+      });
+
       return {
-        cart: revertedCart.length > 0 ? revertedCart : state.cart.map((c) => ({ ...c, isOrdered: false })),
-        currentScreen: revertedCart.length > 0 ? 5 : 4,
+        cart: resetCart,
+        currentScreen: hasConfirmedOrders ? 5 : 4,
+        orderStage: 'PLACED' as OrderStage,
       };
     });
   },

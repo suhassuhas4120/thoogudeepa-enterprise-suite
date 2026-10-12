@@ -93,6 +93,7 @@ export const Screen5LiveTracking: React.FC = () => {
     pingWaiter,
     waiterNotification,
     orderPlacedAt,
+    placeAllOrders,
   } = useCustomer();
 
   const {
@@ -184,6 +185,12 @@ export const Screen5LiveTracking: React.FC = () => {
   }, [pings, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   const isSummoned = isWaitingForCaptain || hasActivePaymentPing || (waiterNotification?.active && waiterNotification.type === 'PAYMENT');
+
+  const unplacedCartItems = useMemo(() => {
+    return (cart || []).filter((ci) => ci && !ci.isOrdered);
+  }, [cart]);
+  const unplacedCount = unplacedCartItems.reduce((acc, it) => acc + (it.quantity || 1), 0);
+  const unplacedTotal = unplacedCartItems.reduce((acc, it) => acc + (it.totalPrice || 0), 0);
 
   // Unified items list with live stage resolved across Bridge, Supabase, and local Cart
   const trackedDishes = useMemo(() => {
@@ -802,6 +809,37 @@ export const Screen5LiveTracking: React.FC = () => {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Unplaced Dishes Quick Send Banner */}
+        {unplacedCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/95 p-3.5 shadow-xs"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-2xs">
+                <CookingPot className="h-4 w-4 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-xs font-black text-amber-950">
+                  {unplacedCount} {unplacedCount === 1 ? 'Dish' : 'Dishes'} in Selection (₹{unplacedTotal})
+                </div>
+                <div className="text-[10px] font-bold text-amber-800">
+                  Ready to send to kitchen
+                </div>
+              </div>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => placeAllOrders()}
+              className="shrink-0 rounded-xl px-3.5 py-2 text-[11px] font-black uppercase text-white shadow-xs cursor-pointer hover:brightness-105"
+              style={{ backgroundColor: currentTheme.colors.buttonBg }}
+            >
+              Send to Kitchen
+            </motion.button>
+          </motion.div>
+        )}
 
         {/* Add More Items Button */}
         <motion.button

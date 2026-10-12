@@ -504,6 +504,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         guestCount: guestCount || 1,
         source: 'CUSTOMER',
         deviceToken: getOrCreateDeviceToken(),
+        idempotencyKey: ticket.id,
+        clientOrderId: ticket.id,
         items: items.map((i, idx) => ({
           id: ticket.items[idx]?.id,
           name: i.item.name,

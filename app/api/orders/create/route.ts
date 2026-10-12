@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 const globalForOrders = globalThis as unknown as {
   inFlightOrderLocks: Map<string, Promise<any>>;
   recentOrdersCache: Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>;
+  recentOrdersByIdempotencyKey: Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>;
 };
 const inFlightOrderLocks =
   globalForOrders.inFlightOrderLocks ??
@@ -16,10 +17,14 @@ const inFlightOrderLocks =
 const recentOrdersCache =
   globalForOrders.recentOrdersCache ??
   (globalForOrders.recentOrdersCache = new Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>());
+const recentOrdersByIdempotencyKey =
+  globalForOrders.recentOrdersByIdempotencyKey ??
+  (globalForOrders.recentOrdersByIdempotencyKey = new Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>());
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const idempotencyKey = String(body.idempotencyKey || body.clientOrderId || '').trim();
     const tableNumber = (body.tableNumber || body.table || '').toUpperCase();
     const rawSeat = body.seatNumber !== undefined ? body.seatNumber : body.seat !== undefined ? body.seat : '1';
     const seatNumber = parseInt(String(rawSeat), 10);
@@ -234,14 +239,14 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 1. Fast Resilient Idempotency Check (Sub-second burst protection with LRU TTL)
-      const cachedOrder = recentOrdersCache.get(lockKey) || enterpriseCache.get<{ orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>(`order:${lockKey}`);
-      if (cachedOrder && (Date.now() - cachedOrder.createdAt) < 45000) {
-        if (Math.abs(cachedOrder.total - total) < 0.01 && cachedOrder.itemCount === items.length) {
+      // 1. Explicit Idempotency Token Check (Guarantees safety across network retries without blocking new orders)
+      if (idempotencyKey) {
+        const keyCached = recentOrdersByIdempotencyKey.get(idempotencyKey) || enterpriseCache.get<{ orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>(`idem:${idempotencyKey}`);
+        if (keyCached && (Date.now() - keyCached.createdAt) < 120000) {
           return NextResponse.json({
             success: true,
-            orderId: cachedOrder.orderId,
-            ticketId: cachedOrder.ticketId,
+            orderId: keyCached.orderId,
+            ticketId: keyCached.ticketId,
             tableNumber,
             seatNumber,
             subtotal,
@@ -249,52 +254,74 @@ export async function POST(req: NextRequest) {
             total,
             itemCount: items.length,
             idempotent: true,
-            message: 'Order accepted idempotently from fast memory lock',
+            message: 'Order accepted idempotently from submission token',
           });
         }
       }
 
-      // 2. Database Idempotency fallback check: Look for identical order created in the last 45 seconds
-      const fortyFiveSecsAgo = new Date(Date.now() - 45000).toISOString();
-      const { data: recentOrder } = await supabase
-        .from('orders')
-        .select('id, table_number, seat_number, total, total_amount, status, created_at')
-        .eq('table_number', tableNumber)
-        .eq('seat_number', seatNumber)
-        .eq('status', 'UNPAID')
-        .gte('created_at', fortyFiveSecsAgo)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      // 2. Sub-second burst protection for accidental rapid double-taps (2000ms threshold)
+      if (!idempotencyKey) {
+        const cachedOrder = recentOrdersCache.get(lockKey) || enterpriseCache.get<{ orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>(`order:${lockKey}`);
+        if (cachedOrder && (Date.now() - cachedOrder.createdAt) < 2000) {
+          if (Math.abs(cachedOrder.total - total) < 0.01 && cachedOrder.itemCount === items.length) {
+            return NextResponse.json({
+              success: true,
+              orderId: cachedOrder.orderId,
+              ticketId: cachedOrder.ticketId,
+              tableNumber,
+              seatNumber,
+              subtotal,
+              tax,
+              total,
+              itemCount: items.length,
+              idempotent: true,
+              message: 'Order accepted idempotently from rapid tap protection',
+            });
+          }
+        }
 
-      const existingTotal = recentOrder ? Number(recentOrder.total || recentOrder.total_amount || 0) : 0;
-      if (recentOrder && Math.abs(existingTotal - total) < 0.01) {
-        const { data: recentItems } = await supabase
-          .from('order_items')
-          .select('name, quantity')
-          .eq('order_id', recentOrder.id);
+        // Database fallback check for rapid burst within 2 seconds
+        const twoSecsAgo = new Date(Date.now() - 2000).toISOString();
+        const { data: recentOrder } = await supabase
+          .from('orders')
+          .select('id, table_number, seat_number, total, total_amount, status, created_at')
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber)
+          .eq('status', 'UNPAID')
+          .gte('created_at', twoSecsAgo)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
 
-        const itemsMatch =
-          !recentItems || recentItems.length === 0 ||
-          (recentItems.length === items.length &&
-            items.every((it: any) =>
-              recentItems.some((ri: any) => ri.name === it.name && Number(ri.quantity) === Number(it.quantity || 1))
-            ));
+        const existingTotal = recentOrder ? Number(recentOrder.total || recentOrder.total_amount || 0) : 0;
+        if (recentOrder && Math.abs(existingTotal - total) < 0.01) {
+          const { data: recentItems } = await supabase
+            .from('order_items')
+            .select('name, quantity')
+            .eq('order_id', recentOrder.id);
 
-        if (itemsMatch) {
-          return NextResponse.json({
-            success: true,
-            orderId: recentOrder.id,
-            ticketId: `KOT-${tableNumber.replace(/[^a-zA-Z0-9]/g, '')}-${recentOrder.id.slice(-4)}`,
-            tableNumber,
-            seatNumber,
-            subtotal,
-            tax,
-            total,
-            source,
-            idempotent: true,
-            message: 'Order accepted idempotently',
-          });
+          const itemsMatch =
+            !recentItems || recentItems.length === 0 ||
+            (recentItems.length === items.length &&
+              items.every((it: any) =>
+                recentItems.some((ri: any) => ri.name === it.name && Number(ri.quantity) === Number(it.quantity || 1))
+              ));
+
+          if (itemsMatch) {
+            return NextResponse.json({
+              success: true,
+              orderId: recentOrder.id,
+              ticketId: `KOT-${tableNumber.replace(/[^a-zA-Z0-9]/g, '')}-${recentOrder.id.slice(-4)}`,
+              tableNumber,
+              seatNumber,
+              subtotal,
+              tax,
+              total,
+              source,
+              idempotent: true,
+              message: 'Order accepted idempotently from db tap lock',
+            });
+          }
         }
       }
       // Generate unique identifiers
@@ -434,6 +461,10 @@ export async function POST(req: NextRequest) {
     };
     recentOrdersCache.set(lockKey, cacheRecord);
     enterpriseCache.set(`order:${lockKey}`, cacheRecord, 60);
+    if (idempotencyKey) {
+      recentOrdersByIdempotencyKey.set(idempotencyKey, cacheRecord);
+      enterpriseCache.set(`idem:${idempotencyKey}`, cacheRecord, 120);
+    }
 
     return NextResponse.json({
         success: true,

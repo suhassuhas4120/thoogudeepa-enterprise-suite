@@ -424,70 +424,87 @@ export function useBridgeSync() {
           const byId = existing.some((tk) => tk.id === row.id);
           if (byId) return;
 
-          // Fallback: same table + same source within a 10-second burst window
-          // Guards against edge cases where onSuccess hasn't fired yet
+          // Reconcile optimistic in-memory ticket if created locally on this client
           const rowAge = row.created_at
             ? (Date.now() - new Date(row.created_at).getTime()) / 1000
             : 999;
-          const byProximity =
-            rowAge < 10 &&
-            existing.some(
-              (tk) =>
-                tk.tableNumber === row.table_number &&
-                tk.source === row.source &&
-                tk.status === row.status
-            );
-          if (byProximity) {
-            // Still make sure the in-memory ticket carries the real DB id
+          const optimisticMatch = existing.find(
+            (tk) =>
+              (tk.id.startsWith('KDS-') || tk.id.startsWith('kds-')) &&
+              tk.tableNumber === row.table_number &&
+              tk.source === row.source &&
+              tk.status === row.status
+          );
+          if (optimisticMatch && rowAge < 10) {
             useSharedBridge.setState((state) => ({
               kdsTickets: state.kdsTickets.map((tk) =>
-                tk.tableNumber === row.table_number &&
-                tk.source === row.source &&
-                tk.status === row.status &&
-                tk.id !== row.id
-                  ? { ...tk, id: row.id }
-                  : tk
+                tk.id === optimisticMatch.id ? { ...tk, id: row.id } : tk
               ),
             }));
             return;
           }
 
-          useSharedBridge.setState((state) => ({
-            kdsTickets: [
-              ...state.kdsTickets,
-              {
-                id: row.id,
-                tableNumber: row.table_number,
-                seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
-                serverName: row.server_name || '',
-                timestamp: row.created_at
-                  ? new Date(row.created_at).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      timeZone: 'Asia/Kolkata',
-                    })
-                  : '--',
-                elapsedMinutes: row.elapsed_minutes ?? 0,
-                status: row.status,
-                source: row.source,
-                items: Array.isArray(row.items)
-                  ? row.items.map((it) => ({
-                      id: it.id || `it-${Math.random()}`,
-                      name: it.name,
-                      quantity: it.quantity,
-                      stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
-                      prepMode: it.prepMode || '',
-                      options: it.options,
-                      addOns: (it as any).addOns || (it as any).add_ons || [],
-                      seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
-                        ? Number(it.seat_number || it.seatNumber || row.seat_number)
-                        : undefined,
-                      price: Number(it.price || it.unit_price || 0),
-                    }))
-                  : [],
-              },
-            ],
-          }));
+          const newTicketItems = Array.isArray(row.items)
+            ? row.items.map((it) => ({
+                id: it.id || `it-${Math.random()}`,
+                name: it.name,
+                quantity: it.quantity,
+                stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
+                prepMode: it.prepMode || '',
+                options: it.options,
+                addOns: (it as any).addOns || (it as any).add_ons || [],
+                seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
+                  ? Number(it.seat_number || it.seatNumber || row.seat_number)
+                  : undefined,
+                price: Number(it.price || it.unit_price || 0),
+              }))
+            : [];
+
+          const newTicket = {
+            id: row.id,
+            tableNumber: row.table_number,
+            seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
+            serverName: row.server_name || '',
+            timestamp: row.created_at
+              ? new Date(row.created_at).toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZone: 'Asia/Kolkata',
+                })
+              : '--',
+            elapsedMinutes: row.elapsed_minutes ?? 0,
+            status: row.status,
+            source: row.source,
+            items: newTicketItems,
+          };
+
+          useSharedBridge.setState((state) => {
+            const nextTickets = [...state.kdsTickets, newTicket];
+            const nextTables = state.tables.map((tbl) => {
+              if (tbl.number === row.table_number) {
+                const additionalActive = newTicketItems.map((it) => ({
+                  id: it.id,
+                  name: it.name,
+                  quantity: it.quantity,
+                  status: 'Placed',
+                  options: it.options,
+                  addOns: it.addOns,
+                  seatNumber: it.seatNumber,
+                  price: it.price,
+                }));
+                return {
+                  ...tbl,
+                  status: 'OCCUPIED' as const,
+                  activeItems: [...(tbl.activeItems || []), ...additionalActive],
+                };
+              }
+              return tbl;
+            });
+            return {
+              kdsTickets: nextTickets,
+              tables: nextTables,
+            };
+          });
         }
       )
       .on(

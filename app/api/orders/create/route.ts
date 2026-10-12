@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabase, broadcastStateChange } from '../../../../lib/supabase';
 import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 import { INITIAL_MENU_ITEMS } from '../../../../data/menuItems';
+import { enterpriseCache } from '../../../../lib/enterpriseCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -193,8 +194,8 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      // 1. Fast In-Memory Idempotency Check (Sub-second burst protection)
-      const cachedOrder = recentOrdersCache.get(lockKey);
+      // 1. Fast Resilient Idempotency Check (Sub-second burst protection with LRU TTL)
+      const cachedOrder = recentOrdersCache.get(lockKey) || enterpriseCache.get<{ orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>(`order:${lockKey}`);
       if (cachedOrder && (Date.now() - cachedOrder.createdAt) < 45000) {
         if (Math.abs(cachedOrder.total - total) < 0.01 && cachedOrder.itemCount === items.length) {
           return NextResponse.json({
@@ -383,14 +384,16 @@ export async function POST(req: NextRequest) {
       timestamp: Date.now(),
     });
 
-    // Update fast in-memory idempotency cache
-    recentOrdersCache.set(lockKey, {
+    // Update fast resilient idempotency cache
+    const cacheRecord = {
       orderId,
       ticketId,
       total,
       itemCount: items.length,
       createdAt: Date.now(),
-    });
+    };
+    recentOrdersCache.set(lockKey, cacheRecord);
+    enterpriseCache.set(`order:${lockKey}`, cacheRecord, 60);
 
     return NextResponse.json({
         success: true,

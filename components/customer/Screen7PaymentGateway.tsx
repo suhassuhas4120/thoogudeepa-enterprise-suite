@@ -381,7 +381,21 @@ export const Screen7PaymentGateway: React.FC = () => {
     <ScreenHousing screenNumber={7} screenTitle="PAYMENT">
       {/* Header */}
       <WireHeader
-        title={<span>Payment</span>}
+        title={
+          <span className="inline-flex items-center gap-2">
+            <span>Payment</span>
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
+              {effectiveTable} • C-{String(effectiveSeat).padStart(2, '0')}
+            </span>
+          </span>
+        }
         leftSubtitle={venueName?.toUpperCase()}
         showBack={true}
         onBack={() => {
@@ -404,18 +418,21 @@ export const Screen7PaymentGateway: React.FC = () => {
         showCart={false}
       />
 
-      <div
-        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-300 relative select-none"
-        style={{
-          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
-          color: '#FAF7F2',
-        }}
-      >
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Money Card: Total Amount Due */}
-        <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+        <div
+          className="rounded-[28px] border p-4 shadow-xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
           <div className="flex items-center justify-between">
             <div>
-              <div className="text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
+              <div
+                className="text-[10px] font-black uppercase tracking-[0.2em] font-mono"
+                style={{ color: currentTheme.colors.textMuted }}
+              >
                 Total Amount Due
               </div>
               <div
@@ -544,54 +561,50 @@ export const Screen7PaymentGateway: React.FC = () => {
               className="space-y-3"
             >
               <div
-                className="rounded-2xl border p-4 space-y-3.5 border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+                className="rounded-2xl border p-4 space-y-3 shadow-2xs"
+                style={{
+                  backgroundColor: currentTheme.colors.bgElevated,
+                  borderColor: currentTheme.colors.border,
+                }}
               >
-                <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                <div className="flex items-center justify-between border-b pb-3" style={{ borderColor: currentTheme.colors.borderLight }}>
                   <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                    <span className="text-[10px] font-bold font-mono tracking-wider text-emerald-300 uppercase">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[10px] font-black font-mono tracking-wider text-emerald-800 uppercase">
                       Direct Encrypted Gateway
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono text-amber-300/80 font-bold">
+                  <span className="text-[10px] font-mono text-stone-500 font-bold">
                     Zero Extra Fee
                   </span>
                 </div>
 
                 <div className="space-y-2">
-                  <p className="text-xs font-bold text-amber-100 font-serif-luxury tracking-wide">
-                    Supported Payment Modes
+                  <p className="text-xs font-bold text-stone-900">
+                    Supported Payment Options
                   </p>
-                  <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-stone-300">
-                    <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-stone-950/70 border border-white/10 hover:border-amber-400/40 transition">
-                      <div className="h-6 w-6 rounded-lg bg-emerald-950/60 border border-emerald-500/30 flex items-center justify-center shrink-0">
-                        <Smartphone className="h-3.5 w-3.5 text-emerald-400" />
-                      </div>
-                      <span className="text-stone-200 font-medium">UPI / Apps</span>
+                  <div className="grid grid-cols-2 gap-2 text-[11px] font-medium text-stone-700">
+                    <div className="flex items-center gap-2 p-2 rounded-xl bg-white border border-stone-200">
+                      <Smartphone className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <span>GPay / PhonePe / Paytm</span>
                     </div>
-                    <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-stone-950/70 border border-white/10 hover:border-amber-400/40 transition">
-                      <div className="h-6 w-6 rounded-lg bg-blue-950/60 border border-blue-500/30 flex items-center justify-center shrink-0">
-                        <CreditCard className="h-3.5 w-3.5 text-blue-400" />
-                      </div>
-                      <span className="text-stone-200 font-medium">All Cards</span>
+                    <div className="flex items-center gap-2 p-2 rounded-xl bg-white border border-stone-200">
+                      <CreditCard className="h-4 w-4 text-blue-600 shrink-0" />
+                      <span>Credit & Debit Cards</span>
                     </div>
-                    <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-stone-950/70 border border-white/10 hover:border-amber-400/40 transition">
-                      <div className="h-6 w-6 rounded-lg bg-amber-950/60 border border-amber-500/30 flex items-center justify-center shrink-0">
-                        <Building2 className="h-3.5 w-3.5 text-amber-400" />
-                      </div>
-                      <span className="text-stone-200 font-medium">NetBanking</span>
+                    <div className="flex items-center gap-2 p-2 rounded-xl bg-white border border-stone-200">
+                      <Building2 className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>All Indian NetBanking</span>
                     </div>
-                    <div className="flex items-center gap-2.5 p-2.5 rounded-xl bg-stone-950/70 border border-white/10 hover:border-amber-400/40 transition">
-                      <div className="h-6 w-6 rounded-lg bg-purple-950/60 border border-purple-500/30 flex items-center justify-center shrink-0">
-                        <QrCode className="h-3.5 w-3.5 text-purple-400" />
-                      </div>
-                      <span className="text-stone-200 font-medium">CRED / Other</span>
+                    <div className="flex items-center gap-2 p-2 rounded-xl bg-white border border-stone-200">
+                      <QrCode className="h-4 w-4 text-purple-600 shrink-0" />
+                      <span>CRED / BHIM / Any UPI</span>
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-2 border-t border-white/10 text-[10.5px] text-stone-400 font-medium text-center">
-                  Tap below to launch the official secure bank checkout and complete your bill.
+                <div className="pt-2 border-t text-[11px] text-stone-500 font-medium text-center" style={{ borderColor: currentTheme.colors.borderLight }}>
+                  Tap below to launch the official payment gateway and complete your bill.
                 </div>
               </div>
             </motion.div>
@@ -607,11 +620,15 @@ export const Screen7PaymentGateway: React.FC = () => {
             >
               {/* Dynamic QR Display */}
               <div
-                className="rounded-2xl border p-5 flex flex-col items-center text-center border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl"
+                className="rounded-2xl border p-4 flex flex-col items-center text-center shadow-2xs"
+                style={{
+                  backgroundColor: currentTheme.colors.bgElevated,
+                  borderColor: currentTheme.colors.border,
+                }}
               >
-                <div className="flex items-center gap-1.5 mb-3">
-                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-                  <span className="text-[10px] font-bold text-emerald-300 font-mono uppercase tracking-wider">
+                <div className="flex items-center gap-1.5 mb-2.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-black text-emerald-800 font-mono uppercase tracking-wider">
                     Scan with Any UPI App to Pay
                   </span>
                 </div>
@@ -621,18 +638,21 @@ export const Screen7PaymentGateway: React.FC = () => {
                   <img
                     src={qrDataUrl}
                     alt="NPCI UPI QR Code"
-                    className="h-48 w-48 rounded-2xl border-2 border-amber-500/30 p-2 bg-white shadow-lg"
+                    style={{ borderColor: currentTheme.colors.border }}
+                    className="h-48 w-48 rounded-2xl border-2 p-2 bg-white shadow-sm"
                   />
                 ) : (
                   <div
-                    className="h-48 w-48 rounded-2xl bg-stone-950 border border-amber-500/30 flex items-center justify-center shadow-lg"
+                    className="h-48 w-48 rounded-2xl bg-white border flex items-center justify-center"
+                    style={{ borderColor: currentTheme.colors.border }}
                   >
-                    <QrCode className="h-10 w-10 text-amber-400" />
+                    <QrCode className="h-10 w-10" style={{ color: currentTheme.colors.buttonBg }} />
                   </div>
                 )}
 
                 <div
-                  className="mt-3 text-[10.5px] font-mono text-stone-400"
+                  className="mt-2 text-[10.5px] font-mono"
+                  style={{ color: currentTheme.colors.textMuted }}
                 >
                   Google Pay • PhonePe • Paytm • Cred • BHIM
                 </div>
@@ -663,20 +683,22 @@ export const Screen7PaymentGateway: React.FC = () => {
           whileTap={{ scale: 0.98 }}
           onClick={activeTab === 'RAZORPAY' ? handleRazorpayCheckout : handleCompletePayment}
           disabled={isProcessing}
-          className="flex w-full items-center justify-between rounded-[22px] px-6 py-4 shadow-[0_12px_32px_rgba(217,119,6,0.45)] transition hover:brightness-105 disabled:opacity-75 border border-amber-300/60 font-serif-luxury text-base font-bold tracking-wide text-amber-950"
           style={{
-            background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
+            backgroundColor: currentTheme.colors.buttonBg,
+            color: currentTheme.colors.buttonFg,
+            boxShadow: currentTheme.colors.buttonShadow,
           }}
+          className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105 disabled:opacity-75"
         >
           <span>
             {isProcessing
               ? 'Verifying Settlement...'
               : activeTab === 'RAZORPAY'
-              ? `Pay Online ₹${grandTotal}`
+              ? `Pay Online ₹${grandTotal} (UPI / Cards / NetBanking)`
               : `Confirm QR Pay (₹${grandTotal})`}
           </span>
           {isProcessing ? (
-            <Loader2 className="h-4 w-4 animate-spin text-amber-950" />
+            <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <ArrowRight className="h-4 w-4 stroke-[2.5]" />
           )}

@@ -1,4 +1,4 @@
-export type CustomerThemeId = 'terracotta-dum';
+export type CustomerThemeId = 'terracotta-dum' | 'obsidian-gold';
 
 export interface CustomerThemeConfig {
   id: CustomerThemeId;
@@ -60,12 +60,66 @@ export interface CustomerThemeConfig {
 }
 
 export const CUSTOMER_THEMES: CustomerThemeConfig[] = [
-  // ── 7. OBSIDIAN GOLD & WARM STONE (Ultra Luxury Michelin Fine Dining) ─
+  // ── 1. TERRACOTTA DUM (Classic Heritage Light Theme) ─
   {
     id: 'terracotta-dum',
+    name: 'Terracotta Heritage Light',
+    archetype: 'Donne Biryani Mane',
+    subtitle: 'Classic Warm Daylight Atmosphere',
+    badge: 'CLASSIC HERITAGE',
+    dotColor1: '#C2410C',
+    dotColor2: '#FFF7ED',
+    colors: {
+      bgApp: '#FAF8F5',
+      bgSurface: '#FFFFFF',
+      bgElevated: '#F5EFE8',
+      border: '#E7E5E4',
+      borderLight: '#F3ECE3',
+
+      buttonBg: '#C2410C',
+      buttonHover: '#9A3412',
+      buttonFg: '#FFFFFF',
+      buttonShadow: '0 4px 14px rgba(194, 65, 12, 0.25)',
+      primary: '#C2410C',
+      primaryHover: '#9A3412',
+      primaryFg: '#FFFFFF',
+      primaryBorder: '#9A3412',
+      primaryShadow: '0 4px 14px rgba(194, 65, 12, 0.25)',
+      buttonText: '#FFFFFF',
+
+      pillActiveBg: '#FFF7ED',
+      pillActiveFg: '#7C2D12',
+      pillActiveBorder: '#EA580C',
+      pillInactiveBg: '#FFFFFF',
+      pillInactiveFg: '#44403C',
+      pillInactiveBorder: '#E7E5E4',
+      pillBg: '#FFF7ED',
+
+      secondaryBg: '#FFEDD5',
+      secondaryFg: '#7C2D12',
+      accent: '#C2410C',
+      accentFg: '#FFFFFF',
+
+      textPrimary: '#1C1917',
+      textSecondary: '#44403C',
+      textMuted: '#78716C',
+
+      headerBg: 'rgba(255, 255, 255, 0.95)',
+      headerFg: '#1C1917',
+      bottomBg: 'rgba(255, 255, 255, 0.96)',
+      phoneBezel: '#292524',
+      statusBarBg: '#FFFFFF',
+      statusBarFg: '#1C1917',
+      isDark: false,
+    },
+  },
+
+  // ── 2. OBSIDIAN GOLD SANCTUARY (Luxury Dark Theme) ─
+  {
+    id: 'obsidian-gold',
     name: 'Obsidian Gold Sanctuary',
     archetype: 'Michelin Fine Dining',
-    subtitle: 'Brushed Gold • Obsidian Slate',
+    subtitle: 'Warm Stone • Brushed Gold Sanctuary',
     badge: 'LUXURY SANCTUARY',
     dotColor1: '#D97706',
     dotColor2: '#1C1917',
@@ -76,7 +130,6 @@ export const CUSTOMER_THEMES: CustomerThemeConfig[] = [
       border: 'rgba(217, 119, 6, 0.25)',
       borderLight: 'rgba(217, 119, 6, 0.15)',
 
-      // Button: Sculpted Amber Gold
       buttonBg: 'linear-gradient(135deg, #F59E0B 0%, #D97706 50%, #B45309 100%)',
       buttonHover: '#B45309',
       buttonFg: '#FFFFFF',
@@ -88,7 +141,6 @@ export const CUSTOMER_THEMES: CustomerThemeConfig[] = [
       primaryShadow: '0 12px 30px -4px rgba(217, 119, 6, 0.45)',
       buttonText: '#FFFFFF',
 
-      // Pill: Frosted Dark Slate with Glowing Gold Border
       pillActiveBg: 'rgba(217, 119, 6, 0.18)',
       pillActiveFg: '#FDE68A',
       pillActiveBorder: '#F59E0B',

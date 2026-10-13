@@ -160,14 +160,7 @@ export const Screen10WaiterCall: React.FC = () => {
         title={
           <span className="inline-flex items-center gap-2">
             <span>Call Waiter</span>
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.secondaryFg,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
+            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
               {effectiveTable} • C-{String(effectiveSeat).padStart(2, '0')}
             </span>
           </span>
@@ -179,13 +172,7 @@ export const Screen10WaiterCall: React.FC = () => {
         showCart={false}
       />
 
-      <div
-        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-300 relative select-none"
-        style={{
-          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
-          color: '#FAF7F2',
-        }}
-      >
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Active Ping Status Banner */}
         <AnimatePresence>
           {waiterNotification?.active && (
@@ -193,39 +180,39 @@ export const Screen10WaiterCall: React.FC = () => {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className={`rounded-[24px] border p-4 shadow-lg backdrop-blur-md text-center ${
+              className={`rounded-2xl border p-4 shadow-sm text-center ${
                 waiterNotification.attended
-                  ? 'border-emerald-500/40 bg-gradient-to-r from-emerald-950/70 via-stone-900/80 to-emerald-950/70'
-                  : 'border-amber-500/40 bg-gradient-to-r from-amber-950/70 via-stone-900/80 to-amber-950/70'
+                  ? 'border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50'
+                  : 'border-amber-300 bg-amber-50'
               }`}
             >
               {waiterNotification.attended ? (
                 <div>
                   <div className="flex items-center justify-between mb-1">
-                    <div className="flex items-center gap-2 font-bold text-xs text-emerald-200 font-serif-luxury">
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <div className="flex items-center gap-2 font-black text-xs text-emerald-950">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
                       <span>Request Attended!</span>
                     </div>
                     <button
                       onClick={() => useCustomerStore.getState().dismissWaiterNotification()}
-                      className="text-stone-400 hover:text-white p-0.5 rounded cursor-pointer"
+                      className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
                   </div>
-                  <p className="text-xs font-medium text-emerald-100/90 text-left leading-relaxed">
+                  <p className="text-xs font-bold text-emerald-800 text-left leading-relaxed">
                     {waiterNotification.message || 'Floor Captain has attended to your request.'}
                   </p>
                 </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-center gap-2 font-bold text-xs text-amber-200 font-serif-luxury mb-1">
-                    <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                  <div className="flex items-center justify-center gap-2 font-black text-xs text-amber-900 mb-1">
+                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
                     <span>Floor Captain notified. Please wait at your seat.</span>
-                    <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-ping" />
+                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
                   </div>
                   {waiterNotification.message && (
-                    <p className="text-xs font-normal text-stone-300 leading-relaxed">
+                    <p className="text-xs font-medium text-amber-800 leading-relaxed">
                       {waiterNotification.message}
                     </p>
                   )}
@@ -235,51 +222,18 @@ export const Screen10WaiterCall: React.FC = () => {
           )}
         </AnimatePresence>
 
-        {/* Heritage Concierge Table Chime */}
-        <div className="relative overflow-hidden rounded-[30px] border border-amber-500/35 bg-gradient-to-br from-amber-950/50 via-stone-900/90 to-black/95 p-5 text-center shadow-[0_16px_36px_rgba(0,0,0,0.6)] backdrop-blur-xl">
-          <div className="flex flex-col items-center justify-center">
-            <motion.button
-              whileTap={{ scale: 0.92, rotate: -2 }}
-              onClick={() => handlePing('GENERAL CALL')}
-              className="relative flex h-16 w-16 items-center justify-center rounded-3xl border border-amber-400/50 bg-gradient-to-b from-amber-500/30 to-amber-950/60 shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all cursor-pointer hover:border-amber-300"
-            >
-              <Sparkles className="h-7 w-7 text-amber-300 drop-shadow-sm animate-pulse" />
-              <div className="absolute inset-0 rounded-3xl border border-amber-300/30 animate-ping pointer-events-none opacity-40" />
-            </motion.button>
-            <h3 className="mt-3 text-sm font-bold font-serif-luxury text-amber-100">
-              Heritage Service Chime
-            </h3>
-            <p className="text-[10.5px] text-stone-400 max-w-[240px] mt-0.5">
-              Tap chime to ring table bell for Floor Captain Suresh
-            </p>
-          </div>
-
-          {/* Contextual Rapid Assistance Chips */}
-          <div className="mt-4 pt-3.5 border-t border-amber-500/15 flex flex-wrap gap-1.5 justify-center">
-            {[
-              'Extra Biryani Sherva',
-              'Sliced Lime & Onion',
-              'Warm Finger Bowl',
-              'Banana Leaf Change',
-            ].map((chip) => (
-              <button
-                key={chip}
-                type="button"
-                onClick={() => {
-                  setCustomText(chip);
-                  pingWaiter('GENERAL CALL', chip);
-                }}
-                className="rounded-full px-2.5 py-1 text-[10px] font-bold border border-amber-500/30 bg-black/40 text-amber-200/90 hover:border-amber-400 hover:text-amber-100 transition active:scale-95"
-              >
-                + {chip}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Quick Ping Buttons */}
-        <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-          <div className="mb-3 text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
+        <div
+          className="rounded-[28px] border p-4 shadow-xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div
+            className="mb-3 text-[10px] font-black uppercase tracking-[0.22em] font-mono"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
             Quick Assistance Buttons
           </div>
 
@@ -298,25 +252,42 @@ export const Screen10WaiterCall: React.FC = () => {
                   onClick={() => handlePing(btn.type)}
                   className={`flex ${
                     isPayment
-                      ? `col-span-2 flex-row items-center justify-center gap-3 p-4 border ${
+                      ? `col-span-2 flex-row items-center justify-center gap-3 p-3.5 border ${
                           isPaymentDisabled
                             ? hasActivePaymentPing
-                              ? 'bg-amber-950/30 border-amber-500/30 text-amber-300 opacity-80 cursor-not-allowed'
-                              : 'bg-stone-900/40 border-white/5 opacity-50 cursor-not-allowed text-stone-500'
-                            : 'bg-gradient-to-r from-amber-500/20 via-amber-950/40 to-amber-500/20 border-amber-400/40 cursor-pointer hover:border-amber-400 shadow-lg'
+                              ? 'bg-amber-50 border-amber-300 text-amber-800 opacity-80 cursor-not-allowed'
+                              : 'bg-stone-50 border-stone-200 opacity-50 cursor-not-allowed'
+                            : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 cursor-pointer hover:opacity-90'
                         }`
-                      : `flex-col items-center justify-center gap-2.5 p-4 border border-white/10 bg-white/5 hover:border-amber-400/30 ${
+                      : `flex-col items-center justify-center gap-2 p-4 ${
                           !isPayment && cooldownRemaining > 0
                             ? 'opacity-60 cursor-not-allowed'
-                            : 'cursor-pointer'
+                            : 'cursor-pointer hover:opacity-90'
                         }`
-                  } rounded-[24px] shadow-sm transition backdrop-blur-md`}
+                  } rounded-[22px] border shadow-xs transition`}
+                  style={
+                    !isPayment
+                      ? {
+                          backgroundColor: currentTheme.colors.bgSurface,
+                          borderColor: currentTheme.colors.border,
+                        }
+                      : undefined
+                  }
                 >
-                  <div className={`flex ${isPayment ? 'h-10 w-10' : 'h-12 w-12'} items-center justify-center rounded-2xl border border-amber-400/30 bg-black/40`}>
+                  <div
+                    className={`flex ${isPayment ? 'h-10 w-10' : 'h-12 w-12'} items-center justify-center rounded-2xl border`}
+                    style={{
+                      backgroundColor: currentTheme.colors.secondaryBg,
+                      borderColor: currentTheme.colors.border,
+                    }}
+                  >
                     {btn.icon}
                   </div>
                   <div className="flex flex-col text-left">
-                    <span className={`font-serif-luxury text-sm font-bold ${isPayment ? 'text-amber-200' : 'text-center text-amber-100'}`}>
+                    <span
+                      className={`font-black ${isPayment ? 'text-xs text-[#9C3D1E]' : 'text-xs text-center'}`}
+                      style={!isPayment ? { color: currentTheme.colors.textPrimary } : undefined}
+                    >
                       {isPayment && hasActivePaymentPing
                         ? 'Captain Summoned'
                         : !isPayment && cooldownRemaining > 0
@@ -324,11 +295,11 @@ export const Screen10WaiterCall: React.FC = () => {
                         : btn.label}
                     </span>
                     {isPayment && hasActivePaymentPing ? (
-                      <span className="text-[10px] text-amber-400/80 font-medium">
+                      <span className="text-[10px] text-amber-700 font-medium">
                         (Captain on the way to Chair {effectiveSeat})
                       </span>
                     ) : isPayment && !allDishesServed ? (
-                      <span className="text-[10px] text-stone-400 font-medium">
+                      <span className="text-[10px] text-stone-500 font-medium">
                         (Unlocks once all dishes are served to your chair)
                       </span>
                     ) : null}
@@ -340,10 +311,19 @@ export const Screen10WaiterCall: React.FC = () => {
         </div>
 
         {/* Custom Request Textbox (Optional) */}
-        <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
-          <div className="mb-2 text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury flex items-center justify-between">
+        <div
+          className="rounded-[28px] border p-4 shadow-xs"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div
+            className="mb-2 text-[10px] font-black uppercase tracking-[0.22em] font-mono flex items-center justify-between"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
             <span>Custom Message to Captain</span>
-            <span className="text-[9px] font-bold text-amber-300 bg-amber-500/20 border border-amber-400/30 px-2 py-0.5 rounded-full font-mono">Optional</span>
+            <span className="text-[9px] font-bold text-stone-600 bg-stone-100 border border-stone-200 px-1.5 py-0.5 rounded">Optional</span>
           </div>
 
           <div className="relative">
@@ -352,14 +332,21 @@ export const Screen10WaiterCall: React.FC = () => {
               value={customText}
               onChange={(e) => setCustomText(e.target.value)}
               placeholder="e.g. Please bring extra lemon or mild raita (optional)..."
-              className="w-full rounded-2xl border border-amber-500/30 bg-black/40 p-3.5 text-xs font-medium text-amber-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(217,119,6,0.25)] transition backdrop-blur-md"
+              className="w-full rounded-2xl border p-3 text-xs font-semibold focus:outline-none"
+              style={{
+                backgroundColor: currentTheme.colors.bgElevated,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.textPrimary,
+              }}
             />
             <button
               onClick={handleSendCustomText}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-[20px] py-3 text-xs font-bold font-serif-luxury uppercase tracking-wider transition hover:brightness-105 active:scale-98 cursor-pointer text-stone-950 border border-amber-300/60 shadow-lg"
               style={{
-                background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
+                backgroundColor: currentTheme.colors.buttonBg,
+                color: currentTheme.colors.buttonFg,
+                boxShadow: currentTheme.colors.buttonShadow,
               }}
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition hover:brightness-105 active:scale-98 cursor-pointer"
             >
               <Send className="h-3.5 w-3.5" />
               <span>{customText.trim() ? 'Send Message to Waiter' : 'Call Waiter to Table'}</span>
@@ -373,10 +360,12 @@ export const Screen10WaiterCall: React.FC = () => {
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={() => navigateTo(returnTarget)}
-          className="flex w-full items-center justify-between rounded-[22px] px-5 py-3.5 text-xs font-bold font-serif-luxury uppercase tracking-wider shadow-lg transition hover:brightness-105 text-stone-950 border border-amber-300/60"
           style={{
-            background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
+            backgroundColor: currentTheme.colors.buttonBg,
+            color: currentTheme.colors.buttonFg,
+            boxShadow: currentTheme.colors.buttonShadow,
           }}
+          className="flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
         >
           <span>Return to Previous Screen</span>
           <ArrowRight className="h-4 w-4 stroke-[2.5]" />
@@ -386,39 +375,36 @@ export const Screen10WaiterCall: React.FC = () => {
       {/* Confirmation Modal for Calling Waiter for Payment */}
       <AnimatePresence>
         {showPaymentConfirmModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-sm rounded-[32px] bg-gradient-to-b from-[#1C1610] to-[#0E0B08] p-6 shadow-2xl border border-amber-500/40 text-center"
+              className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl border border-stone-200"
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 mb-3 mx-auto">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 mb-3 mx-auto">
                 <CreditCard className="h-6 w-6 stroke-[2]" />
               </div>
-              <h3 className="text-base font-bold text-amber-100 font-serif-luxury">
+              <h3 className="text-base font-black text-stone-900 text-center">
                 Call Floor Captain for Payment?
               </h3>
-              <p className="mt-2 text-xs text-stone-300 leading-relaxed font-normal">
-                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-amber-300">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
+              <p className="mt-1.5 text-xs text-stone-600 text-center leading-relaxed">
+                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-stone-900">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
               </p>
-              <p className="mt-1 text-[11px] text-stone-400 font-normal">
+              <p className="mt-1 text-[11px] text-stone-500 text-center">
                 A captain will visit your seat with the payment terminal.
               </p>
 
-              <div className="mt-6 grid grid-cols-2 gap-2.5">
+              <div className="mt-5 grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setShowPaymentConfirmModal(false)}
-                  className="rounded-[20px] border border-white/10 bg-white/5 py-3 text-xs font-bold text-stone-300 transition hover:bg-white/10 active:scale-95 cursor-pointer"
+                  className="rounded-2xl border border-stone-200 bg-stone-100 py-3 text-xs font-bold text-stone-700 transition hover:bg-stone-200 active:scale-95 cursor-pointer"
                 >
                   No, Go Back
                 </button>
                 <button
                   onClick={handleConfirmPaymentCall}
-                  className="rounded-[20px] py-3 text-xs font-bold text-stone-950 shadow-md transition hover:brightness-105 active:scale-95 cursor-pointer font-serif-luxury border border-amber-300/60"
-                  style={{
-                    background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
-                  }}
+                  className="rounded-2xl bg-[#9C3D1E] py-3 text-xs font-black text-white shadow-md transition hover:bg-[#853218] active:scale-95 cursor-pointer"
                 >
                   Yes, Call Captain
                 </button>

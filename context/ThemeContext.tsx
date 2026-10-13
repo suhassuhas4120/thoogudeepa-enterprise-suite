@@ -15,18 +15,29 @@ const CustomerThemeContext = createContext<CustomerThemeContextType | undefined>
 export function CustomerThemeProvider({ children }: { children: React.ReactNode }) {
   const [currentThemeId, setCurrentThemeId] = useState<CustomerThemeId>('terracotta-dum');
 
-  // Always enforce the luxury Obsidian Gold theme
+  // Load persisted theme on mount if available
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      setCurrentThemeId('terracotta-dum');
       try {
-        localStorage.setItem('thoogudeepa_customer_theme', 'terracotta-dum');
-      } catch {}
+        const saved = localStorage.getItem('thoogudeepa_customer_theme') as CustomerThemeId;
+        if (saved && (saved === 'terracotta-dum' || saved === 'obsidian-gold')) {
+          setCurrentThemeId(saved);
+        } else {
+          setCurrentThemeId('terracotta-dum');
+        }
+      } catch {
+        setCurrentThemeId('terracotta-dum');
+      }
     }
   }, []);
 
   const setTheme = (id: CustomerThemeId) => {
-    setCurrentThemeId('terracotta-dum');
+    setCurrentThemeId(id);
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('thoogudeepa_customer_theme', id);
+      } catch {}
+    }
   };
 
   const currentTheme =

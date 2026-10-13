@@ -5,6 +5,7 @@ import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
 import { ArrowLeft, Bell, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ThemeTogglePill } from './ThemeTogglePill';
 
 interface WireHeaderProps {
   title: string | React.ReactNode;
@@ -71,6 +72,8 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
+        <ThemeTogglePill />
+
         {showCallWaiter && (
           <motion.button
             whileTap={{ scale: 0.9 }}

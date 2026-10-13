@@ -245,58 +245,102 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
       />
 
       <div
-        className="flex-1 overflow-y-auto flex flex-col transition-colors duration-300 relative select-none"
-        style={{
-          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
-          color: '#FAF7F2',
-        }}
+        className="flex-1 overflow-y-auto flex flex-col transition-colors duration-200"
+        style={{ backgroundColor: currentTheme.colors.bgApp }}
       >
-        {/* Minimal Elegant Gold Search Pill */}
-        <div className="px-5 pt-4 pb-2">
-          <div className="relative flex items-center">
-            <Search className="absolute left-4 h-4 w-4 text-amber-400" />
+        {/* Search Bar + Cart Action Button Row */}
+        <div className="px-4 pt-3 pb-2 flex items-center gap-2">
+          <div className="relative flex-1 flex items-center">
+            <Search className="absolute left-3.5 h-4 w-4" style={{ color: currentTheme.colors.primary }} />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search delicacies..."
-              className="w-full rounded-full border border-amber-500/30 bg-black/40 pl-11 pr-10 py-3 text-xs font-medium text-amber-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(217,119,6,0.25)] transition backdrop-blur-md"
+              placeholder="Search Biryanis, Kebabs..."
+              className="w-full rounded-2xl border pl-10 pr-9 py-2.5 text-xs font-semibold shadow-2xs focus:outline-none transition"
+              style={{
+                backgroundColor: currentTheme.colors.bgSurface,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.textPrimary,
+              }}
             />
             {searchTerm && (
               <button
                 type="button"
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3.5 p-1 rounded-full text-stone-400 hover:text-stone-200"
+                className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600"
                 title="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
+
+          {/* Cart Icon Button Beside Search */}
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            type="button"
+            onClick={() => setCurrentScreen(4)}
+            className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl shadow-xs transition"
+            style={{
+              backgroundColor: currentTheme.colors.primary,
+              color: currentTheme.colors.primaryFg,
+              boxShadow: currentTheme.colors.primaryShadow,
+            }}
+            title="View Cart"
+          >
+            <ShoppingCart className="h-5 w-5 stroke-[2.2]" />
+            {totalCartCount > 0 && (
+              <span
+                className="absolute -top-1.5 -right-1.5 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full text-[10px] font-black ring-2 ring-white shadow-xs"
+                style={{
+                  backgroundColor: currentTheme.colors.accent,
+                  color: currentTheme.colors.accentFg,
+                }}
+              >
+                {totalCartCount}
+              </span>
+            )}
+          </motion.button>
         </div>
 
-        {/* Silky Horizontal Scrolling Category Tabs with Glowing Gold Underline */}
-        <div className="px-5 py-2.5">
-          <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none items-center">
+        {/* Dynamic Categories Bar */}
+        <div
+          className="border-b px-4 py-2 transition-colors duration-200"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
+        >
+          <div
+            className="mb-1.5 text-[9.5px] font-black tracking-[0.2em] uppercase font-mono"
+            style={{ color: currentTheme.colors.textMuted }}
+          >
+            Explore Categories
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none">
             {categories.map((cat) => {
               const isActive = selectedCategory === cat;
               return (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`whitespace-nowrap pb-1.5 text-xs font-serif-luxury tracking-wide transition-all relative ${
+                  className="whitespace-nowrap rounded-full px-4 py-1.5 text-xs font-black tracking-wide transition-all border shadow-2xs active:scale-95"
+                  style={
                     isActive
-                      ? 'text-amber-300 font-bold text-sm'
-                      : 'text-stone-400 font-medium hover:text-stone-200'
-                  }`}
+                      ? {
+                          backgroundColor: currentTheme.colors.pillActiveBg,
+                          color: currentTheme.colors.pillActiveFg,
+                          borderColor: currentTheme.colors.pillActiveBorder,
+                        }
+                      : {
+                          backgroundColor: currentTheme.colors.pillInactiveBg,
+                          color: currentTheme.colors.pillInactiveFg,
+                          borderColor: currentTheme.colors.pillInactiveBorder,
+                        }
+                  }
                 >
-                  <span>{cat}</span>
-                  {isActive && (
-                    <motion.div
-                      layoutId="catActiveIndicator"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 shadow-[0_0_8px_rgba(251,191,36,0.8)]"
-                    />
-                  )}
+                  {cat}
                 </button>
               );
             })}
@@ -310,72 +354,17 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="mx-5 mt-2 flex items-center justify-center gap-2 rounded-2xl px-4 py-2 text-center text-xs font-bold shadow-lg border border-amber-400/40 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 text-amber-200 backdrop-blur-md"
+              className="mx-4 mt-2 flex items-center justify-center gap-1.5 rounded-2xl px-3.5 py-2 text-center text-xs font-bold shadow-sm"
+              style={{
+                backgroundColor: currentTheme.colors.primary,
+                color: currentTheme.colors.primaryFg,
+              }}
             >
-              <CheckCircle2 className="h-4 w-4 text-amber-400" />
+              <CheckCircle2 className="h-3.5 w-3.5 text-amber-200" />
               <span>{toastNotice}</span>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Heritage Dum Deg Live Editorial Spotlight (when on All or Chef Special) */}
-        {(selectedCategory === 'All' || selectedCategory === 'Chef Special') && !searchTerm && (
-          <div className="px-5 pt-1 pb-3">
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="relative overflow-hidden rounded-[30px] border border-amber-500/40 bg-gradient-to-br from-amber-950/60 via-stone-900/90 to-black/95 p-4 shadow-[0_16px_36px_rgba(0,0,0,0.7)] backdrop-blur-xl"
-            >
-              <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
-              <div className="flex items-center justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
-                  <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-300 font-mono">
-                    Heritage Dum Deg &bull; 1978 Daily Star
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-3.5 items-center">
-                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-amber-500/30 bg-stone-950">
-                  <Image
-                    src="/images/dishes/mutton-biryani.webp"
-                    alt="Signature Dum Biryani"
-                    fill
-                    sizes="80px"
-                    className="object-cover object-center"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-bold font-serif-luxury text-amber-100 truncate">
-                    1978 Mutton Donne Dum Biryani
-                  </h4>
-                  <p className="text-[10.5px] text-stone-300 line-clamp-2 mt-0.5 leading-snug">
-                    Tender local cuts sealed in earthen handis with fragrant Seeraga Samba &amp; hand-ground black pepper.
-                  </p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-xs font-black font-mono text-amber-300">
-                      ₹340
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const target = menuItems.find((m) => m.name.toLowerCase().includes('mutton') && m.name.toLowerCase().includes('biryani')) || menuItems[0];
-                        if (target) handleOpenDetail(target);
-                      }}
-                      className="rounded-full px-3 py-1 text-[10px] font-bold tracking-wide uppercase text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 shadow-md hover:brightness-110 active:scale-95"
-                    >
-                      Taste Story &rarr;
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
 
         {/* Menu Items Container */}
         {filteredItems.length === 0 ? (
@@ -418,8 +407,8 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-3.5 p-4 flex-1">
-            {/* 2-Column Food Grid with Dramatic Chiaroscuro Presentation */}
+          /* 2-Column Food Grid */
+          <div className="grid grid-cols-2 gap-2.5 p-3 flex-1">
             {filteredItems.map((item) => {
               const stockInfo = inventory86?.find((e) => e.id === item.id);
               const is86 = !!stockInfo?.is86;
@@ -432,16 +421,25 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
               return (
                 <motion.div
                   key={item.id}
-                  whileHover={{ y: is86 ? 0 : -3 }}
+                  whileHover={{ y: is86 ? 0 : -2 }}
                   onClick={() => handleOpenDetail(item)}
-                  className={`group relative flex flex-col justify-between rounded-[28px] p-2.5 transition-all border ${
+                  className={`group relative flex flex-col justify-between rounded-3xl border p-2.5 shadow-xs transition-all ${
                     is86
-                      ? 'opacity-50 cursor-not-allowed border-white/5 bg-white/5'
-                      : 'cursor-pointer border-amber-500/20 bg-gradient-to-b from-stone-900/90 to-black/90 shadow-[0_12px_30px_rgba(0,0,0,0.6)] hover:border-amber-400/40 backdrop-blur-md'
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'cursor-pointer hover:shadow-md'
                   }`}
+                  style={{
+                    backgroundColor: currentTheme.colors.bgSurface,
+                    borderColor: currentTheme.colors.border,
+                  }}
                 >
                   {/* Photo / Illustration Container */}
-                  <div className="relative flex h-32 w-full items-center justify-center overflow-hidden rounded-[22px] bg-stone-950">
+                  <div
+                    className="relative flex h-28 w-full items-center justify-center overflow-hidden rounded-2xl bg-stone-100"
+                    style={{
+                      backgroundColor: currentTheme.colors.bgElevated,
+                    }}
+                  >
                     {item.image ? (
                       <div className="relative h-full w-full">
                         <Image
@@ -449,79 +447,111 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                           alt={item.name}
                           fill
                           sizes="(max-width: 640px) 50vw, 240px"
-                          className="object-cover object-center transition-transform duration-500 group-hover:scale-108"
+                          className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
                           priority={filteredItems.indexOf(item) < 4}
                         />
-                        {/* Dramatic Chiaroscuro Gradient Overlay */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
                       </div>
                     ) : (
-                      <div className="transition-transform duration-300 group-hover:scale-105 text-amber-500">
+                      <div className="transition-transform duration-300 group-hover:scale-105">
                         {getItemIcon(item)}
                       </div>
                     )}
 
-                    {/* Subtle Emerald / Ruby Veg Insignia */}
-                    <div className="absolute top-2 left-2 z-10 flex h-4 w-4 items-center justify-center rounded-xs bg-black/60 p-0.5 border border-white/20 backdrop-blur-sm">
+                    {/* Veg / Non-Veg / Egg Indicator */}
+                    <div className="absolute top-1.5 left-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-sm bg-white/95 p-0.5 shadow-2xs">
                       <div
-                        className={`h-2 w-2 rounded-full ${
+                        className={`h-2.5 w-2.5 rounded-full ${
                           getDietType(item) === 'VEG'
-                            ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                            ? 'bg-emerald-600'
                             : getDietType(item) === 'EGG'
-                            ? 'bg-amber-400'
-                            : 'bg-rose-500'
+                            ? 'bg-amber-500'
+                            : 'bg-rose-700'
                         }`}
                       />
                     </div>
 
+                    {/* Kitchen Prep Delay Badge */}
+                    {prepDelay > 0 && !is86 && (
+                      <div className="absolute top-1.5 left-7 z-10 flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-2xs">
+                        <Clock className="h-2.5 w-2.5" />
+                        <span>+{prepDelay}m</span>
+                      </div>
+                    )}
+
                     {/* Badge */}
                     {item.badge && !is86 && (
-                      <div className="absolute top-2 right-2 z-10 rounded-full px-2 py-0.5 text-[8.5px] font-extrabold uppercase tracking-wider bg-gradient-to-r from-amber-500 to-amber-700 text-amber-950 shadow-md">
+                      <div
+                        className="absolute top-1.5 right-1.5 z-10 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider shadow-2xs"
+                        style={{
+                          backgroundColor: currentTheme.colors.primary,
+                          color: currentTheme.colors.primaryFg,
+                        }}
+                      >
                         {item.badge}
                       </div>
                     )}
                   </div>
 
                   {/* Dish Info */}
-                  <div className="mt-2.5 px-1 flex-1">
-                    <h3 className="line-clamp-2 text-sm font-bold leading-tight font-serif-luxury text-amber-100">
+                  <div className="mt-2 flex-1">
+                    <h3
+                      className="line-clamp-2 text-xs font-black leading-snug"
+                      style={{ color: currentTheme.colors.textPrimary }}
+                    >
                       {item.name}
                     </h3>
-                    <div className="mt-1 flex items-center gap-1">
-                      <span className="text-[9px] font-medium text-amber-300/75 truncate font-mono">
-                        {item.prepMode || (item.category === 'Rice & Bowls' ? '12-Hr Dum' : 'Traditional')}
-                      </span>
-                    </div>
+                    <p
+                      className="mt-0.5 line-clamp-1 text-[10px] font-medium"
+                      style={{ color: currentTheme.colors.textMuted }}
+                    >
+                      {item.description}
+                    </p>
                   </div>
 
-                  {/* Price Badge & Sculpted Gold CTA */}
-                  <div className="mt-3 flex items-center justify-between gap-1 pt-2 border-t border-amber-500/15 px-1">
-                    {/* Golden Price Badge */}
-                    <span className="inline-flex items-center rounded-xl px-2.5 py-1 text-xs font-black tracking-tight bg-gradient-to-r from-amber-400/20 to-amber-600/20 text-amber-300 border border-amber-400/30">
+                  {/* Price & Cart Controls (Harmonized with Theme Button Color) */}
+                  <div
+                    className="mt-2.5 flex items-center justify-between gap-1 pt-1.5 border-t"
+                    style={{ borderColor: currentTheme.colors.borderLight }}
+                  >
+                    <span
+                      className="font-mono text-sm font-black"
+                      style={{ color: currentTheme.colors.textPrimary }}
+                    >
                       ₹{item.price}
                     </span>
 
                     {is86 ? (
-                      <span className="flex items-center gap-1 rounded-md bg-rose-950/60 border border-rose-800 px-1.5 py-0.5 text-[9px] font-bold text-rose-300 font-mono">
+                      <span className="flex items-center gap-1 rounded-md bg-rose-50 border border-rose-200 px-1.5 py-0.5 text-[9px] font-bold text-rose-600 font-mono">
                         <Ban className="h-2.5 w-2.5" />
                         Sold Out
                       </span>
                     ) : quantityInCart > 0 ? (
-                      <div className="flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-black/60 p-0.5">
+                      <div
+                        className="flex items-center gap-1.5 rounded-xl border p-0.5 shadow-2xs"
+                        style={{
+                          backgroundColor: currentTheme.colors.bgElevated,
+                          borderColor: currentTheme.colors.border,
+                        }}
+                      >
                         <button
                           type="button"
                           onClick={(e) => handleDecrement(e, item.id)}
-                          className="flex h-5 w-5 items-center justify-center rounded-lg bg-amber-600 text-white transition hover:bg-amber-500 active:scale-90"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
+                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
                         >
                           <Minus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
-                        <span className="px-1 text-xs font-black font-mono text-amber-200">
+                        <span
+                          className="px-1.5 text-xs font-black font-mono"
+                          style={{ color: currentTheme.colors.textPrimary }}
+                        >
                           {quantityInCart}
                         </span>
                         <button
                           type="button"
                           onClick={(e) => handleIncrement(e, item)}
-                          className="flex h-5 w-5 items-center justify-center rounded-lg bg-amber-600 text-white transition hover:bg-amber-500 active:scale-90"
+                          className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
+                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
                         >
                           <Plus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
@@ -530,13 +560,16 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                       <button
                         type="button"
                         onClick={(e) => handleOpenDrawer(e, item)}
-                        className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-amber-950 shadow-md transition hover:brightness-110 active:scale-95"
+                        className="flex items-center gap-1 rounded-xl border px-3 py-1.5 text-[11px] font-black uppercase tracking-wider shadow-xs transition hover:brightness-105 active:scale-95"
                         style={{
-                          background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 50%, #D97706 100%)',
+                          backgroundColor: currentTheme.colors.buttonBg,
+                          borderColor: currentTheme.colors.primaryBorder,
+                          color: currentTheme.colors.buttonFg,
+                          boxShadow: currentTheme.colors.buttonShadow,
                         }}
                       >
                         <span>ADD</span>
-                        <Plus className="h-3 w-3 stroke-[3]" />
+                        <Plus className="h-3.5 w-3.5 stroke-[3]" />
                       </button>
                     )}
                   </div>
@@ -547,45 +580,43 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
         )}
       </div>
 
-      {/* Floating Animated Cart Checkout Bar (Organic Dark Glass Capsule Pill) */}
+      {/* Floating Animated Cart Checkout Bar */}
       <AnimatePresence>
         {totalCartCount > 0 && (
           <motion.div
-            initial={{ y: 30, opacity: 0 }}
+            initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 30, opacity: 0 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 280 }}
-            className="sticky bottom-0 z-30 p-4 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none"
+            exit={{ y: 20, opacity: 0 }}
+            className="sticky bottom-0 z-20 p-3 bg-gradient-to-t from-white via-white/95 to-transparent backdrop-blur-xs"
           >
             <motion.button
               whileTap={{ scale: 0.98 }}
-              whileHover={{ y: -2 }}
               onClick={() => setCurrentScreen(4)}
-              className="pointer-events-auto flex w-full items-center justify-between rounded-[30px] px-6 py-4 shadow-[0_16px_40px_rgba(0,0,0,0.8)] transition hover:brightness-105 border border-amber-400/40 backdrop-blur-xl"
+              className="flex w-full items-center justify-between rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wider text-white shadow-lg transition hover:brightness-105"
               style={{
-                background: 'linear-gradient(135deg, rgba(38, 30, 22, 0.95) 0%, rgba(18, 14, 11, 0.98) 100%)',
+                backgroundColor: currentTheme.colors.primary,
+                boxShadow: currentTheme.colors.primaryShadow,
               }}
             >
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/30">
-                  <ShoppingCart className="h-5 w-5" />
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/20 text-white">
+                  <ShoppingCart className="h-4 w-4" />
                 </div>
                 <div className="text-left">
-                  <div className="text-sm font-bold font-serif-luxury text-amber-100">
-                    {totalCartCount} {totalCartCount === 1 ? 'Delicacy' : 'Delicacies'}
+                  <div className="text-xs font-black text-white">
+                    VIEW CART
                   </div>
-                  <div className="text-[10px] font-medium text-stone-400">
-                    Dine-in Order Ready
+                  <div className="text-[9.5px] font-medium opacity-90">
+                    {totalCartCount} {totalCartCount === 1 ? 'item' : 'items'} selected
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <span className="text-base font-extrabold text-amber-300 font-mono">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-sm font-black text-amber-200">
                   ₹{totalCartAmount}
                 </span>
-                <div className="flex items-center gap-1.5 rounded-full px-3.5 py-1.5 bg-gradient-to-r from-amber-400 to-amber-600 text-amber-950 text-xs font-bold font-serif-luxury shadow-md">
-                  <span>View Order</span>
-                  <ArrowRight className="h-3 w-3 stroke-[2.5]" />
+                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white">
+                  <ArrowRight className="h-3.5 w-3.5" />
                 </div>
               </div>
             </motion.button>

@@ -271,18 +271,16 @@ export const Screen8Confirmation: React.FC = () => {
         showCart={false}
       />
 
-      <div
-        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-300 relative select-none"
-        style={{
-          background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
-          color: '#FAF7F2',
-        }}
-      >
+      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Success Card */}
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
-          className="flex flex-col items-center rounded-[28px] border border-amber-500/30 bg-gradient-to-b from-stone-900/90 to-black/95 p-5 text-center shadow-[0_12px_28px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+          className="flex flex-col items-center rounded-[28px] border p-5 text-center shadow-md"
+          style={{
+            backgroundColor: currentTheme.colors.bgSurface,
+            borderColor: currentTheme.colors.border,
+          }}
         >
           <div
             className="text-[9.5px] font-black uppercase tracking-[0.22em] font-mono"

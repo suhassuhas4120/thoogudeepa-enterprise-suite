@@ -100,7 +100,7 @@ export const Screen1Welcome: React.FC = () => {
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
       <div
-        className="flex flex-col min-h-full p-4 space-y-3 pb-6 transition-colors duration-200"
+        className="flex-1 overflow-y-auto flex flex-col p-4 space-y-3 pb-6 transition-colors duration-200"
         style={{ backgroundColor: currentTheme.colors.bgApp }}
       >
         {/* Card 1: Restaurant Brand Header - Logo in Row 1, Hotel Name in Row 2 */}

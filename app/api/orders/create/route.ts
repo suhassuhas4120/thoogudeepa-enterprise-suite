@@ -81,11 +81,10 @@ export async function POST(req: NextRequest) {
       const itemSeat = it.seat_number || it.seatNumber || seatNumber;
 
       return {
-        id: `${orderId}-it-${index + 1}`,
+        id: it.id || `${orderId}-it-${index + 1}`,
         order_id: orderId,
         table_number: tableNumber,
         seat_number: itemSeat,
-        seatNumber: itemSeat,
         name: it.name,
         quantity: qty,
         unit_price: unitPrice,
@@ -96,7 +95,6 @@ export async function POST(req: NextRequest) {
         options: it.options || it.selectedOption || null,
         selected_option: it.selectedOption || it.options || null,
         add_ons: it.addOns || it.add_ons || [],
-        addOns: it.addOns || it.add_ons || [],
         notes: it.notes || null,
         created_at: nowIso,
         updated_at: nowIso,

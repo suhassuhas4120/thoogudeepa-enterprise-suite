@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   QrCode,
@@ -78,12 +78,25 @@ export default function QRDeckPage() {
     ? ALL_TABLES
     : ALL_TABLES.filter((t) => t.capacity === selectedCategory);
 
+  const [baseUrl, setBaseUrl] = useState('http://192.168.0.4:3001');
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+        setBaseUrl('http://192.168.0.4:3001');
+      } else {
+        setBaseUrl(origin);
+      }
+    }
+  }, []);
+
   const getSeatUrl = (table: string, seat: number) => {
-    return `/?table=${table}&seat=${seat}`;
+    return `${baseUrl}/?table=${table}&seat=${seat}`;
   };
 
   const getQRImageUrl = (table: string, seat: number) => {
-    const fullUrl = `https://thoogudeepa-develop.surge.sh/?table=${table}&seat=${seat}`;
+    const fullUrl = `${baseUrl}/?table=${table}&seat=${seat}`;
     return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(fullUrl)}&color=0F3A22`;
   };
 

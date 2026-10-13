@@ -1158,5 +1158,6 @@ function testInterStoreCompatibility(): void {
     process.exit(1);
   } else {
     process.stdout.write('  All Phase 3 tests passed.\n\n');
+    process.exit(0);
   }
 })();

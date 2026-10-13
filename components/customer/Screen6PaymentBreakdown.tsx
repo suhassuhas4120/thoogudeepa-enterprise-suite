@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
+import { useSharedBridge } from '../../store/useSharedBridge';
+import { useCustomerStore } from '../../store/useCustomerStore';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
@@ -22,6 +24,8 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     venueName,
   } = useCustomer();
 
+  const { settledBills, kdsTickets, tables } = useSharedBridge();
+
   const [customTip, setCustomTip] = useState<string>('');
   const [splitPersons, setSplitPersons] = useState<number>(2);
   const [isSplitEnabled, setIsSplitEnabled] = useState(false);
@@ -29,13 +33,49 @@ export const Screen6PaymentBreakdown: React.FC = () => {
   const effectiveTable = tableNumber || 'T-01';
   const effectiveSeat = seatNumber || 1;
 
-  // Bill calculations (use live cart or authentic preview dishes)
-  const previewDishes = [
-    { cartItemId: 'sample-1', menuItem: { name: 'Special Mutton Donne Biryani' } as any, quantity: 2, totalPrice: 680 },
-    { cartItemId: 'sample-2', menuItem: { name: 'Chicken Ghee Roast' } as any, quantity: 1, totalPrice: 280 },
-    { cartItemId: 'sample-3', menuItem: { name: 'Mutton Nalli Fry' } as any, quantity: 1, totalPrice: 220 },
-  ];
-  const activeCart = cart.length > 0 ? cart : previewDishes;
+  // Auto-transition to Screen 8 only if waiter just settled this table or chair right now
+  useEffect(() => {
+    if (!settledBills) return;
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const tNum = cleanNum(effectiveTable);
+    const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+    const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
+
+    const matchingSnapshot = settledBills[chairKey] || settledBills[normTable];
+    if (matchingSnapshot && matchingSnapshot.timestamp) {
+      const now = Date.now();
+      if (Math.abs(now - matchingSnapshot.timestamp) < 1800000) {
+        useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
+      }
+    }
+  }, [settledBills, tables, effectiveTable, effectiveSeat]);
+
+  // Authentic items from cart, bridge tickets, or settled items (no fake/random data)
+  const activeCart = useMemo(() => {
+    if (cart.length > 0) return cart;
+
+    // Check if table has items in bridge tickets
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const myTickets = kdsTickets.filter((tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) && tk.status !== 'COMPLETED');
+    if (myTickets.length > 0) {
+      return myTickets.flatMap((tk) =>
+        tk.items.map((it) => ({
+          cartItemId: it.id,
+          menuItem: { id: it.id, name: it.name, price: it.price || 0 } as any,
+          selectedOption: it.options || '',
+          selectedAddOns: it.addOns || [],
+          quantity: it.quantity,
+          totalPrice: (it.price || 0) * it.quantity,
+          prepMode: it.prepMode || '',
+          isOrdered: true,
+          seatNumber: it.seatNumber || tk.seatNumber,
+        }))
+      );
+    }
+
+    return [];
+  }, [cart, kdsTickets, effectiveTable]);
+
   const subtotal = activeCart.reduce((s, i) => s + i.totalPrice, 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
@@ -108,18 +148,24 @@ export const Screen6PaymentBreakdown: React.FC = () => {
             className="space-y-2 border-b border-dashed pb-3 text-xs"
             style={{ borderColor: currentTheme.colors.borderLight }}
           >
-            {activeCart.map((item) => (
-              <div
-                key={item.cartItemId}
-                className="flex items-center justify-between"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                <span className="font-semibold">
-                  {item.menuItem.name} × {item.quantity}
-                </span>
-                <span className="font-mono font-black">₹{item.totalPrice}</span>
+            {activeCart.length === 0 ? (
+              <div className="py-4 text-center text-xs font-mono" style={{ color: currentTheme.colors.textMuted }}>
+                No active items placed yet
               </div>
-            ))}
+            ) : (
+              activeCart.map((item) => (
+                <div
+                  key={item.cartItemId}
+                  className="flex items-center justify-between"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  <span className="font-semibold">
+                    {item.menuItem.name} × {item.quantity}
+                  </span>
+                  <span className="font-mono font-black">₹{item.totalPrice}</span>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Subtotal, Tax, Tip, Total */}

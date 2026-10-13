@@ -1,11 +1,11 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { useCustomer } from '../context/CustomerContext';
-import { CustomerThemeProvider, useCustomerTheme } from '../context/ThemeContext';
-import { ThemeSwitcherBar } from '../components/ui/ThemeSwitcherBar';
-import { ScreenId } from '../types/customer';
+import { useCustomerStore } from '../store/useCustomerStore';
+import { useSharedBridge } from '../store/useSharedBridge';
+import { CustomerThemeProvider } from '../context/ThemeContext';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Screen1Welcome } from '../components/customer/Screen1Welcome';
 import { Screen2Menu } from '../components/customer/Screen2Menu';
 import { Screen3ItemDetail } from '../components/customer/Screen3ItemDetail';
@@ -15,40 +15,221 @@ import { Screen6PaymentBreakdown } from '../components/customer/Screen6PaymentBr
 import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGateway';
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
-import {
-  Smartphone,
-  LayoutGrid,
-  UtensilsCrossed,
-  Sparkles,
-  Crown,
-  Bell,
-  ShoppingCart,
-  Clock,
-  CreditCard,
-  CheckCircle2,
-  Flame,
-  Utensils,
-  Briefcase,
-  QrCode,
-  Tablet,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { getSyncBroadcastChannel } from '../lib/supabase';
+
+// Normalise a raw table param like "T-5", "T05", "5" → "T-05"
+function normTableId(raw: string): string {
+  const upper = raw.trim().toUpperCase();
+  const m = upper.match(/^T-?(\d+)$/);
+  if (m) return `T-${String(parseInt(m[1], 10)).padStart(2, '0')}`;
+  return upper;
+}
+
+// Compact table number extractor: "T-05" → "5", "TABLE 5" → "5"
+function cleanTableNum(s: string): string {
+  return (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+}
 
 function CustomerJourneyContent() {
-  const { currentScreen, setCurrentScreen, viewMode, setViewMode } = useCustomer();
-  const { currentTheme } = useCustomerTheme();
+  const { currentScreen, setTableNumber, setSeatNumber } = useCustomer();
 
-  const screens = [
-    { id: 1 as ScreenId, name: '1. Welcome & Wi-Fi', icon: <Crown className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen1Welcome /> },
-    { id: 2 as ScreenId, name: '2. Menu (2-Col Grid)', icon: <UtensilsCrossed className="h-3.5 w-3.5 text-orange-500" />, comp: <Screen2Menu /> },
-    { id: 3 as ScreenId, name: '3. Item Details', icon: <Sparkles className="h-3.5 w-3.5 text-amber-500" />, comp: <Screen3ItemDetail /> },
-    { id: 4 as ScreenId, name: '4. Cart & Stepper', icon: <ShoppingCart className="h-3.5 w-3.5 text-blue-500" />, comp: <Screen4Cart /> },
-    { id: 5 as ScreenId, name: '5. Live Tracking', icon: <Clock className="h-3.5 w-3.5 text-indigo-500" />, comp: <Screen5LiveTracking /> },
-    { id: 6 as ScreenId, name: '6. Payment Breakdown', icon: <CreditCard className="h-3.5 w-3.5 text-purple-500" />, comp: <Screen6PaymentBreakdown /> },
-    { id: 7 as ScreenId, name: '7. Payment Gateway (QR)', icon: <CreditCard className="h-3.5 w-3.5 text-emerald-500" />, comp: <Screen7PaymentGateway /> },
-    { id: 8 as ScreenId, name: '8. Confirmation', icon: <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />, comp: <Screen8Confirmation /> },
-    { id: 10 as ScreenId, name: '9. Call Waiter', icon: <Bell className="h-3.5 w-3.5 text-rose-500" />, comp: <Screen10WaiterCall /> },
-  ];
+  // Parsed once from URL; stable for the lifetime of this page load
+  const tableRef = React.useRef('T-01');
+  const seatRef = React.useRef(1);
+
+  // Track whether the customer has placed at least one order (sent to kitchen).
+  // Only after this point should a table VACANT status trigger a session reset.
+  const hasPlacedOrderRef = React.useRef(false);
+
+  // ─── One-time QR init ───────────────────────────────────────────────────────
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const params = new URLSearchParams(window.location.search);
+    const tblParam = params.get('table') || params.get('t');
+    const seatParam = params.get('seat') || params.get('chair') || params.get('s');
+
+    let cleanTable = 'T-01';
+    let parsedSeat = 1;
+
+    if (tblParam) {
+      cleanTable = normTableId(tblParam);
+      setTableNumber(cleanTable);
+    }
+    if (seatParam) {
+      const s = parseInt(seatParam, 10);
+      if (!isNaN(s) && s > 0) {
+        parsedSeat = s;
+        setSeatNumber(s);
+      }
+    }
+
+    tableRef.current = cleanTable;
+    seatRef.current = parsedSeat;
+
+    // Always wipe the OLD global (unscoped) key — it causes cross-seat contamination
+    try {
+      localStorage.removeItem('thoogudeepa_customer_session_v1');
+    } catch {}
+
+    // Step 1: Sync with the live bridge state for this specific table+seat
+    useCustomerStore.getState().syncWithActiveSession(cleanTable, parsedSeat);
+
+    // Step 2: Restore a table+seat specific saved session only if:
+    //   a) The bridge sync left the cart empty
+    //   b) The saved payload belongs to THIS exact table AND seat
+    //   c) The saved session actually has placed orders (isOrdered items) —
+    //      meaning it's a mid-session restore, not a stale pre-order browsing state.
+    //      If no placed orders exist, the customer should just start fresh on Screen 1.
+    try {
+      const scopedKey = `thoogudeepa_customer_session_${cleanTable}_s${parsedSeat}`;
+      const saved = localStorage.getItem(scopedKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        const curStore = useCustomerStore.getState();
+
+        const savedTable = parsed.tableNumber ? normTableId(parsed.tableNumber) : '';
+        const savedSeat = parsed.seatNumber ?? 0;
+        const hasSavedCart = Array.isArray(parsed.cart) && parsed.cart.length > 0;
+        const tableMatches = savedTable === cleanTable && savedSeat === parsedSeat;
+
+        if (!tableMatches) {
+          // Stale entry for a different table/seat — discard silently
+          try { localStorage.removeItem(scopedKey); } catch {}
+        } else if (tableMatches && curStore.cart.length === 0 && hasSavedCart) {
+          // Check if there are any placed orders in the saved cart
+          const hasPlacedOrders = parsed.cart.some((ci: { isOrdered?: boolean }) => ci.isOrdered === true);
+
+          if (hasPlacedOrders) {
+            // Check bridge — if table is explicitly VACANT (not just absent), discard stale session
+            const bridgeTables = useSharedBridge.getState().tables;
+            const bridgeTbl = bridgeTables.find(
+              (t) => cleanTableNum(t.number) === cleanTableNum(cleanTable)
+            );
+            const tableExplicitlyVacant = bridgeTbl && bridgeTbl.status === 'VACANT';
+
+            if (!tableExplicitlyVacant) {
+              // Restore the active mid-session
+              useCustomerStore.setState({
+                cart: parsed.cart,
+                currentScreen: parsed.currentScreen || 1,
+                orderStage: parsed.orderStage || 'PLACED',
+                itemTracking: parsed.itemTracking || [],
+                payment: parsed.payment || curStore.payment,
+              });
+              hasPlacedOrderRef.current = true;
+            } else {
+              // Table got vacated while they were away — wipe stale session
+              try { localStorage.removeItem(scopedKey); } catch {}
+            }
+          } else {
+            // Only unplaced browsing state — don't restore; let them start fresh
+            try { localStorage.removeItem(scopedKey); } catch {}
+          }
+        }
+      }
+    } catch {}
+
+    // Also track if there are already placed orders in the current store (restored from syncWithActiveSession)
+    const storeAfterSync = useCustomerStore.getState();
+    if (storeAfterSync.cart.some((ci) => ci.isOrdered)) {
+      hasPlacedOrderRef.current = true;
+    }
+  }, [setTableNumber, setSeatNumber]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Keep hasPlacedOrderRef in sync with cart state ────────────────────────
+  // When the customer places their first order, mark the ref so the vacate
+  // check knows it's now safe to act on a VACANT table status.
+  React.useEffect(() => {
+    const unsubscribe = useCustomerStore.subscribe((state) => {
+      if (!hasPlacedOrderRef.current && state.cart.some((ci) => ci.isOrdered)) {
+        hasPlacedOrderRef.current = true;
+      }
+      // If session was fully reset (screen 1, empty cart), clear the flag
+      if (state.currentScreen === 1 && state.cart.length === 0) {
+        hasPlacedOrderRef.current = false;
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // ─── Real-time vacate listener ──────────────────────────────────────────────
+  // Listens for the waiter's "tableVacated" broadcast on the Supabase channel.
+  // Only resets the customer session if they had already placed an order —
+  // browsing customers (screen 2/3/4 with no placed order) are never interrupted.
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const channel = getSyncBroadcastChannel();
+
+    const handleBroadcast = (event: { payload: { reason?: string } }) => {
+      const reason = event?.payload?.reason;
+      if (reason !== 'tableVacated' && reason !== 'chairCleared') return;
+
+      // Only act if the customer has already placed an order
+      // (pre-order browsing must never be disrupted by unrelated vacate events)
+      if (!hasPlacedOrderRef.current) return;
+
+      const tableId = tableRef.current;
+      const seatId = seatRef.current;
+      const curStore = useCustomerStore.getState();
+
+      // Don't interrupt Screen 8 (confirmation) — payment already shown
+      if (curStore.currentScreen === 8) return;
+
+      // Check bridge — only reset if our specific table is now VACANT
+      const bridgeState = useSharedBridge.getState();
+      const bridgeTbl = bridgeState.tables.find(
+        (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
+      );
+
+      if (bridgeTbl && bridgeTbl.status === 'VACANT') {
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+        } catch {}
+        curStore.resetSession();
+        hasPlacedOrderRef.current = false;
+      }
+    };
+
+    channel.on('broadcast', { event: 'STATE_CHANGED' }, handleBroadcast);
+
+    // Safety-net poll every 8 seconds — only acts if:
+    //   1. Customer has placed an order (not pre-order browsing)
+    //   2. Table is confirmed VACANT in bridge (not just absent)
+    //   3. Customer is on an active post-order screen (5, 6, 7, 9, 10)
+    const vacateCheckInterval = setInterval(() => {
+      if (!hasPlacedOrderRef.current) return;
+
+      const tableId = tableRef.current;
+      const seatId = seatRef.current;
+      const curStore = useCustomerStore.getState();
+
+      // Only relevant for post-order screens; never interrupt browsing or confirmation
+      const postOrderScreens = [5, 6, 7, 9, 10];
+      if (!postOrderScreens.includes(curStore.currentScreen)) return;
+
+      const bridgeState = useSharedBridge.getState();
+      const bridgeTbl = bridgeState.tables.find(
+        (t) => cleanTableNum(t.number) === cleanTableNum(tableId)
+      );
+
+      // Table must exist AND be explicitly VACANT (not just absent from bridge)
+      if (bridgeTbl && bridgeTbl.status === 'VACANT') {
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+        } catch {}
+        curStore.resetSession();
+        hasPlacedOrderRef.current = false;
+      }
+    }, 8000);
+
+    return () => {
+      clearInterval(vacateCheckInterval);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const renderActiveScreen = () => {
     switch (currentScreen) {
@@ -67,181 +248,22 @@ function CustomerJourneyContent() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FAF8F5] flex flex-col">
-      {/* Top Console Header */}
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div
-            className="flex h-9 w-9 items-center justify-center rounded-2xl text-white shadow-sm transition-colors duration-200"
-            style={{ backgroundColor: currentTheme.colors.primary }}
-          >
-            <UtensilsCrossed className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span
-                className="font-mono text-[10px] font-bold uppercase tracking-wider rounded px-1.5 py-0.5 border"
-                style={{
-                  backgroundColor: currentTheme.colors.secondaryBg,
-                  color: currentTheme.colors.secondaryFg,
-                  borderColor: currentTheme.colors.border,
-                }}
-              >
-                Table Ordering
-              </span>
-              <span className="font-mono text-[10px] text-stone-500 font-semibold">
-                Thoogudeepa Donne Biryani Mane
-              </span>
-            </div>
-            <h1 className="text-sm font-bold tracking-tight text-stone-900 mt-0.5">
-              Customer Ordering Portal • <span className="font-extrabold" style={{ color: currentTheme.colors.primary }}>{currentTheme.name}</span>
-            </h1>
-          </div>
-        </div>
-
-        {/* Multi-Portal Switcher */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-[#EAE5DF] bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
-            <span
-              className="rounded-xl text-white px-3 py-1.5 shadow-xs flex items-center gap-1 transition-colors duration-200"
-              style={{ backgroundColor: currentTheme.colors.primary }}
-            >
-              <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (9)</span>
-            </span>
-            <Link
-              href="/kitchen"
-              className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-slate-600 hover:text-slate-900 transition"
-            >
-              <Flame className="h-3.5 w-3.5" />
-              <span>KITCHEN (3)</span>
-            </Link>
-            <Link
-              href="/waiter/mobile"
-              className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-slate-600 hover:text-slate-900 transition"
-            >
-              <Smartphone className="h-3.5 w-3.5" />
-              <span>WAITER MOBILE</span>
-            </Link>
-            <Link
-              href="/waiter/tablet"
-              className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-slate-600 hover:text-slate-900 transition"
-            >
-              <Tablet className="h-3.5 w-3.5" />
-              <span>CAPTAIN TABLET</span>
-            </Link>
-            <Link
-              href="/manager"
-              className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-slate-600 hover:text-slate-900 transition"
-            >
-              <Briefcase className="h-3.5 w-3.5" />
-              <span>MANAGER (16)</span>
-            </Link>
-            <Link
-              href="/qr-deck"
-              className="flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-amber-700 bg-amber-50 hover:bg-amber-100 transition border border-amber-200"
-            >
-              <QrCode className="h-3.5 w-3.5 text-amber-600" />
-              <span>QR DECK (34)</span>
-            </Link>
-          </div>
-
-          {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
-            <button
-              onClick={() => setViewMode('single')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                viewMode === 'single'
-                  ? 'text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              style={{
-                backgroundColor: viewMode === 'single' ? currentTheme.colors.primary : 'transparent',
-              }}
-            >
-              <Smartphone className="h-3.5 w-3.5" />
-              <span>SINGLE SCREEN FLOW</span>
-            </button>
-            <button
-              onClick={() => setViewMode('all')}
-              className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
-                viewMode === 'all'
-                  ? 'text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-              style={{
-                backgroundColor: viewMode === 'all' ? currentTheme.colors.primary : 'transparent',
-              }}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 9 SCREENS</span>
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {/* Screen Navigation Tabs */}
-      <nav className="w-full max-w-7xl mx-auto flex gap-2 overflow-x-auto px-6 py-3 scrollbar-none">
-        {screens.map((sc) => {
-          const isActive = viewMode === 'single' && currentScreen === sc.id;
-          return (
-            <motion.button
-              key={sc.id}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => {
-                setCurrentScreen(sc.id);
-                if (viewMode !== 'single') setViewMode('single');
-              }}
-              className={`flex items-center gap-2 whitespace-nowrap rounded-xl border px-3 py-1.5 text-xs font-bold transition shadow-2xs ${
-                isActive
-                  ? 'bg-white text-slate-950 shadow-xs'
-                  : 'border-slate-200/80 bg-white/70 text-slate-600 hover:border-slate-300 hover:bg-white'
-              }`}
-              style={
-                isActive
-                  ? {
-                      borderColor: currentTheme.colors.primary,
-                      boxShadow: `0 0 0 2px ${currentTheme.colors.secondaryBg}`,
-                    }
-                  : {}
-              }
-            >
-              <span>{sc.icon}</span>
-              <span>{sc.name}</span>
-            </motion.button>
-          );
-        })}
-      </nav>
-
-      {/* UI Design Switcher Bar (Placed right below Screen tabs) */}
-      <ThemeSwitcherBar />
-
-      {/* Main Container */}
-      <div className="flex-1 py-4 px-4">
-        {viewMode === 'single' ? (
-          <div className="flex justify-center pb-12">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentScreen}
-                initial={{ opacity: 0, scale: 0.98, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.98, y: -8 }}
-                transition={{ duration: 0.2 }}
-              >
-                {renderActiveScreen()}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        ) : (
-          <div className="mx-auto w-full max-w-[1680px] px-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8 justify-items-center pb-20">
-            {screens.map((sc) => (
-              <div key={sc.id} className="flex flex-col items-center w-[380px] shrink-0">
-                {sc.comp}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+    <main
+      className="w-full select-none"
+      style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
+    >
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={currentScreen}
+          initial={{ opacity: 0, x: 12 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -12 }}
+          transition={{ duration: 0.18, ease: 'easeOut' }}
+          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+        >
+          {renderActiveScreen()}
+        </motion.div>
+      </AnimatePresence>
     </main>
   );
 }

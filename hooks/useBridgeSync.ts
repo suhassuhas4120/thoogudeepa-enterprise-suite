@@ -107,7 +107,7 @@ function computeStateFingerprint(
     .map((m) => `${m.id}:${m.is_86}:${m.prep_delay_minutes}`)
     .join('|');
   const pingSig = (pings || [])
-    .map((p) => `${p.id}:${p.status}`)
+    .map((p) => `${p.id}:${p.status}:${p.type}:${p.message || ''}`)
     .join('|');
   return `${tkPart}#${tblPart}#${m86Part}#${pingSig}`;
 }
@@ -122,6 +122,25 @@ async function reconcileAllState(): Promise<void> {
   try {
     const bridge = useSharedBridge.getState();
 
+    // Fetch active settlement sessions and settled bills from server API
+    if (typeof window !== 'undefined') {
+      try {
+        const res = await fetch('/api/settlement/session', { cache: 'no-store' });
+        if (res.ok) {
+          const sessionData = await res.json();
+          if (sessionData) {
+            useSharedBridge.setState((prev) => ({
+              activeSettlementSessions: sessionData.sessions || {},
+              settledBills: {
+                ...(prev.settledBills || {}),
+                ...(sessionData.settledBills || {}),
+              },
+            }));
+          }
+        }
+      } catch {}
+    }
+
     // Fetch all tables in parallel (single network roundtrip)
     const [
       { data: tickets },
@@ -132,7 +151,7 @@ async function reconcileAllState(): Promise<void> {
       supabase.from('kds_tickets').select('*').neq('status', 'COMPLETED').order('created_at', { ascending: true }),
       supabase.from('tables').select('*').order('number', { ascending: true }),
       supabase.from('menu_86').select('*').order('name', { ascending: true }),
-      supabase.from('pings').select('*').eq('status', 'PENDING').order('created_at', { ascending: true }),
+      supabase.from('pings').select('*').order('created_at', { ascending: true }),
     ]);
 
     // Skip setState if database data is completely identical
@@ -259,27 +278,71 @@ async function reconcileAllState(): Promise<void> {
         })()
       : bridge.inventory86;
 
-    const nextPings = (pings || []).map((row: DbPingRow) => ({
-      id: row.id,
-      tableNumber: row.table_number,
-      type: row.type,
-      message: row.message ?? undefined,
-      timestamp: row.created_at
-        ? new Date(row.created_at).toLocaleTimeString('en-IN', {
-            hour: '2-digit',
-            minute: '2-digit',
-          })
-        : '--',
-      status: 'PENDING' as const,
-      guestName: row.guest_name || 'Guest',
-    }));
+    const nextPings: any[] = [];
+    const activeSessionsFromDb: Record<string, any> = {};
+    const settledBillsFromDb: Record<string, any> = {};
+    const now = Date.now();
 
-    useSharedBridge.setState({
+    (pings || []).forEach((row: DbPingRow) => {
+      if (row.type === 'SETTLEMENT_SESSION' && row.message) {
+        try {
+          const sess = JSON.parse(row.message);
+          const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const tNum = clean(row.table_number);
+          const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+          if (sess.initiatedAt && Math.abs(now - sess.initiatedAt) < 1800000) {
+            activeSessionsFromDb[normTable] = sess;
+            if (typeof sess.seatNumber === 'number') {
+              activeSessionsFromDb[`${normTable}-CHAIR-${sess.seatNumber}`] = sess;
+            }
+          }
+        } catch {}
+      } else if (row.type === 'SETTLED_BILL' && row.message) {
+        try {
+          const bill = JSON.parse(row.message);
+          const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const tNum = clean(row.table_number);
+          const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+          if (bill.timestamp && Math.abs(now - bill.timestamp) < 1800000) {
+            settledBillsFromDb[normTable] = bill;
+            const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
+            if (seatMatch) {
+              settledBillsFromDb[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
+            }
+          }
+        } catch {}
+      } else if (row.status === 'PENDING') {
+        nextPings.push({
+          id: row.id,
+          tableNumber: row.table_number,
+          type: row.type,
+          message: row.message ?? undefined,
+          timestamp: row.created_at
+            ? new Date(row.created_at).toLocaleTimeString('en-IN', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            : '--',
+          status: 'PENDING' as const,
+          guestName: row.guest_name || 'Guest',
+        });
+      }
+    });
+
+    useSharedBridge.setState((prev) => ({
       tables: mappedTables,
       kdsTickets: mappedTickets,
       inventory86: nextInventory,
       pings: nextPings,
-    });
+      activeSettlementSessions: {
+        ...(prev.activeSettlementSessions || {}),
+        ...activeSessionsFromDb,
+      },
+      settledBills: {
+        ...(prev.settledBills || {}),
+        ...settledBillsFromDb,
+      },
+    }));
   } catch (err) {
     console.error('[BridgeSync] Reconciliation error:', err);
   } finally {
@@ -526,7 +589,52 @@ export function useBridgeSync() {
         (payload) => {
           const row = payload.new as DbPingRow;
           if (!row?.id) return;
-          // Dedup: don't add if already in memory (optimistic)
+
+          // 1. Settlement session initiated/updated by captain
+          if (row.type === 'SETTLEMENT_SESSION' && row.message) {
+            try {
+              const sess = JSON.parse(row.message);
+              const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+              const tNum = clean(row.table_number);
+              const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+              useSharedBridge.setState((prev) => {
+                const next = { ...(prev.activeSettlementSessions || {}) };
+                next[normTable] = sess;
+                if (typeof sess.seatNumber === 'number') {
+                  next[`${normTable}-CHAIR-${sess.seatNumber}`] = sess;
+                }
+                return { activeSettlementSessions: next };
+              });
+            } catch {}
+            return;
+          }
+
+          // 2. Settled bill recorded by captain
+          if (row.type === 'SETTLED_BILL' && row.message) {
+            try {
+              const bill = JSON.parse(row.message);
+              const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+              const tNum = clean(row.table_number);
+              const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+              useSharedBridge.setState((prev) => {
+                const nextBills = { ...(prev.settledBills || {}) };
+                nextBills[normTable] = bill;
+                const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
+                if (seatMatch) {
+                  nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
+                }
+                const nextSessions = { ...(prev.activeSettlementSessions || {}) };
+                delete nextSessions[normTable];
+                if (seatMatch) {
+                  delete nextSessions[`${normTable}-CHAIR-${seatMatch[1]}`];
+                }
+                return { settledBills: nextBills, activeSettlementSessions: nextSessions };
+              });
+            } catch {}
+            return;
+          }
+
+          // 3. Operational waiter ping
           const existing = useSharedBridge.getState().pings;
           if (existing.some((p) => p.id === row.id)) return;
 
@@ -557,12 +665,91 @@ export function useBridgeSync() {
         (payload) => {
           const row = payload.new as DbPingRow;
           if (!row?.id) return;
+
+          if (row.type === 'SETTLEMENT_SESSION' && row.message) {
+            try {
+              const sess = JSON.parse(row.message);
+              const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+              const tNum = clean(row.table_number);
+              const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+              useSharedBridge.setState((prev) => {
+                const next = { ...(prev.activeSettlementSessions || {}) };
+                next[normTable] = sess;
+                if (typeof sess.seatNumber === 'number') {
+                  next[`${normTable}-CHAIR-${sess.seatNumber}`] = sess;
+                }
+                return { activeSettlementSessions: next };
+              });
+            } catch {}
+            return;
+          }
+
+          if (row.type === 'SETTLED_BILL' && row.message) {
+            try {
+              const bill = JSON.parse(row.message);
+              const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+              const tNum = clean(row.table_number);
+              const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+              useSharedBridge.setState((prev) => {
+                const nextBills = { ...(prev.settledBills || {}) };
+                nextBills[normTable] = bill;
+                const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
+                if (seatMatch) {
+                  nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
+                }
+                return { settledBills: nextBills };
+              });
+            } catch {}
+            return;
+          }
+
           if (row.status === 'RESOLVED') {
-            // Remove resolved pings from local state
             useSharedBridge.setState((state) => ({
               pings: state.pings.filter((p) => p.id !== row.id),
             }));
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'pings' },
+        (payload) => {
+          const oldRow = payload.old as { id?: string; table_number?: string };
+          if (!oldRow?.id) return;
+
+          if (oldRow.id.startsWith('SETTLE-SESSION-')) {
+            const raw = oldRow.id.replace('SETTLE-SESSION-', '');
+            useSharedBridge.setState((prev) => {
+              const next = { ...(prev.activeSettlementSessions || {}) };
+              delete next[raw];
+              const parts = raw.split('-S');
+              if (parts[0]) {
+                delete next[parts[0]];
+                if (parts[1]) delete next[`${parts[0]}-CHAIR-${parts[1]}`];
+              }
+              return { activeSettlementSessions: next };
+            });
+            return;
+          }
+
+          if (oldRow.id.startsWith('SETTLED-BILL-')) {
+            const raw = oldRow.id.replace('SETTLED-BILL-', '');
+            useSharedBridge.setState((prev) => {
+              const next = { ...(prev.settledBills || {}) };
+              delete next[raw];
+              const parts = raw.split('-S');
+              if (parts[0]) {
+                delete next[parts[0]];
+                if (parts[1]) delete next[`${parts[0]}-CHAIR-${parts[1]}`];
+              }
+              return { settledBills: next };
+            });
+            return;
+          }
+
+          useSharedBridge.setState((state) => ({
+            pings: state.pings.filter((p) => p.id !== oldRow.id),
+          }));
         }
       )
 
@@ -675,7 +862,54 @@ export function useBridgeSync() {
     // 3. Instantaneous peer-to-peer broadcast listener (<50ms response across devices)
     const broadcastCh = getSyncBroadcastChannel();
     if (broadcastCh) {
-      broadcastCh.on('broadcast', { event: 'STATE_CHANGED' }, () => {
+      broadcastCh.on('broadcast', { event: 'STATE_CHANGED' }, (msg: any) => {
+        const payload = msg?.payload;
+        if (payload?.reason === 'settlementSessionStarted' && payload?.payload) {
+          const s = payload.payload;
+          const cleanNum = (str: string) => (str || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const tNum = cleanNum(s.tableNumber);
+          const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+          useSharedBridge.setState((prev) => {
+            const next = { ...(prev.activeSettlementSessions || {}) };
+            next[normTable] = s;
+            if (typeof s.seatNumber === 'number') {
+              next[`${normTable}-CHAIR-${s.seatNumber}`] = s;
+            }
+            return { activeSettlementSessions: next };
+          });
+        } else if (payload?.reason === 'settlementSessionCleared' && payload?.payload) {
+          const p = payload.payload;
+          useSharedBridge.setState((prev) => {
+            const next = { ...(prev.activeSettlementSessions || {}) };
+            delete next[p.normTable];
+            if (typeof p.seatNumber === 'number') {
+              delete next[`${p.normTable}-CHAIR-${p.seatNumber}`];
+            }
+            return { activeSettlementSessions: next };
+          });
+        } else if (
+          (payload?.reason === 'settledBillRecorded' || payload?.reason === 'billSettled') &&
+          payload?.payload
+        ) {
+          const snap = payload.payload;
+          const cleanNum = (str: string) => (str || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const tNum = cleanNum(snap.tableName);
+          const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+          useSharedBridge.setState((prev) => {
+            const nextBills = { ...(prev.settledBills || {}) };
+            nextBills[normTable] = snap;
+            const seatMatch = snap.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
+            if (seatMatch) {
+              nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = snap;
+            }
+            const nextSessions = { ...(prev.activeSettlementSessions || {}) };
+            delete nextSessions[normTable];
+            if (seatMatch) {
+              delete nextSessions[`${normTable}-CHAIR-${seatMatch[1]}`];
+            }
+            return { settledBills: nextBills, activeSettlementSessions: nextSessions };
+          });
+        }
         reconcileAllState();
       });
     }

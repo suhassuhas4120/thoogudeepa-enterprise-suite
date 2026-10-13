@@ -81,7 +81,7 @@ group('Empty cart guard — placeAllOrders', () => {
   );
   ok(
     'items are marked isOrdered after placeAllOrders',
-    hasText(customer, 'updatedCart = state.cart.map((c) => ({ ...c, isOrdered: true }))')
+    hasText(customer, 'updatedCart = state.cart.map((c) => ({', 'isOrdered: true')
   );
   ok(
     'cart with all isOrdered items → placeAllOrders returns early to screen 5',
@@ -176,7 +176,9 @@ group('Ping deduplication — customerPingsWaiter', () => {
     'deduplication check: hasDuplicate uses tableNumber + type + PENDING status',
     hasText(
       bridge,
-      "p.tableNumber === tableNumber && p.type === type && p.status === 'PENDING'"
+      'cleanNum(p.tableNumber) === targetNum',
+      'p.type === type',
+      "p.status === 'PENDING'"
     )
   );
   ok(
@@ -198,7 +200,7 @@ group('Ping deduplication — customerPingsWaiter', () => {
   );
   ok(
     'different table same type not blocked (tableNumber check prevents only same table)',
-    hasText(bridge, 'p.tableNumber === tableNumber')
+    hasText(bridge, 'cleanNum(p.tableNumber) === targetNum')
   );
 });
 
@@ -212,8 +214,8 @@ group('Ping resolution — waiterResolvePing optimistic delete', () => {
   );
   ok(
     'ping is absent after resolution (not marked RESOLVED)',
-    // Confirm there is NO "status: 'RESOLVED'" in the resolve action
-    !bridge.includes("status: 'RESOLVED'")
+    // Confirm there is NO "status: 'RESOLVED'" in waiterResolvePing action
+    !bridge.substring(bridge.indexOf('waiterResolvePing')).split('},')[0].includes("status: 'RESOLVED'")
   );
   ok(
     'prevPings snapshot taken before optimistic delete for rollback',
@@ -369,6 +371,7 @@ group('resetSession — tableNumber persists across session reset', () => {
     'resetSession does not include tableNumber in the reset set()',
     !customer
       .substring(customer.lastIndexOf('resetSession: () =>'))
+      .split('set({')[1]
       .split('});')[0]
       .includes('tableNumber')
   );

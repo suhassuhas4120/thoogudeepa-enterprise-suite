@@ -37,10 +37,13 @@ export async function POST(req: NextRequest) {
     // Fallback: look up recent ticket items for this table if items are empty
     if ((!items.length || total === 0) && tableNumber) {
       const cleanNum = tableNumber.replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const numInt = parseInt(cleanNum, 10);
+      const padNum = !isNaN(numInt) ? String(numInt).padStart(2, '0') : cleanNum;
+      const rawNum = !isNaN(numInt) ? String(numInt) : cleanNum;
       const { data: ticketData } = await supabase
         .from('kds_tickets')
         .select('*')
-        .or(`table_number.eq.${tableNumber},table_number.eq.T-${cleanNum},table_number.eq.TABLE ${cleanNum}`)
+        .or(`table_number.eq.${tableNumber},table_number.eq.T-${padNum},table_number.eq.T-${rawNum},table_number.eq.TABLE ${rawNum},table_number.eq.TABLE ${padNum}`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();

@@ -19,7 +19,7 @@ import {
   Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 import { useWaiterStore } from '../../store/useWaiterStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 import QRCode from 'qrcode';
@@ -80,9 +80,33 @@ export function ScreenM6Settlement({
     waiterRecordsPayment,
     waiterVacatesTable,
     waiterClearsChairAfterPayment,
+    recordSettledBill,
+    waiterInitiatesSettlement,
+    waiterClearsSettlementSession,
   } = useSharedBridge();
   const { activeCaptain } = useWaiterStore();
-  const table = tables.find((t) => t.number === tableNum);
+  // Robust table number matching (handles T-05, T-5, TABLE 5, 5, etc.)
+  const cleanTableNum = (s: string) => {
+    const raw = (s || '').toUpperCase().replace(/\s+/g, '').replace(/^TABLE/, '').replace(/^T-?/, '').trim();
+    const parsed = parseInt(raw, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : raw;
+  };
+
+  const fallbackTable: SharedTable = {
+    id: tableNum,
+    number: tableNum.startsWith('T-') ? tableNum : `T-${tableNum}`,
+    section: 'Main Dining Hall',
+    capacity: 4,
+    status: 'OCCUPIED',
+    guestCount: 1,
+    seatedTime: '--',
+    currentBill: 0,
+    serverName: 'Floor Captain',
+    kotCount: 1,
+    mergeGroupPeers: [tableNum],
+    activeItems: [],
+  };
+  const table: SharedTable = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(tableNum)) || tables.find((t) => t.number === tableNum) || fallbackTable;
 
   const [method, setMethod] = useState<PayMethod>('UPI');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -96,8 +120,6 @@ export function ScreenM6Settlement({
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showOrderSummary, setShowOrderSummary] = useState(true);
 
-  // Clean table number matching
-  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
   const groupPeers: string[] = table?.mergeGroupPeers ?? [tableNum];
   const tickets = useMemo(() => {
     return kdsTickets.filter(
@@ -306,6 +328,16 @@ export function ScreenM6Settlement({
     }
   }, [grandTotal, tableNum]);
 
+  // Real-time synchronization of floor captain settlement arrival to diner app
+  useEffect(() => {
+    waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, isUpiVerified);
+  }, [tableNum, splitSeatNumber, grandTotal, method, isUpiVerified, waiterInitiatesSettlement]);
+
+  const handleExplicitBack = () => {
+    waiterClearsSettlementSession(tableNum, splitSeatNumber ?? undefined);
+    onBack();
+  };
+
   // Modal scroll lock
   useEffect(() => {
     if (qrZoomed) {
@@ -369,6 +401,12 @@ export function ScreenM6Settlement({
 
     setSettledSnapshot(snapshot);
     setSettled(true);
+
+    // Record settled bill for real-time customer app synchronization
+    recordSettledBill({
+      ...snapshot,
+      seatNumber: splitSeatNumber ?? undefined,
+    });
 
     // Update store state
     waiterRecordsPayment(tableNum, method, finalGrandTotal, splitSeatNumber ?? undefined);
@@ -724,7 +762,7 @@ export function ScreenM6Settlement({
       <header className="sticky top-0 z-40 bg-white/95 border-b border-[#EAE5DF] px-4 py-3 flex items-center justify-between shadow-2xs backdrop-blur-md">
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleExplicitBack}
           className="flex items-center gap-1.5 font-mono text-xs font-bold text-stone-700 hover:text-[#9C3D1E] py-1 px-2.5 -ml-1 rounded-xl bg-stone-50 hover:bg-[#FFF8F5] border border-[#EAE5DF] transition cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -1027,7 +1065,12 @@ export function ScreenM6Settlement({
             {/* Confirm QR Pay Button */}
             <button
               type="button"
-              onClick={() => setIsUpiVerified(!isUpiVerified)}
+              onClick={() => {
+                const nextVerified = !isUpiVerified;
+                setIsUpiVerified(nextVerified);
+                waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, nextVerified);
+                showToast(nextVerified ? 'UPI QR Terminal Confirmed for Diner ✓' : 'UPI QR Terminal reset');
+              }}
               className={`w-full p-3.5 rounded-xl font-mono text-xs font-black flex items-center justify-center gap-2 border transition cursor-pointer active:scale-98 shadow-xs ${
                 isUpiVerified
                   ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300'

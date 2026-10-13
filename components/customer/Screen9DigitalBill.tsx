@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -22,16 +22,30 @@ export const Screen9DigitalBill: React.FC = () => {
   const [downloadMsg, setDownloadMsg] = useState(false);
   const [shareMsg, setShareMsg] = useState(false);
 
-  const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : payment.subtotal;
-  const cgst = Math.round(subtotal * 0.025);
-  const sgst = Math.round(subtotal * 0.025);
-  const totalTax = cgst + sgst;
-  const paidTotal = subtotal + totalTax + payment.tipAmount;
+  // Active items: prioritize settledItems from waiter or self payment, then cart
+  const activeItems = useMemo(() => {
+    if (payment.settledItems && payment.settledItems.length > 0) {
+      return payment.settledItems.map((si) => ({
+        cartItemId: si.id,
+        menuItem: { name: si.name },
+        quantity: si.quantity,
+        totalPrice: si.totalPrice || si.price * si.quantity,
+      }));
+    }
+    if (cart.length > 0) return cart;
+    return [];
+  }, [payment.settledItems, cart]);
+
+  const subtotal = payment.subtotal > 0 ? payment.subtotal : activeItems.reduce((s, i) => s + i.totalPrice, 0);
+  const totalTax = payment.tax > 0 ? payment.tax : Math.round(subtotal * 0.05);
+  const cgst = Math.round(totalTax / 2);
+  const sgst = totalTax - cgst;
+  const paidTotal = payment.totalAmount > 0 ? payment.totalAmount : subtotal + totalTax + payment.tipAmount;
 
   // Read seat from URL
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
   const seatNumber = parseInt(params.get('seat') || '1', 10);
-  const invoiceNumber = `INV-${tableNumber.replace('-', '')}-${Date.now().toString().slice(-6)}`;
+  const invoiceNumber = payment.invoiceNumber || `INV-${tableNumber.replace('-', '')}-${Date.now().toString().slice(-4)}`;
 
   const handleDownload = () => {
     setDownloadMsg(true);
@@ -39,6 +53,36 @@ export const Screen9DigitalBill: React.FC = () => {
   };
 
   const handleShareWhatsApp = () => {
+    const itemLines = activeItems.map((it: any) => {
+      const name = it.menuItem?.name || it.name || 'Dish';
+      const qty = it.quantity || 1;
+      const price = it.totalPrice || (it.price ? it.price * qty : 0);
+      return `${qty}x ${name} — ₹${price}`;
+    }).join('\n');
+
+    const receiptText = [
+      '🍗 THOOGUDEEPA DONNE BIRYANI MANE',
+      'Authentic Military Style Restaurant',
+      'Bengaluru, Karnataka',
+      '────────────────────────────',
+      `Invoice: ${invoiceNumber}`,
+      `Table: ${tableNumber} (Seat C-${String(seatNumber).padStart(2, '0')})`,
+      '────────────────────────────',
+      itemLines || 'Food & Beverage Service',
+      '────────────────────────────',
+      `Subtotal:    ₹${subtotal}`,
+      `GST (5%):    ₹${totalTax}`,
+      `Total Paid:  ₹${paidTotal}`,
+      `Payment Ref: ${payment.paymentMethod === 'CASH' ? 'CASH-SETTLED' : 'PAID-SETTLED'}`,
+      '────────────────────────────',
+      'Thank you! Visit again.',
+      typeof window !== 'undefined' ? window.location.origin : 'https://thoogudeepa-enterprise-suite.vercel.app',
+    ].join('\n');
+
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(receiptText)}`;
+    if (typeof window !== 'undefined') {
+      window.open(waUrl, '_blank');
+    }
     setShareMsg(true);
     setTimeout(() => setShareMsg(false), 2200);
   };
@@ -79,7 +123,7 @@ export const Screen9DigitalBill: React.FC = () => {
 
           {/* Itemized Table */}
           <div className="space-y-1.5 border-b border-dashed border-[#E8D5C3] pb-3 text-xs">
-            {cart.map((ci) => (
+            {activeItems.map((ci) => (
               <div key={ci.cartItemId} className="flex justify-between items-center text-[#5B5049]">
                 <span className="font-semibold">
                   {ci.menuItem.name} × {ci.quantity}

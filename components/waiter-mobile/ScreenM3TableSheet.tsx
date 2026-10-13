@@ -103,6 +103,7 @@ export function ScreenM3TableSheet({
     waiterMergeTables,
     waiterUnmergeTable,
     waiterMarkKitchenItemServed,
+    waiterClearsSettlementSession,
   } = useSharedBridge();
 
   const [confirmVacate, setConfirmVacate] = useState(false);
@@ -121,6 +122,7 @@ export function ScreenM3TableSheet({
   const [selectedChairsForMerge, setSelectedChairsForMerge] = useState<number[]>([]);
 
   const activePings = pings?.filter((p) => p.status === 'PENDING') || [];
+
 
   // Modal scroll lock: prevent background page scroll while modals are active
   useEffect(() => {

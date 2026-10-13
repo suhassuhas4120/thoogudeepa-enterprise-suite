@@ -27,6 +27,8 @@ import {
   Banknote,
   X,
   Scan,
+  Receipt,
+  Info,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../store/useCustomerStore';
@@ -78,6 +80,7 @@ const DISH_STAGES = [
   { key: 'RECEIVED', label: 'Received', icon: CheckCircle2 },
   { key: 'PREPARING', label: 'Preparing', icon: Flame },
   { key: 'READY', label: 'Ready', icon: UtensilsCrossed },
+  { key: 'SERVED', label: 'Served', icon: CheckCheck },
 ];
 
 export const Screen5LiveTracking: React.FC = () => {
@@ -504,6 +507,46 @@ export const Screen5LiveTracking: React.FC = () => {
     return 0;
   }, [activeSession, tables, effectiveTable, effectiveSeat, cart]);
 
+  // Detailed bill breakdown for placed orders with proper calculation
+  const ordersSummary = useMemo(() => {
+    const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
+    const tableChairItems = currentTableObj?.activeItems?.filter(
+      (ai) => ai.seatNumber === effectiveSeat
+    ) || [];
+
+    const chairOrderedCart = (cart || []).filter(
+      (ci) => ci.isOrdered && (!ci.seatNumber || ci.seatNumber === effectiveSeat)
+    );
+
+    let subtotal = 0;
+    let itemCount = 0;
+
+    if (chairOrderedCart.length > 0) {
+      subtotal = chairOrderedCart.reduce((sum, ci) => sum + (ci.totalPrice || 0), 0);
+      itemCount = chairOrderedCart.reduce((sum, ci) => sum + (ci.quantity || 1), 0);
+    } else if (tableChairItems.length > 0) {
+      subtotal = tableChairItems.reduce((sum, ai) => sum + ((ai.price || 220) * (ai.quantity || 1)), 0);
+      itemCount = tableChairItems.reduce((sum, ai) => sum + (ai.quantity || 1), 0);
+    } else if (cart && cart.length > 0) {
+      const myCart = cart.filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat);
+      subtotal = myCart.reduce((sum, ci) => sum + (ci.totalPrice || 0), 0);
+      itemCount = myCart.reduce((sum, ci) => sum + (ci.quantity || 1), 0);
+    } else if (currentBillAmount > 0) {
+      subtotal = Math.round(currentBillAmount / 1.05);
+      itemCount = trackedDishes.reduce((sum, d) => sum + (d.quantity || 1), 0);
+    }
+
+    const gst = Math.round(subtotal * 0.05);
+    const grandTotal = currentBillAmount > 0 ? currentBillAmount : subtotal + gst;
+
+    return {
+      subtotal,
+      gst,
+      grandTotal,
+      itemCount: itemCount || trackedDishes.length || 0,
+    };
+  }, [tables, effectiveTable, effectiveSeat, cart, currentBillAmount, trackedDishes]);
+
   // Setup camera stream when QR scanner opens
   useEffect(() => {
     if (!isScannerOpen) return;
@@ -670,22 +713,19 @@ export const Screen5LiveTracking: React.FC = () => {
           </span>
         </div>
 
-        {/* Particular Dish Status Section (Overall Kitchen Status Removed as Requested) */}
-        <div
-          className="rounded-3xl border p-4 shadow-xs space-y-3"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="flex items-center justify-between">
+        {/* Particular Dish Status Section (Unboxed matching dark theme with all 5 modes visible) */}
+        <div className="space-y-3 pt-1">
+          <div className="flex items-center justify-between px-1">
             <div
-              className="text-[9.5px] font-black uppercase tracking-[0.2em] font-mono"
-              style={{ color: currentTheme.colors.textMuted }}
+              className="text-xs font-black uppercase tracking-wider font-mono"
+              style={{ color: currentTheme.colors.textPrimary }}
             >
               Particular Dish Status
             </div>
-            <span className="text-[10px] font-bold font-mono" style={{ color: currentTheme.colors.buttonBg }}>
+            <span
+              className="text-[10px] font-bold font-mono"
+              style={{ color: currentTheme.colors.primary }}
+            >
               Live Dish Tracking
             </span>
           </div>
@@ -705,10 +745,10 @@ export const Screen5LiveTracking: React.FC = () => {
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0 }}
-                      className="rounded-2xl border p-3.5 shadow-2xs space-y-3"
+                      className="rounded-2xl border p-4 shadow-xs space-y-3 transition-colors duration-200"
                       style={{
                         backgroundColor: currentTheme.colors.bgSurface,
-                        borderColor: currentTheme.colors.borderLight,
+                        borderColor: currentTheme.colors.border,
                       }}
                     >
                       {/* Dish Header */}
@@ -772,8 +812,8 @@ export const Screen5LiveTracking: React.FC = () => {
                               <span>Placed</span>
                             </span>
                           ) : it.stage === 'RECEIVED' ? (
-                            <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-50 px-2 py-0.5 text-[9px] font-black text-emerald-800 font-mono animate-pulse">
-                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                            <span className="inline-flex items-center gap-1 rounded-full border border-teal-300 bg-teal-50 px-2 py-0.5 text-[9px] font-black text-teal-800 font-mono animate-pulse">
+                              <CheckCircle2 className="h-3 w-3 text-teal-600" />
                               <span>Received</span>
                             </span>
                           ) : it.stage === 'PREP' ? (
@@ -790,69 +830,65 @@ export const Screen5LiveTracking: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Matching 4-Stage Dish Live Progress Tracker: PLACED -> RECEIVED -> PREPARING -> READY */}
-                      <div className="pt-2 border-t border-slate-100">
-                        <div className="relative flex justify-between items-center px-1">
-                          {/* Background connecting line */}
-                          <div className="absolute top-3 left-4 right-4 h-0.5 bg-slate-100 -z-0" />
+                      {/* Complete 5-Stage Dish Dining Lifecycle Tracker: Placed -> Received -> Preparing -> Ready -> Served */}
+                      <div className="pt-3 border-t" style={{ borderColor: currentTheme.colors.borderLight }}>
+                        <div className="relative px-1">
+                          {/* Segmented Milestone Progress Line */}
+                          <div className="absolute top-3.5 left-4 right-4 h-0.5 bg-slate-200 z-0 overflow-hidden rounded-full">
+                            <div
+                              className="h-full bg-emerald-600 transition-all duration-500"
+                              style={{
+                                width: `${(dishCurrentIdx / 4) * 100}%`,
+                              }}
+                            />
+                          </div>
 
-                          {/* Active fill line */}
-                          <div
-                            className="absolute top-3 left-4 h-0.5 bg-emerald-600 -z-0 transition-all duration-500"
-                            style={{
-                              width: `${Math.min(100, Math.max(0, (dishCurrentIdx / 3) * 88))}%`,
-                            }}
-                          />
+                          <div className="relative z-10 flex justify-between items-center">
+                            {DISH_STAGES.map((stg, stgIdx) => {
+                              const isPast = stgIdx < dishCurrentIdx;
+                              const isCurrent = stgIdx === dishCurrentIdx;
+                              const Icon = stg.icon;
 
-                          {DISH_STAGES.map((stg, stgIdx) => {
-                            const isPast = stgIdx < dishCurrentIdx;
-                            const isCurrent = stgIdx === dishCurrentIdx;
-                            const isReceivedActive = isCurrent && stg.key === 'RECEIVED';
-                            const Icon = stg.icon;
-
-                            return (
-                              <div key={stg.key} className="relative z-10 flex flex-col items-center gap-1">
-                                <div
-                                  className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-black transition-all shadow-2xs ${
-                                    isPast
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-100'
-                                      : isReceivedActive
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-200 shadow-xs animate-pulse'
-                                      : isCurrent && stg.key === 'PREPARING'
-                                      ? 'bg-amber-600 text-white ring-2 ring-amber-200 animate-pulse'
-                                      : isCurrent && stg.key === 'READY'
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-200 animate-pulse'
-                                      : isCurrent
-                                      ? 'bg-[#9C3D1E] text-white ring-2 ring-orange-200'
-                                      : 'border border-slate-200 bg-white text-slate-400'
-                                  }`}
-                                >
-                                  {isPast ? (
-                                    <Check className="h-3 w-3 stroke-[3]" />
-                                  ) : (
-                                    <Icon className="h-3 w-3" />
-                                  )}
+                              return (
+                                <div key={stg.key} className="flex flex-col items-center gap-1.5">
+                                  <div
+                                    className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-black transition-all shadow-xs ${
+                                      isPast
+                                        ? 'bg-emerald-600 text-white ring-2 ring-emerald-200'
+                                        : isCurrent && stg.key === 'SERVED'
+                                        ? 'bg-emerald-600 text-white ring-2 ring-emerald-300 shadow-sm'
+                                        : isCurrent && stg.key === 'READY'
+                                        ? 'bg-emerald-600 text-white ring-2 ring-emerald-300 shadow-sm animate-pulse'
+                                        : isCurrent && stg.key === 'PREPARING'
+                                        ? 'bg-amber-600 text-white ring-2 ring-amber-200 shadow-xs animate-pulse'
+                                        : isCurrent && stg.key === 'RECEIVED'
+                                        ? 'bg-teal-600 text-white ring-2 ring-teal-200 shadow-xs animate-pulse'
+                                        : isCurrent
+                                        ? 'bg-slate-700 text-white ring-2 ring-slate-200'
+                                        : 'border border-slate-300 bg-white text-slate-400'
+                                    }`}
+                                  >
+                                    {isPast ? (
+                                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                    ) : (
+                                      <Icon className="h-3.5 w-3.5" />
+                                    )}
+                                  </div>
+                                  <span
+                                    className={`text-[9.5px] font-mono tracking-tight font-black leading-none ${
+                                      isPast || isCurrent
+                                        ? isCurrent && stg.key === 'PREPARING'
+                                          ? 'text-amber-700'
+                                          : 'text-emerald-700'
+                                        : 'text-slate-400'
+                                    }`}
+                                  >
+                                    {stg.label}
+                                  </span>
                                 </div>
-                                <span
-                                  className={`text-[9px] font-mono tracking-tight font-black leading-none ${
-                                    isPast
-                                      ? 'text-emerald-700'
-                                      : isReceivedActive
-                                      ? 'text-emerald-700'
-                                      : isCurrent && stg.key === 'PREPARING'
-                                      ? 'text-amber-700'
-                                      : isCurrent && stg.key === 'READY'
-                                      ? 'text-emerald-700'
-                                      : isCurrent
-                                      ? 'text-[#9C3D1E]'
-                                      : 'text-slate-400'
-                                  }`}
-                                >
-                                  {stg.label}
-                                </span>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     </motion.div>
@@ -876,6 +912,120 @@ export const Screen5LiveTracking: React.FC = () => {
             </AnimatePresence>
           </div>
         </div>
+
+        {/* Order Bill Summary Card (Matching Dark Theme Perfection) */}
+        {ordersSummary.grandTotal > 0 && (
+          <div
+            className="rounded-[28px] border p-5 shadow-sm space-y-3 transition-colors duration-200"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
+            <div className="flex items-center justify-between">
+              <div
+                className="text-[10px] font-black uppercase tracking-wider font-mono"
+                style={{ color: currentTheme.colors.textMuted }}
+              >
+                Order Bill Summary
+              </div>
+              <span
+                className="rounded-full px-2.5 py-0.5 text-[9.5px] font-bold font-mono border"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  color: currentTheme.colors.secondaryFg,
+                  borderColor: currentTheme.colors.border,
+                }}
+              >
+                Table {effectiveTable} • Chair {effectiveSeat}
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div
+                className="flex items-center justify-between"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
+                <span className="font-medium">
+                  Items Subtotal ({ordersSummary.itemCount} {ordersSummary.itemCount === 1 ? 'dish' : 'dishes'})
+                </span>
+                <span className="font-mono font-bold" style={{ color: currentTheme.colors.textPrimary }}>
+                  ₹{ordersSummary.subtotal}
+                </span>
+              </div>
+
+              <div
+                className="border-t"
+                style={{ borderColor: currentTheme.colors.borderLight }}
+              />
+
+              <div
+                className="flex items-center justify-between"
+                style={{ color: currentTheme.colors.textSecondary }}
+              >
+                <span className="font-medium">GST (5% Taxes)</span>
+                <span className="font-mono font-bold" style={{ color: currentTheme.colors.textPrimary }}>
+                  ₹{ordersSummary.gst}
+                </span>
+              </div>
+
+              {/* Highlighted Total Amount Callout */}
+              <div
+                className="mt-3 flex items-center justify-between gap-2.5 rounded-2xl p-3 border transition-all"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  borderColor: currentTheme.colors.borderLight,
+                  boxShadow: currentTheme.colors.primaryShadow,
+                }}
+              >
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-xs"
+                    style={{ backgroundColor: currentTheme.colors.primary }}
+                  >
+                    <Receipt className="h-4.5 w-4.5 stroke-[2.2]" />
+                  </div>
+                  <div className="min-w-0">
+                    <div
+                      className="text-xs font-black uppercase tracking-wider truncate"
+                      style={{ color: currentTheme.colors.textPrimary }}
+                    >
+                      Total Amount
+                    </div>
+                    <div
+                      className="text-[9.5px] font-semibold mt-0.5 truncate"
+                      style={{ color: currentTheme.colors.textMuted }}
+                    >
+                      All taxes & charges included
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  className="shrink-0 rounded-xl px-3 py-1.5 text-right border"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgSurface,
+                    borderColor: currentTheme.colors.primary,
+                    boxShadow: currentTheme.colors.primaryShadow,
+                  }}
+                >
+                  <div
+                    className="text-[9px] font-black uppercase tracking-wider font-mono"
+                    style={{ color: currentTheme.colors.textMuted }}
+                  >
+                    Grand Total
+                  </div>
+                  <div
+                    className="text-lg font-black font-mono tracking-tight leading-none mt-0.5"
+                    style={{ color: currentTheme.colors.primary }}
+                  >
+                    ₹{ordersSummary.grandTotal}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Unplaced Dishes Quick Send Banner */}
         {unplacedCount > 0 && (
@@ -1091,7 +1241,7 @@ export const Screen5LiveTracking: React.FC = () => {
         </div>
       </StickyBottomBar>
 
-      {/* Confirmation Modal: "Are you sure want to call waiter for payment?" */}
+      {/* Confirmation Modal: "Call Waiter for Payment" */}
       <AnimatePresence>
         {showPayViaWaiterModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
@@ -1099,33 +1249,94 @@ export const Screen5LiveTracking: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl border border-stone-200"
+              className="w-full max-w-sm rounded-[28px] p-5 shadow-2xl border transition-colors duration-200"
+              style={{
+                backgroundColor: currentTheme.colors.bgSurface,
+                borderColor: currentTheme.colors.border,
+              }}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 mb-3 mx-auto">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border mb-3 mx-auto shadow-xs"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.buttonBg,
+                }}
+              >
                 <CreditCard className="h-6 w-6 stroke-[2]" />
               </div>
-              <h3 className="text-base font-black text-stone-900 text-center">
-                Call Floor Captain for Payment?
-              </h3>
-              <p className="mt-1.5 text-xs text-stone-600 text-center leading-relaxed">
-                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-stone-900">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
-              </p>
-              <p className="mt-1 text-[11px] text-stone-500 text-center">
-                A captain will visit your seat with the payment terminal and QR scanner.
-              </p>
 
+              <h3
+                className="text-base font-extrabold text-center"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                Call Waiter for Payment
+              </h3>
+
+              {/* Table & Chair location chip */}
+              <div className="mt-2 flex items-center justify-center">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black font-mono border"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgElevated,
+                    color: currentTheme.colors.textPrimary,
+                    borderColor: currentTheme.colors.border,
+                  }}
+                >
+                  <span>{effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`}</span>
+                  <span>•</span>
+                  <span>Chair C-{String(effectiveSeat).padStart(2, '0')}</span>
+                </span>
+              </div>
+
+              {/* Simple Info Note */}
+              <div
+                className="mt-3.5 flex items-center gap-2.5 rounded-2xl p-3 text-left border"
+                style={{
+                  backgroundColor: currentTheme.colors.bgElevated,
+                  borderColor: currentTheme.colors.borderLight,
+                }}
+              >
+                <div
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl"
+                  style={{
+                    backgroundColor: currentTheme.colors.secondaryBg,
+                    color: currentTheme.colors.buttonBg,
+                  }}
+                >
+                  <Info className="h-4 w-4" />
+                </div>
+                <p
+                  className="text-xs leading-snug font-medium"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
+                  A waiter will bring the bill to your chair for payment settlement.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
               <div className="mt-5 grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setShowPayViaWaiterModal(false)}
-                  className="rounded-2xl border border-stone-200 bg-stone-100 py-3 text-xs font-bold text-stone-700 transition hover:bg-stone-200 active:scale-95 cursor-pointer"
+                  className="rounded-2xl border py-3 text-xs font-bold transition active:scale-95 cursor-pointer"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgElevated,
+                    borderColor: currentTheme.colors.border,
+                    color: currentTheme.colors.textSecondary,
+                  }}
                 >
-                  No, Go Back
+                  Cancel
                 </button>
                 <button
                   onClick={handleConfirmCallCaptain}
-                  className="rounded-2xl bg-[#9C3D1E] py-3 text-xs font-black text-white shadow-md transition hover:bg-[#853218] active:scale-95 cursor-pointer"
+                  className="rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-md"
+                  style={{
+                    backgroundColor: currentTheme.colors.buttonBg,
+                    color: currentTheme.colors.buttonFg,
+                    boxShadow: currentTheme.colors.buttonShadow,
+                  }}
                 >
-                  Yes, Call Captain
+                  Call Waiter
                 </button>
               </div>
             </motion.div>

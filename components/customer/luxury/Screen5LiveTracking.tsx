@@ -27,6 +27,8 @@ import {
   Banknote,
   X,
   Scan,
+  Receipt,
+  Info,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../../store/useCustomerStore';
@@ -508,6 +510,46 @@ export const Screen5LiveTracking: React.FC = () => {
     return 0;
   }, [activeSession, tables, effectiveTable, effectiveSeat, cart]);
 
+  // Detailed bill breakdown for placed orders with proper calculation
+  const ordersSummary = useMemo(() => {
+    const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
+    const tableChairItems = currentTableObj?.activeItems?.filter(
+      (ai) => ai.seatNumber === effectiveSeat
+    ) || [];
+
+    const chairOrderedCart = (cart || []).filter(
+      (ci) => ci.isOrdered && (!ci.seatNumber || ci.seatNumber === effectiveSeat)
+    );
+
+    let subtotal = 0;
+    let itemCount = 0;
+
+    if (chairOrderedCart.length > 0) {
+      subtotal = chairOrderedCart.reduce((sum, ci) => sum + (ci.totalPrice || 0), 0);
+      itemCount = chairOrderedCart.reduce((sum, ci) => sum + (ci.quantity || 1), 0);
+    } else if (tableChairItems.length > 0) {
+      subtotal = tableChairItems.reduce((sum, ai) => sum + ((ai.price || 220) * (ai.quantity || 1)), 0);
+      itemCount = tableChairItems.reduce((sum, ai) => sum + (ai.quantity || 1), 0);
+    } else if (cart && cart.length > 0) {
+      const myCart = cart.filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat);
+      subtotal = myCart.reduce((sum, ci) => sum + (ci.totalPrice || 0), 0);
+      itemCount = myCart.reduce((sum, ci) => sum + (ci.quantity || 1), 0);
+    } else if (currentBillAmount > 0) {
+      subtotal = Math.round(currentBillAmount / 1.05);
+      itemCount = trackedDishes.reduce((sum, d) => sum + (d.quantity || 1), 0);
+    }
+
+    const gst = Math.round(subtotal * 0.05);
+    const grandTotal = currentBillAmount > 0 ? currentBillAmount : subtotal + gst;
+
+    return {
+      subtotal,
+      gst,
+      grandTotal,
+      itemCount: itemCount || trackedDishes.length || 0,
+    };
+  }, [tables, effectiveTable, effectiveSeat, cart, currentBillAmount, trackedDishes]);
+
   // Setup camera stream when QR scanner opens
   useEffect(() => {
     if (!isScannerOpen) return;
@@ -835,6 +877,66 @@ export const Screen5LiveTracking: React.FC = () => {
           </div>
         </div>
 
+        {/* Order Bill Summary Card (After Placed Orders with Total Highlighted) */}
+        {ordersSummary.grandTotal > 0 && (
+          <div className="rounded-[28px] border border-amber-500/30 bg-black/75 p-5 shadow-xl backdrop-blur-md space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-[10px] font-black uppercase tracking-wider font-mono text-amber-400/90">
+                Order Bill Summary
+              </div>
+              <span className="rounded-full border border-amber-500/30 bg-amber-950/40 px-2.5 py-0.5 text-[9.5px] font-mono font-bold text-amber-300">
+                Table {effectiveTable} • Chair {effectiveSeat}
+              </span>
+            </div>
+
+            <div className="space-y-2 text-xs">
+              <div className="flex items-center justify-between text-stone-300">
+                <span className="font-medium">
+                  Items Subtotal ({ordersSummary.itemCount} {ordersSummary.itemCount === 1 ? 'dish' : 'dishes'})
+                </span>
+                <span className="font-mono font-bold text-stone-100">
+                  ₹{ordersSummary.subtotal}
+                </span>
+              </div>
+
+              <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-amber-500/25 to-transparent" />
+
+              <div className="flex items-center justify-between text-stone-300">
+                <span className="font-medium">GST (5% Taxes)</span>
+                <span className="font-mono font-bold text-stone-100">
+                  ₹{ordersSummary.gst}
+                </span>
+              </div>
+
+              {/* Highlighted Total Amount Callout */}
+              <div className="mt-3 flex items-center justify-between rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-950/70 via-amber-900/40 to-black/90 p-3.5 shadow-[0_4px_20px_rgba(217,119,6,0.18)] backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-stone-950 shadow-md">
+                    <Receipt className="h-5 w-5 stroke-[2.2]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider font-serif-luxury text-amber-100">
+                      Total Amount
+                    </div>
+                    <div className="text-[10px] text-amber-300/80 font-medium mt-0.5">
+                      All taxes & charges included
+                    </div>
+                  </div>
+                </div>
+
+                <div className="shrink-0 rounded-xl px-3.5 py-1.5 border border-amber-400/60 bg-black/80 shadow-[0_0_16px_rgba(245,158,11,0.25)] text-right">
+                  <div className="text-[9px] font-black uppercase tracking-wider font-mono text-amber-400/80">
+                    Grand Total
+                  </div>
+                  <div className="font-mono text-xl font-black text-amber-300 tracking-tight leading-none mt-0.5 drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)]">
+                    ₹{ordersSummary.grandTotal}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Unplaced Dishes Quick Send Banner */}
         {unplacedCount > 0 && (
           <motion.div
@@ -1045,7 +1147,7 @@ export const Screen5LiveTracking: React.FC = () => {
         </div>
       </StickyBottomBar>
 
-      {/* Confirmation Modal: "Are you sure want to call waiter for payment?" */}
+      {/* Confirmation Modal: "Call Waiter for Payment" */}
       <AnimatePresence>
         {showPayViaWaiterModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
@@ -1058,22 +1160,36 @@ export const Screen5LiveTracking: React.FC = () => {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 mb-3 mx-auto">
                 <CreditCard className="h-6 w-6 stroke-[2]" />
               </div>
+
               <h3 className="text-base font-bold text-amber-100 font-serif-luxury">
-                Call Floor Captain for Payment?
+                Call Waiter for Payment
               </h3>
-              <p className="mt-2 text-xs text-stone-300 leading-relaxed font-normal">
-                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-amber-300">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
-              </p>
-              <p className="mt-1 text-[11px] text-stone-400 font-normal">
-                A captain will visit your seat with the payment terminal and QR scanner.
-              </p>
+
+              {/* Table & Chair location chip */}
+              <div className="mt-2 flex items-center justify-center">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold font-mono border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                  <span>{effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`}</span>
+                  <span>•</span>
+                  <span>Chair C-{String(effectiveSeat).padStart(2, '0')}</span>
+                </span>
+              </div>
+
+              {/* Simple Info Note */}
+              <div className="mt-3.5 flex items-center gap-2.5 rounded-2xl p-3 text-left border border-white/10 bg-white/5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300">
+                  <Info className="h-4 w-4" />
+                </div>
+                <p className="text-xs leading-snug text-stone-300 font-normal">
+                  A waiter will bring the bill to your chair for payment settlement.
+                </p>
+              </div>
 
               <div className="mt-6 grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setShowPayViaWaiterModal(false)}
                   className="rounded-[20px] border border-white/10 bg-white/5 py-3 text-xs font-bold text-stone-300 transition hover:bg-white/10 active:scale-95 cursor-pointer"
                 >
-                  No, Go Back
+                  Cancel
                 </button>
                 <button
                   onClick={handleConfirmCallCaptain}
@@ -1082,7 +1198,7 @@ export const Screen5LiveTracking: React.FC = () => {
                     background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
                   }}
                 >
-                  Yes, Call Captain
+                  Call Waiter
                 </button>
               </div>
             </motion.div>

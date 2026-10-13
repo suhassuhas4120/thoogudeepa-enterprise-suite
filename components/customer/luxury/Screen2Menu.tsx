@@ -259,7 +259,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search delicacies..."
+              placeholder="Search dishes..."
               className="w-full rounded-full border border-amber-500/30 bg-black/40 pl-11 pr-10 py-3 text-xs font-medium text-amber-100 placeholder:text-stone-500 focus:outline-none focus:border-amber-400 focus:shadow-[0_0_15px_rgba(217,119,6,0.25)] transition backdrop-blur-md"
             />
             {searchTerm && (
@@ -368,7 +368,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                       }}
                       className="rounded-full px-3 py-1 text-[10px] font-bold tracking-wide uppercase text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 shadow-md hover:brightness-110 active:scale-95"
                     >
-                      Taste Story &rarr;
+                      Customize &rarr;
                     </button>
                   </div>
                 </div>
@@ -572,7 +572,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                 </div>
                 <div className="text-left">
                   <div className="text-sm font-bold font-serif-luxury text-amber-100">
-                    {totalCartCount} {totalCartCount === 1 ? 'Delicacy' : 'Delicacies'}
+                    {totalCartCount} {totalCartCount === 1 ? 'Item' : 'Items'}
                   </div>
                   <div className="text-[10px] font-medium text-stone-400">
                     Dine-in Order Ready

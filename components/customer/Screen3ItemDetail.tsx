@@ -40,10 +40,10 @@ export const Screen3ItemDetail: React.FC = () => {
     );
   };
 
-  const handleAddAndGoToCart = () => {
+  const handleAddToCart = () => {
     if (isSoldOut) return;
     addToCart(item, selectedOption, selectedAddOns, quantity);
-    setCurrentScreen(4);
+    setCurrentScreen(2);
   };
 
   let currentTotal = item.price;
@@ -244,15 +244,13 @@ export const Screen3ItemDetail: React.FC = () => {
                   >
                     <span className="font-bold">{choice}</span>
                     <div
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition"
                       style={{
                         borderColor: isSelected ? currentTheme.colors.pillActiveBorder : '#94A3B8',
                         backgroundColor: isSelected ? currentTheme.colors.pillActiveBorder : 'transparent',
                       }}
                     >
-                      {isSelected && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                      )}
+                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3] text-white" />}
                     </div>
                   </div>
                 );
@@ -384,7 +382,7 @@ export const Screen3ItemDetail: React.FC = () => {
       <StickyBottomBar>
         <motion.button
           whileTap={{ scale: 0.98 }}
-          onClick={handleAddAndGoToCart}
+          onClick={handleAddToCart}
           disabled={isSoldOut}
           className="flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
           style={
@@ -401,14 +399,14 @@ export const Screen3ItemDetail: React.FC = () => {
                 }
           }
         >
-          <span>{isSoldOut ? 'Item Sold Out' : 'Add to Cart & Review'}</span>
+          <span>{isSoldOut ? 'Item Sold Out' : 'Add Item to Cart'}</span>
           <div className="flex items-center gap-2">
             <span
               className="font-mono text-sm font-bold opacity-90"
             >
               ₹{currentTotal * quantity}
             </span>
-            <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+            <Check className="h-4 w-4 stroke-[2.5]" />
           </div>
         </motion.button>
       </StickyBottomBar>

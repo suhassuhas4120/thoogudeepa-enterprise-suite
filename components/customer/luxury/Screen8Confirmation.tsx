@@ -10,14 +10,9 @@ import { StickyBottomBar } from '../../ui/StickyBottomBar';
 import {
   CheckCircle2,
   Star,
-  ArrowRight,
-  ShieldCheck,
-  FileText,
   Download,
   Share2,
   RotateCcw,
-  Receipt,
-  Check,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { downloadPdfBill } from '../../../lib/generatePdfBill';
@@ -35,8 +30,6 @@ export const Screen8Confirmation: React.FC = () => {
     seatNumber: contextSeatNumber,
   } = useCustomer();
 
-  const [selectedChips, setSelectedChips] = useState<string[]>(['Super Quick Service']);
-  const [customFeedback, setCustomFeedback] = useState('');
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const [downloadMsg, setDownloadMsg] = useState(false);
   const [shareMsg, setShareMsg] = useState(false);
@@ -55,7 +48,6 @@ export const Screen8Confirmation: React.FC = () => {
       ? currentTable.serverName
       : 'Floor Captain';
 
-  const [liveTimecode, setLiveTimecode] = useState('');
   React.useEffect(() => {
     // Payment is finalized: clear active session keys so re-scanning any chair starts completely fresh
     if (typeof window !== 'undefined') {
@@ -67,16 +59,6 @@ export const Screen8Confirmation: React.FC = () => {
         }
       } catch {}
     }
-
-    const update = () => {
-      const d = new Date();
-      setLiveTimecode(
-        d.toLocaleTimeString('en-IN', { hour12: false }) + '.' + String(Math.floor(d.getMilliseconds() / 10)).padStart(2, '0')
-      );
-    };
-    update();
-    const iv = setInterval(update, 80);
-    return () => clearInterval(iv);
   }, [effectiveTable, seatNumber]);
 
   const { formattedDate, formattedTime } = useMemo(() => {
@@ -135,20 +117,6 @@ export const Screen8Confirmation: React.FC = () => {
   const invoiceNumber = useMemo(() => {
     return payment.invoiceNumber || `INV-${effectiveTable.replace(/[^a-zA-Z0-9]/g, '')}-${String(seatNumber).padStart(2, '0')}`;
   }, [payment.invoiceNumber, effectiveTable, seatNumber]);
-
-  const chips = [
-    'Super Quick Service',
-    'Delicious Military Dum',
-    'Authentic Donne Aroma',
-    'Courteous Staff',
-    'Great Ambience',
-  ];
-
-  const toggleChip = (chip: string) => {
-    setSelectedChips((prev) =>
-      prev.includes(chip) ? prev.filter((c) => c !== chip) : [...prev, chip]
-    );
-  };
 
   const effectiveTip =
     payment.tipAmount > 0
@@ -284,72 +252,35 @@ export const Screen8Confirmation: React.FC = () => {
           animate={{ scale: 1, opacity: 1 }}
           className="flex flex-col items-center rounded-[28px] border border-amber-500/30 bg-gradient-to-b from-stone-900/90 to-black/95 p-5 text-center shadow-[0_12px_28px_rgba(0,0,0,0.6)] backdrop-blur-xl"
         >
-          <div
-            className="text-[9.5px] font-black uppercase tracking-[0.22em] font-mono"
-            style={{ color: currentTheme.colors.textMuted }}
+          <motion.div
+            animate={{
+              y: [0, -12, 0],
+              scale: [1, 1.05, 1],
+            }}
+            transition={{
+              duration: 1.8,
+              repeat: Infinity,
+              ease: 'easeInOut',
+            }}
+            className="my-3 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white shadow-lg shadow-emerald-600/40"
           >
-            Payment Confirmed
-          </div>
-
-          <div className="my-3 flex h-14 w-14 items-center justify-center rounded-full bg-[#198754] text-white shadow-md shadow-[#198754]/30 animate-bounce">
             <CheckCircle2 className="h-8 w-8 stroke-[2.5]" />
-          </div>
+          </motion.div>
 
-          <h3
-            className="text-base font-black"
-            style={{ color: currentTheme.colors.textPrimary }}
-          >
+          <h3 className="text-lg font-black text-amber-100 font-serif-luxury tracking-wide">
             Payment Successful
           </h3>
-          <div className="font-mono text-xl font-black text-[#198754] mt-1">
-            Amount Paid: ₹{paidAmount}
+          <div className="font-mono text-2xl font-black text-amber-400 mt-1">
+            ₹{paidAmount}
           </div>
 
-          {/* 12-Digit Bank UTR Proof */}
-          <div
-            className="mt-3 w-full rounded-2xl border p-2.5 text-center font-mono text-[11px]"
-            style={{
-              backgroundColor: currentTheme.colors.bgElevated,
-              borderColor: currentTheme.colors.border,
-            }}
-          >
-            <div className="font-bold text-xs" style={{ color: currentTheme.colors.textPrimary }}>
-              BANK UTR (RRN): {bankUtr}
-            </div>
-            <div className="text-[10px] font-semibold mt-0.5" style={{ color: currentTheme.colors.textMuted }}>
-              TXN ID: {txnId} • TABLE {effectiveTable} • SEAT C-{String(seatNumber).padStart(2, '0')}
-            </div>
-          </div>
-
-          {/* Anti-Fraud Dynamic Live Watermark */}
-          <div className="mt-2.5 w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-2.5 flex items-center justify-between text-left">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-3 w-3">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-              </span>
-              <div>
-                <div className="text-[9.5px] font-black uppercase tracking-wider text-emerald-400 font-mono">
-                  Verified Live Token
-                </div>
-                <div className="text-[11px] font-mono font-bold text-emerald-100">
-                  {liveTimecode || formattedTime} • LIVE
-                </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="text-[8.5px] font-mono text-emerald-400 font-semibold uppercase">
-                Anti-Spoof
-              </div>
-              <div className="text-[9.5px] font-mono font-black text-emerald-300">
-                ACTIVE
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-2.5 flex items-center justify-center gap-1.5 text-[11px] font-semibold text-emerald-800">
-            <ShieldCheck className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
-            <span>Attended by <strong className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>{captainName}</strong> • Console Acknowledged</span>
+          {/* Clean Transaction Reference Badge */}
+          <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-stone-950/70 px-3.5 py-1 font-mono text-[11px] font-bold text-stone-300">
+            <span className="text-amber-200">
+              {payment.paymentMethod === 'CASH' ? 'Cash Payment' : 'UPI Payment'}
+            </span>
+            <span className="text-stone-600">•</span>
+            <span>Ref: {bankUtr}</span>
           </div>
         </motion.div>
 
@@ -496,12 +427,12 @@ export const Screen8Confirmation: React.FC = () => {
           </div>
 
           {/* Settlement Status Pill */}
-          <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200/90 p-2.5 text-xs">
-            <div className="flex items-center gap-1.5 font-bold text-emerald-900">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
-              <span>Paid via <span className="font-black">{payment.paymentMethod || 'UPI'}</span></span>
+          <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-950/40 p-2.5 text-xs text-emerald-300">
+            <div className="flex items-center gap-1.5 font-bold">
+              <CheckCircle2 className="h-4 w-4 text-emerald-400 stroke-[2.5]" />
+              <span>Paid via <span className="font-black text-emerald-200">{payment.paymentMethod || 'UPI'}</span></span>
             </div>
-            <span className="font-mono text-[10px] font-black text-emerald-700 bg-white px-2 py-0.5 rounded-md border border-emerald-200 shadow-2xs">PAID &amp; SETTLED</span>
+            <span className="font-mono text-[10px] font-black text-emerald-300 bg-emerald-900/50 px-2 py-0.5 rounded-md border border-emerald-500/40 shadow-2xs">PAID &amp; SETTLED</span>
           </div>
 
           {/* Captain Thank-you Note */}
@@ -533,9 +464,9 @@ export const Screen8Confirmation: React.FC = () => {
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={handleShareWhatsApp}
-            className="flex items-center justify-center gap-1.5 rounded-2xl border border-emerald-300 bg-emerald-50 py-3 px-2 text-xs font-black text-emerald-800 hover:bg-emerald-100 transition shadow-xs"
+            className="flex items-center justify-center gap-1.5 rounded-2xl border border-emerald-500/40 bg-emerald-950/40 py-3 px-2 text-xs font-black text-emerald-300 hover:bg-emerald-900/50 transition shadow-xs"
           >
-            <Share2 className="h-4 w-4 text-emerald-700" />
+            <Share2 className="h-4 w-4 text-emerald-400" />
             <span className="font-bold">{shareMsg ? 'Sent on WhatsApp!' : 'Share WhatsApp'}</span>
           </motion.button>
         </div>

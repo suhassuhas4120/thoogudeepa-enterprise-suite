@@ -6,9 +6,8 @@ import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
-import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { WaiterPingType } from '../../types/customer';
-import { Droplets, Scroll, Utensils, Sparkles, Send, ArrowRight, CreditCard, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { Droplets, Scroll, Utensils, Sparkles, Send, CreditCard, AlertCircle, CheckCircle2, X, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../store/useCustomerStore';
 
@@ -118,7 +117,9 @@ export const Screen10WaiterCall: React.FC = () => {
   };
 
   const handleSendCustomText = () => {
+    if (cooldownRemaining > 0) return;
     const textToSend = customText.trim() || 'Floor Captain assistance requested at table';
+    setCooldownRemaining(45);
     pingWaiter('GENERAL CALL', textToSend);
     setCustomText('');
   };
@@ -154,14 +155,21 @@ export const Screen10WaiterCall: React.FC = () => {
   const returnTarget = previousScreen && previousScreen !== 10 && previousScreen !== 9 ? previousScreen : 2;
 
   return (
-    <ScreenHousing screenNumber={9} screenTitle="CALL WAITER">
+    <ScreenHousing screenNumber={10} screenTitle="CALL WAITER">
       {/* Header */}
       <WireHeader
         title={
           <span className="inline-flex items-center gap-2">
             <span>Call Waiter</span>
-            <span className="inline-flex items-center rounded-full bg-orange-100 border border-orange-200 px-2 py-0.5 text-[10px] font-black text-orange-900 font-mono tracking-tight">
-              {effectiveTable} • C-{String(effectiveSeat).padStart(2, '0')}
+            <span
+              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                color: currentTheme.colors.secondaryFg,
+                borderColor: currentTheme.colors.border,
+              }}
+            >
+              {effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`} • C-{String(effectiveSeat).padStart(2, '0')}
             </span>
           </span>
         }
@@ -172,7 +180,7 @@ export const Screen10WaiterCall: React.FC = () => {
         showCart={false}
       />
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
+      <div className="flex-1 overflow-y-auto p-4 pb-8 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
         {/* Active Ping Status Banner */}
         <AnimatePresence>
           {waiterNotification?.active && (
@@ -341,36 +349,30 @@ export const Screen10WaiterCall: React.FC = () => {
             />
             <button
               onClick={handleSendCustomText}
+              disabled={cooldownRemaining > 0}
               style={{
                 backgroundColor: currentTheme.colors.buttonBg,
                 color: currentTheme.colors.buttonFg,
                 boxShadow: currentTheme.colors.buttonShadow,
               }}
-              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition hover:brightness-105 active:scale-98 cursor-pointer"
+              className={`mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-black uppercase tracking-wider transition active:scale-98 ${
+                cooldownRemaining > 0
+                  ? 'opacity-60 cursor-not-allowed'
+                  : 'hover:brightness-105 cursor-pointer'
+              }`}
             >
               <Send className="h-3.5 w-3.5" />
-              <span>{customText.trim() ? 'Send Message to Waiter' : 'Call Waiter to Table'}</span>
+              <span>
+                {cooldownRemaining > 0
+                  ? `Please wait (${cooldownRemaining}s)`
+                  : customText.trim()
+                  ? 'Send Message to Waiter'
+                  : 'Call Waiter to Table'}
+              </span>
             </button>
           </div>
         </div>
       </div>
-
-      {/* Sticky Bottom Bar */}
-      <StickyBottomBar>
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => navigateTo(returnTarget)}
-          style={{
-            backgroundColor: currentTheme.colors.buttonBg,
-            color: currentTheme.colors.buttonFg,
-            boxShadow: currentTheme.colors.buttonShadow,
-          }}
-          className="flex w-full items-center justify-between rounded-[20px] px-4 py-3.5 text-xs font-black uppercase tracking-[0.14em] shadow-lg transition hover:brightness-105"
-        >
-          <span>Return to Previous Screen</span>
-          <ArrowRight className="h-4 w-4 stroke-[2.5]" />
-        </motion.button>
-      </StickyBottomBar>
 
       {/* Confirmation Modal for Calling Waiter for Payment */}
       <AnimatePresence>
@@ -380,33 +382,94 @@ export const Screen10WaiterCall: React.FC = () => {
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-sm rounded-3xl bg-white p-5 shadow-2xl border border-stone-200"
+              className="w-full max-w-sm rounded-[28px] p-5 shadow-2xl border transition-colors duration-200"
+              style={{
+                backgroundColor: currentTheme.colors.bgSurface,
+                borderColor: currentTheme.colors.border,
+              }}
             >
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 mb-3 mx-auto">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-2xl border mb-3 mx-auto shadow-xs"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.buttonBg,
+                }}
+              >
                 <CreditCard className="h-6 w-6 stroke-[2]" />
               </div>
-              <h3 className="text-base font-black text-stone-900 text-center">
-                Call Floor Captain for Payment?
-              </h3>
-              <p className="mt-1.5 text-xs text-stone-600 text-center leading-relaxed">
-                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-stone-900">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
-              </p>
-              <p className="mt-1 text-[11px] text-stone-500 text-center">
-                A captain will visit your seat with the payment terminal.
-              </p>
 
+              <h3
+                className="text-base font-extrabold text-center"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                Call Waiter for Payment
+              </h3>
+
+              {/* Table & Chair location chip */}
+              <div className="mt-2 flex items-center justify-center">
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black font-mono border"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgElevated,
+                    color: currentTheme.colors.textPrimary,
+                    borderColor: currentTheme.colors.border,
+                  }}
+                >
+                  <span>{effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`}</span>
+                  <span>•</span>
+                  <span>Chair C-{String(effectiveSeat).padStart(2, '0')}</span>
+                </span>
+              </div>
+
+              {/* Simple Info Note */}
+              <div
+                className="mt-3.5 flex items-center gap-2.5 rounded-2xl p-3 text-left border"
+                style={{
+                  backgroundColor: currentTheme.colors.bgElevated,
+                  borderColor: currentTheme.colors.borderLight,
+                }}
+              >
+                <div
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl"
+                  style={{
+                    backgroundColor: currentTheme.colors.secondaryBg,
+                    color: currentTheme.colors.buttonBg,
+                  }}
+                >
+                  <Info className="h-4 w-4" />
+                </div>
+                <p
+                  className="text-xs leading-snug font-medium"
+                  style={{ color: currentTheme.colors.textSecondary }}
+                >
+                  A waiter will bring the bill to your chair for payment settlement.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
               <div className="mt-5 grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setShowPaymentConfirmModal(false)}
-                  className="rounded-2xl border border-stone-200 bg-stone-100 py-3 text-xs font-bold text-stone-700 transition hover:bg-stone-200 active:scale-95 cursor-pointer"
+                  className="rounded-2xl border py-3 text-xs font-bold transition active:scale-95 cursor-pointer"
+                  style={{
+                    backgroundColor: currentTheme.colors.bgElevated,
+                    borderColor: currentTheme.colors.border,
+                    color: currentTheme.colors.textSecondary,
+                  }}
                 >
-                  No, Go Back
+                  Cancel
                 </button>
                 <button
                   onClick={handleConfirmPaymentCall}
-                  className="rounded-2xl bg-[#9C3D1E] py-3 text-xs font-black text-white shadow-md transition hover:bg-[#853218] active:scale-95 cursor-pointer"
+                  className="rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition active:scale-95 cursor-pointer shadow-md"
+                  style={{
+                    backgroundColor: currentTheme.colors.buttonBg,
+                    color: currentTheme.colors.buttonFg,
+                    boxShadow: currentTheme.colors.buttonShadow,
+                  }}
                 >
-                  Yes, Call Captain
+                  Call Waiter
                 </button>
               </div>
             </motion.div>

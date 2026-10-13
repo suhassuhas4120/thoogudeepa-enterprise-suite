@@ -43,7 +43,7 @@ export const Screen3ItemDetail: React.FC = () => {
   const handleAddAndGoToCart = () => {
     if (isSoldOut) return;
     addToCart(item, selectedOption, selectedAddOns, quantity);
-    setCurrentScreen(4);
+    setCurrentScreen(2);
   };
 
   let currentTotal = item.price;
@@ -56,7 +56,7 @@ export const Screen3ItemDetail: React.FC = () => {
     <ScreenHousing screenNumber={3} screenTitle="ITEM DETAILS">
       {/* Header */}
       <WireHeader
-        title={<span>Delicacy Details</span>}
+        title={<span>Item Details</span>}
         leftSubtitle={venueName.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(2)}
@@ -141,138 +141,85 @@ export const Screen3ItemDetail: React.FC = () => {
           </p>
         </div>
 
-        {/* Radiant Gem Spice / Preparation Selector */}
+        {/* Option Group 1: Spice Level / Choices (1 Row 1 Option) */}
         {item.optionsGroup1?.choices?.length > 0 && (
           <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 p-4 shadow-inner backdrop-blur-md">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-amber-200 uppercase tracking-widest font-serif-luxury">
-                {item.optionsGroup1.title === 'Toss Style' ? 'Spice & Style' : item.optionsGroup1.title}
+                {item.optionsGroup1.title === 'Toss Style' ? 'Spice Level' : item.optionsGroup1.title}
               </span>
               <span className="text-[10px] font-bold text-amber-300 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-400/30 font-mono">
-                Select 1
+                Choose 1
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
               {item.optionsGroup1.choices.map((choice) => {
                 const isSelected = selectedOption === choice;
-                const lowerChoice = choice.toLowerCase();
-                const groupTitle = (item.optionsGroup1?.title || '').toLowerCase();
-                const isSpiceOrHeat = groupTitle.includes('spice') || groupTitle.includes('pepper') || groupTitle.includes('heat') || groupTitle.includes('chilli');
-
-                // Determine subtle culinary indicator
-                const isFiery = lowerChoice.includes('hot') || lowerChoice.includes('fiery') || lowerChoice.includes('guntur') || lowerChoice.includes('extra') || lowerChoice.includes('high');
-                const isMild = lowerChoice.includes('mild') || lowerChoice.includes('warm') || lowerChoice.includes('balanced') || lowerChoice.includes('medium');
-
                 return (
-                  <button
+                  <div
                     key={choice}
-                    type="button"
                     onClick={() => setSelectedOption(choice)}
-                    className={`relative flex flex-col items-start justify-center p-3.5 rounded-2xl cursor-pointer border text-left transition-all duration-300 ${
+                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition-all ${
                       isSelected
-                        ? 'border-amber-400/90 bg-gradient-to-b from-amber-500/15 via-amber-950/25 to-stone-900/90 shadow-[0_0_20px_rgba(245,158,11,0.22)]'
-                        : 'border-white/10 bg-stone-900/40 hover:border-amber-400/30 hover:bg-stone-900/60'
+                        ? 'border-amber-400 bg-gradient-to-r from-amber-500/20 to-amber-900/30 text-amber-200 shadow-xs'
+                        : 'border-white/10 bg-white/5 text-stone-300 hover:border-amber-400/30 hover:bg-white/10'
                     }`}
                   >
-                    {/* Header line with radio dot and optional spice flame tier */}
-                    <div className="w-full flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-1.5">
-                        {isSpiceOrHeat && (
-                          <span className="flex items-center text-xs tracking-tight" aria-hidden="true">
-                            {isFiery ? (
-                              <span className="text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]">🔥🔥🔥</span>
-                            ) : isMild ? (
-                              <span className="text-amber-500/80">🔥</span>
-                            ) : (
-                              <span className="text-amber-400/90">🔥🔥</span>
-                            )}
-                          </span>
-                        )}
-                        {!isSpiceOrHeat && (
-                          <span className={`text-[10px] font-mono uppercase tracking-wider ${isSelected ? 'text-amber-300' : 'text-stone-400'}`}>
-                            Option
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Bespoke Radio Disc */}
-                      <div
-                        className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all ${
-                          isSelected
-                            ? 'border-amber-400 bg-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
-                            : 'border-stone-600/60 bg-transparent'
-                        }`}
-                      >
-                        {isSelected && (
-                          <div className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_4px_#fde68a]" />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Choice Title */}
-                    <span
-                      className={`text-xs font-semibold tracking-wide ${
-                        isSelected ? 'text-amber-100 font-serif-luxury' : 'text-stone-300'
+                    <span className="font-bold">{choice}</span>
+                    <div
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+                        isSelected
+                          ? 'border-amber-400 bg-amber-400 text-amber-950 font-bold'
+                          : 'border-stone-600 bg-transparent'
                       }`}
                     >
-                      {choice}
-                    </span>
-
-                    {/* Subtitle explaining the choice clearly */}
-                    <span className="mt-1 text-[10px] font-mono text-stone-400/90">
-                      {isSpiceOrHeat
-                        ? isFiery
-                          ? 'High Heat • Military Spiced'
-                          : isMild
-                          ? 'Mild & Balanced Masala'
-                          : 'Traditional Heritage Spice'
-                        : isSelected
-                        ? 'Selected Choice'
-                        : 'Tap to Choose'}
-                    </span>
-                  </button>
+                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
+                    </div>
+                  </div>
                 );
               })}
             </div>
           </div>
         )}
 
-        {/* Accompaniments (Circular Pill Tags) */}
+        {/* Option Group 2: Add-Ons (1 Row 1 Option) */}
         {item.optionsGroup2?.addOns?.length > 0 && (
           <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 p-4 shadow-inner backdrop-blur-md">
             <div className="flex items-center justify-between mb-3">
               <span className="text-xs font-bold text-amber-200 uppercase tracking-widest font-serif-luxury">
-                {item.optionsGroup2.title || 'Accompaniments'}
+                Add-Ons
               </span>
               <span className="text-[10px] font-semibold text-stone-400 font-mono">
                 Optional
               </span>
             </div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-2">
               {item.optionsGroup2.addOns.map((addon) => {
                 const isSelected = selectedAddOns.includes(addon.name);
                 return (
                   <div
                     key={addon.name}
                     onClick={() => handleToggleAddOn(addon.name)}
-                    className={`flex items-center justify-between p-3 rounded-2xl cursor-pointer border transition-all ${
+                    className={`flex items-center justify-between rounded-xl px-3.5 py-2.5 text-xs font-semibold cursor-pointer border transition-all ${
                       isSelected
-                        ? 'border-amber-400 bg-gradient-to-b from-amber-500/25 to-amber-900/30 text-amber-200 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
-                        : 'border-white/10 bg-white/5 text-stone-300 hover:border-amber-400/30'
+                        ? 'border-amber-400 bg-gradient-to-r from-amber-500/20 to-amber-900/30 text-amber-200 shadow-xs'
+                        : 'border-white/10 bg-white/5 text-stone-300 hover:border-amber-400/30 hover:bg-white/10'
                     }`}
                   >
-                    <div className="min-w-0 pr-1">
-                      <div className="text-xs font-bold truncate">{addon.name}</div>
-                      <div className="text-[10px] font-extrabold text-amber-400 font-mono">
-                        +₹{addon.extraPrice}
-                      </div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-bold">{addon.name}</span>
+                      <span className="font-mono text-xs font-bold text-amber-400">
+                        (+₹ {addon.extraPrice})
+                      </span>
                     </div>
                     <div
-                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg border transition ${
-                        isSelected ? 'border-amber-400 bg-amber-400 text-amber-950 font-bold' : 'border-stone-600'
+                      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-md border transition ${
+                        isSelected
+                          ? 'border-amber-400 bg-amber-400 text-amber-950 font-bold'
+                          : 'border-stone-600 bg-transparent'
                       }`}
                     >
-                      {isSelected && <Check className="h-3 w-3 stroke-[3]" />}
+                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3]" />}
                     </div>
                   </div>
                 );
@@ -346,7 +293,7 @@ export const Screen3ItemDetail: React.FC = () => {
                 }
           }
         >
-          <span>{isSoldOut ? 'Sold Out' : 'Add to Dining Order'} &bull; {quantity} Serving{quantity > 1 ? 's' : ''}</span>
+          <span>{isSoldOut ? 'Sold Out' : 'Add Item to Cart'} • {quantity} Serving{quantity > 1 ? 's' : ''}</span>
           <div className="flex items-center gap-2.5">
             <span className="text-base font-extrabold font-mono">
               ₹{currentTotal * quantity}

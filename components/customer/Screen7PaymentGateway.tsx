@@ -10,28 +10,15 @@ import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import QRCode from 'qrcode';
 import {
-  Banknote,
-  ShieldCheck,
   QrCode,
   ArrowRight,
-  CheckCircle2,
   Loader2,
-  ExternalLink,
   Receipt,
   ChevronDown,
   ChevronUp,
   BellRing,
-  Check,
-  Coins,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-
-interface TenderOption {
-  id: string;
-  amount: number;
-  label: string;
-  change: number;
-}
 
 export const Screen7PaymentGateway: React.FC = () => {
   const { currentTheme } = useCustomerTheme();
@@ -48,9 +35,6 @@ export const Screen7PaymentGateway: React.FC = () => {
 
   const { waiterRecordsPayment, settledBills, recordSettledBill, waiterClearsChairAfterPayment, tables } = useSharedBridge();
 
-  // Tab State: 'UPI' | 'CASH'
-  type PaymentTab = 'UPI' | 'CASH';
-  const [activeTab, setActiveTab] = useState<PaymentTab>('UPI');
   const [showSummary, setShowSummary] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
@@ -108,75 +92,7 @@ export const Screen7PaymentGateway: React.FC = () => {
   const grandTotal = Math.max(0, subtotal + tax + payment.tipAmount - discount);
 
   // Smart Dynamic Tender Generator (e.g. ₹1239 -> Exact ₹1239, ₹1250 [+11 change], ₹1300 [+61 change], ₹1500/₹2000)
-  const tenderOptions: TenderOption[] = useMemo(() => {
-    const total = grandTotal;
-    if (total <= 0) return [];
 
-    const opts: TenderOption[] = [];
-
-    // 1. Exact amount
-    opts.push({
-      id: 'exact',
-      amount: total,
-      label: `Exact (₹${total})`,
-      change: 0,
-    });
-
-    // 2. Nearest multiple of 50
-    const next50 = Math.ceil((total + 1) / 50) * 50;
-    if (next50 > total && !opts.some((o) => o.amount === next50)) {
-      opts.push({
-        id: `amt-${next50}`,
-        amount: next50,
-        label: `₹${next50}`,
-        change: next50 - total,
-      });
-    }
-
-    // 3. Nearest multiple of 100
-    let next100 = Math.ceil((total + 1) / 100) * 100;
-    if (next100 <= next50) {
-      next100 += 100;
-    }
-    if (next100 > total && !opts.some((o) => o.amount === next100)) {
-      opts.push({
-        id: `amt-${next100}`,
-        amount: next100,
-        label: `₹${next100}`,
-        change: next100 - total,
-      });
-    }
-
-    // 4. Next higher currency note (500, 1000, 1500, 2000, 3000, 5000)
-    const currencyNotes = [500, 1000, 1500, 2000, 3000, 5000];
-    const nextHigher = currencyNotes.find(
-      (n) => n > total && !opts.some((o) => o.amount === n)
-    );
-    if (nextHigher) {
-      opts.push({
-        id: `amt-${nextHigher}`,
-        amount: nextHigher,
-        label: `₹${nextHigher}`,
-        change: nextHigher - total,
-      });
-    }
-
-    return opts.slice(0, 4);
-  }, [grandTotal]);
-
-  const [selectedTender, setSelectedTender] = useState<TenderOption>(
-    tenderOptions[0] || { id: 'exact', amount: grandTotal, label: `Exact (₹${grandTotal})`, change: 0 }
-  );
-
-  // Sync selected tender if grandTotal updates
-  useEffect(() => {
-    if (tenderOptions.length > 0) {
-      setSelectedTender((prev) => {
-        const found = tenderOptions.find((o) => o.id === prev.id);
-        return found || tenderOptions[0];
-      });
-    }
-  }, [tenderOptions]);
 
   // Standard NPCI UPI URI string
   const merchantVpa = 'thoogudeepa@okicici';
@@ -220,9 +136,9 @@ export const Screen7PaymentGateway: React.FC = () => {
   // Complete Payment Settlement
   const handleCompletePayment = async () => {
     setIsProcessing(true);
-    setPaymentMethod(activeTab);
+    setPaymentMethod('UPI');
 
-    const finalMethod = activeTab === 'UPI' ? 'UPI' : 'CASH';
+    const finalMethod = 'UPI';
     const finalItems = cart.map((ci) => ({
       id: ci.cartItemId,
       name: ci.menuItem.name,
@@ -254,9 +170,9 @@ export const Screen7PaymentGateway: React.FC = () => {
       cgst: Math.round(tax / 2),
       sgst: tax - Math.round(tax / 2),
       grandTotal,
-      method: finalMethod,
-      cashTendered: finalMethod === 'CASH' ? selectedTender.amount : grandTotal,
-      cashChange: finalMethod === 'CASH' ? selectedTender.change : 0,
+      method: 'UPI',
+      cashTendered: grandTotal,
+      cashChange: 0,
       seatLabel: `Chair ${effectiveSeat}`,
       seatNumber: effectiveSeat,
       captainName: 'Floor Captain',
@@ -269,7 +185,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     };
 
     try {
-      waiterRecordsPayment(effectiveTable, finalMethod, grandTotal, effectiveSeat);
+      waiterRecordsPayment(effectiveTable, 'UPI', grandTotal, effectiveSeat);
       recordSettledBill(snapshot);
       waiterClearsChairAfterPayment(effectiveTable, effectiveSeat);
     } catch (e) {
@@ -281,12 +197,6 @@ export const Screen7PaymentGateway: React.FC = () => {
       useCustomerStore.getState().handleBillSettledByWaiter(snapshot);
     }, 600);
   };
-
-  // Dedicated Tab definitions: UPI / QR Pay and Cash Payment
-  const paymentTabs = [
-    { id: 'UPI' as const, label: 'UPI / QR Pay', icon: <QrCode className="h-4 w-4" /> },
-    { id: 'CASH' as const, label: 'Cash Payment', icon: <Banknote className="h-4 w-4" /> },
-  ];
 
   return (
     <ScreenHousing screenNumber={7} screenTitle="PAYMENT">
@@ -404,236 +314,128 @@ export const Screen7PaymentGateway: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* PAYMENT TABS: PROPER PILL NAVIGATION (UPI, Cash, Card) */}
+        {/* UPI Self-Payment Card (Only Payment Option) */}
         <div
-          className="rounded-[28px] border bg-white p-4 shadow-sm space-y-4"
+          className="rounded-[28px] border bg-white p-4 shadow-sm space-y-3.5"
           style={{
             backgroundColor: currentTheme.colors.bgSurface,
             borderColor: currentTheme.colors.border,
           }}
         >
-          <div
-            className="text-[10px] font-black uppercase tracking-[0.22em] font-mono"
-            style={{ color: currentTheme.colors.textMuted }}
-          >
-            Select Payment Method
+          <div className="flex items-center justify-between">
+            <div
+              className="text-[10px] font-black uppercase tracking-[0.22em] font-mono"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
+              Scan &amp; Pay via UPI
+            </div>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold border"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.secondaryFg,
+              }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+              <span>Instant Self-Pay</span>
+            </span>
           </div>
 
-          {/* Dedicated Tab Pills with Active/Inactive Color Sync */}
+          {/* Dynamic QR Display */}
           <div
-            className="flex rounded-2xl p-1 gap-1.5 border"
+            className="rounded-2xl border p-4 flex flex-col items-center text-center shadow-2xs"
             style={{
               backgroundColor: currentTheme.colors.bgElevated,
               borderColor: currentTheme.colors.border,
             }}
           >
-            {paymentTabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setPaymentMethod(tab.id);
-                  }}
-                  style={
-                    isActive
-                      ? {
-                          backgroundColor: currentTheme.colors.pillActiveBg,
-                          color: currentTheme.colors.pillActiveFg,
-                          borderColor: currentTheme.colors.pillActiveBorder,
-                        }
-                      : {
-                          backgroundColor: currentTheme.colors.pillInactiveBg,
-                          color: currentTheme.colors.pillInactiveFg,
-                          borderColor: currentTheme.colors.pillInactiveBorder,
-                        }
-                  }
-                  className="flex-1 py-2 rounded-xl text-center text-xs font-black transition flex items-center justify-center gap-2 border shadow-2xs active:scale-95"
-                >
-                  {tab.icon}
-                  <span>{tab.label}</span>
-                </button>
-              );
-            })}
+            <div className="flex items-center gap-1.5 mb-2.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+              <span className="text-[10px] font-black text-emerald-800 font-mono uppercase tracking-wider">
+                Scan with Any UPI App to Pay
+              </span>
+            </div>
+
+            {qrDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={qrDataUrl}
+                alt="NPCI UPI QR Code"
+                style={{ borderColor: currentTheme.colors.border }}
+                className="h-48 w-48 rounded-2xl border-2 p-2 bg-white shadow-sm"
+              />
+            ) : (
+              <div
+                className="h-48 w-48 rounded-2xl bg-white border flex items-center justify-center"
+                style={{ borderColor: currentTheme.colors.border }}
+              >
+                <QrCode className="h-10 w-10" style={{ color: currentTheme.colors.buttonBg }} />
+              </div>
+            )}
+
+            <div
+              className="mt-2 text-[10.5px] font-mono font-bold"
+              style={{ color: currentTheme.colors.textMuted }}
+            >
+              Google Pay • PhonePe • Paytm • CRED • BHIM
+            </div>
           </div>
 
-          {/* TAB 0: DYNAMIC UPI QR CODE (Takes care of all UPI payments) */}
-          {activeTab === 'UPI' && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="space-y-3"
+          <div
+            className="p-3 rounded-2xl border text-center text-xs"
+            style={{
+              backgroundColor: currentTheme.colors.bgElevated,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
+            <p className="text-[11px] font-medium" style={{ color: currentTheme.colors.textSecondary }}>
+              After completing payment in your UPI app, tap{' '}
+              <strong style={{ color: currentTheme.colors.textPrimary }}>Confirm UPI Payment</strong> below.
+            </p>
+          </div>
+
+          {/* Prefer Cash / Waiter settlement option */}
+          <div
+            className="rounded-2xl border p-3 flex items-center justify-between gap-3 text-xs"
+            style={{
+              backgroundColor: currentTheme.colors.bgElevated,
+              borderColor: currentTheme.colors.borderLight,
+            }}
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  borderColor: currentTheme.colors.border,
+                  color: currentTheme.colors.buttonBg,
+                }}
+              >
+                <BellRing className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 text-left">
+                <div className="font-bold text-xs truncate" style={{ color: currentTheme.colors.textPrimary }}>
+                  Paying by cash?
+                </div>
+                <div className="text-[11px] truncate" style={{ color: currentTheme.colors.textSecondary }}>
+                  Floor captain will bring the bill to your chair
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCurrentScreen(10)}
+              className="shrink-0 rounded-xl px-3 py-1.5 text-xs font-black border transition active:scale-95 cursor-pointer"
+              style={{
+                backgroundColor: currentTheme.colors.bgSurface,
+                borderColor: currentTheme.colors.border,
+                color: currentTheme.colors.buttonBg,
+              }}
             >
-              {/* Dynamic QR Display */}
-              <div
-                className="rounded-2xl border p-4 flex flex-col items-center text-center shadow-2xs"
-                style={{
-                  backgroundColor: currentTheme.colors.bgElevated,
-                  borderColor: currentTheme.colors.border,
-                }}
-              >
-                <div className="flex items-center gap-1.5 mb-2.5">
-                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-[10px] font-black text-emerald-800 font-mono uppercase tracking-wider">
-                    Scan with Any UPI App to Pay
-                  </span>
-                </div>
-
-                {qrDataUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={qrDataUrl}
-                    alt="NPCI UPI QR Code"
-                    style={{ borderColor: currentTheme.colors.border }}
-                    className="h-48 w-48 rounded-2xl border-2 p-2 bg-white shadow-sm"
-                  />
-                ) : (
-                  <div
-                    className="h-48 w-48 rounded-2xl bg-white border flex items-center justify-center"
-                    style={{ borderColor: currentTheme.colors.border }}
-                  >
-                    <QrCode className="h-10 w-10" style={{ color: currentTheme.colors.buttonBg }} />
-                  </div>
-                )}
-
-                <div
-                  className="mt-2 text-[10.5px] font-mono font-bold"
-                  style={{ color: currentTheme.colors.textMuted }}
-                >
-                  Google Pay • PhonePe • Paytm • CRED • BHIM
-                </div>
-              </div>
-
-              <div
-                className="p-3 rounded-2xl border text-center text-xs"
-                style={{
-                  backgroundColor: currentTheme.colors.bgElevated,
-                  borderColor: currentTheme.colors.border,
-                }}
-              >
-                <p className="text-[11px] font-medium" style={{ color: currentTheme.colors.textSecondary }}>
-                  After completing payment in your UPI app, tap <strong style={{ color: currentTheme.colors.textPrimary }}>Confirm UPI Payment</strong> below.
-                </p>
-              </div>
-            </motion.div>
-          )}
-
-          {/* TAB 1: CASH PAYMENT AT TABLE */}
-          {activeTab === 'CASH' && (
-            <motion.div
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -4 }}
-              className="space-y-3"
-            >
-              <div
-                className="rounded-2xl border p-4 space-y-3.5 shadow-2xs"
-                style={{
-                  backgroundColor: currentTheme.colors.bgElevated,
-                  borderColor: currentTheme.colors.border,
-                }}
-              >
-                <div
-                  className="flex items-center justify-between border-b pb-3"
-                  style={{ borderColor: currentTheme.colors.borderLight }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
-                    <span
-                      className="text-[10px] font-black font-mono tracking-wider uppercase"
-                      style={{ color: currentTheme.colors.buttonBg }}
-                    >
-                      Cash Settlement at Table
-                    </span>
-                  </div>
-                  <span
-                    className="text-[10px] font-mono px-2 py-0.5 rounded-full border font-bold"
-                    style={{
-                      backgroundColor: currentTheme.colors.secondaryBg,
-                      borderColor: currentTheme.colors.border,
-                      color: currentTheme.colors.textPrimary,
-                    }}
-                  >
-                    {effectiveTable} • Chair C-{String(effectiveSeat).padStart(2, '0')}
-                  </span>
-                </div>
-
-                {/* Tender Note Selection */}
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <span className="font-bold" style={{ color: currentTheme.colors.textPrimary }}>
-                      Select Note (Optional)
-                    </span>
-                    <span className="text-[10px] font-semibold" style={{ color: currentTheme.colors.textMuted }}>
-                      To calculate change
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    {tenderOptions.map((opt) => {
-                      const isSelected = selectedTender.id === opt.id;
-                      return (
-                        <button
-                          key={opt.id}
-                          type="button"
-                          onClick={() => setSelectedTender(opt)}
-                          className="flex items-center justify-between rounded-xl p-2.5 text-xs font-bold border transition shadow-2xs active:scale-95 cursor-pointer"
-                          style={
-                            isSelected
-                              ? {
-                                  backgroundColor: currentTheme.colors.pillActiveBg,
-                                  borderColor: currentTheme.colors.pillActiveBorder,
-                                  color: currentTheme.colors.pillActiveFg,
-                                }
-                              : {
-                                  backgroundColor: currentTheme.colors.bgSurface,
-                                  borderColor: currentTheme.colors.border,
-                                  color: currentTheme.colors.textPrimary,
-                                }
-                          }
-                        >
-                          <span className="font-mono">{opt.label}</span>
-                          {opt.change > 0 ? (
-                            <span className="text-[10px] font-mono font-medium opacity-80">
-                              +₹{opt.change}
-                            </span>
-                          ) : (
-                            <Check className="h-3.5 w-3.5" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {selectedTender.change > 0 && (
-                    <div
-                      className="flex items-center justify-between rounded-xl px-3 py-2 text-xs font-bold border"
-                      style={{
-                        backgroundColor: currentTheme.colors.secondaryBg,
-                        borderColor: currentTheme.colors.borderLight,
-                        color: currentTheme.colors.secondaryFg,
-                      }}
-                    >
-                      <span>Change to Receive:</span>
-                      <span className="font-mono font-black text-sm">₹{selectedTender.change}</span>
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className="pt-2 border-t text-[11px] font-medium text-center"
-                  style={{
-                    borderColor: currentTheme.colors.borderLight,
-                    color: currentTheme.colors.textSecondary,
-                  }}
-                >
-                  Hand ₹{selectedTender.amount} cash directly to the Floor Captain when they arrive at your chair.
-                </div>
-              </div>
-            </motion.div>
-          )}
+              Call Waiter
+            </button>
+          </div>
         </div>
       </div>
 
@@ -651,11 +453,7 @@ export const Screen7PaymentGateway: React.FC = () => {
           className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105 disabled:opacity-75 cursor-pointer"
         >
           <span>
-            {isProcessing
-              ? 'Verifying Settlement...'
-              : activeTab === 'UPI'
-              ? `Confirm UPI Payment (₹${grandTotal})`
-              : `Confirm Cash Payment (₹${grandTotal})`}
+            {isProcessing ? 'Verifying Settlement...' : `Confirm UPI Payment (₹${grandTotal})`}
           </span>
           {isProcessing ? (
             <Loader2 className="h-4 w-4 animate-spin" />

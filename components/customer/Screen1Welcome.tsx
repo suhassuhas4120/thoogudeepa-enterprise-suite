@@ -18,6 +18,7 @@ import {
   CookingPot,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ThemeTogglePill } from '../ui/ThemeTogglePill';
 
 export const Screen1Welcome: React.FC = () => {
   const {
@@ -106,6 +107,7 @@ export const Screen1Welcome: React.FC = () => {
 
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
+      <ThemeTogglePill variant="floating" />
       <div
         className="flex-1 overflow-y-auto flex flex-col p-4 space-y-3 pb-6 transition-colors duration-200"
         style={{ backgroundColor: currentTheme.colors.bgApp }}

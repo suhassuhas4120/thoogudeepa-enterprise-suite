@@ -4,8 +4,10 @@ import React from 'react';
 import { useCustomer } from '../context/CustomerContext';
 import { useCustomerStore } from '../store/useCustomerStore';
 import { useSharedBridge } from '../store/useSharedBridge';
-import { CustomerThemeProvider } from '../context/ThemeContext';
+import { CustomerThemeProvider, useCustomerTheme } from '../context/ThemeContext';
 import { AnimatePresence, motion } from 'framer-motion';
+
+// Classic Heritage Light Screens
 import { Screen1Welcome } from '../components/customer/Screen1Welcome';
 import { Screen2Menu } from '../components/customer/Screen2Menu';
 import { Screen3ItemDetail } from '../components/customer/Screen3ItemDetail';
@@ -16,6 +18,18 @@ import { Screen7PaymentGateway } from '../components/customer/Screen7PaymentGate
 import { Screen8Confirmation } from '../components/customer/Screen8Confirmation';
 import { Screen9DigitalBill } from '../components/customer/Screen9DigitalBill';
 import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
+
+// Ultra Luxury Obsidian Gold Screens
+import { Screen1Welcome as Screen1WelcomeLuxury } from '../components/customer/luxury/Screen1Welcome';
+import { Screen2Menu as Screen2MenuLuxury } from '../components/customer/luxury/Screen2Menu';
+import { Screen3ItemDetail as Screen3ItemDetailLuxury } from '../components/customer/luxury/Screen3ItemDetail';
+import { Screen4Cart as Screen4CartLuxury } from '../components/customer/luxury/Screen4Cart';
+import { Screen5LiveTracking as Screen5LiveTrackingLuxury } from '../components/customer/luxury/Screen5LiveTracking';
+import { Screen6PaymentBreakdown as Screen6PaymentBreakdownLuxury } from '../components/customer/luxury/Screen6PaymentBreakdown';
+import { Screen7PaymentGateway as Screen7PaymentGatewayLuxury } from '../components/customer/luxury/Screen7PaymentGateway';
+import { Screen8Confirmation as Screen8ConfirmationLuxury } from '../components/customer/luxury/Screen8Confirmation';
+import { Screen9DigitalBill as Screen9DigitalBillLuxury } from '../components/customer/luxury/Screen9DigitalBill';
+import { Screen10WaiterCall as Screen10WaiterCallLuxury } from '../components/customer/luxury/Screen10WaiterCall';
 import { ScreenId } from '../types/customer';
 import { getSyncBroadcastChannel } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
@@ -85,6 +99,8 @@ function NetworkConnectivityPill() {
 
 function CustomerJourneyContent() {
   const { currentScreen, setTableNumber, setSeatNumber } = useCustomer();
+  const { currentThemeId } = useCustomerTheme();
+  const isLuxuryDark = currentThemeId === 'obsidian-gold';
 
   // Parsed once from URL; stable for the lifetime of this page load
   const tableRef = React.useRef('T-01');
@@ -846,7 +862,24 @@ function CustomerJourneyContent() {
     window.addEventListener('pointerup', onUp);
   };
 
-  const renderActiveScreen = () => {
+  // Memoised screen element — only recomputes when screen or theme actually changes.
+  // Prevents expensive child tree teardown on unrelated parent re-renders.
+  const activeScreen = React.useMemo(() => {
+    if (isLuxuryDark) {
+      switch (currentScreen) {
+        case 1: return <Screen1WelcomeLuxury />;
+        case 2: return <Screen2MenuLuxury />;
+        case 3: return <Screen3ItemDetailLuxury />;
+        case 4: return <Screen4CartLuxury />;
+        case 5: return <Screen5LiveTrackingLuxury />;
+        case 6: return <Screen6PaymentBreakdownLuxury />;
+        case 7: return <Screen7PaymentGatewayLuxury />;
+        case 8: return <Screen8ConfirmationLuxury />;
+        case 9: return <Screen9DigitalBillLuxury />;
+        case 10: return <Screen10WaiterCallLuxury />;
+        default: return <Screen1WelcomeLuxury />;
+      }
+    }
     switch (currentScreen) {
       case 1: return <Screen1Welcome />;
       case 2: return <Screen2Menu />;
@@ -860,7 +893,11 @@ function CustomerJourneyContent() {
       case 10: return <Screen10WaiterCall />;
       default: return <Screen1Welcome />;
     }
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentScreen, isLuxuryDark]);
+
+  // Composite key: animate transition when EITHER screen OR theme changes.
+  const motionKey = `${currentScreen}-${isLuxuryDark ? 'lux' : 'cls'}`;
 
   return (
     <main
@@ -871,14 +908,14 @@ function CustomerJourneyContent() {
       <NetworkConnectivityPill />
       <AnimatePresence mode="wait">
         <motion.div
-          key={currentScreen}
+          key={motionKey}
           initial={{ opacity: 0, x: 12 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -12 }}
           transition={{ duration: 0.18, ease: 'easeOut' }}
           style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
         >
-          {renderActiveScreen()}
+          {activeScreen}
         </motion.div>
       </AnimatePresence>
 

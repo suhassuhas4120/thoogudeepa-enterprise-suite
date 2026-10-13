@@ -29,9 +29,36 @@ export default function KitchenKDSPage() {
     activeStation,
   } = useKitchenStore();
 
-  // Ensure station starts at login on reload
+  // Ensure station starts at login on reload and maintain screen WakeLock + Audio Keep-Alive
   useEffect(() => {
     setCurrentScreen(1);
+
+    // Screen WakeLock API to prevent commercial kitchen tablets from dimming
+    let wakeLockSentinel: any = null;
+    const requestWakeLock = async () => {
+      try {
+        if ('wakeLock' in navigator) {
+          wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+        }
+      } catch {}
+    };
+    requestWakeLock();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (wakeLockSentinel) {
+        try {
+          wakeLockSentinel.release();
+        } catch {}
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

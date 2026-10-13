@@ -23,6 +23,9 @@
     "test:rush": "node scripts/simulate-peak-rush.js",
     "test:phase9": "npx tsx scripts/test-phase9-comprehensive.ts",
     "test:phase10": "npx tsx scripts/test-phase10-comprehensive.ts",
+    "test:phase1": "node scripts/test-phase1-simulation.mjs",
+    "test:perimeter": "npx tsx scripts/test-phase3-perimeter.ts",
+    "test:phase4": "npx tsx scripts/test-phase4-comprehensive.ts",
     "test:schema": "npx tsx scripts/test-db-schema-validation.ts",
     "test:env": "npx tsx scripts/test-env-validation.ts",
     "generate-qrs": "node scripts/generate-qr-assets.js"

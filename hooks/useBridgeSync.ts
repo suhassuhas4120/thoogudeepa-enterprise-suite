@@ -29,6 +29,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase, getSyncBroadcastChannel } from '../lib/supabase';
 import { useSharedBridge, type SharedTable } from '../store/useSharedBridge';
+import { useCustomerStore } from '../store/useCustomerStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 // ── Supabase row shapes (only fields we need) ────────────────────────
@@ -79,6 +80,7 @@ interface DbMenu86Row {
 interface DbPingRow {
   id: string;
   table_number: string;
+  seat_number?: number | string;
   type: string;
   message: string | null;
   guest_name: string;
@@ -304,10 +306,13 @@ async function reconcileAllState(): Promise<void> {
           const tNum = clean(row.table_number);
           const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
           if (bill.timestamp && Math.abs(now - bill.timestamp) < 1800000) {
-            settledBillsFromDb[normTable] = bill;
-            const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-            if (seatMatch) {
-              settledBillsFromDb[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
+            const seatNum = typeof bill.seatNumber === 'number'
+              ? bill.seatNumber
+              : (bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(bill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+            if (typeof seatNum === 'number') {
+              settledBillsFromDb[`${normTable}-CHAIR-${seatNum}`] = bill;
+            } else {
+              settledBillsFromDb[normTable] = bill;
             }
           }
         } catch {}
@@ -315,6 +320,7 @@ async function reconcileAllState(): Promise<void> {
         nextPings.push({
           id: row.id,
           tableNumber: row.table_number,
+          seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
           type: row.type,
           message: row.message ?? undefined,
           timestamp: row.created_at
@@ -338,10 +344,18 @@ async function reconcileAllState(): Promise<void> {
         ...(prev.activeSettlementSessions || {}),
         ...activeSessionsFromDb,
       },
-      settledBills: {
-        ...(prev.settledBills || {}),
-        ...settledBillsFromDb,
-      },
+      settledBills: (() => {
+        const merged: Record<string, any> = { ...settledBillsFromDb };
+        const prevBills = prev.settledBills || {};
+        const nowTs = Date.now();
+        // Only keep in-flight snapshots from memory if created in the last 4 seconds
+        Object.entries(prevBills).forEach(([k, v]) => {
+          if (v?.timestamp && Math.abs(nowTs - v.timestamp) < 4000 && !merged[k]) {
+            merged[k] = v;
+          }
+        });
+        return merged;
+      })(),
     }));
   } catch (err) {
     console.error('[BridgeSync] Reconciliation error:', err);
@@ -411,70 +425,87 @@ export function useBridgeSync() {
           const byId = existing.some((tk) => tk.id === row.id);
           if (byId) return;
 
-          // Fallback: same table + same source within a 10-second burst window
-          // Guards against edge cases where onSuccess hasn't fired yet
+          // Reconcile optimistic in-memory ticket if created locally on this client
           const rowAge = row.created_at
             ? (Date.now() - new Date(row.created_at).getTime()) / 1000
             : 999;
-          const byProximity =
-            rowAge < 10 &&
-            existing.some(
-              (tk) =>
-                tk.tableNumber === row.table_number &&
-                tk.source === row.source &&
-                tk.status === row.status
-            );
-          if (byProximity) {
-            // Still make sure the in-memory ticket carries the real DB id
+          const optimisticMatch = existing.find(
+            (tk) =>
+              (tk.id.startsWith('KDS-') || tk.id.startsWith('kds-')) &&
+              tk.tableNumber === row.table_number &&
+              tk.source === row.source &&
+              tk.status === row.status
+          );
+          if (optimisticMatch && rowAge < 10) {
             useSharedBridge.setState((state) => ({
               kdsTickets: state.kdsTickets.map((tk) =>
-                tk.tableNumber === row.table_number &&
-                tk.source === row.source &&
-                tk.status === row.status &&
-                tk.id !== row.id
-                  ? { ...tk, id: row.id }
-                  : tk
+                tk.id === optimisticMatch.id ? { ...tk, id: row.id } : tk
               ),
             }));
             return;
           }
 
-          useSharedBridge.setState((state) => ({
-            kdsTickets: [
-              ...state.kdsTickets,
-              {
-                id: row.id,
-                tableNumber: row.table_number,
-                seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
-                serverName: row.server_name || '',
-                timestamp: row.created_at
-                  ? new Date(row.created_at).toLocaleTimeString('en-IN', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      timeZone: 'Asia/Kolkata',
-                    })
-                  : '--',
-                elapsedMinutes: row.elapsed_minutes ?? 0,
-                status: row.status,
-                source: row.source,
-                items: Array.isArray(row.items)
-                  ? row.items.map((it) => ({
-                      id: it.id || `it-${Math.random()}`,
-                      name: it.name,
-                      quantity: it.quantity,
-                      stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
-                      prepMode: it.prepMode || '',
-                      options: it.options,
-                      addOns: (it as any).addOns || (it as any).add_ons || [],
-                      seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
-                        ? Number(it.seat_number || it.seatNumber || row.seat_number)
-                        : undefined,
-                      price: Number(it.price || it.unit_price || 0),
-                    }))
-                  : [],
-              },
-            ],
-          }));
+          const newTicketItems = Array.isArray(row.items)
+            ? row.items.map((it) => ({
+                id: it.id || `it-${Math.random()}`,
+                name: it.name,
+                quantity: it.quantity,
+                stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
+                prepMode: it.prepMode || '',
+                options: it.options,
+                addOns: (it as any).addOns || (it as any).add_ons || [],
+                seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
+                  ? Number(it.seat_number || it.seatNumber || row.seat_number)
+                  : undefined,
+                price: Number(it.price || it.unit_price || 0),
+              }))
+            : [];
+
+          const newTicket = {
+            id: row.id,
+            tableNumber: row.table_number,
+            seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
+            serverName: row.server_name || '',
+            timestamp: row.created_at
+              ? new Date(row.created_at).toLocaleTimeString('en-IN', {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  timeZone: 'Asia/Kolkata',
+                })
+              : '--',
+            elapsedMinutes: row.elapsed_minutes ?? 0,
+            status: row.status,
+            source: row.source,
+            items: newTicketItems,
+          };
+
+          useSharedBridge.setState((state) => {
+            const nextTickets = [...state.kdsTickets, newTicket];
+            const nextTables = state.tables.map((tbl) => {
+              if (tbl.number === row.table_number) {
+                const additionalActive = newTicketItems.map((it) => ({
+                  id: it.id,
+                  name: it.name,
+                  quantity: it.quantity,
+                  status: 'Placed',
+                  options: it.options,
+                  addOns: it.addOns,
+                  seatNumber: it.seatNumber,
+                  price: it.price,
+                }));
+                return {
+                  ...tbl,
+                  status: 'OCCUPIED' as const,
+                  activeItems: [...(tbl.activeItems || []), ...additionalActive],
+                };
+              }
+              return tbl;
+            });
+            return {
+              kdsTickets: nextTickets,
+              tables: nextTables,
+            };
+          });
         }
       )
       .on(
@@ -523,9 +554,7 @@ export function useBridgeSync() {
                   return {
                     ...tbl,
                     activeItems: (tbl.activeItems || []).map((ai) => {
-                      const matched = parsedItems.find(
-                        (pi) => pi.id === ai.id || (pi.name === ai.name && pi.seatNumber === ai.seatNumber)
-                      );
+                      const matched = parsedItems.find((pi) => pi.id === ai.id);
                       if (!matched) return ai;
                       return {
                         ...ai,
@@ -618,15 +647,17 @@ export function useBridgeSync() {
               const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
               useSharedBridge.setState((prev) => {
                 const nextBills = { ...(prev.settledBills || {}) };
-                nextBills[normTable] = bill;
-                const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-                if (seatMatch) {
-                  nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
-                }
+                const seatNum = typeof bill.seatNumber === 'number'
+                  ? bill.seatNumber
+                  : (bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(bill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
                 const nextSessions = { ...(prev.activeSettlementSessions || {}) };
-                delete nextSessions[normTable];
-                if (seatMatch) {
-                  delete nextSessions[`${normTable}-CHAIR-${seatMatch[1]}`];
+
+                if (typeof seatNum === 'number') {
+                  nextBills[`${normTable}-CHAIR-${seatNum}`] = bill;
+                  delete nextSessions[`${normTable}-CHAIR-${seatNum}`];
+                } else {
+                  nextBills[normTable] = bill;
+                  delete nextSessions[normTable];
                 }
                 return { settledBills: nextBills, activeSettlementSessions: nextSessions };
               });
@@ -692,10 +723,15 @@ export function useBridgeSync() {
               const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
               useSharedBridge.setState((prev) => {
                 const nextBills = { ...(prev.settledBills || {}) };
-                nextBills[normTable] = bill;
                 const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-                if (seatMatch) {
-                  nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = bill;
+                const seatNum = typeof bill.seatNumber === 'number'
+                  ? bill.seatNumber
+                  : (seatMatch ? Number(seatMatch[1]) : undefined);
+
+                if (typeof seatNum === 'number') {
+                  nextBills[`${normTable}-CHAIR-${seatNum}`] = bill;
+                } else {
+                  nextBills[normTable] = bill;
                 }
                 return { settledBills: nextBills };
               });
@@ -897,18 +933,32 @@ export function useBridgeSync() {
           const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
           useSharedBridge.setState((prev) => {
             const nextBills = { ...(prev.settledBills || {}) };
-            nextBills[normTable] = snap;
-            const seatMatch = snap.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-            if (seatMatch) {
-              nextBills[`${normTable}-CHAIR-${seatMatch[1]}`] = snap;
-            }
+            const seatNum = typeof snap.seatNumber === 'number'
+              ? snap.seatNumber
+              : (snap.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(snap.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
             const nextSessions = { ...(prev.activeSettlementSessions || {}) };
-            delete nextSessions[normTable];
-            if (seatMatch) {
-              delete nextSessions[`${normTable}-CHAIR-${seatMatch[1]}`];
+
+            if (typeof seatNum === 'number') {
+              nextBills[`${normTable}-CHAIR-${seatNum}`] = snap;
+              delete nextSessions[`${normTable}-CHAIR-${seatNum}`];
+            } else {
+              nextBills[normTable] = snap;
+              delete nextSessions[normTable];
             }
             return { settledBills: nextBills, activeSettlementSessions: nextSessions };
           });
+        } else if (payload?.reason === 'waiterPingResolved' && payload?.payload) {
+          const p = payload.payload;
+          try {
+            const curStore = useCustomerStore.getState();
+            const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+            const isMatch =
+              cleanNum(curStore.tableNumber) === cleanNum(p.tableNumber) &&
+              (!p.seatNumber || curStore.seatNumber === p.seatNumber);
+            if (isMatch) {
+              curStore.setWaiterAttended(p.type, p.message);
+            }
+          } catch {}
         }
         reconcileAllState();
       });

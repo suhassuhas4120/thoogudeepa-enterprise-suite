@@ -40,8 +40,13 @@ function getOccupiedSeatsForTable(
   // 1. Check table activeItems (live table order)
   if (table.activeItems && table.activeItems.length > 0) {
     for (const item of table.activeItems) {
-      if (item.seatNumber && item.seatNumber >= 1 && item.seatNumber <= capacity) {
-        occupied.add(item.seatNumber);
+      const seat = item.seatNumber !== undefined && item.seatNumber !== null
+        ? Number(item.seatNumber)
+        : (item as any).seat_number !== undefined && (item as any).seat_number !== null
+        ? Number((item as any).seat_number)
+        : undefined;
+      if (seat && seat >= 1 && seat <= capacity) {
+        occupied.add(seat);
       }
     }
   }
@@ -51,21 +56,27 @@ function getOccupiedSeatsForTable(
     (tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(table.number) && tk.status !== 'COMPLETED'
   );
   for (const tk of matchingTickets) {
-    if (tk.seatNumber && tk.seatNumber >= 1 && tk.seatNumber <= capacity) {
-      occupied.add(tk.seatNumber);
+    const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : undefined;
+    if (tkSeat && tkSeat >= 1 && tkSeat <= capacity) {
+      occupied.add(tkSeat);
     }
     for (const item of tk.items || []) {
-      const seat = item.seatNumber || (item as any).seat_number;
+      const seat = item.seatNumber !== undefined && item.seatNumber !== null
+        ? Number(item.seatNumber)
+        : (item as any).seat_number !== undefined && (item as any).seat_number !== null
+        ? Number((item as any).seat_number)
+        : tkSeat;
       if (seat && seat >= 1 && seat <= capacity) {
         occupied.add(seat);
       }
     }
   }
 
-  // If table has running bill or active tickets/items but no chair tagged:
-  const hasBill = typeof table.currentBill === 'number' && table.currentBill > 0;
-  const hasOrders = hasBill || matchingTickets.length > 0 || (table.activeItems && table.activeItems.length > 0);
-  if (occupied.size === 0 && hasOrders) {
+  // If table is actively occupied/billing or has matching uncompleted tickets, but no chair tagged:
+  const isTableActive = table.status === 'OCCUPIED' || table.status === 'BILLING';
+  const hasActiveTickets = matchingTickets.length > 0;
+  const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
+  if (occupied.size === 0 && (hasActiveTickets || hasActiveItems || (isTableActive && (table.currentBill || 0) > 0))) {
     occupied.add(1);
   }
 

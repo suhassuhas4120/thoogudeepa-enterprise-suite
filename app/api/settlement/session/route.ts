@@ -1,47 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, broadcastStateChange } from '../../../../lib/supabase';
+import {
+  activeSettlementSessions,
+  settledBills,
+  clearedSettlementAt,
+  normalizeTable,
+  ActiveSettlementSession,
+  SettledBillSnapshot,
+} from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
-
-export interface ActiveSettlementSession {
-  tableNumber: string;
-  seatNumber?: number;
-  grandTotal?: number;
-  method: 'UPI' | 'CASH';
-  isUpiVerified?: boolean;
-  initiatedAt: number;
-}
-
-export interface SettledBillSnapshot {
-  invoiceNumber: string;
-  items: any[];
-  subtotal: number;
-  totalTax: number;
-  cgst: number;
-  sgst: number;
-  grandTotal: number;
-  method: 'UPI' | 'CASH';
-  cashTendered?: number;
-  cashChange?: number;
-  seatLabel: string;
-  captainName: string;
-  tableName: string;
-  section: string;
-  guestCount: number;
-  formattedDate: string;
-  formattedTime: string;
-  timestamp?: number;
-}
-
-// In-memory active settlement storage on Next.js server instance
-const activeSettlementSessions = new Map<string, ActiveSettlementSession>();
-const settledBills = new Map<string, SettledBillSnapshot>();
-
-const normalizeTable = (tbl: string) => {
-  const clean = (tbl || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-  const num = parseInt(clean, 10);
-  return `T-${String(!isNaN(num) && num > 0 ? num : clean).padStart(2, '0')}`;
-};
 
 export async function GET(req: NextRequest) {
   const now = Date.now();
@@ -77,26 +45,33 @@ export async function GET(req: NextRequest) {
           const parsed = JSON.parse(row.message);
           const normTable = normalizeTable(row.table_number);
           if (row.type === 'SETTLEMENT_SESSION') {
+            const lastCleared = typeof parsed.seatNumber === 'number'
+              ? (clearedSettlementAt.get(`${normTable}-CHAIR-${parsed.seatNumber}`) || clearedSettlementAt.get(normTable))
+              : clearedSettlementAt.get(normTable);
+            if (lastCleared && Date.now() - lastCleared < 20000) {
+              continue;
+            }
             if (parsed.initiatedAt && Math.abs(now - parsed.initiatedAt) < 1800000) {
-              sessionsObj[normTable] = parsed;
               if (typeof parsed.seatNumber === 'number') {
                 sessionsObj[`${normTable}-CHAIR-${parsed.seatNumber}`] = parsed;
-              }
-              activeSettlementSessions.set(normTable, parsed);
-              if (typeof parsed.seatNumber === 'number') {
                 activeSettlementSessions.set(`${normTable}-CHAIR-${parsed.seatNumber}`, parsed);
+              } else {
+                sessionsObj[normTable] = parsed;
+                activeSettlementSessions.set(normTable, parsed);
               }
             }
           } else if (row.type === 'SETTLED_BILL') {
             if (parsed.timestamp && Math.abs(now - parsed.timestamp) < 1800000) {
-              billsObj[normTable] = parsed;
-              const seatMatch = parsed.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-              if (seatMatch) {
-                billsObj[`${normTable}-CHAIR-${seatMatch[1]}`] = parsed;
-              }
-              settledBills.set(normTable, parsed);
-              if (seatMatch) {
-                settledBills.set(`${normTable}-CHAIR-${seatMatch[1]}`, parsed);
+              const seatNum = typeof parsed.seatNumber === 'number'
+                ? parsed.seatNumber
+                : (parsed.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(parsed.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
+              if (typeof seatNum === 'number') {
+                billsObj[`${normTable}-CHAIR-${seatNum}`] = parsed;
+                settledBills.set(`${normTable}-CHAIR-${seatNum}`, parsed);
+              } else {
+                billsObj[normTable] = parsed;
+                settledBills.set(normTable, parsed);
               }
             }
           }
@@ -104,6 +79,32 @@ export async function GET(req: NextRequest) {
       }
     }
   } catch {}
+
+  const { searchParams } = new URL(req.url);
+  const tableParam = searchParams.get('tableNumber') || searchParams.get('table');
+
+  if (tableParam) {
+    const normReqTable = normalizeTable(tableParam);
+    const filteredSessions: Record<string, ActiveSettlementSession> = {};
+    const filteredBills: Record<string, SettledBillSnapshot> = {};
+
+    Object.entries(sessionsObj).forEach(([k, v]) => {
+      if (k === normReqTable || k.startsWith(`${normReqTable}-CHAIR-`)) {
+        filteredSessions[k] = v;
+      }
+    });
+
+    Object.entries(billsObj).forEach(([k, v]) => {
+      if (k === normReqTable || k.startsWith(`${normReqTable}-CHAIR-`)) {
+        filteredBills[k] = v;
+      }
+    });
+
+    return NextResponse.json({
+      sessions: filteredSessions,
+      settledBills: filteredBills,
+    });
+  }
 
   return NextResponse.json({
     sessions: sessionsObj,
@@ -129,9 +130,19 @@ export async function POST(req: NextRequest) {
         initiatedAt: session.initiatedAt || Date.now(),
       };
 
-      activeSettlementSessions.set(normTable, cleanSession);
+      if (typeof session.seatNumber === 'number') {
+        clearedSettlementAt.delete(`${normTable}-CHAIR-${session.seatNumber}`);
+      } else {
+        clearedSettlementAt.delete(normTable);
+      }
+
       if (typeof session.seatNumber === 'number') {
         activeSettlementSessions.set(`${normTable}-CHAIR-${session.seatNumber}`, cleanSession);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === session.seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
+      } else {
+        activeSettlementSessions.set(normTable, cleanSession);
       }
 
       broadcastStateChange('settlementSessionStarted', cleanSession);
@@ -160,19 +171,40 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(tableNumber);
-      activeSettlementSessions.delete(normTable);
       if (typeof seatNumber === 'number') {
+        clearedSettlementAt.set(`${normTable}-CHAIR-${seatNumber}`, Date.now());
         activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
+      } else {
+        clearedSettlementAt.set(normTable, Date.now());
+        activeSettlementSessions.delete(normTable);
+        for (let s = 1; s <= 12; s++) {
+          activeSettlementSessions.delete(`${normTable}-CHAIR-${s}`);
+        }
       }
 
       broadcastStateChange('settlementSessionCleared', { normTable, seatNumber });
 
       const sessId = `SETTLE-SESSION-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
       try {
-        await supabase
-          .from('pings')
-          .delete()
-          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`);
+        if (typeof seatNumber === 'number') {
+          await supabase
+            .from('pings')
+            .delete()
+            .eq('id', sessId);
+        } else {
+          await supabase
+            .from('pings')
+            .delete()
+            .in('id', [sessId, `SETTLE-SESSION-${normTable}`]);
+          await supabase
+            .from('pings')
+            .delete()
+            .eq('table_number', normTable)
+            .eq('type', 'SETTLEMENT_SESSION');
+        }
       } catch {}
 
       return NextResponse.json({ success: true });
@@ -190,33 +222,53 @@ export async function POST(req: NextRequest) {
         timestamp: snapshot.timestamp || Date.now(),
       };
 
-      settledBills.set(normTable, enrichedSnapshot);
-
       const seatMatch = snapshot.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-      if (seatMatch) {
-        settledBills.set(`${normTable}-CHAIR-${seatMatch[1]}`, enrichedSnapshot);
-        activeSettlementSessions.delete(`${normTable}-CHAIR-${seatMatch[1]}`);
+      const seatNumber = typeof snapshot.seatNumber === 'number'
+        ? snapshot.seatNumber
+        : (seatMatch ? Number(seatMatch[1]) : undefined);
+
+      if (typeof seatNumber === 'number') {
+        settledBills.set(`${normTable}-CHAIR-${seatNumber}`, enrichedSnapshot);
+        if (settledBills.get(normTable)?.seatNumber === seatNumber) {
+          settledBills.delete(normTable);
+        }
+        activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
+      } else {
+        settledBills.set(normTable, enrichedSnapshot);
+        activeSettlementSessions.delete(normTable);
+        for (let s = 1; s <= 12; s++) {
+          activeSettlementSessions.delete(`${normTable}-CHAIR-${s}`);
+        }
       }
-      activeSettlementSessions.delete(normTable);
 
       broadcastStateChange('settledBillRecorded', enrichedSnapshot);
 
-      const billId = `SETTLED-BILL-${normTable}${seatMatch ? `-S${seatMatch[1]}` : ''}`;
-      const sessId = `SETTLE-SESSION-${normTable}${seatMatch ? `-S${seatMatch[1]}` : ''}`;
+      const billId = `SETTLED-BILL-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
+      const sessId = `SETTLE-SESSION-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
       try {
         await supabase.from('pings').upsert({
           id: billId,
           table_number: normTable,
-          seat_number: seatMatch ? Number(seatMatch[1]) : 1,
+          seat_number: typeof seatNumber === 'number' ? seatNumber : 1,
           type: 'SETTLED_BILL',
           guest_name: snapshot.captainName || 'Guest',
           message: JSON.stringify(enrichedSnapshot),
           status: 'RESOLVED',
         });
-        await supabase
-          .from('pings')
-          .delete()
-          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`);
+        if (typeof seatNumber === 'number') {
+          await supabase
+            .from('pings')
+            .delete()
+            .eq('id', sessId);
+        } else {
+          await supabase
+            .from('pings')
+            .delete()
+            .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`);
+        }
       } catch {}
 
       return NextResponse.json({ success: true, snapshot: enrichedSnapshot });
@@ -230,15 +282,22 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(tableNumber);
-      settledBills.delete(normTable);
-      activeSettlementSessions.delete(normTable);
       if (typeof seatNumber === 'number') {
         settledBills.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (settledBills.get(normTable)?.seatNumber === seatNumber) {
+          settledBills.delete(normTable);
+        }
         activeSettlementSessions.delete(`${normTable}-CHAIR-${seatNumber}`);
+        if (activeSettlementSessions.get(normTable)?.seatNumber === seatNumber) {
+          activeSettlementSessions.delete(normTable);
+        }
       } else {
-        // Clear all chairs for this table
+        settledBills.delete(normTable);
         for (let s = 1; s <= 12; s++) {
           settledBills.delete(`${normTable}-CHAIR-${s}`);
+        }
+        activeSettlementSessions.delete(normTable);
+        for (let s = 1; s <= 12; s++) {
           activeSettlementSessions.delete(`${normTable}-CHAIR-${s}`);
         }
       }
@@ -260,6 +319,22 @@ export async function POST(req: NextRequest) {
       } catch {}
 
       return NextResponse.json({ success: true });
+    }
+
+    if (action === 'RESET_ALL' || action === 'VENUE_CLEAN_RESET') {
+      activeSettlementSessions.clear();
+      settledBills.clear();
+      clearedSettlementAt.clear();
+
+      try {
+        await supabase
+          .from('pings')
+          .delete()
+          .or('type.eq.SETTLEMENT_SESSION,type.eq.SETTLED_BILL');
+      } catch {}
+
+      broadcastStateChange('VENUE_CLEAN_RESET', { timestamp: Date.now() });
+      return NextResponse.json({ success: true, message: 'All venue sessions reset successfully' });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

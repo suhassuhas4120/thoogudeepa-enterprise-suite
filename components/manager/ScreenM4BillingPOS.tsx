@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 
 export function ScreenM4BillingPOS() {
-  const { tables, waiterRecordsPayment, waiterVacatesTable } = useSharedBridge();
+  const { tables, waiterRecordsPayment, waiterVacatesTable, recordSettledBill } = useSharedBridge();
   const { selectedTableNumber, setSelectedTableNumber, setCurrentScreen } = useManagerStore();
 
   const selectedTable = tables.find((t) => t.number === selectedTableNumber) || tables[0];
@@ -118,6 +118,34 @@ export function ScreenM4BillingPOS() {
   };
 
   const handleSettle = () => {
+    const invNum = `INV-${Date.now().toString().slice(-6)}`;
+    const now = new Date();
+    recordSettledBill({
+      invoiceNumber: invNum,
+      items: items.map((it) => ({
+        id: String(it.id),
+        name: it.name,
+        quantity: it.qty,
+        price: it.price,
+        totalPrice: it.price * it.qty,
+      })),
+      subtotal,
+      totalTax: cgst + sgst,
+      cgst,
+      sgst,
+      grandTotal,
+      method: paymentMethod,
+      cashTendered: paymentMethod === 'CASH' ? tenderedNum : undefined,
+      cashChange: paymentMethod === 'CASH' ? changeDue : undefined,
+      seatLabel: 'Whole Table',
+      captainName: selectedTable?.serverName || 'Manager Host',
+      tableName: selectedTable?.number || 'T-01',
+      section: selectedTable?.section || 'Main Dining Hall',
+      guestCount: selectedTable?.guestCount || 2,
+      formattedDate: now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      formattedTime: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    });
+
     waiterRecordsPayment(selectedTable.number, paymentMethod, grandTotal);
     waiterVacatesTable(selectedTable.number);
     setSettledSuccess(true);

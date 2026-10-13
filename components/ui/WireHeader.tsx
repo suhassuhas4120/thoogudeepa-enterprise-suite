@@ -5,6 +5,7 @@ import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
 import { ArrowLeft, Bell, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ThemeTogglePill } from './ThemeTogglePill';
 
 interface WireHeaderProps {
   title: string | React.ReactNode;
@@ -71,10 +72,12 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-2">
+        <ThemeTogglePill />
+
         {showCallWaiter && (
           <motion.button
             whileTap={{ scale: 0.9 }}
-            className="flex h-8 w-8 items-center justify-center rounded-full border shadow-2xs transition hover:bg-slate-50"
+            className="flex h-8 w-8 items-center justify-center rounded-full border shadow-2xs transition hover:bg-white/10"
             style={{
               backgroundColor: currentTheme.colors.bgSurface,
               borderColor: currentTheme.colors.border,
@@ -102,7 +105,7 @@ export const WireHeader: React.FC<WireHeaderProps> = ({
             <ShoppingCart className="h-4 w-4 stroke-[2.2]" />
             {totalCartCount > 0 && (
               <span
-                className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-black ring-2 ring-white animate-in zoom-in"
+                className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-black ring-2 ring-stone-900 animate-in zoom-in"
                 style={{
                   backgroundColor: currentTheme.colors.accent,
                   color: currentTheme.colors.accentFg,

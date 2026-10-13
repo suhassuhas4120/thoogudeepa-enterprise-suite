@@ -8,6 +8,7 @@ export interface MenuItem {
   badge?: string;
   description: string;
   imagePlaceholder: string;
+  image?: string;
   prepMode: string;
   optionsGroup1: {
     title: string;
@@ -51,7 +52,7 @@ export interface PaymentDetails {
   totalAmount: number;
   splitMode: 'NONE' | 'ITEMS' | 'PERSONS';
   splitCount?: number;
-  paymentMethod: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH';
+  paymentMethod: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH' | 'RAZORPAY';
   redeemPoints: boolean;
   pointsAvailable: number;
   pointsRedeemed: number;

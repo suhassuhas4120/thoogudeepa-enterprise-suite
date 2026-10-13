@@ -5,9 +5,10 @@ import { useSharedBridge } from '../../store/useSharedBridge';
 import { TrendingUp, PieChart, IndianRupee, Trophy } from 'lucide-react';
 
 export function ScreenM11SalesReport() {
-  const { shiftStats } = useSharedBridge();
+  const { shiftStats, settledBills } = useSharedBridge();
 
-  const totalSales = Math.max(38400, shiftStats.totalRevenue);
+  const realSettledSum = Object.values(settledBills || {}).reduce((acc, b) => acc + (b.grandTotal || 0), 0);
+  const totalSales = Math.max(38400, shiftStats.totalRevenue + realSettledSum);
 
   const categories = [
     { name: 'Donne Biryani (Dum Pots)', share: 58, amount: Math.round(totalSales * 0.58) },

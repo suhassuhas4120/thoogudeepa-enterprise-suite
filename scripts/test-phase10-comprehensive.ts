@@ -498,8 +498,8 @@ group('Shift stat accumulation — waiterRecordsPayment', () => {
     hasText(bridge, 'totalRevenue: state.shiftStats.totalRevenue + amount')
   );
   ok(
-    'tablesServed increments by 1: state.shiftStats.tablesServed + 1',
-    hasText(bridge, 'tablesServed: state.shiftStats.tablesServed + 1')
+    'tablesServed increments by 1 for full-table settle (or 0 for chair settle)',
+    hasText(bridge, 'tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1)')
   );
   ok(
     'shiftStats spread to keep other fields unchanged',
@@ -673,11 +673,11 @@ group('Optimistic rollback contracts', () => {
   );
   ok(
     'bridgePost calls onRollback on !res.ok',
-    hasText(bridge, 'if (!res.ok)', 'onRollback?.();')
+    hasText(bridge, 'if (!res.ok)', 'onRollback?.(err);')
   );
   ok(
     'bridgePost calls onRollback on network error (catch)',
-    hasText(bridge, '.catch((err) =>', 'onRollback?.();')
+    hasText(bridge, '.catch((err) =>', 'onRollback?.(err);')
   );
 });
 
@@ -1142,8 +1142,8 @@ group('Payment — setPaymentMethod and confirmAndPay', () => {
     hasText(customer, 'paymentMethod: method,')
   );
   ok(
-    'confirmAndPay calls bridge.waiterRecordsPayment with tableNumber, method and totalAmount',
-    hasText(customer, 'bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount)')
+    'confirmAndPay calls bridge.waiterRecordsPayment with tableNumber, method, totalAmount, and seatNumber',
+    hasText(customer, 'bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount, state.seatNumber)')
   );
   ok(
     'confirmAndPay navigates to screen 8',

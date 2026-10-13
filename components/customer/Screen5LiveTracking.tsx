@@ -3,7 +3,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, SettledBillSnapshot } from '../../store/useSharedBridge';
 import { useOrderTrackingQuery } from '../../hooks/useOrderTrackingQuery';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -92,6 +92,8 @@ export const Screen5LiveTracking: React.FC = () => {
     cart,
     pingWaiter,
     waiterNotification,
+    orderPlacedAt,
+    placeAllOrders,
   } = useCustomer();
 
   const {
@@ -145,219 +147,361 @@ export const Screen5LiveTracking: React.FC = () => {
   const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
 
-  // Check if floor captain has arrived and initiated settlement for this chair or table
+  // Check if floor captain has arrived and initiated settlement for this specific chair
   const activeSession = useMemo(() => {
     const sessions = activeSettlementSessions || {};
     const now = Date.now();
     const isValid = (sess: any) => sess && (!sess.initiatedAt || Math.abs(now - sess.initiatedAt) < 1800000);
 
-    if (isValid(sessions[chairKey])) return sessions[chairKey];
-    if (isValid(sessions[normTable])) return sessions[normTable];
-    for (const [, sess] of Object.entries(sessions)) {
-      if (!isValid(sess)) continue;
-      if (isTableMatch(sess.tableNumber, effectiveTable)) {
-        if (!sess.seatNumber || Number(sess.seatNumber) === effectiveSeat) {
-          return sess;
-        }
+    const chairCandidate = sessions[chairKey];
+    if (isValid(chairCandidate)) {
+      if (typeof chairCandidate.seatNumber !== 'number' || Number(chairCandidate.seatNumber) === effectiveSeat) {
+        return chairCandidate;
       }
     }
+
+    const tableCandidate = sessions[normTable];
+    if (isValid(tableCandidate)) {
+      if (typeof tableCandidate.seatNumber === 'number' && Number(tableCandidate.seatNumber) === effectiveSeat) {
+        return tableCandidate;
+      }
+    }
+
     return null;
-  }, [activeSettlementSessions, chairKey, normTable, effectiveTable, effectiveSeat]);
+  }, [activeSettlementSessions, chairKey, normTable, effectiveSeat]);
 
   const isCaptainArrived = Boolean(activeSession);
 
-  // Check if waiter was called for payment
+  // Check if waiter was called for payment strictly for this chair
   const hasActivePaymentPing = useMemo(() => {
+    if (!orderPlacedAt || orderPlacedAt <= 0) return false;
     return pings.some(
       (p) =>
         isTableMatch(p.tableNumber, effectiveTable) &&
         p.type === 'PAYMENT' &&
         p.status === 'PENDING' &&
-        (!p.seatNumber || p.seatNumber === effectiveSeat)
+        p.seatNumber === effectiveSeat
     );
-  }, [pings, effectiveTable, effectiveSeat]);
+  }, [pings, effectiveTable, effectiveSeat, orderPlacedAt]);
 
   const isSummoned = isWaitingForCaptain || hasActivePaymentPing || (waiterNotification?.active && waiterNotification.type === 'PAYMENT');
 
+  const unplacedCartItems = useMemo(() => {
+    return (cart || []).filter((ci) => ci && !ci.isOrdered);
+  }, [cart]);
+  const unplacedCount = unplacedCartItems.reduce((acc, it) => acc + (it.quantity || 1), 0);
+  const unplacedTotal = unplacedCartItems.reduce((acc, it) => acc + (it.totalPrice || 0), 0);
+
   // Unified items list with live stage resolved across Bridge, Supabase, and local Cart
   const trackedDishes = useMemo(() => {
-    const myBridgeTickets = bridgeTickets.filter((tk) => isTableMatch(tk.tableNumber, effectiveTable));
-    const bridgeItems = myBridgeTickets.flatMap((tk) =>
-      tk.items.map((it) => ({
-        id: it.id,
-        ticketId: tk.id,
-        name: getCleanName(it.name),
-        quantity: it.quantity,
-        stage: it.stage as OrderStage,
-        prepMode: it.prepMode,
-        options: it.options,
-        addOns: it.addOns,
-        notes: it.notes,
-        seatNumber: it.seatNumber || tk.seatNumber,
-      }))
-    );
+    const myBridgeTickets = bridgeTickets.filter((tk) => {
+      if (!isTableMatch(tk.tableNumber, effectiveTable)) return false;
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (
+        tkSeat === effectiveSeat ||
+        tk.items?.some((i) => {
+          const itemSeat = i.seatNumber !== undefined && i.seatNumber !== null
+            ? Number(i.seatNumber)
+            : (i as any).seat_number !== undefined && (i as any).seat_number !== null
+            ? Number((i as any).seat_number)
+            : tkSeat;
+          return itemSeat === effectiveSeat;
+        })
+      );
+    });
 
-    const mySupabaseTickets = supabaseTickets.filter((tk) => isTableMatch(tk.tableId, effectiveTable));
-    const supabaseItems = mySupabaseTickets.flatMap((tk) =>
-      tk.items.map((it) => ({
-        id: it.id,
-        ticketId: tk.id,
-        name: getCleanName(it.name),
-        quantity: it.quantity,
-        stage: it.stage as OrderStage,
-        prepMode: '',
-        options: '',
-        addOns: [] as string[],
-        notes: it.notes,
+    const bridgeItems = myBridgeTickets.flatMap((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (tk.items || [])
+        .filter((it) => {
+          const itemSeat = it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+            ? Number((it as any).seat_number)
+            : tkSeat;
+          return itemSeat === effectiveSeat;
+        })
+        .map((it) => ({
+          id: it.id,
+          ticketId: tk.id,
+          name: getCleanName(it.name),
+          quantity: it.quantity,
+          stage: it.stage as OrderStage,
+          prepMode: it.prepMode,
+          options: it.options,
+          addOns: it.addOns,
+          notes: it.notes,
+          seatNumber: effectiveSeat,
+        }));
+    });
+
+    const mySupabaseTickets = supabaseTickets.filter((tk) => {
+      if (!isTableMatch(tk.tableId, effectiveTable)) return false;
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (
+        tkSeat === effectiveSeat ||
+        tk.items?.some((i: any) => {
+          const itemSeat = i.seat_number !== undefined && i.seat_number !== null
+            ? Number(i.seat_number)
+            : (i.seatNumber !== undefined && i.seatNumber !== null
+            ? Number(i.seatNumber)
+            : tkSeat);
+          return itemSeat === effectiveSeat;
+        })
+      );
+    });
+
+    const supabaseItems = mySupabaseTickets.flatMap((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (tk.items || [])
+        .filter((it: any) => {
+          const itemSeat = it.seat_number !== undefined && it.seat_number !== null
+            ? Number(it.seat_number)
+            : (it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : tkSeat);
+          return itemSeat === effectiveSeat;
+        })
+        .map((it) => ({
+          id: it.id,
+          ticketId: tk.id,
+          name: getCleanName(it.name),
+          quantity: it.quantity,
+          stage: it.stage as OrderStage,
+          prepMode: '',
+          options: '',
+          addOns: [] as string[],
+          notes: it.notes,
+          seatNumber: effectiveSeat,
+        }));
+    });
+
+    // Combine bridge items and supabase items authoritative from kitchen tickets for this chair
+    const combinedTicketItems: Array<{
+      id: string;
+      ticketId?: string;
+      name: string;
+      quantity: number;
+      stage: OrderStage;
+      prepMode?: string;
+      options?: string;
+      addOns?: string[];
+      notes?: string;
+      seatNumber: number;
+    }> = [];
+
+    // Map bridge items first (most reactive, in-memory + broadcast)
+    bridgeItems.forEach((bi) => {
+      combinedTicketItems.push({
+        id: bi.id,
+        ticketId: bi.ticketId,
+        name: bi.name,
+        quantity: bi.quantity,
+        stage: bi.stage,
+        prepMode: bi.prepMode,
+        options: bi.options,
+        addOns: bi.addOns,
+        notes: bi.notes,
         seatNumber: effectiveSeat,
-      }))
-    );
+      });
+    });
 
-    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered);
+    // Supplement with supabase items if not already present in bridge
+    supabaseItems.forEach((si) => {
+      const alreadyInBridge = combinedTicketItems.some(
+        (ci) => ci.id === si.id || (getCanonicalKey(ci.name) === getCanonicalKey(si.name) && ci.ticketId === si.ticketId)
+      );
+      if (!alreadyInBridge) {
+        combinedTicketItems.push({
+          id: si.id,
+          ticketId: si.ticketId,
+          name: si.name,
+          quantity: si.quantity,
+          stage: si.stage,
+          prepMode: 'Military Dum Handi',
+          options: si.options,
+          addOns: si.addOns,
+          notes: si.notes,
+          seatNumber: effectiveSeat,
+        });
+      }
+    });
 
-    if (orderedCart.length > 0) {
-      return orderedCart.map((ci) => {
-        const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
-        const key = getCanonicalKey(dishName);
-        const bridgeMatch =
-          bridgeItems.find((bi) => bi && getCanonicalKey(bi.name) === key && bi.seatNumber === (ci.seatNumber || effectiveSeat)) ||
-          bridgeItems.find((bi) => bi && getCanonicalKey(bi.name) === key);
-        const supabaseMatch = supabaseItems.find((si) => si && getCanonicalKey(si.name) === key);
-
-        // Check if table active item is marked Served
-        const tableActiveItem = currentTbl?.activeItems?.find(
-          (ai) => ai && getCanonicalKey(ai.name) === key && (!ai.seatNumber || ai.seatNumber === effectiveSeat)
+    // If kitchen tickets exist for this chair, they are authoritative!
+    // They represent all confirmed orders placed for this chair across all devices.
+    if (combinedTicketItems.length > 0) {
+      return combinedTicketItems.map((ti) => {
+        const key = getCanonicalKey(ti.name);
+        const cartMatch = (cart || []).find(
+          (c) => c && c.isOrdered && c.seatNumber === effectiveSeat && getCanonicalKey(c.menuItem?.name || '') === key
         );
+
+        // Check if this specific ticket item was marked Served strictly by its unique item ID
+        const tableActiveItem = currentTbl?.activeItems?.find((ai) => ai && ai.id === ti.id);
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
 
-        const liveStage: OrderStage =
-          tableStage ||
-          bridgeMatch?.stage ||
-          supabaseMatch?.stage ||
-          'PLACED';
+        // Authoritative stage: specific ticket item stage, fallback to specific active item stage, fallback to PLACED
+        const liveStage: OrderStage = ti.stage || tableStage || 'PLACED';
 
         return {
-          id: bridgeMatch?.id || `cart-${ci.cartItemId || Math.random()}`,
-          cartItemId: ci.cartItemId,
-          ticketId: bridgeMatch?.ticketId,
-          name: dishName,
-          quantity: ci.quantity || 1,
+          id: ti.id,
+          cartItemId: cartMatch?.cartItemId,
+          ticketId: ti.ticketId,
+          name: ti.name,
+          quantity: ti.quantity,
           stage: liveStage,
-          prepMode: ci.prepMode || ci.menuItem?.prepMode || 'Military Dum Handi',
-          options: ci.selectedOption,
-          addOns: ci.selectedAddOns || [],
-          notes: '',
-          seatNumber: ci.seatNumber || effectiveSeat,
+          prepMode: ti.prepMode || cartMatch?.prepMode || 'Military Dum Handi',
+          options: ti.options || cartMatch?.selectedOption || '',
+          addOns: ti.addOns && ti.addOns.length > 0 ? ti.addOns : cartMatch?.selectedAddOns || [],
+          notes: ti.notes || '',
+          seatNumber: effectiveSeat,
         };
       });
     }
 
-    if (bridgeItems.length > 0) {
-      return bridgeItems.map((bi) => ({
-        ...bi,
-        cartItemId: undefined,
-      }));
-    }
+    // Fallback to local ordered cart if ticket stream hasn't populated yet
+    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && ci.seatNumber === effectiveSeat);
+    if (orderedCart.length > 0) {
+      return orderedCart.map((ci) => {
+        const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
+        // In fallback mode, match strictly by unique cart item ID rather than dish name to prevent cross-order stage contamination
+        const tableActiveItem = currentTbl?.activeItems?.find(
+          (ai) => ai && ai.id === ci.cartItemId
+        );
+        const tableStage: OrderStage | undefined =
+          tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
 
-    if (supabaseItems.length > 0) {
-      return supabaseItems.map((si) => ({
-        ...si,
-        cartItemId: undefined,
-        prepMode: undefined,
-        options: undefined,
-        addOns: undefined,
-      }));
+        return {
+          id: `cart-${ci.cartItemId || Math.random()}`,
+          cartItemId: ci.cartItemId,
+          name: dishName,
+          quantity: ci.quantity || 1,
+          stage: tableStage || 'PLACED',
+          prepMode: ci.prepMode || ci.menuItem?.prepMode || 'Military Dum Handi',
+          options: ci.selectedOption,
+          addOns: ci.selectedAddOns || [],
+          notes: '',
+          seatNumber: effectiveSeat,
+        };
+      });
     }
 
     return [];
   }, [bridgeTickets, effectiveTable, supabaseTickets, cart, effectiveSeat, currentTbl]);
 
-  // Strict check: all orders must be SERVED to enable calling captain to pay
-  const allDishesServed = useMemo(() => {
+  // Latch served status so transient reconciliation frames never cause payment buttons to flicker
+  const [hasEverBeenFullyServed, setHasEverBeenFullyServed] = useState(false);
+
+  const rawAllDishesServed = useMemo(() => {
     if (!trackedDishes.length) return false;
-    return trackedDishes.every((d) => {
-      if (d.stage === 'SERVED') return true;
-      const matched = currentTbl?.activeItems?.find(
-        (ai) => getCanonicalKey(ai.name) === getCanonicalKey(d.name) && (!ai.seatNumber || ai.seatNumber === effectiveSeat)
-      );
-      return matched?.status === 'Served';
-    });
-  }, [trackedDishes, currentTbl, effectiveSeat]);
+    return trackedDishes.every((d) => d.stage === 'SERVED');
+  }, [trackedDishes]);
+
+  useEffect(() => {
+    if (rawAllDishesServed) {
+      setHasEverBeenFullyServed(true);
+    } else if (trackedDishes.some((d) => d.stage !== 'SERVED')) {
+      // Reset latch if any newly placed/cooking item is currently pending in kitchen
+      setHasEverBeenFullyServed(false);
+    }
+  }, [rawAllDishesServed, trackedDishes]);
+
+  const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
   // Auto-transition to Screen 8 immediately when waiter confirms payment
   const matchingSnapshot = useMemo(() => {
+    // A customer MUST have placed an order in this current session to match a settled bill
+    if (!orderPlacedAt || orderPlacedAt <= 0) return null;
+    if (!trackedDishes || trackedDishes.length === 0) return null;
+
     const bills = settledBills || {};
-    if (bills[chairKey]) return bills[chairKey];
-    if (bills[normTable]) return bills[normTable];
-    for (const [key, bill] of Object.entries(bills)) {
-      if (!bill) continue;
-      if (isTableMatch(bill.tableName, effectiveTable)) {
-        const seatMatch = bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i);
-        if (!seatMatch || Number(seatMatch[1]) === effectiveSeat) {
-          return bill;
-        }
+    let candidate: SettledBillSnapshot | null = null;
+
+    if (bills[chairKey]) {
+      const b = bills[chairKey];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === effectiveSeat) {
+        candidate = b;
       }
     }
+
+    // Must be fresh and generated strictly AFTER the current customer placed order
+    if (candidate && candidate.timestamp) {
+      const now = Date.now();
+      const isRecent = Math.abs(now - candidate.timestamp) < 1800000;
+      const isAfterOrder = candidate.timestamp > orderPlacedAt + 500;
+      if (isRecent && isAfterOrder) {
+        return candidate;
+      }
+    }
+
     return null;
-  }, [settledBills, chairKey, normTable, effectiveTable, effectiveSeat]);
+  }, [settledBills, chairKey, effectiveSeat, orderPlacedAt, trackedDishes]);
 
   useEffect(() => {
-    if (matchingSnapshot) {
+    if (matchingSnapshot && trackedDishes.length > 0 && orderPlacedAt > 0) {
       const now = Date.now();
       if (!matchingSnapshot.timestamp || Math.abs(now - matchingSnapshot.timestamp) < 1800000) {
         setIsScannerOpen(false);
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }
-  }, [matchingSnapshot]);
+  }, [matchingSnapshot, trackedDishes, orderPlacedAt]);
 
-  // Dedicated high-priority 1-second polling loop to guarantee instantaneous synchronization
-  // when customer is waiting for captain or settlement
+  // Synchronize settlement session without causing broadcast loops across tabs
   useEffect(() => {
     let isCancelled = false;
     const fetchSession = async () => {
       try {
-        const res = await fetch('/api/settlement/session', { cache: 'no-store' });
+        const res = await fetch(`/api/settlement/session?tableNumber=${encodeURIComponent(effectiveTable)}`, { cache: 'no-store' });
         if (res.ok && !isCancelled) {
           const data = await res.json();
-          if (data?.sessions || data?.settledBills) {
-            useSharedBridge.setState((prev) => ({
-              activeSettlementSessions: data.sessions || {},
-              settledBills: {
-                ...(prev.settledBills || {}),
-                ...(data.settledBills || {}),
-              },
-            }));
+          if (data?.sessions !== undefined || data?.settledBills !== undefined) {
+            const currentBridge = useSharedBridge.getState();
+            const sessionsChanged = JSON.stringify(currentBridge.activeSettlementSessions) !== JSON.stringify(data.sessions || {});
+            const billsChanged = JSON.stringify(currentBridge.settledBills) !== JSON.stringify(data.settledBills || {});
+            if (sessionsChanged || billsChanged) {
+              useSharedBridge.setState({
+                activeSettlementSessions: data.sessions || {},
+                settledBills: data.settledBills || {},
+              });
+            }
           }
         }
       } catch {}
     };
 
     fetchSession();
-    const interval = setInterval(fetchSession, 1000);
+    const interval = setInterval(fetchSession, 1200);
     return () => {
       isCancelled = true;
       clearInterval(interval);
     };
-  }, []);
+  }, [effectiveTable]);
 
-  // Total payable amount
+  // Total payable amount strictly scoped to this chair
   const currentBillAmount = useMemo(() => {
     if (activeSession?.grandTotal && activeSession.grandTotal > 0) {
-      return activeSession.grandTotal;
+      if (typeof activeSession.seatNumber !== 'number' || Number(activeSession.seatNumber) === effectiveSeat) {
+        return activeSession.grandTotal;
+      }
     }
     const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
-    if (currentTableObj?.currentBill && currentTableObj.currentBill > 0) {
-      const myChairItems = (currentTableObj.activeItems || []).filter((ai) => ai.seatNumber === effectiveSeat);
+    if (currentTableObj?.activeItems && currentTableObj.activeItems.length > 0) {
+      const myChairItems = currentTableObj.activeItems.filter((ai) => ai.seatNumber === effectiveSeat);
       if (myChairItems.length > 0) {
         const chairSub = myChairItems.reduce((sum, it) => sum + (it.price || 220) * it.quantity, 0);
         return Math.round(chairSub * 1.05);
       }
-      return currentTableObj.currentBill;
     }
-    const cartSub = cart.reduce((sum, it) => sum + it.totalPrice, 0);
-    return Math.round(cartSub * 1.05);
+    const cartSub = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat).reduce((sum, it) => sum + it.totalPrice, 0);
+    if (cartSub > 0) {
+      return Math.round(cartSub * 1.05);
+    }
+    return 0;
   }, [activeSession, tables, effectiveTable, effectiveSeat, cart]);
 
   // Setup camera stream when QR scanner opens
@@ -385,19 +529,38 @@ export const Screen5LiveTracking: React.FC = () => {
     };
   }, [isScannerOpen]);
 
-  const getDishStageIdx = (stage: OrderStage, dishName?: string): number => {
-    if (stage === 'SERVED') return 4;
-    // Check if table activeItems says Served
-    if (dishName && currentTbl?.activeItems) {
-      const matched = currentTbl.activeItems.find(
-        (ai) => getCanonicalKey(ai.name) === getCanonicalKey(dishName) && (!ai.seatNumber || ai.seatNumber === effectiveSeat)
-      );
+  const getDishStageIdx = (stage: string | OrderStage, dishItemId?: string): number => {
+    const s = String(stage || '').toUpperCase();
+    if (s === 'SERVED') return 4;
+    // Check if table activeItems says Served for this exact item ID
+    if (dishItemId && currentTbl?.activeItems) {
+      const matched = currentTbl.activeItems.find((ai) => ai.id === dishItemId);
       if (matched?.status === 'Served') return 4;
     }
-    if (stage === 'PLATED') return 3;
-    if (stage === 'PREP') return 2;
-    if (stage === 'RECEIVED') return 1;
+    if (s === 'PLATED' || s === 'READY') return 3;
+    if (s === 'PREP' || s === 'PREPARING') return 2;
+    if (s === 'RECEIVED') return 1;
     return 0; // PLACED
+  };
+
+  // Reset any transient waiter call state when mounting Screen 5
+  useEffect(() => {
+    setIsWaitingForCaptain(false);
+  }, []);
+
+  const cancelPaymentPing = () => {
+    setIsWaitingForCaptain(false);
+    useCustomerStore.getState().dismissWaiterNotification();
+    const paymentPing = pings.find(
+      (p) =>
+        isTableMatch(p.tableNumber, effectiveTable) &&
+        p.type === 'PAYMENT' &&
+        p.seatNumber === effectiveSeat &&
+        p.status === 'PENDING'
+    );
+    if (paymentPing) {
+      useSharedBridge.getState().waiterResolvePing(paymentPing.id);
+    }
   };
 
   const handleConfirmCallCaptain = () => {
@@ -433,6 +596,40 @@ export const Screen5LiveTracking: React.FC = () => {
 
       {/* Body */}
       <div className="flex-1 overflow-y-auto p-4 pb-36 space-y-4" style={{ backgroundColor: currentTheme.colors.bgApp }}>
+        {/* Floor Captain Attended Notification Banner */}
+        <AnimatePresence>
+          {waiterNotification?.active && waiterNotification?.attended && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="rounded-2xl border border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50 p-4 shadow-sm"
+            >
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-xs">
+                  <CheckCircle2 className="h-5 w-5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-xs font-black text-emerald-950 uppercase tracking-wide">
+                      Request Attended
+                    </span>
+                    <button
+                      onClick={() => useCustomerStore.getState().dismissWaiterNotification()}
+                      className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-[11px] font-bold text-emerald-800 mt-0.5 leading-snug">
+                    {waiterNotification.message || 'Floor Captain has attended to your request.'}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Table Connection Status Bar */}
         <div
           className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
@@ -498,7 +695,7 @@ export const Screen5LiveTracking: React.FC = () => {
               {trackedDishes.length > 0 ? (
                 trackedDishes.map((it) => {
                   const isVeg = isVegItem(it.name);
-                  const dishCurrentIdx = getDishStageIdx(it.stage, it.name);
+                  const dishCurrentIdx = getDishStageIdx(it.stage, it.id);
                   const isDishServed = dishCurrentIdx === 4;
 
                   return (
@@ -680,6 +877,37 @@ export const Screen5LiveTracking: React.FC = () => {
           </div>
         </div>
 
+        {/* Unplaced Dishes Quick Send Banner */}
+        {unplacedCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between gap-3 rounded-2xl border border-amber-300 bg-amber-50/95 p-3.5 shadow-xs"
+          >
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500 text-white shadow-2xs">
+                <CookingPot className="h-4 w-4 stroke-[2.2]" />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate text-xs font-black text-amber-950">
+                  {unplacedCount} {unplacedCount === 1 ? 'Dish' : 'Dishes'} in Selection (₹{unplacedTotal})
+                </div>
+                <div className="text-[10px] font-bold text-amber-800">
+                  Ready to send to kitchen
+                </div>
+              </div>
+            </div>
+            <motion.button
+              whileTap={{ scale: 0.96 }}
+              onClick={() => placeAllOrders()}
+              className="shrink-0 rounded-xl px-3.5 py-2 text-[11px] font-black uppercase text-white shadow-xs cursor-pointer hover:brightness-105"
+              style={{ backgroundColor: currentTheme.colors.buttonBg }}
+            >
+              Send to Kitchen
+            </motion.button>
+          </motion.div>
+        )}
+
         {/* Add More Items Button */}
         <motion.button
           whileTap={{ scale: 0.98 }}
@@ -699,26 +927,34 @@ export const Screen5LiveTracking: React.FC = () => {
       {/* Bottom Sticky Bar */}
       <StickyBottomBar>
         <div className="w-full flex flex-col gap-2.5">
-          {/* STATE 1: Captain Summoned and Waiter hasn't opened Settle Bill yet (ONLY DISPLAY MESSAGE, NO BUTTONS) */}
+          {/* Notice when Floor Captain is summoned (with Cancel option, never hides payment buttons) */}
           {isSummoned && !isCaptainArrived && (
             <motion.div
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm space-y-2 text-center"
+              className="rounded-2xl border border-amber-300 bg-amber-50 p-3 shadow-xs space-y-1.5"
             >
-              <div className="flex items-center justify-center gap-2 text-xs font-black text-amber-900">
-                <Bell className="h-4 w-4 text-amber-600 animate-bounce" />
-                <span>Floor Captain Summoned for Payment</span>
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+              <div className="flex items-center justify-between text-xs font-black text-amber-900">
+                <div className="flex items-center gap-1.5">
+                  <Bell className="h-4 w-4 text-amber-600 animate-bounce" />
+                  <span>Floor Captain Summoned</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={cancelPaymentPing}
+                  className="text-[11px] font-bold text-amber-800 underline hover:text-amber-950 cursor-pointer"
+                >
+                  Cancel Call
+                </button>
               </div>
-              <p className="text-xs text-amber-800 leading-relaxed font-medium">
-                Please wait at Chair C-{String(effectiveSeat).padStart(2, '0')}... Floor Captain Suresh is walking over to your table with the billing terminal.
+              <p className="text-[11px] text-amber-800 leading-snug font-medium">
+                Captain Suresh is walking over to Chair C-{String(effectiveSeat).padStart(2, '0')}. You can also use Self Pay below.
               </p>
             </motion.div>
           )}
 
-          {/* STATE 2: Captain Arrived & opened Settle Bill on Waiter Mobile */}
-          {isCaptainArrived && (
+          {/* Captain Arrived & opened Settle Bill on Waiter Mobile (Only displayed once food is served) */}
+          {allDishesServed && isCaptainArrived && (
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -806,61 +1042,51 @@ export const Screen5LiveTracking: React.FC = () => {
             </motion.div>
           )}
 
-          {/* STATE 3: Captain NOT summoned yet: Show action buttons (Enabled ONLY when allDishesServed) */}
-          {!isSummoned && !isCaptainArrived && (
-            <>
-              {!allDishesServed && trackedDishes.length > 0 && (
-                <div className="rounded-xl border border-stone-200 bg-stone-50 px-3 py-2 text-center text-[10.5px] font-medium text-stone-600">
-                  Dishes are being cooked & served. Payment unlocks once all dishes reach your table.
-                </div>
-              )}
+          {/* Action buttons: Display status badge while cooking; show payment options only when all dishes are served */}
+          {!allDishesServed ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 flex items-center gap-2.5 text-amber-900 shadow-2xs">
+              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <p className="text-xs font-semibold leading-snug">
+                Dishes are actively being prepared &amp; served. Payment options will appear once your food reaches the table.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              <motion.button
+                disabled={isSummoned}
+                whileTap={!isSummoned ? { scale: 0.98 } : undefined}
+                onClick={() => {
+                  if (!isSummoned) setShowPayViaWaiterModal(true);
+                }}
+                className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
+                  isSummoned
+                    ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-80 cursor-not-allowed'
+                    : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
+                }`}
+              >
+                <CreditCard className="h-4 w-4 stroke-[2.2]" />
+                <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
+              </motion.button>
 
-              <div className="grid grid-cols-2 gap-2">
-                <motion.button
-                  disabled={!allDishesServed}
-                  whileTap={allDishesServed ? { scale: 0.98 } : undefined}
-                  onClick={() => {
-                    if (allDishesServed) setShowPayViaWaiterModal(true);
-                  }}
-                  className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
-                    allDishesServed
-                      ? 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
-                      : 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  <CreditCard className="h-4 w-4 stroke-[2.2]" />
-                  <span>Pay via Waiter</span>
-                </motion.button>
-
-                <motion.button
-                  disabled={!allDishesServed}
-                  whileTap={allDishesServed ? { scale: 0.98 } : undefined}
-                  onClick={() => {
-                    if (allDishesServed) setCurrentScreen(6);
-                  }}
-                  style={
-                    allDishesServed
-                      ? {
-                          backgroundColor: currentTheme.colors.buttonBg,
-                          color: currentTheme.colors.buttonFg,
-                          boxShadow: currentTheme.colors.buttonShadow,
-                        }
-                      : {
-                          backgroundColor: '#E5E7EB',
-                          color: '#9CA3AF',
-                        }
-                  }
-                  className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
-                    allDishesServed
-                      ? 'hover:brightness-105 cursor-pointer shadow-md'
-                      : 'cursor-not-allowed opacity-60'
-                  }`}
-                >
-                  <span>Self Pay (QR/UPI)</span>
-                  <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-                </motion.button>
-              </div>
-            </>
+              <motion.button
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  cancelPaymentPing();
+                  setIsWaitingForCaptain(false);
+                  useCustomerStore.getState().dismissWaiterNotification();
+                  setCurrentScreen(6);
+                }}
+                style={{
+                  backgroundColor: currentTheme.colors.buttonBg,
+                  color: currentTheme.colors.buttonFg,
+                  boxShadow: currentTheme.colors.buttonShadow,
+                }}
+                className="flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition hover:brightness-105 cursor-pointer shadow-md"
+              >
+                <span>Self Pay (QR/UPI)</span>
+                <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+              </motion.button>
+            </div>
           )}
         </div>
       </StickyBottomBar>
@@ -993,7 +1219,10 @@ export const Screen5LiveTracking: React.FC = () => {
                 onClick={() => {
                   const normTbl = `T-${String(parseInt(effectiveTable.replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
                   const key = `${normTbl}-CHAIR-${effectiveSeat}`;
-                  const snapshot = settledBills[key] || settledBills[normTbl];
+                  const candidate = settledBills[key];
+                  const snapshot = candidate && candidate.timestamp && candidate.timestamp > orderPlacedAt + 500
+                    ? candidate
+                    : null;
                   if (snapshot) {
                     useCustomerStore.getState().handleBillSettledByWaiter(snapshot);
                   } else {

@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabase, broadcastStateChange } from '../../../../lib/supabase';
+import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const tableNumber = (body.tableNumber || body.table || '').toUpperCase();
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const rawTable = body.tableNumber || body.table || '';
+    const tNum = cleanNum(rawTable);
+    const tableNumber = tNum ? `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}` : rawTable.toUpperCase();
 
     if (!tableNumber) {
       return NextResponse.json({ error: 'tableNumber is required' }, { status: 400 });
@@ -41,6 +45,33 @@ export async function POST(req: NextRequest) {
         .eq('table_number', tableNumber)
         .eq('seat_number', seatNumber);
 
+      // 1b. Mark any active unpaid orders for this chair as PAID so subsequent scans treat customer as new user
+      await supabase
+        .from('orders')
+        .update({ status: 'PAID', updated_at: now })
+        .eq('table_number', tableNumber)
+        .eq('seat_number', seatNumber)
+        .eq('status', 'UNPAID');
+
+      // 1c. Check if other seats are still OCCUPIED or have UNPAID orders
+      const { data: otherOccupiedSeats } = await supabase
+        .from('table_seats')
+        .select('seat_number')
+        .eq('table_number', tableNumber)
+        .eq('status', 'OCCUPIED')
+        .neq('seat_number', seatNumber);
+
+      const { data: otherUnpaidOrders } = await supabase
+        .from('orders')
+        .select('id, total, seat_number')
+        .eq('table_number', tableNumber)
+        .eq('status', 'UNPAID')
+        .neq('seat_number', seatNumber);
+
+      const hasOtherOccupiedSeats = Boolean(otherOccupiedSeats && otherOccupiedSeats.length > 0);
+      const hasOtherUnpaidOrders = Boolean(otherUnpaidOrders && otherUnpaidOrders.length > 0);
+      const otherUnpaidTotal = (otherUnpaidOrders || []).reduce((s, o) => s + Number(o.total || 0), 0);
+
       // 2. Fetch and filter active KDS tickets
       const { data: activeTickets } = await supabase
         .from('kds_tickets')
@@ -54,10 +85,26 @@ export async function POST(req: NextRequest) {
       if (activeTickets && activeTickets.length > 0) {
         for (const tk of activeTickets) {
           const items = Array.isArray(tk.items) ? tk.items : [];
-          const thisSeatItems = items.filter((it: any) => (it.seat_number || it.seatNumber) === seatNumber);
-          const otherSeatItems = items.filter((it: any) => (it.seat_number || it.seatNumber) !== seatNumber);
+          const tkSeat = tk.seat_number !== undefined && tk.seat_number !== null ? Number(tk.seat_number) : undefined;
 
-          if (thisSeatItems.length > 0) {
+          const thisSeatItems = items.filter((it: any) => {
+            const itSeat = (it.seat_number !== undefined && it.seat_number !== null)
+              ? Number(it.seat_number)
+              : (it.seatNumber !== undefined && it.seatNumber !== null)
+              ? Number(it.seatNumber)
+              : tkSeat;
+            return itSeat === seatNumber;
+          });
+          const otherSeatItems = items.filter((it: any) => {
+            const itSeat = (it.seat_number !== undefined && it.seat_number !== null)
+              ? Number(it.seat_number)
+              : (it.seatNumber !== undefined && it.seatNumber !== null)
+              ? Number(it.seatNumber)
+              : tkSeat;
+            return itSeat !== seatNumber;
+          });
+
+          if (thisSeatItems.length > 0 || tkSeat === seatNumber) {
             if (otherSeatItems.length === 0) {
               // Entire ticket belonged to settled seat -> mark COMPLETED
               await supabase
@@ -85,9 +132,15 @@ export async function POST(req: NextRequest) {
       }
 
       // 3. Update table bill and status
-      const newBill = Math.round(remainingItemsTotal * 1.05);
-      const newStatus = hasOtherSeatItems ? 'OCCUPIED' : 'VACANT';
-      const newGuestCount = hasOtherSeatItems ? Math.max(1, (table.guest_count || 2) - 1) : 0;
+      const isTableStillActive = hasOtherOccupiedSeats || hasOtherUnpaidOrders || hasOtherSeatItems;
+      const newStatus = isTableStillActive ? 'OCCUPIED' : 'VACANT';
+      const newBill = isTableStillActive
+        ? (otherUnpaidTotal > 0 ? otherUnpaidTotal : Math.round(remainingItemsTotal * 1.05))
+        : 0;
+      const newGuestCount = isTableStillActive
+        ? Math.max(1, (otherOccupiedSeats?.length || 0), (table.guest_count || 2) - 1)
+        : 0;
+      const newKotCount = isTableStillActive ? Math.max(1, (table.kot_count || 1) - 1) : 0;
 
       await supabase
         .from('tables')
@@ -95,9 +148,37 @@ export async function POST(req: NextRequest) {
           status: newStatus,
           current_bill: newBill,
           guest_count: newGuestCount,
+          kot_count: newKotCount,
           updated_at: now,
         })
         .eq('number', tableNumber);
+
+      broadcastStateChange('chairCleared', {
+        tableNumber,
+        seatNumber,
+      });
+
+      if (!isTableStillActive) {
+        broadcastStateChange('tableVacated', {
+          tableNumber,
+        });
+      }
+
+      // Clear settled bills for this specific chair
+      try {
+        clearSettledBillInMemory(tableNumber, seatNumber);
+        if (!isTableStillActive) {
+          clearSettledBillInMemory(tableNumber);
+        }
+        await supabase
+          .from('pings')
+          .delete()
+          .or(
+            isTableStillActive
+              ? `id.eq.SETTLED-BILL-${tableNumber}-S${seatNumber},id.eq.SETTLE-SESSION-${tableNumber}-S${seatNumber}`
+              : `id.eq.SETTLED-BILL-${tableNumber}-S${seatNumber},id.eq.SETTLE-SESSION-${tableNumber}-S${seatNumber},id.eq.SETTLED-BILL-${tableNumber}`
+          );
+      } catch {}
 
       return NextResponse.json({
         success: true,
@@ -138,6 +219,13 @@ export async function POST(req: NextRequest) {
       })
       .eq('table_number', tableNumber);
 
+    // 3b. Mark any active unpaid orders for this table as PAID so subsequent scans treat all chairs as fresh new users
+    await supabase
+      .from('orders')
+      .update({ status: 'PAID', updated_at: now })
+      .eq('table_number', tableNumber)
+      .eq('status', 'UNPAID');
+
     // 4. Archive all tickets for this table as COMPLETED
     await supabase
       .from('kds_tickets')
@@ -146,6 +234,21 @@ export async function POST(req: NextRequest) {
         updated_at: now,
       })
       .eq('table_number', tableNumber);
+
+    // 5. Clear settled bills for this table
+    try {
+      clearSettledBillInMemory(tableNumber);
+      const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+      await supabase
+        .from('pings')
+        .delete()
+        .or(`id.ilike.SETTLE-SESSION-${nTable}%,id.ilike.SETTLED-BILL-${nTable}%`);
+    } catch {}
+
+    broadcastStateChange('tableVacated', {
+      tableNumber,
+    });
 
     return NextResponse.json({
       success: true,

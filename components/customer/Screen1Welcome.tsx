@@ -18,6 +18,7 @@ import {
   CookingPot,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ThemeTogglePill } from '../ui/ThemeTogglePill';
 
 export const Screen1Welcome: React.FC = () => {
   const {
@@ -29,6 +30,7 @@ export const Screen1Welcome: React.FC = () => {
     seatNumber,
     setTableNumber,
     setSeatNumber,
+    syncWithActiveSession,
   } = useCustomer();
 
   const { currentTheme } = useCustomerTheme();
@@ -81,11 +83,17 @@ export const Screen1Welcome: React.FC = () => {
   const handleSelectSeat = (newSeat: number) => {
     setSeatNumber(newSeat);
     if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      url.searchParams.set('table', activeTable.number);
-      url.searchParams.set('seat', newSeat.toString());
-      window.history.replaceState({}, '', url.toString());
+      try {
+        const stored = sessionStorage.getItem('thoogudeepa_verified_session');
+        const parsed = stored ? JSON.parse(stored) : {};
+        sessionStorage.setItem('thoogudeepa_verified_session', JSON.stringify({
+          ...parsed,
+          seat: newSeat,
+        }));
+      } catch {}
+      window.history.replaceState({}, '', window.location.pathname || '/');
     }
+    syncWithActiveSession(activeTable.number, newSeat);
   };
 
   // Connection Handlers: advance to Authentic Menu
@@ -99,6 +107,7 @@ export const Screen1Welcome: React.FC = () => {
 
   return (
     <ScreenHousing screenNumber={1} screenTitle="WELCOME & CONNECT">
+      <ThemeTogglePill variant="floating" />
       <div
         className="flex-1 overflow-y-auto flex flex-col p-4 space-y-3 pb-6 transition-colors duration-200"
         style={{ backgroundColor: currentTheme.colors.bgApp }}

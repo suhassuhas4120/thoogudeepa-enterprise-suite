@@ -3,6 +3,8 @@ import { INITIAL_MENU_ITEMS } from '../data/menuItems';
 import { MenuItem } from '../types/customer';
 import { OrderStage } from '../types/customer';
 import { broadcastStateChange, supabase } from '../lib/supabase';
+import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
+import { useManagerStore } from './useManagerStore';
 
 
 export interface SharedKDSItem {
@@ -230,6 +232,9 @@ interface SharedBridgeState {
   /** Record settled bill snapshot from waiter settlement */
   recordSettledBill: (snapshot: SettledBillSnapshot) => void;
 
+  /** Clear settled bill for a table or specific chair */
+  clearSettledBill: (tableNumber: string, seatNumber?: number) => void;
+
   /** Kitchen bumps an item stage */
   kitchenBumpItemStage: (ticketId: string, itemId: string) => void;
   kitchenSetItemStage: (ticketId: string, itemId: string, stage: OrderStage) => void;
@@ -327,7 +332,7 @@ export const getCanonicalDishKey = (name: string): string => {
 function bridgePost(
   url: string,
   body: Record<string, unknown>,
-  onRollback?: () => void,
+  onRollback?: (err?: any) => void,
   onSuccess?: (data: Record<string, unknown>) => void
 ): void {
   if (typeof window === 'undefined') return;
@@ -341,7 +346,7 @@ function bridgePost(
       if (!res.ok) {
         res.json().catch(() => null).then((err) => {
           console.error(`[Bridge] API ${url} failed (${res.status}):`, err);
-          onRollback?.();
+          onRollback?.(err);
         });
         return;
       }
@@ -354,7 +359,7 @@ function bridgePost(
     })
     .catch((err) => {
       console.error(`[Bridge] API ${url} network error:`, err);
-      onRollback?.();
+      onRollback?.(err);
     });
 }
 
@@ -418,41 +423,78 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       tables: get().tables,
     };
 
-    set((state) => ({
-      kdsTickets: [...state.kdsTickets, ticket],
-      kitchenNotifications: [...state.kitchenNotifications, notif],
-      tables: state.tables.map((t) =>
-        t.number === tableNumber
-          ? {
-              ...t,
-              status: 'OCCUPIED',
-              guestCount: (() => {
-                const existingSeats = new Set<number>();
-                (t.activeItems || []).forEach((it) => {
-                  if (it.seatNumber) existingSeats.add(it.seatNumber);
-                });
-                existingSeats.add(assignedSeat);
-                return Math.min(t.capacity, Math.max(1, existingSeats.size));
-              })(),
-              seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
-              currentBill: t.currentBill + orderTotal,
-              kotCount: t.kotCount + 1,
-              activeItems: [
-                ...(t.activeItems || []),
-                ...items.map((i, idx) => ({
-                  id: `ai-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
-                  name: i.item.name,
-                  quantity: i.quantity,
-                  status: 'Placed',
-                  seatNumber: assignedSeat,
-                  price: i.item.price,
-                  options: i.selectedOption,
-                })),
-              ],
-            }
-          : t
-      ),
-    }));
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    set((state) => {
+      const nextBills = { ...state.settledBills };
+      delete nextBills[`${normTable}-CHAIR-${assignedSeat}`];
+      if (nextBills[normTable] && (!nextBills[normTable].seatNumber || nextBills[normTable].seatNumber === assignedSeat)) {
+        delete nextBills[normTable];
+      }
+
+      if (typeof window !== 'undefined') {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.SETTLED-BILL-${normTable}-S${assignedSeat},id.eq.SETTLE-SESSION-${normTable}-S${assignedSeat}`)
+          .then(() => {}, () => {});
+      }
+
+      return {
+        kdsTickets: [...state.kdsTickets, ticket],
+        kitchenNotifications: [...state.kitchenNotifications, notif],
+        settledBills: nextBills,
+        tables: state.tables.map((t) =>
+          t.number === tableNumber
+            ? {
+                ...t,
+                status: 'OCCUPIED',
+                guestCount: (() => {
+                  const existingSeats = new Set<number>();
+                  (t.activeItems || []).forEach((it) => {
+                    if (it.seatNumber) existingSeats.add(it.seatNumber);
+                  });
+                  existingSeats.add(assignedSeat);
+                  return Math.min(t.capacity, Math.max(1, existingSeats.size));
+                })(),
+                seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
+                currentBill: t.currentBill + orderTotal,
+                kotCount: t.kotCount + 1,
+                activeItems: [
+                  ...(t.activeItems || []),
+                  ...ticket.items.map((it) => ({
+                    id: it.id,
+                    name: it.name,
+                    quantity: it.quantity,
+                    status: 'Placed',
+                    seatNumber: assignedSeat,
+                    price: it.price,
+                    options: it.options,
+                  })),
+                ],
+              }
+            : t
+        ),
+      };
+    });
+
+    broadcastStateChange('seatOccupied', {
+      tableNumber,
+      seatNumber: assignedSeat,
+    });
+    if (typeof window !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.postMessage({
+          type: 'SEAT_OCCUPIED',
+          tableNumber,
+          seatNumber: assignedSeat,
+        });
+        bc.close();
+      } catch {}
+    }
 
     bridgePost(
       '/api/orders/create',
@@ -462,6 +504,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         guestName,
         guestCount: guestCount || 1,
         source: 'CUSTOMER',
+        deviceToken: getOrCreateDeviceToken(),
+        idempotencyKey: ticket.id,
+        clientOrderId: ticket.id,
         items: items.map((i, idx) => ({
           id: ticket.items[idx]?.id,
           name: i.item.name,
@@ -476,10 +521,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           notes: '',
         })),
       },
-      () => {
+      (err) => {
         // Rollback on API failure
-        console.error('[Bridge] customerPlacesOrder rollback');
+        console.error('[Bridge] customerPlacesOrder rollback', err);
         useSharedBridge.setState(prevState);
+        if (typeof window !== 'undefined' && err?.error === 'CHAIR_OCCUPIED_BY_ANOTHER_DEVICE') {
+          window.dispatchEvent(new CustomEvent('chairConflictDetected', { detail: err }));
+        }
       },
       (data) => {
         // Swap optimistic ticket ID with real DB-assigned ticketId so CDC dedup works correctly
@@ -502,13 +550,18 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     // Deduplication: prevent duplicate pending pings from same table & chair for same reason
     const currentPings = get().pings;
-    const hasDuplicate = currentPings.some(
-      (p) =>
-        cleanNum(p.tableNumber) === targetNum &&
-        p.type === type &&
-        p.status === 'PENDING' &&
-        (!seatNumber || !p.seatNumber || p.seatNumber === seatNumber)
-    );
+    const hasDuplicate = currentPings.some((p) => {
+      if (cleanNum(p.tableNumber) !== targetNum) return false;
+      if (p.type !== type || p.status !== 'PENDING') return false;
+      // If a specific chair is pinging, only treat as duplicate if that SAME chair already has a pending ping
+      if (typeof seatNumber === 'number' && typeof p.seatNumber === 'number') {
+        return p.seatNumber === seatNumber;
+      }
+      if (typeof seatNumber === 'number' && p.seatNumber === undefined) {
+        return false; // Do not block chair-specific ping if an existing ping had no chair
+      }
+      return !seatNumber && !p.seatNumber;
+    });
     if (hasDuplicate) return;
 
     const ping: SharedPing = {
@@ -550,24 +603,52 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextBills = { ...state.settledBills };
-      // Key by normalized table: "T-05"
-      nextBills[normTable] = timestampedSnapshot;
-      // Key by chair if specific chair: "T-05-CHAIR-2"
+      // Key by chair if specific chair; otherwise key by whole table
       if (typeof snapshot.seatNumber === 'number') {
         nextBills[`${normTable}-CHAIR-${snapshot.seatNumber}`] = timestampedSnapshot;
+        if (nextBills[normTable]?.seatNumber === snapshot.seatNumber) {
+          delete nextBills[normTable];
+        }
+      } else {
+        nextBills[normTable] = timestampedSnapshot;
       }
 
       // Automatically clear active settlement session
       const nextSessions = { ...state.activeSettlementSessions };
-      delete nextSessions[normTable];
       if (typeof snapshot.seatNumber === 'number') {
         delete nextSessions[`${normTable}-CHAIR-${snapshot.seatNumber}`];
+        if (nextSessions[normTable]?.seatNumber === snapshot.seatNumber) {
+          delete nextSessions[normTable];
+        }
+      } else {
+        delete nextSessions[normTable];
+        for (let s = 1; s <= 12; s++) {
+          delete nextSessions[`${normTable}-CHAIR-${s}`];
+        }
       }
 
-      return { settledBills: nextBills, activeSettlementSessions: nextSessions };
+      // Auto-purge lingering PAYMENT and BILL pings for this table/chair
+      const cleanedPings = state.pings.filter(
+        (p) =>
+          !(
+            cleanNum(p.tableNumber) === tNum &&
+            (p.type === 'PAYMENT' || p.type === 'BILL') &&
+            (typeof snapshot.seatNumber !== 'number' || p.seatNumber === snapshot.seatNumber)
+          )
+      );
+
+      return {
+        settledBills: nextBills,
+        activeSettlementSessions: nextSessions,
+        pings: cleanedPings,
+      };
     });
 
     broadcastStateChange('billSettled', timestampedSnapshot);
+    broadcastStateChange('paymentPingsResolved', {
+      tableNumber: normTable,
+      seatNumber: snapshot.seatNumber,
+    });
 
     bridgePost('/api/settlement/session', {
       action: 'RECORD_BILL',
@@ -575,6 +656,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
 
     if (typeof window !== 'undefined') {
+      let pingQuery = supabase
+        .from('pings')
+        .update({ status: 'RESOLVED' })
+        .eq('table_number', normTable)
+        .in('type', ['PAYMENT', 'BILL']);
+      if (typeof snapshot.seatNumber === 'number') {
+        pingQuery = pingQuery.eq('seat_number', snapshot.seatNumber);
+      }
+      pingQuery.then(() => {}, () => {});
+
       const billId = `SETTLED-BILL-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       const sessId = `SETTLE-SESSION-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       supabase
@@ -590,11 +681,63 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         })
         .then(() => {}, () => {});
 
-      supabase
-        .from('pings')
-        .delete()
-        .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
-        .then(() => {}, () => {});
+      if (typeof snapshot.seatNumber === 'number') {
+        supabase
+          .from('pings')
+          .delete()
+          .eq('id', sessId)
+          .then(() => {}, () => {});
+      } else {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
+          .then(() => {}, () => {});
+      }
+    }
+  },
+
+  clearSettledBill: (tableNumber, seatNumber) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    set((state) => {
+      const nextBills = { ...state.settledBills };
+      if (typeof seatNumber === 'number') {
+        delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+        if (nextBills[normTable] && (!nextBills[normTable].seatNumber || nextBills[normTable].seatNumber === seatNumber)) {
+          delete nextBills[normTable];
+        }
+      } else {
+        delete nextBills[normTable];
+        for (let s = 1; s <= 12; s++) {
+          delete nextBills[`${normTable}-CHAIR-${s}`];
+        }
+      }
+      return { settledBills: nextBills };
+    });
+
+    bridgePost('/api/settlement/session', {
+      action: 'CLEAR_BILL',
+      tableNumber,
+      seatNumber,
+    });
+
+    if (typeof window !== 'undefined') {
+      if (typeof seatNumber === 'number') {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.SETTLED-BILL-${normTable}-S${seatNumber},id.eq.SETTLE-SESSION-${normTable}-S${seatNumber}`)
+          .then(() => {}, () => {});
+      } else {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.ilike.SETTLED-BILL-${normTable}%,id.ilike.SETTLE-SESSION-${normTable}%`)
+          .then(() => {}, () => {});
+      }
     }
   },
 
@@ -698,7 +841,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
                 const matchedTicketItem = targetTicket.items.find(
-                  (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+                  (ti) => ti.id === ai.id
                 );
                 if (!matchedTicketItem) return ai;
                 return {
@@ -832,7 +975,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
                 const isTicketItem = targetTicket.items.some(
-                  (ti) => ti.id === ai.id || (ti.name === ai.name && ti.seatNumber === ai.seatNumber)
+                  (ti) => ti.id === ai.id
                 );
                 return isTicketItem ? { ...ai, status: 'Ready' } : ai;
               }),
@@ -983,10 +1126,28 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     };
 
     // 1. Optimistic update
-    set((state) => ({
-      kdsTickets: [...state.kdsTickets, ticket],
-      kitchenNotifications: [...state.kitchenNotifications, notif],
-      tables: state.tables.map((t) =>
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    set((state) => {
+      const nextBills = { ...state.settledBills };
+      if (typeof seatNumber === 'number') {
+        delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+        if (typeof window !== 'undefined') {
+          supabase
+            .from('pings')
+            .delete()
+            .or(`id.eq.SETTLED-BILL-${normTable}-S${seatNumber},id.eq.SETTLE-SESSION-${normTable}-S${seatNumber}`)
+            .then(() => {}, () => {});
+        }
+      }
+
+      return {
+        kdsTickets: [...state.kdsTickets, ticket],
+        kitchenNotifications: [...state.kitchenNotifications, notif],
+        settledBills: nextBills,
+        tables: state.tables.map((t) =>
         t.number === tableNumber
           ? {
               ...t,
@@ -1025,7 +1186,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             }
           : t
       ),
-    }));
+      };
+    });
 
     // 2. Persist to Supabase
     bridgePost(
@@ -1369,9 +1531,31 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   
   waiterResolvePing: (pingId) => {
     const prevPings = get().pings;
+    const targetPing = prevPings.find((p) => p.id === pingId);
 
     // 1. Optimistic: remove ping immediately from UI
     set((state) => ({ pings: state.pings.filter((p) => p.id !== pingId) }));
+
+    const resolvedPayload = {
+      pingId,
+      tableNumber: targetPing?.tableNumber,
+      seatNumber: targetPing?.seatNumber,
+      type: targetPing?.type,
+      message: targetPing?.type
+        ? `Floor Captain attended your request for ${targetPing.type}.`
+        : 'Floor Captain attended your request.',
+    };
+
+    broadcastStateChange('waiterPingResolved', resolvedPayload);
+
+    // Broadcast event locally for any customer store listening on this client
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('waiterPingAttended', {
+          detail: resolvedPayload,
+        })
+      );
+    }
 
     // 2. Persist to Supabase
     bridgePost(
@@ -1397,22 +1581,79 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       // For full-table settle: mark entire group as BILLING (pre-vacate status).
       const isChairSettle = typeof seatNumber === 'number';
 
+      const newTickets = isChairSettle
+        ? state.kdsTickets.map((tk) => {
+            if (cleanNum(tk.tableNumber) !== targetNum) return tk;
+            const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
+            const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
+            if (seatItems.length === 0) return tk;
+            if (otherItems.length === 0) {
+              return { ...tk, status: 'COMPLETED' as const };
+            }
+            return { ...tk, items: otherItems };
+          })
+        : state.kdsTickets;
+
       return {
         tables: state.tables.map((t) => {
           if (!groupNums.has(t.number) && cleanNum(t.number) !== targetNum) return t;
           if (isChairSettle) {
-            // Reduce currentBill by the chair's settled amount only; keep OCCUPIED
-            const newBill = Math.max(0, (t.currentBill || 0) - amount);
-            return { ...t, currentBill: newBill };
+            // Recompute currentBill strictly as raw subtotal of remaining activeItems
+            const remainingActiveItems = (t.activeItems || []).filter(
+              (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
+            );
+            const remainingSubtotal = remainingActiveItems.reduce(
+              (s, ai) => s + (ai.price || 0) * (ai.quantity || 1),
+              0
+            );
+            return { ...t, currentBill: remainingSubtotal, activeItems: remainingActiveItems };
           }
           return { ...t, status: 'BILLING' };
         }),
+        kdsTickets: newTickets,
+        pings: state.pings.filter(
+          (p) =>
+            !(
+              cleanNum(p.tableNumber) === targetNum &&
+              (p.type === 'PAYMENT' || p.type === 'BILL') &&
+              (!isChairSettle || p.seatNumber === seatNumber)
+            )
+        ),
         shiftStats: {
           ...state.shiftStats,
           totalRevenue: state.shiftStats.totalRevenue + amount,
-          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1), // tablesServed: state.shiftStats.tablesServed + 1
+          tablesServed: state.shiftStats.tablesServed + (isChairSettle ? 0 : 1),
         },
       };
+    });
+
+    if (typeof window !== 'undefined') {
+      const normTbl = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+      let pQuery = supabase
+        .from('pings')
+        .update({ status: 'RESOLVED' })
+        .eq('table_number', normTbl)
+        .in('type', ['PAYMENT', 'BILL']);
+      if (typeof seatNumber === 'number') {
+        pQuery = pQuery.eq('seat_number', seatNumber);
+      }
+      pQuery.then(() => {}, () => {});
+    }
+
+    // Automatically sync cash collection into Manager Staff Roster (M9 Waiter Cash Handover)
+    if (String(method).toUpperCase() === 'CASH' && amount > 0) {
+      try {
+        const targetTbl = get().tables.find((t) => cleanNum(t.number) === targetNum);
+        const serverRef = targetTbl?.serverName || targetTbl?.section || 'Floor Captain';
+        useManagerStore.getState().recordStaffCashCollection(serverRef, amount);
+      } catch (err) {
+        console.error('[Bridge] Failed to sync cash collection to manager roster:', err);
+      }
+    }
+
+    broadcastStateChange('paymentPingsResolved', {
+      tableNumber: `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`,
+      seatNumber,
     });
   },
 
@@ -1428,13 +1669,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     set((state) => {
       const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
       const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
-      const nextSettled = { ...state.settledBills };
       const nextSessions = { ...state.activeSettlementSessions };
-      delete nextSettled[normTable];
+      const nextBills = { ...state.settledBills };
       delete nextSessions[normTable];
+      delete nextBills[normTable];
       for (let s = 1; s <= 12; s++) {
-        delete nextSettled[`${normTable}-CHAIR-${s}`];
         delete nextSessions[`${normTable}-CHAIR-${s}`];
+        delete nextBills[`${normTable}-CHAIR-${s}`];
       }
 
       return {
@@ -1460,8 +1701,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kdsTickets: state.kdsTickets.filter(
           (tk) => !groupNums.has(tk.tableNumber) && cleanNum(tk.tableNumber) !== targetNum
         ),
-        settledBills: nextSettled,
         activeSettlementSessions: nextSessions,
+        settledBills: nextBills,
       };
     });
 
@@ -1507,10 +1748,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           continue;
         }
 
-        const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
-        const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
+        const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : undefined;
+        const seatItems = tk.items.filter((it) => (it.seatNumber ?? tkSeat) === seatNumber);
+        const otherItems = tk.items.filter((it) => (it.seatNumber ?? tkSeat) !== seatNumber);
 
-        if (seatItems.length === 0) {
+        if (seatItems.length === 0 && tkSeat !== seatNumber) {
           // Ticket doesn't contain items for this seat
           newTickets.push(tk);
           continue;
@@ -1552,25 +1794,41 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           ? remainingTicketItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0)
           : remainingActiveItems.reduce((s, ai) => s + (ai.price || 0) * (ai.quantity || 1), 0);
 
-        const newBill = Math.round(remainingTotal * 1.05);
+        const newBill = remainingTotal;
         const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
+        const activeKotCount = newTickets.filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED').length;
+
+        const hasOtherGuests = (t.guestCount || 1) > 1 || hasRemainingOrders;
+        const nextStatus = hasOtherGuests ? ('OCCUPIED' as const) : ('VACANT' as const);
 
         return {
           ...t,
           activeItems: remainingActiveItems,
           currentBill: newBill,
-          guestCount: hasRemainingOrders ? Math.max(1, (t.guestCount || 2) - 1) : 0,
-          status: hasRemainingOrders ? ('OCCUPIED' as const) : ('VACANT' as const),
+          guestCount: hasOtherGuests ? Math.max(1, (t.guestCount || 2) - 1) : 0,
+          kotCount: hasRemainingOrders ? activeKotCount : 0,
+          status: nextStatus,
         };
       });
 
-      const nextSettled = { ...state.settledBills };
       const nextSessions = { ...state.activeSettlementSessions };
+      const nextBills = { ...state.settledBills };
       const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
-      delete nextSettled[`${normTable}-CHAIR-${seatNumber}`];
       delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
+      // Keep chair settled bill snapshot so the customer receives and views their receipt
 
-      return { kdsTickets: newTickets, tables: newTables, settledBills: nextSettled, activeSettlementSessions: nextSessions };
+      const tblRemaining = newTables.find((t) => cleanNum(t.number) === targetNum);
+      if (!tblRemaining || tblRemaining.currentBill === 0 || tblRemaining.status === 'VACANT') {
+        delete nextBills[normTable];
+        delete nextSessions[normTable];
+      }
+
+      return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions, settledBills: nextBills };
+    });
+
+    broadcastStateChange('chairCleared', {
+      tableNumber: normTable,
+      seatNumber,
     });
 
     // Clear server settlement session & settled bills for this chair
@@ -1620,7 +1878,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        return { ...t, items: newItems, status: allServed ? ('COMPLETED' as const) : t.status }; // status: allServed ? 'COMPLETED' : t.status
+        return { ...t, items: newItems, status: allServed ? ('SERVED' as const) : t.status };
       });
 
       if (!targetTableNumber) {
@@ -1634,13 +1892,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             return {
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
-                const matchesItem = ai.id === itemId;
-                const matchesFallback =
-                  Boolean(targetItemName) &&
-                  ai.name === targetItemName &&
-                  (targetSeatNumber !== undefined ? ai.seatNumber === targetSeatNumber : true) &&
-                  ai.status === 'Ready';
-                return matchesItem || matchesFallback
+                return ai.id === itemId
                   ? { ...ai, status: 'Served' }
                   : ai;
               }),
@@ -1677,9 +1929,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextSessions = { ...state.activeSettlementSessions };
-      nextSessions[normTable] = session;
       if (typeof seatNumber === 'number') {
         nextSessions[`${normTable}-CHAIR-${seatNumber}`] = session;
+        if (nextSessions[normTable]?.seatNumber === seatNumber) {
+          delete nextSessions[normTable];
+        }
+      } else {
+        nextSessions[normTable] = session;
       }
       return { activeSettlementSessions: nextSessions };
     });
@@ -1717,9 +1973,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextSessions = { ...state.activeSettlementSessions };
-      delete nextSessions[normTable];
       if (typeof seatNumber === 'number') {
         delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
+        if (nextSessions[normTable]?.seatNumber === seatNumber) {
+          delete nextSessions[normTable];
+        }
+      } else {
+        delete nextSessions[normTable];
+        for (let s = 1; s <= 12; s++) {
+          delete nextSessions[`${normTable}-CHAIR-${s}`];
+        }
       }
       return { activeSettlementSessions: nextSessions };
     });
@@ -1734,26 +1997,51 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     if (typeof window !== 'undefined') {
       const sessId = `SETTLE-SESSION-${normTable}${typeof seatNumber === 'number' ? `-S${seatNumber}` : ''}`;
-      supabase
-        .from('pings')
-        .delete()
-        .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
-        .then(() => {}, () => {});
+      if (typeof seatNumber === 'number') {
+        supabase
+          .from('pings')
+          .delete()
+          .eq('id', sessId)
+          .then(() => {}, () => {});
+      } else {
+        supabase
+          .from('pings')
+          .delete()
+          .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`)
+          .then(() => {}, () => {});
+      }
     }
   },
 
   resetToFreshDemoState: () => {
     if (typeof window !== 'undefined') {
       try {
+        localStorage.removeItem('thoogudeepa_bridge_v3');
         localStorage.removeItem('thoogudeepa_bridge_live_v2');
         localStorage.removeItem('thoogudeepa_bridge_v1');
+        localStorage.removeItem('thoogudeepa_shared_bridge_state');
       } catch {}
     }
     ticketCounter = 1;
     notifCounter = 1;
     itemIdCounter = 1;
     set({
-      tables: freshTables,
+      tables: freshTables.map((t) => ({
+        ...t,
+        status: 'VACANT' as const,
+        currentBill: 0,
+        guestCount: 0,
+        activeItems: [],
+        seatedTime: '--',
+        kotCount: 0,
+        mergedWith: undefined,
+        mergeGroupPeers: undefined,
+        isMergeConfirmed: undefined,
+        preMergeCapacity: undefined,
+        preMergeBill: undefined,
+        preMergeGuests: undefined,
+        preMergeStatus: undefined,
+      })),
       kdsTickets: [],
       pings: [],
       inventory86: freshInventory86,
@@ -1773,7 +2061,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
 if (typeof window !== 'undefined') {
   let isBroadcasting = false;
-  const BRIDGE_STORAGE_KEY = 'thoogudeepa_bridge_live_v2';
+  const BRIDGE_STORAGE_KEY = 'thoogudeepa_bridge_v3';
+
+  // Purge any stale legacy bridge state from previous versions
+  try {
+    localStorage.removeItem('thoogudeepa_bridge_live_v2');
+    localStorage.removeItem('thoogudeepa_bridge_v1');
+    localStorage.removeItem('thoogudeepa_shared_bridge_state');
+  } catch {}
 
   const applyPersistedState = (parsed: Record<string, unknown>, suppressBroadcast = false) => {
     if (!parsed || !Array.isArray(parsed.tables)) return;
@@ -1926,8 +2221,7 @@ if (typeof window !== 'undefined') {
           return t;
         });
 
-        // Filter out COMPLETED tickets on rehydration and orphan tickets for tables with 0 bill
-        const liveTickets = Array.isArray(parsed.kdsTickets)
+        const incomingTickets: SharedKDSTicket[] = Array.isArray(parsed.kdsTickets)
           ? (parsed.kdsTickets as SharedKDSTicket[])
               .filter((tk) => tk && tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber))
               .map((tk, idx) => {
@@ -1938,11 +2232,49 @@ if (typeof window !== 'undefined') {
               })
           : [];
 
+        // Merge tickets non-destructively by ID so one chair's update never purges another chair's tickets
+        const currentBridge = useSharedBridge.getState();
+        const currentTickets = currentBridge.kdsTickets || [];
+        const ticketMap = new Map<string, SharedKDSTicket>();
+        currentTickets.forEach((tk: SharedKDSTicket) => {
+          if (tk?.id) ticketMap.set(tk.id, tk);
+        });
+        incomingTickets.forEach((tk: SharedKDSTicket) => {
+          if (tk?.id) ticketMap.set(tk.id, tk);
+        });
+        const mergedLiveTickets = Array.from(ticketMap.values()).filter(
+          (tk) => tk.status !== 'COMPLETED' && (activeTableNums.has(tk.tableNumber) || (tk.items && tk.items.length > 0))
+        );
+
+        // Merge active items across chairs so multi-diner tables retain all chairs' orders
+        const currentTables = currentBridge.tables || [];
+        const mergedTables = sanitizedTables.map((t) => {
+          const localTbl = currentTables.find((lt: SharedTable) => lt.number === t.number);
+          if (!localTbl) return t;
+
+          const itemMap = new Map<string, any>();
+          (localTbl.activeItems || []).forEach((ai: any) => {
+            const key = ai.id || `${ai.name}-s${ai.seatNumber}`;
+            itemMap.set(key, ai);
+          });
+          (t.activeItems || []).forEach((ai: any) => {
+            const key = ai.id || `${ai.name}-s${ai.seatNumber}`;
+            itemMap.set(key, ai);
+          });
+          const mergedActiveItems = Array.from(itemMap.values());
+          const hasItems = mergedActiveItems.length > 0;
+          return {
+            ...t,
+            activeItems: mergedActiveItems,
+            status: hasItems ? 'OCCUPIED' : t.status,
+          };
+        });
+
         isBroadcasting = true;
         useSharedBridge.setState({
           ...parsed,
-          tables: sanitizedTables,
-          kdsTickets: liveTickets,
+          tables: mergedTables,
+          kdsTickets: mergedLiveTickets,
           // kitchenNotifications are session-only, don't persist them
           kitchenNotifications: [],
         });
@@ -1953,13 +2285,13 @@ if (typeof window !== 'undefined') {
           localStorage.setItem(BRIDGE_STORAGE_KEY, JSON.stringify({
             ...parsed,
             tables: sanitizedTables,
-            kdsTickets: liveTickets,
+            kdsTickets: mergedLiveTickets,
           }));
         } catch {}
 
         // Safely recover ticket counter
-        if (liveTickets.length > 0) {
-          const validNums = liveTickets
+        if (mergedLiveTickets.length > 0) {
+          const validNums = mergedLiveTickets
             .map((tk: SharedKDSTicket) => {
               const cleaned = (tk.id || '').replace(/^KDS-/, '').split('-')[0];
               const parsedInt = parseInt(cleaned, 10);
@@ -1979,10 +2311,131 @@ if (typeof window !== 'undefined') {
     syncChannel = new BroadcastChannel('thoogudeepa_bridge_sync');
 
     syncChannel.onmessage = (event) => {
+      if (
+        event.data?.type === 'VENUE_CLEAN_RESET' ||
+        event.data?.type === 'VENUE_FRESH_RESET' ||
+        event.data?.type === 'RESET_ALL'
+      ) {
+        useSharedBridge.getState().resetToFreshDemoState();
+        try {
+          localStorage.removeItem(BRIDGE_STORAGE_KEY);
+          localStorage.removeItem('thoogudeepa_bridge_v3');
+          localStorage.removeItem('thoogudeepa_bridge_live_v2');
+          localStorage.removeItem('thoogudeepa_bridge_v1');
+          localStorage.removeItem('thoogudeepa_shared_bridge_state');
+        } catch {}
+        return;
+      }
+      if (event.data?.type === 'SEAT_OCCUPIED' && event.data.tableNumber && event.data.seatNumber) {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('seatOccupiedRealtime', {
+              detail: {
+                tableNumber: event.data.tableNumber,
+                seatNumber: Number(event.data.seatNumber),
+              },
+            })
+          );
+        }
+      }
       if (event.data?.type === 'SYNC_STATE' && event.data.payload) {
         applyPersistedState(event.data.payload, true); // suppress re-broadcast
       }
     };
+
+    try {
+      const sbChannel = supabase.channel('restaurant-sync-broadcast');
+      sbChannel
+        .on('broadcast', { event: 'STATE_CHANGED' }, (msg: any) => {
+          const reason = msg?.payload?.reason;
+          const payload = msg?.payload?.payload;
+          if (
+            reason === 'VENUE_CLEAN_RESET' ||
+            reason === 'VENUE_FRESH_RESET' ||
+            reason === 'venueReset' ||
+            reason === 'RESET_ALL'
+          ) {
+            useSharedBridge.getState().resetToFreshDemoState();
+            try {
+              localStorage.removeItem(BRIDGE_STORAGE_KEY);
+              localStorage.removeItem('thoogudeepa_bridge_v3');
+              localStorage.removeItem('thoogudeepa_bridge_live_v2');
+              localStorage.removeItem('thoogudeepa_bridge_v1');
+              localStorage.removeItem('thoogudeepa_shared_bridge_state');
+            } catch {}
+            try {
+              syncChannel?.postMessage({ type: 'VENUE_CLEAN_RESET' });
+            } catch {}
+            return;
+          }
+          if (reason === 'seatOccupied' && payload?.tableNumber && payload?.seatNumber) {
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(
+                new CustomEvent('seatOccupiedRealtime', {
+                  detail: {
+                    tableNumber: payload.tableNumber,
+                    seatNumber: Number(payload.seatNumber),
+                  },
+                })
+              );
+            }
+          }
+          if (reason === 'waiterPingCreated' && payload) {
+            const newPing = payload as SharedPing;
+            if (newPing && newPing.tableNumber) {
+              useSharedBridge.setState((state) => {
+                if (state.pings.some((p) => p.id === newPing.id)) return state;
+                return { pings: [newPing, ...state.pings] };
+              });
+            }
+          }
+          if (reason === 'waiterPingResolved' && payload?.pingId) {
+            useSharedBridge.setState((state) => ({
+              pings: state.pings.filter((p) => p.id !== payload.pingId),
+            }));
+          }
+          if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
+            const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+            const targetTbl = cleanNum(payload.tableNumber);
+            const targetSeat = payload.seatNumber;
+            useSharedBridge.setState((state) => ({
+              pings: state.pings.filter(
+                (p) =>
+                  !(
+                    cleanNum(p.tableNumber) === targetTbl &&
+                    (p.type === 'PAYMENT' || p.type === 'BILL') &&
+                    (!targetSeat || p.seatNumber === targetSeat)
+                  )
+              ),
+            }));
+          } else if (reason === 'settlementSessionStarted' && payload) {
+            const sess = payload;
+            useSharedBridge.setState((state) => {
+              const nextSessions = { ...state.activeSettlementSessions };
+              nextSessions[sess.tableNumber] = sess;
+              if (typeof sess.seatNumber === 'number') {
+                nextSessions[`${sess.tableNumber}-CHAIR-${sess.seatNumber}`] = sess;
+              } else {
+                for (let s = 1; s <= 6; s++) {
+                  nextSessions[`${sess.tableNumber}-CHAIR-${s}`] = sess;
+                }
+              }
+              return { activeSettlementSessions: nextSessions };
+            });
+          } else if (reason === 'settlementSessionEnded' && payload?.tableNumber) {
+            const normTable = payload.tableNumber;
+            useSharedBridge.setState((state) => {
+              const nextSessions = { ...state.activeSettlementSessions };
+              delete nextSessions[normTable];
+              for (let s = 1; s <= 6; s++) {
+                delete nextSessions[`${normTable}-CHAIR-${s}`];
+              }
+              return { activeSettlementSessions: nextSessions };
+            });
+          }
+        })
+        .subscribe();
+    } catch {}
 
     useSharedBridge.subscribe((state) => {
       // Save state to localStorage on every change (persistence + cross-device fallback)

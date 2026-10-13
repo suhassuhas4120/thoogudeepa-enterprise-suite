@@ -10,8 +10,15 @@ export function ScreenM3FloorPlan() {
   const { selectedTableNumber, setSelectedTableNumber, setCurrentScreen } = useManagerStore();
   const [activeSection, setActiveSection] = useState('ALL');
 
-  const sections = ['ALL', 'SECTION A', 'SECTION B', 'SECTION C'];
-  const filteredTables = activeSection === 'ALL' ? tables : tables.filter((t) => t.section.includes(activeSection));
+  const sections = [
+    'ALL',
+    'Express / Couple Hall',
+    'Main Dining Hall',
+    'Family Section',
+    'Courtyard Garden',
+    'Grand Feast Hall',
+  ];
+  const filteredTables = activeSection === 'ALL' ? tables : tables.filter((t) => t.section === activeSection);
 
   const selectedTable = tables.find((t) => t.number === selectedTableNumber) || tables[0];
 

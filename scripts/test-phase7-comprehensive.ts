@@ -427,7 +427,7 @@ group('useSharedBridge — waiter seating and payment flows', () => {
   ok('waiterRecordsPayment sets table status to BILLING', /status: 'BILLING'/.test(b));
   ok('waiterRecordsPayment handles mergedWith partner table', /mergedWith|mergeGroupPeers/.test(b));
   ok('waiterRecordsPayment increments totalRevenue by amount', /totalRevenue: state\.shiftStats\.totalRevenue \+ amount/.test(b));
-  ok('waiterRecordsPayment increments tablesServed by 1', /tablesServed: state\.shiftStats\.tablesServed \+ 1/.test(b));
+  ok('waiterRecordsPayment increments tablesServed by 1 (or 0 for chair settle)', /tablesServed: state\.shiftStats\.tablesServed \+ \(isChairSettle \? 0 : 1\)/.test(b));
 });
 
 // ─── GROUP 17: useSharedBridge — waiterVacatesTable ──────────────────────────
@@ -527,8 +527,8 @@ group('useSharedBridge — bridgePost HTTP helper and rollback', () => {
   ok('bridgePost only runs in browser (window guard)', /typeof window === 'undefined'/.test(b));
   ok('bridgePost uses POST method', /method: 'POST'/.test(b));
   ok('bridgePost sends JSON content-type header', /Content-Type.*application\/json/.test(b));
-  ok('bridgePost calls onRollback on non-ok response', /onRollback\?\.\(\)/.test(b));
-  ok('bridgePost calls onRollback on network error', b.includes('.catch') && b.includes('onRollback?.()'));
+  ok('bridgePost calls onRollback on non-ok response', /onRollback\?\.\(err\)/.test(b));
+  ok('bridgePost calls onRollback on network error', b.includes('.catch') && b.includes('onRollback?.(err)'));
   ok('All write actions use optimistic update before API call', /Optimistic update/.test(b) || /optimistic/.test(b.toLowerCase()));
   ok('All rollback functions restore previous state snapshot', /prevState|prevTickets|prevPings|prevTables|prevInventory/.test(b));
   ok('API endpoints: /api/orders/create, /api/tables/seat, /api/pings/create, /api/tables/vacate', b.includes('/api/orders/create') && b.includes('/api/tables/seat') && b.includes('/api/pings/create') && b.includes('/api/tables/vacate'));

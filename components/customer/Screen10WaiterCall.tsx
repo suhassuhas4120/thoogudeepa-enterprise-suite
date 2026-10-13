@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -8,8 +8,9 @@ import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { WaiterPingType } from '../../types/customer';
-import { Droplets, Scroll, Utensils, Sparkles, Send, ArrowRight, CreditCard, AlertCircle } from 'lucide-react';
+import { Droplets, Scroll, Utensils, Sparkles, Send, ArrowRight, CreditCard, AlertCircle, CheckCircle2, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCustomerStore } from '../../store/useCustomerStore';
 
 export const Screen10WaiterCall: React.FC = () => {
   const { currentTheme } = useCustomerTheme();
@@ -37,20 +38,65 @@ export const Screen10WaiterCall: React.FC = () => {
   };
 
   const tableTickets = kdsTickets.filter((tk) => isTableMatch(tk.tableNumber, effectiveTable));
-  const activeItems = tableTickets.flatMap((t) => t.items);
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
 
-  // Strict check: only enabled when all ordered dishes are served
-  const allDishesServed = useMemo(() => {
-    if (!activeItems.length) return false;
-    return activeItems.every((it) => {
-      if (it.stage === 'SERVED') return true;
-      const matched = currentTbl?.activeItems?.find(
-        (ai) => ai.name.toLowerCase().includes(it.name.toLowerCase()) || it.name.toLowerCase().includes(ai.name.toLowerCase())
+  // Latch served status so transient reconciliation frames never cause payment options to flicker
+  const [hasEverBeenFullyServed, setHasEverBeenFullyServed] = useState(false);
+
+  const rawAllDishesServed = useMemo(() => {
+    const chairTickets = kdsTickets.filter(
+      (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+    );
+    const chairItems = chairTickets.flatMap((t) => t.items).filter(
+      (it) => it.seatNumber === effectiveSeat || !it.seatNumber
+    );
+    if (!chairItems.length) return false;
+    return chairItems.every((it) => it.stage === 'SERVED');
+  }, [kdsTickets, effectiveTable, effectiveSeat]);
+
+  useEffect(() => {
+    if (rawAllDishesServed) {
+      setHasEverBeenFullyServed(true);
+    } else {
+      const chairTickets = kdsTickets.filter(
+        (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
+                (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
       );
-      return matched?.status === 'Served';
-    });
-  }, [activeItems, currentTbl]);
+      const chairItems = chairTickets.flatMap((t) => t.items).filter(
+        (it) => it.seatNumber === effectiveSeat || !it.seatNumber
+      );
+      if (chairItems.some((it) => it.stage !== 'SERVED')) {
+        setHasEverBeenFullyServed(false);
+      }
+    }
+  }, [rawAllDishesServed, kdsTickets, effectiveTable, effectiveSeat]);
+
+  const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
+
+  // Check if payment ping is active for this chair to prevent spamming
+  const hasActivePaymentPing = useMemo(() => {
+    return (
+      (waiterNotification?.active && waiterNotification.type === 'PAYMENT') ||
+      pings.some(
+        (p) =>
+          isTableMatch(p.tableNumber, effectiveTable) &&
+          p.type === 'PAYMENT' &&
+          p.status === 'PENDING' &&
+          p.seatNumber === effectiveSeat
+      )
+    );
+  }, [pings, effectiveTable, effectiveSeat, waiterNotification]);
+
+  const [cooldownRemaining, setCooldownRemaining] = useState(0);
+
+  useEffect(() => {
+    if (cooldownRemaining <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownRemaining((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownRemaining]);
 
   const handlePing = (type: WaiterPingType) => {
     if (type === 'PAYMENT') {
@@ -58,6 +104,8 @@ export const Screen10WaiterCall: React.FC = () => {
       setShowPaymentConfirmModal(true);
       return;
     }
+    if (cooldownRemaining > 0) return;
+    setCooldownRemaining(45);
     pingWaiter(type, customText.trim() || undefined);
     if (customText.trim()) setCustomText('');
   };
@@ -132,17 +180,43 @@ export const Screen10WaiterCall: React.FC = () => {
               initial={{ opacity: 0, y: -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm text-center"
+              className={`rounded-2xl border p-4 shadow-sm text-center ${
+                waiterNotification.attended
+                  ? 'border-emerald-300 bg-gradient-to-r from-emerald-50 via-teal-50 to-emerald-50'
+                  : 'border-amber-300 bg-amber-50'
+              }`}
             >
-              <div className="flex items-center justify-center gap-2 font-black text-xs text-amber-900 mb-1">
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                <span>Floor Captain notified. Please wait at your seat.</span>
-                <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-              </div>
-              {waiterNotification.message && (
-                <p className="text-xs font-medium text-amber-800 leading-relaxed">
-                  {waiterNotification.message}
-                </p>
+              {waiterNotification.attended ? (
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex items-center gap-2 font-black text-xs text-emerald-950">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                      <span>Request Attended!</span>
+                    </div>
+                    <button
+                      onClick={() => useCustomerStore.getState().dismissWaiterNotification()}
+                      className="text-emerald-700 hover:text-emerald-900 p-0.5 rounded cursor-pointer"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <p className="text-xs font-bold text-emerald-800 text-left leading-relaxed">
+                    {waiterNotification.message || 'Floor Captain has attended to your request.'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center justify-center gap-2 font-black text-xs text-amber-900 mb-1">
+                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                    <span>Floor Captain notified. Please wait at your seat.</span>
+                    <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-ping" />
+                  </div>
+                  {waiterNotification.message && (
+                    <p className="text-xs font-medium text-amber-800 leading-relaxed">
+                      {waiterNotification.message}
+                    </p>
+                  )}
+                </>
               )}
             </motion.div>
           )}
@@ -166,7 +240,9 @@ export const Screen10WaiterCall: React.FC = () => {
           <div className="grid grid-cols-2 gap-3">
             {pingButtons.map((btn) => {
               const isPayment = btn.type === 'PAYMENT';
-              const isPaymentDisabled = isPayment && !allDishesServed;
+              const isPaymentDisabled = isPayment
+                ? !allDishesServed || hasActivePaymentPing
+                : cooldownRemaining > 0;
 
               return (
                 <motion.button
@@ -178,10 +254,16 @@ export const Screen10WaiterCall: React.FC = () => {
                     isPayment
                       ? `col-span-2 flex-row items-center justify-center gap-3 p-3.5 border ${
                           isPaymentDisabled
-                            ? 'bg-stone-50 border-stone-200 opacity-50 cursor-not-allowed'
+                            ? hasActivePaymentPing
+                              ? 'bg-amber-50 border-amber-300 text-amber-800 opacity-80 cursor-not-allowed'
+                              : 'bg-stone-50 border-stone-200 opacity-50 cursor-not-allowed'
                             : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300 cursor-pointer hover:opacity-90'
                         }`
-                      : 'flex-col items-center justify-center gap-2 p-4 cursor-pointer hover:opacity-90'
+                      : `flex-col items-center justify-center gap-2 p-4 ${
+                          !isPayment && cooldownRemaining > 0
+                            ? 'opacity-60 cursor-not-allowed'
+                            : 'cursor-pointer hover:opacity-90'
+                        }`
                   } rounded-[22px] border shadow-xs transition`}
                   style={
                     !isPayment
@@ -206,13 +288,21 @@ export const Screen10WaiterCall: React.FC = () => {
                       className={`font-black ${isPayment ? 'text-xs text-[#9C3D1E]' : 'text-xs text-center'}`}
                       style={!isPayment ? { color: currentTheme.colors.textPrimary } : undefined}
                     >
-                      {btn.label}
+                      {isPayment && hasActivePaymentPing
+                        ? 'Captain Summoned'
+                        : !isPayment && cooldownRemaining > 0
+                        ? `${btn.label} (${cooldownRemaining}s)`
+                        : btn.label}
                     </span>
-                    {isPayment && isPaymentDisabled && (
+                    {isPayment && hasActivePaymentPing ? (
+                      <span className="text-[10px] text-amber-700 font-medium">
+                        (Captain on the way to Chair {effectiveSeat})
+                      </span>
+                    ) : isPayment && !allDishesServed ? (
                       <span className="text-[10px] text-stone-500 font-medium">
                         (Unlocks once all dishes are served to your chair)
                       </span>
-                    )}
+                    ) : null}
                   </div>
                 </motion.button>
               );

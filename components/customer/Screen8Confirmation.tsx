@@ -20,6 +20,7 @@ import {
   Check,
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { downloadPdfBill } from '../../lib/generatePdfBill';
 
 export const Screen8Confirmation: React.FC = () => {
   const { currentTheme } = useCustomerTheme();
@@ -31,6 +32,7 @@ export const Screen8Confirmation: React.FC = () => {
     cart,
     venueName,
     resetSession,
+    seatNumber: contextSeatNumber,
   } = useCustomer();
 
   const [selectedChips, setSelectedChips] = useState<string[]>(['Super Quick Service']);
@@ -40,9 +42,9 @@ export const Screen8Confirmation: React.FC = () => {
   const [shareMsg, setShareMsg] = useState(false);
   const [rating, setRating] = useState(0);
 
-  // Read seat from URL
+  // Read seat from context with URL fallback
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const seatNumber = parseInt(params.get('seat') || '1', 10);
+  const seatNumber = contextSeatNumber || parseInt(params.get('seat') || '1', 10);
   const effectiveTable = tableNumber || 'T-01';
 
   // Floor Captain details from shared bridge
@@ -52,6 +54,30 @@ export const Screen8Confirmation: React.FC = () => {
     currentTable?.serverName && currentTable.serverName !== 'Floor Captain'
       ? currentTable.serverName
       : 'Floor Captain';
+
+  const [liveTimecode, setLiveTimecode] = useState('');
+  React.useEffect(() => {
+    // Payment is finalized: clear active session keys so re-scanning any chair starts completely fresh
+    if (typeof window !== 'undefined') {
+      try {
+        sessionStorage.removeItem('thoogudeepa_verified_session');
+        localStorage.removeItem('thoogudeepa_customer_session_v1');
+        if (effectiveTable && seatNumber) {
+          localStorage.removeItem(`thoogudeepa_customer_session_${effectiveTable}_s${seatNumber}`);
+        }
+      } catch {}
+    }
+
+    const update = () => {
+      const d = new Date();
+      setLiveTimecode(
+        d.toLocaleTimeString('en-IN', { hour12: false }) + '.' + String(Math.floor(d.getMilliseconds() / 10)).padStart(2, '0')
+      );
+    };
+    update();
+    const iv = setInterval(update, 80);
+    return () => clearInterval(iv);
+  }, [effectiveTable, seatNumber]);
 
   const { formattedDate, formattedTime } = useMemo(() => {
     const d = new Date();
@@ -124,7 +150,54 @@ export const Screen8Confirmation: React.FC = () => {
     );
   };
 
+  const effectiveTip =
+    payment.tipAmount > 0
+      ? payment.tipAmount
+      : Math.max(0, paidAmount - (subtotal + totalTax - discount));
+
+  const billPdfData = useMemo(() => ({
+    invoiceNumber,
+    tableNumber: effectiveTable,
+    seatNumber,
+    formattedDate,
+    formattedTime,
+    items: activeItems.map((it: any) => ({
+      name: it.menuItem?.name || it.name || 'Dish',
+      quantity: it.quantity || 1,
+      price: Math.round(it.totalPrice || (it.price && it.quantity ? it.price * it.quantity : it.price) || 0),
+    })),
+    subtotal,
+    cgst,
+    sgst,
+    totalTax,
+    discount,
+    tipAmount: effectiveTip,
+    paidAmount,
+    paymentMethod: payment.paymentMethod || 'UPI',
+    bankUtr,
+    captainName,
+  }), [
+    invoiceNumber,
+    effectiveTable,
+    seatNumber,
+    formattedDate,
+    formattedTime,
+    activeItems,
+    subtotal,
+    cgst,
+    sgst,
+    totalTax,
+    discount,
+    effectiveTip,
+    paidAmount,
+    payment.paymentMethod,
+    bankUtr,
+    captainName,
+  ]);
+
+
   const handleDownload = () => {
+    downloadPdfBill(billPdfData);
     setDownloadMsg(true);
     setTimeout(() => setDownloadMsg(false), 2200);
   };
@@ -165,6 +238,9 @@ export const Screen8Confirmation: React.FC = () => {
   };
 
   const handleDineAgain = () => {
+    try {
+      useSharedBridge.getState().clearSettledBill(effectiveTable, seatNumber);
+    } catch {}
     resetSession();
     setCurrentScreen(1);
   };
@@ -240,6 +316,32 @@ export const Screen8Confirmation: React.FC = () => {
             </div>
             <div className="text-[10px] font-semibold mt-0.5" style={{ color: currentTheme.colors.textMuted }}>
               TXN ID: {txnId} • TABLE {effectiveTable} • SEAT C-{String(seatNumber).padStart(2, '0')}
+            </div>
+          </div>
+
+          {/* Anti-Fraud Dynamic Live Watermark */}
+          <div className="mt-2.5 w-full rounded-2xl border border-emerald-500/30 bg-emerald-950/20 p-2.5 flex items-center justify-between text-left">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-3 w-3">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+              </span>
+              <div>
+                <div className="text-[9.5px] font-black uppercase tracking-wider text-emerald-400 font-mono">
+                  Verified Live Token
+                </div>
+                <div className="text-[11px] font-mono font-bold text-emerald-100">
+                  {liveTimecode || formattedTime} • LIVE
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-[8.5px] font-mono text-emerald-400 font-semibold uppercase">
+                Anti-Spoof
+              </div>
+              <div className="text-[9.5px] font-mono font-black text-emerald-300">
+                ACTIVE
+              </div>
             </div>
           </div>
 
@@ -370,10 +472,10 @@ export const Screen8Confirmation: React.FC = () => {
               <span className="font-medium">SGST (2.5%)</span>
               <span className="font-mono font-semibold" style={{ color: currentTheme.colors.textPrimary }}>₹{sgst}</span>
             </div>
-            {payment.tipAmount > 0 && (
+            {effectiveTip > 0 && (
               <div className="flex justify-between font-bold font-sans" style={{ color: currentTheme.colors.buttonBg }}>
-                <span className="font-semibold">Staff Tip (Captain & Team)</span>
-                <span className="font-mono font-black">+₹{payment.tipAmount}</span>
+                <span className="font-semibold">Waiter Tip</span>
+                <span className="font-mono font-black">+₹{effectiveTip}</span>
               </div>
             )}
             {discount > 0 && (

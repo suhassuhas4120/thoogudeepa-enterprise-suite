@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabase, broadcastStateChange } from '../../../../lib/supabase';
 
 export const dynamic = 'force-dynamic';
 
@@ -225,12 +225,14 @@ export async function POST(req: NextRequest) {
         })
         .eq('id', resolvedOrderId);
 
-      // 2. Mark Seat as PAID
+      // 2. Release table seat to VACANT and clear device token & active order
       if (resolvedTableNumber && resolvedSeatNumber) {
         await supabase
           .from('table_seats')
           .update({
-            status: 'PAID',
+            status: 'VACANT',
+            active_order_id: null,
+            device_token: null,
             updated_at: nowIso,
           })
           .eq('table_number', resolvedTableNumber)
@@ -246,7 +248,7 @@ export async function POST(req: NextRequest) {
         })
         .eq('order_id', resolvedOrderId);
 
-      // 4. Check if all table orders are settled -> update table to BILLING
+      // 4. Check if all table orders are settled -> vacate table if no unpaid orders remain
       if (resolvedTableNumber) {
         const { data: remainingUnpaid } = await supabase
           .from('orders')
@@ -258,12 +260,49 @@ export async function POST(req: NextRequest) {
           await supabase
             .from('tables')
             .update({
-              status: 'BILLING',
+              status: 'VACANT',
+              current_bill: 0,
+              guest_count: 0,
+              kot_count: 0,
               updated_at: nowIso,
             })
             .eq('number', resolvedTableNumber);
         }
       }
+
+      // 5. Auto-resolve lingering PAYMENT and BILL pings for this table/seat
+      if (resolvedTableNumber) {
+        try {
+          if (resolvedSeatNumber) {
+            await supabase
+              .from('pings')
+              .update({ status: 'RESOLVED' })
+              .eq('table_number', resolvedTableNumber)
+              .eq('seat_number', resolvedSeatNumber)
+              .in('type', ['PAYMENT', 'BILL']);
+          }
+          await supabase
+            .from('pings')
+            .update({ status: 'RESOLVED' })
+            .eq('table_number', resolvedTableNumber)
+            .in('type', ['PAYMENT', 'BILL']);
+        } catch (pingErr) {
+          console.warn('[Payments] Ping auto-resolve fallback:', pingErr);
+        }
+      }
+
+      // 6. Broadcast real-time payment confirmation and ping purge across portals
+      broadcastStateChange('paymentConfirmed', {
+        orderId: resolvedOrderId,
+        tableNumber: resolvedTableNumber,
+        seatNumber: resolvedSeatNumber,
+        amount: resolvedAmount,
+      });
+
+      broadcastStateChange('paymentPingsResolved', {
+        tableNumber: resolvedTableNumber,
+        seatNumber: resolvedSeatNumber,
+      });
     }
 
     return NextResponse.json({

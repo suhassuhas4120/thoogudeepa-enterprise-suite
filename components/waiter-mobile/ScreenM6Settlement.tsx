@@ -58,12 +58,14 @@ interface SettledBillSnapshot {
   cashTendered: number;
   cashChange: number;
   seatLabel: string;
+  seatNumber?: number;
   captainName: string;
   tableName: string;
   section: string;
   guestCount: number;
   formattedDate: string;
   formattedTime: string;
+  timestamp?: number;
 }
 
 export function ScreenM6Settlement({
@@ -116,7 +118,7 @@ export function ScreenM6Settlement({
   const [settledSnapshot, setSettledSnapshot] = useState<SettledBillSnapshot | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrZoomed, setQrZoomed] = useState(false);
-  const [isUpiVerified, setIsUpiVerified] = useState(false);
+  const [isUpiVerified, setIsUpiVerified] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showOrderSummary, setShowOrderSummary] = useState(true);
 
@@ -218,8 +220,7 @@ export function ScreenM6Settlement({
   // When settling a specific chair, show that chair's items
   const displayedItems = useMemo(() => {
     if (splitSeatNumber !== null) {
-      const chairItems = allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
-      return chairItems.length > 0 ? chairItems : allOrderedItems.filter((it) => !it.seatNumber);
+      return allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
     }
     return allOrderedItems;
   }, [allOrderedItems, splitSeatNumber]);
@@ -254,17 +255,20 @@ export function ScreenM6Settlement({
       };
     }
 
-    const tableBill = table?.currentBill || 0;
-    if (tableBill > 0) {
-      const calcSub = Math.round(tableBill / 1.05);
-      const calcTax = tableBill - calcSub;
-      return {
-        subtotal: calcSub,
-        totalTax: calcTax,
-        grandTotal: tableBill,
-        cgst: calcTax / 2,
-        sgst: calcTax / 2,
-      };
+    // Only fall back to whole table bill when this is a full-table settlement
+    if (splitSeatNumber === null) {
+      const tableBill = table?.currentBill || 0;
+      if (tableBill > 0) {
+        const calcSub = Math.round(tableBill / 1.05);
+        const calcTax = tableBill - calcSub;
+        return {
+          subtotal: calcSub,
+          totalTax: calcTax,
+          grandTotal: tableBill,
+          cgst: calcTax / 2,
+          sgst: calcTax / 2,
+        };
+      }
     }
 
     return {
@@ -274,7 +278,7 @@ export function ScreenM6Settlement({
       cgst: 0,
       sgst: 0,
     };
-  }, [splitAmount, displayedItemsSum, table?.currentBill]);
+  }, [splitAmount, displayedItemsSum, table?.currentBill, splitSeatNumber]);
 
   const hasUnservedDishes =
     displayedItems.length > 0 &&
@@ -391,12 +395,14 @@ export function ScreenM6Settlement({
       cashTendered: finalTendered,
       cashChange: finalChange,
       seatLabel: splitSeatNumber !== null ? `Chair ${splitSeatNumber}` : seatNumbersLabel,
+      seatNumber: splitSeatNumber ?? undefined,
       captainName,
       tableName: tableNum,
       section: table?.section || 'Main Dining Hall',
       guestCount: splitSeatNumber !== null ? 1 : table?.guestCount || table?.capacity || 1,
       formattedDate,
       formattedTime,
+      timestamp: Date.now(),
     };
 
     setSettledSnapshot(snapshot);
@@ -406,15 +412,27 @@ export function ScreenM6Settlement({
     recordSettledBill({
       ...snapshot,
       seatNumber: splitSeatNumber ?? undefined,
+      timestamp: Date.now(),
     });
 
     // Update store state
     waiterRecordsPayment(tableNum, method, finalGrandTotal, splitSeatNumber ?? undefined);
-    if (splitSeatNumber) {
-      setTimeout(() => waiterClearsChairAfterPayment(tableNum, splitSeatNumber), 800);
+
+    // Clear chair items and tickets immediately so no lingering items or bills remain
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
     } else if (vacateAfter) {
-      setTimeout(() => waiterVacatesTable(tableNum), 600);
+      waiterVacatesTable(tableNum);
     }
+  };
+
+  const handleFinish = () => {
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
+    } else if (vacateAfter) {
+      waiterVacatesTable(tableNum);
+    }
+    onDone();
   };
 
   if (!table) return null;
@@ -437,7 +455,7 @@ export function ScreenM6Settlement({
           </div>
           <button
             type="button"
-            onClick={onDone}
+            onClick={handleFinish}
             className="font-mono text-xs font-black text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-xl border border-stone-300 transition cursor-pointer"
           >
             Done
@@ -593,6 +611,12 @@ export function ScreenM6Settlement({
                 <span>Total GST (5%):</span>
                 <span>₹{s.totalTax.toFixed(2)}</span>
               </div>
+              {s.grandTotal > s.subtotal + s.totalTax && (
+                <div className="flex justify-between text-xs font-bold text-[#9C3D1E]">
+                  <span>Waiter Tip:</span>
+                  <span>+₹{(s.grandTotal - (s.subtotal + s.totalTax)).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm font-black text-stone-900 pt-1.5 border-t border-stone-200">
                 <span>GRAND TOTAL PAID:</span>
                 <span className="text-[#9C3D1E] text-base">₹{s.grandTotal.toFixed(2)}</span>
@@ -726,7 +750,7 @@ export function ScreenM6Settlement({
 
             <button
               type="button"
-              onClick={onDone}
+              onClick={handleFinish}
               className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
               <span>Return to Floor Grid</span>

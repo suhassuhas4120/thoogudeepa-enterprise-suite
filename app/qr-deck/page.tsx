@@ -79,6 +79,7 @@ export default function QRDeckPage() {
     : ALL_TABLES.filter((t) => t.capacity === selectedCategory);
 
   const [baseUrl, setBaseUrl] = useState('http://192.168.0.4:3001');
+  const [signatures, setSignatures] = useState<Record<string, Record<number, string>>>({});
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -88,15 +89,25 @@ export default function QRDeckPage() {
       } else {
         setBaseUrl(origin);
       }
+
+      fetch('/api/qr/signatures')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data?.signatures) {
+            setSignatures(data.signatures);
+          }
+        })
+        .catch(() => {});
     }
   }, []);
 
   const getSeatUrl = (table: string, seat: number) => {
-    return `${baseUrl}/?table=${table}&seat=${seat}`;
+    const sig = signatures[table]?.[seat];
+    return sig ? `${baseUrl}/?table=${table}&seat=${seat}&sig=${sig}` : `${baseUrl}/?table=${table}&seat=${seat}`;
   };
 
   const getQRImageUrl = (table: string, seat: number) => {
-    const fullUrl = `${baseUrl}/?table=${table}&seat=${seat}`;
+    const fullUrl = getSeatUrl(table, seat);
     return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(fullUrl)}&color=0F3A22`;
   };
 

@@ -18,10 +18,14 @@ export function CustomerThemeProvider({ children }: { children: React.ReactNode 
   // Load persisted theme on mount if available
   useEffect(() => {
     if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('thoogudeepa_customer_theme') as CustomerThemeId;
-      if (saved && CUSTOMER_THEMES.some((t) => t.id === saved)) {
-        setCurrentThemeId(saved);
-      } else {
+      try {
+        const saved = localStorage.getItem('thoogudeepa_customer_theme') as CustomerThemeId;
+        if (saved && (saved === 'terracotta-dum' || saved === 'obsidian-gold')) {
+          setCurrentThemeId(saved);
+        } else {
+          setCurrentThemeId('terracotta-dum');
+        }
+      } catch {
         setCurrentThemeId('terracotta-dum');
       }
     }
@@ -30,7 +34,9 @@ export function CustomerThemeProvider({ children }: { children: React.ReactNode 
   const setTheme = (id: CustomerThemeId) => {
     setCurrentThemeId(id);
     if (typeof window !== 'undefined') {
-      localStorage.setItem('thoogudeepa_customer_theme', id);
+      try {
+        localStorage.setItem('thoogudeepa_customer_theme', id);
+      } catch {}
     }
   };
 

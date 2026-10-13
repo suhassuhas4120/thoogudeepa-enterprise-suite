@@ -77,6 +77,7 @@ interface ManagerStoreState {
   // Staff actions
   updateStaffStatus: (id: string, status: StaffRosterMember['status']) => void;
   reconcileStaffCash: (id: string, amountHandedOver: number) => void;
+  recordStaffCashCollection: (staffNameOrSection: string, amount: number) => void;
   
   // Hardware actions
   toggleHardwareStatus: (id: string) => void;
@@ -167,6 +168,32 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
   reconcileStaffCash: (id, amountHandedOver) => set((s) => ({
     staffRoster: s.staffRoster.map((st) => (st.id === id ? { ...st, cashHandedOver: amountHandedOver } : st)),
   })),
+  recordStaffCashCollection: (staffNameOrSection, amount) => {
+    if (!amount || amount <= 0) return;
+    set((s) => {
+      const normInput = (staffNameOrSection || '').trim().toLowerCase();
+      // Match by staff name, or assigned section, or default to first active floor captain
+      let targetIndex = s.staffRoster.findIndex(
+        (st) =>
+          st.name.toLowerCase().includes(normInput) ||
+          normInput.includes(st.name.toLowerCase()) ||
+          st.assignedSection.toLowerCase().includes(normInput) ||
+          normInput.includes(st.assignedSection.toLowerCase())
+      );
+      if (targetIndex === -1) {
+        targetIndex = s.staffRoster.findIndex((st) => st.status === 'ACTIVE');
+      }
+      if (targetIndex === -1) targetIndex = 0;
+
+      return {
+        staffRoster: s.staffRoster.map((st, idx) =>
+          idx === targetIndex
+            ? { ...st, cashCollected: (st.cashCollected || 0) + Math.round(amount) }
+            : st
+        ),
+      };
+    });
+  },
   
   toggleHardwareStatus: (id) => set((s) => ({
     hardwareDevices: s.hardwareDevices.map((h) => (h.id === id ? { ...h, status: h.status === 'ONLINE' ? 'WARNING' : 'ONLINE' } : h)),

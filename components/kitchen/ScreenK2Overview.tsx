@@ -405,19 +405,36 @@ export const ScreenK2Overview: React.FC = () => {
               <div className="grid grid-cols-3 gap-3">
                 {categoryFilteredTables.map((tbl, idx) => {
                   const shortKot = getShortKot(tbl.kotNumber);
+                  const isAging = tbl.elapsedMinutes >= 15;
+                  const isWarning = tbl.elapsedMinutes >= 10 && !isAging;
+
                   return (
                     <div
                       key={`${tbl.id}-${idx}`}
                       onClick={() => handleOpenTable(tbl.id, tbl.tableNumber)}
-                      className="border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between bg-white border-[#EFE6DA] shadow-xs hover:shadow-sm min-w-0"
+                      className={`border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between shadow-xs hover:shadow-sm min-w-0 ${
+                        isAging
+                          ? 'bg-rose-50/40 border-rose-400 ring-1 ring-rose-300'
+                          : isWarning
+                          ? 'bg-amber-50/40 border-amber-400'
+                          : 'bg-white border-[#EFE6DA]'
+                      }`}
                     >
                       <div className="min-w-0">
                         <div className="flex items-center justify-between gap-2 pb-1.5 border-b-2 border-[#EFE6DA] mb-2">
                           <div className="font-mono text-xs font-black text-slate-900 whitespace-nowrap min-w-0">
                             <span className="truncate">{tbl.tableNumber}</span>
                           </div>
-                          <span className="font-mono text-[10px] font-bold text-slate-700 flex items-center gap-1 whitespace-nowrap shrink-0">
-                            <Clock className="h-3 w-3 text-[#E8722E] shrink-0" />
+                          <span
+                            className={`font-mono text-[10px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0 px-1.5 py-0.5 rounded ${
+                              isAging
+                                ? 'bg-rose-600 text-white animate-pulse'
+                                : isWarning
+                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                : 'text-slate-700'
+                            }`}
+                          >
+                            <Clock className={`h-3 w-3 shrink-0 ${isAging ? 'text-white' : 'text-[#E8722E]'}`} />
                             <span>
                               {tbl.elapsedMinutes}m (KOT #{shortKot})
                             </span>

@@ -24,8 +24,9 @@ interface CustomerStoreState {
   orderStage: OrderStage;
   itemTracking: IndividualItemTracking[];
   payment: PaymentDetails;
-  waiterNotification: { active: boolean; type: string; message: string } | null;
+  waiterNotification: { active: boolean; type: string; message: string; attended?: boolean; attendedAt?: number } | null;
   isSettled: boolean;
+  orderPlacedAt: number;
 
   // Actions
   setCurrentScreen: (screen: ScreenId) => void;
@@ -45,14 +46,16 @@ interface CustomerStoreState {
   removeCartItem: (cartItemId: string) => void;
   orderSeparately: (cartItemId: string) => void;
   placeAllOrders: () => void;
+  rollBackUnplacedOrders: () => void;
   setOrderStage: (stage: OrderStage) => void;
   setItemTracking: (items: IndividualItemTracking[]) => void;
   updateTip: (tip: number) => void;
   setSplitMode: (mode: 'NONE' | 'ITEMS' | 'PERSONS', count?: number) => void;
-  setPaymentMethod: (method: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH') => void;
+  setPaymentMethod: (method: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH' | 'RAZORPAY') => void;
   toggleRedeemPoints: () => void;
   confirmAndPay: () => void;
   pingWaiter: (type: WaiterPingType, customMsg?: string) => void;
+  setWaiterAttended: (pingType?: string, message?: string) => void;
   handleBillSettledByWaiter: (snapshot: SettledBillSnapshot) => void;
   syncWithActiveSession: (tableNumber: string, seatNumber: number) => void;
   dismissWaiterNotification: () => void;
@@ -109,6 +112,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   payment: initialEmptyPayment,
   waiterNotification: null,
   isSettled: false,
+  orderPlacedAt: 0,
 
   setCurrentScreen: (screen) =>
     set((state) => ({
@@ -172,6 +176,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           quantity,
           totalPrice: unitPrice * quantity,
           prepMode: item.prepMode,
+          seatNumber: state.seatNumber || 1,
         };
         newCart = [...state.cart, newCartItem];
       }
@@ -185,6 +190,62 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
   updateCartQuantity: (cartItemId, delta) => {
     set((state) => {
+      const targetItem = state.cart.find((ci) => ci.cartItemId === cartItemId);
+      if (!targetItem) return state;
+
+      // If item was already sent to kitchen
+      if (targetItem.isOrdered) {
+        if (delta > 0) {
+          // Add incremental quantity as an unplaced draft item
+          const unitPrice = targetItem.totalPrice / targetItem.quantity;
+          const unplacedIndex = state.cart.findIndex(
+            (ci) =>
+              !ci.isOrdered &&
+              ci.menuItem.id === targetItem.menuItem.id &&
+              ci.selectedOption === targetItem.selectedOption &&
+              JSON.stringify([...ci.selectedAddOns].sort()) ===
+                JSON.stringify([...targetItem.selectedAddOns].sort())
+          );
+
+          let newCart: CartItem[];
+          if (unplacedIndex > -1) {
+            newCart = state.cart.map((ci, idx) => {
+              if (idx === unplacedIndex) {
+                const newQty = ci.quantity + delta;
+                return {
+                  ...ci,
+                  quantity: newQty,
+                  totalPrice: newQty * unitPrice,
+                };
+              }
+              return ci;
+            });
+          } else {
+            const incrementalCartItem: CartItem = {
+              cartItemId: 'c-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+              menuItem: targetItem.menuItem,
+              selectedOption: targetItem.selectedOption,
+              selectedAddOns: targetItem.selectedAddOns,
+              quantity: delta,
+              totalPrice: unitPrice * delta,
+              prepMode: targetItem.prepMode,
+              seatNumber: state.seatNumber || 1,
+              isOrdered: false,
+            };
+            newCart = [...state.cart, incrementalCartItem];
+          }
+
+          return {
+            cart: newCart,
+            payment: calculatePaymentTotals(newCart, state.payment),
+          };
+        } else {
+          // Cannot reduce items that are already placed/cooking in kitchen
+          return state;
+        }
+      }
+
+      // Normal unplaced item quantity update
       const newCart = state.cart
         .map((ci) => {
           if (ci.cartItemId === cartItemId) {
@@ -246,8 +307,10 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const params = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search)
         : new URLSearchParams();
-      const seatNumber = parseInt(params.get('seat') || String(state.seatNumber || 1), 10) || 1;
-      const rawTable = params.get('table') || state.tableNumber || 'T-01';
+      const seatNumber = (state.seatNumber && state.seatNumber > 0)
+        ? state.seatNumber
+        : (parseInt(params.get('seat') || '1', 10) || 1);
+      const rawTable = state.tableNumber || params.get('table') || 'T-01';
       let tableId = rawTable.trim().toUpperCase();
       const match = tableId.match(/^T-?(\d+)$/);
       if (match) {
@@ -262,6 +325,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       // Push order once through the shared bridge (optimistic update + /api/orders/create + broadcast)
       try {
         const bridge = useSharedBridge.getState();
+        bridge.clearSettledBill(tableId, seatNumber);
         bridge.customerPlacesOrder(
           tableId,
           state.guestName || `Guest (Chair ${seatNumber})`,
@@ -277,6 +341,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         console.error('[placeAllOrders] bridge order error:', err);
       }
 
+      const nowTs = Date.now();
       const newTracking: IndividualItemTracking[] = newlyAddedItems.map((c) => ({
         id: 'track-' + c.cartItemId,
         name: `${c.menuItem.name} × ${c.quantity}`,
@@ -294,10 +359,15 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       return {
         cart: updatedCart,
         tableNumber: tableId,
+        seatNumber,
         itemTracking: [...state.itemTracking, ...newTracking],
         orderStage: 'PLACED',
         previousScreen: state.currentScreen,
         currentScreen: 5,
+        isSettled: false,
+        payment: initialEmptyPayment,
+        waiterNotification: null,
+        orderPlacedAt: nowTs,
       };
     });
   },
@@ -356,11 +426,13 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     set((state) => {
       // Record payment in bridge → updates waiter shift stats + table to BILLING
       const bridge = useSharedBridge.getState();
-      bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount);
+      bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount, state.seatNumber);
+      bridge.waiterClearsChairAfterPayment(state.tableNumber, state.seatNumber);
 
       return {
         previousScreen: state.currentScreen,
         currentScreen: 8, // Proceed to Confirmation Screen 8
+        isSettled: true,
         payment: {
           ...state.payment,
           transactionId: randomTxn,
@@ -401,6 +473,45 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     });
   },
 
+  setWaiterAttended: (pingType, message) => {
+    if (typeof window !== 'undefined') {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        }
+      } catch {}
+    }
+
+    set({
+      waiterNotification: {
+        active: true,
+        attended: true,
+        type: pingType || 'CALL',
+        message: message || 'Floor Captain Suresh has attended to your request.',
+        attendedAt: Date.now(),
+      },
+    });
+
+    setTimeout(() => {
+      const cur = useCustomerStore.getState().waiterNotification;
+      if (cur?.attended) {
+        useCustomerStore.getState().dismissWaiterNotification();
+      }
+    }, 6000);
+  },
+
   handleBillSettledByWaiter: (snapshot) => {
     set((state) => {
       // Transition immediately to Screen 8, skipping Screen 6 and 7
@@ -426,14 +537,28 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         seatNumber: it.seatNumber || state.seatNumber,
       }));
 
+      const snapshotTip =
+        (snapshot as any).tipAmount !== undefined && (snapshot as any).tipAmount > 0
+          ? (snapshot as any).tipAmount
+          : (state.payment.tipAmount > 0
+              ? state.payment.tipAmount
+              : Math.max(0, snapshot.grandTotal - (snapshot.subtotal + snapshot.totalTax)));
+
+      const derivedMethod: PaymentDetails['paymentMethod'] =
+        snapshot.method === 'CASH'
+          ? 'CASH'
+          : snapshot.method === 'UPI' || snapshot.method === 'RAZORPAY' || snapshot.method === 'CARD' || snapshot.method === 'NET_BANKING'
+            ? (snapshot.method as any)
+            : (state.payment.paymentMethod || 'UPI');
+
       const newPayment: PaymentDetails = {
         ...state.payment,
         subtotal: snapshot.subtotal,
         tax: snapshot.totalTax,
-        tipAmount: 0,
-        discount: 0,
+        tipAmount: snapshotTip,
+        discount: state.payment.discount || 0,
         totalAmount: snapshot.grandTotal,
-        paymentMethod: (snapshot.method as any) || 'UPI',
+        paymentMethod: derivedMethod,
         transactionId: snapshot.invoiceNumber,
         invoiceNumber: snapshot.invoiceNumber,
         settledItems: snapshot.items,
@@ -458,55 +583,46 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     const bridge = useSharedBridge.getState();
     const currentTbl = bridge.tables.find((t) => cleanNum(t.number) === targetTableNum);
 
-    // Tickets for this table
+    // Tickets strictly for THIS chair (exclude only settled/COMPLETED tickets)
     const myTickets = bridge.kdsTickets.filter(
       (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED'
     );
-    const tableActiveItems = (currentTbl?.activeItems || []).filter(
-      (ai) => !ai.seatNumber || ai.seatNumber === seatNumber
-    );
-    const seatTickets = myTickets.filter(
-      (tk) => !tk.seatNumber || tk.seatNumber === seatNumber || tk.items.some((i) => !i.seatNumber || i.seatNumber === seatNumber)
-    );
-
-    const hasActiveOrders =
-      (currentTbl && currentTbl.status !== 'VACANT' && (currentTbl.currentBill > 0 || tableActiveItems.length > 0)) ||
-      seatTickets.length > 0;
-
-    const tableIsVacant = !currentTbl || currentTbl.status === 'VACANT';
-
-    // If the bill was settled by waiter and the table is still BILLING/OCCUPIED (not yet vacated),
-    // don't overwrite — customer is on Screen 8 (confirmation). But if the table is now VACANT,
-    // the waiter has completed the vacate — the NEXT customer scanning the QR should get a clean start.
-    const { isSettled } = useCustomerStore.getState();
-    if (isSettled && !tableIsVacant) {
-      // Still in the post-payment confirmation state, table not cleared yet — leave as-is
-      return;
-    }
-    if (isSettled && tableIsVacant) {
-      // Waiter has vacated — previous customer session is done. Reset for next customer.
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem(`thoogudeepa_customer_session_${normTable}_s${seatNumber}`);
-          localStorage.removeItem('thoogudeepa_customer_session_v1');
-        } catch {}
+    const seatActiveItems = (currentTbl?.activeItems || []).filter(
+      (ai) => {
+        const itemSeat = ai.seatNumber !== undefined && ai.seatNumber !== null
+          ? Number(ai.seatNumber)
+          : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+          ? Number((ai as any).seat_number)
+          : 1;
+        return itemSeat === seatNumber;
       }
-      set({
-        currentScreen: 1,
-        previousScreen: 1,
-        cart: [],
-        orderStage: 'PLACED',
-        itemTracking: [],
-        payment: initialEmptyPayment,
-        waiterNotification: null,
-        isSettled: false,
+    );
+    const seatTickets = myTickets.filter((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return tkSeat === seatNumber || tk.items.some((i) => {
+        const iSeat = i.seatNumber !== undefined && i.seatNumber !== null
+          ? Number(i.seatNumber)
+          : (i as any).seat_number !== undefined && (i as any).seat_number !== null
+          ? Number((i as any).seat_number)
+          : tkSeat;
+        return iSeat === seatNumber;
       });
-      return;
-    }
+    });
+
+    const hasActiveOrders = Boolean(
+      (currentTbl && currentTbl.status !== 'VACANT' && ((currentTbl.currentBill || 0) > 0 || (currentTbl.activeItems || []).length > 0)) ||
+      seatActiveItems.length > 0 ||
+      seatTickets.length > 0
+    );
 
     if (!hasActiveOrders) {
-      // Table/seat is VACANT or already settled/vacated.
-      // Reset session completely so scanning QR opens clean/new!
+      // Chair is vacant or already cleared/settled. Reset session cleanly for fresh scanning.
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${normTable}_s${seatNumber}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+        } catch {}
+      }
       set({
         currentScreen: 1,
         previousScreen: 1,
@@ -516,28 +632,33 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         payment: initialEmptyPayment,
         waiterNotification: null,
         isSettled: false,
+        orderPlacedAt: 0,
+        tableNumber: normTable,
+        seatNumber,
       });
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.removeItem(`thoogudeepa_customer_session_${normTable}_s${seatNumber}`);
-          localStorage.removeItem('thoogudeepa_customer_session_v1');
-        } catch {}
-      }
       return;
     }
 
-    // Otherwise, table/seat has active unpaid orders!
-    // Extract real dishes from KDS tickets or table activeItems
-    const ticketItems = seatTickets.flatMap((tk) =>
-      tk.items
-        .filter((it) => !it.seatNumber || it.seatNumber === seatNumber)
+    // Chair has active unpaid orders!
+    // Extract real dishes from KDS tickets or table activeItems strictly for THIS chair
+    const ticketItems = seatTickets.flatMap((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (tk.items || [])
+        .filter((it) => {
+          const itemSeat = it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+            ? Number((it as any).seat_number)
+            : tkSeat;
+          return itemSeat === seatNumber;
+        })
         .map((it) => ({
           ...it,
           ticketId: tk.id,
-        }))
-    );
+        }));
+    });
 
-    const activeList = ticketItems.length > 0 ? ticketItems : tableActiveItems;
+    const activeList = ticketItems.length > 0 ? ticketItems : seatActiveItems;
 
     if (activeList.length > 0) {
       const restoredCart: CartItem[] = activeList.map((it: any, idx: number) => {
@@ -566,7 +687,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           totalPrice: unitPrice * qty,
           prepMode: it.prepMode || foundMenu.prepMode || 'Military Dum Handi',
           isOrdered: true,
-          seatNumber: it.seatNumber || seatNumber,
+          seatNumber: seatNumber,
         };
       });
 
@@ -608,7 +729,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const orderStage: OrderStage = allServed ? 'SERVED' : 'PREP';
 
       set((state) => {
-        const nextScreen = state.currentScreen <= 4 ? 5 : state.currentScreen;
+        const nextScreen = state.currentScreen === 8 ? 5 : (state.currentScreen <= 4 ? 5 : state.currentScreen);
         return {
           cart: restoredCart,
           itemTracking: restoredTracking,
@@ -616,8 +737,9 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           currentScreen: nextScreen,
           tableNumber: normTable,
           seatNumber,
+          isSettled: false,
           payment: {
-            ...state.payment,
+            ...initialEmptyPayment,
             subtotal,
             tax,
             totalAmount,
@@ -625,6 +747,34 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         };
       });
     }
+  },
+
+  rollBackUnplacedOrders: () => {
+    set((state) => {
+      const bridge = useSharedBridge.getState();
+      const currentChair = state.seatNumber || 1;
+      const confirmedTickets = bridge.kdsTickets.filter(
+        (tk) => tk.tableNumber === state.tableNumber &&
+                (tk.seatNumber === currentChair || tk.items?.some((i) => i.seatNumber === currentChair))
+      );
+      const hasConfirmedOrders = confirmedTickets.length > 0;
+
+      const resetCart = state.cart.map((c) => {
+        const inConfirmed = confirmedTickets.some((tk) =>
+          tk.items?.some((it) => it.name === c.menuItem.name)
+        );
+        return {
+          ...c,
+          isOrdered: inConfirmed,
+        };
+      });
+
+      return {
+        cart: resetCart,
+        currentScreen: hasConfirmedOrders ? 5 : 4,
+        orderStage: 'PLACED' as OrderStage,
+      };
+    });
   },
 
   dismissWaiterNotification: () => {
@@ -649,6 +799,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       payment: initialEmptyPayment,
       waiterNotification: null,
       isSettled: false,
+      orderPlacedAt: 0,
     });
   },
 }));
@@ -658,7 +809,7 @@ if (typeof window !== 'undefined') {
     try {
       // Only persist if there is an active unplaced/in-progress order for a known table+seat.
       // Never write to the global _v1 key — that caused cross-seat contamination.
-      const hasTable = state.tableNumber && state.tableNumber !== 'T-01';
+      const hasTable = Boolean(state.tableNumber);
       const hasSeat = state.seatNumber && state.seatNumber > 0;
       const hasActiveCart = state.cart && state.cart.length > 0;
       // Don't persist the settled confirmation screen (screen 8) — next QR scan must be fresh
@@ -685,6 +836,20 @@ if (typeof window !== 'undefined') {
           `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`
         );
         localStorage.removeItem('thoogudeepa_customer_session_v1');
+      }
+    } catch {}
+  });
+
+  window.addEventListener('waiterPingAttended', (event: any) => {
+    try {
+      const p = event.detail;
+      const curStore = useCustomerStore.getState();
+      const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const isMatch =
+        cleanNum(curStore.tableNumber) === cleanNum(p?.tableNumber) &&
+        (!p?.seatNumber || curStore.seatNumber === p.seatNumber);
+      if (isMatch) {
+        curStore.setWaiterAttended(p?.type, p?.message);
       }
     } catch {}
   });

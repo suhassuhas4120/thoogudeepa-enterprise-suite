@@ -1,14 +1,14 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo } from 'react';
-import Image from 'next/image';
-import { useCustomer } from '../../context/CustomerContext';
-import { useCustomerTheme } from '../../context/ThemeContext';
-import { useSharedBridge } from '../../store/useSharedBridge';
-import { ScreenHousing } from '../ui/ScreenHousing';
-import { WireHeader } from '../ui/WireHeader';
-import { ItemDrawer } from '../ui/ItemDrawer';
-import { MenuItem } from '../../types/customer';
+import React, { useState, useMemo } from "react";
+import Image from "next/image";
+import { useCustomer } from "../../context/CustomerContext";
+import { useCustomerTheme } from "../../context/ThemeContext";
+import { useSharedBridge } from "../../store/useSharedBridge";
+import { ScreenHousing } from "../ui/ScreenHousing";
+import { WireHeader } from "../ui/WireHeader";
+import { ItemDrawer } from "../ui/ItemDrawer";
+import { MenuItem } from "../../types/customer";
 import {
   Search,
   Plus,
@@ -23,9 +23,9 @@ import {
   CookingPot,
   X,
   CheckCircle2,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { TabletMenuPanel } from '../waiter-tablet/TabletMenuPanel';
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { TabletMenuPanel } from "../waiter-tablet/TabletMenuPanel";
 
 interface Screen2MenuProps {
   isWaiterMode?: boolean;
@@ -63,9 +63,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
   if (isWaiterMode) {
     return (
       <TabletMenuPanel
-        tableNum={tableNum || tableNumber || 'T-01'}
+        tableNum={tableNum || tableNumber || "T-01"}
         seatNum={seatNum}
-        captainName={waiterName || 'Floor Captain'}
+        captainName={waiterName || "Floor Captain"}
         onBack={onBack || (() => setCurrentScreen(2))}
         onKOTFired={onKOTFired || (() => {})}
         onSwitchToPayment={onSwitchToPayment}
@@ -76,8 +76,8 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
   const { currentTheme } = useCustomerTheme();
   const { inventory86 } = useSharedBridge();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
   const [toastNotice, setToastNotice] = useState<string | null>(null);
 
   // Quick Customize Bottom Sheet
@@ -86,53 +86,64 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   // Dynamically derive categories from live menu items
   const categories = useMemo(() => {
-    const uniqueCats = Array.from(new Set(menuItems.map((item) => item.category))).filter(Boolean);
-    return ['All', ...uniqueCats, 'Chef Special'];
+    const uniqueCats = Array.from(
+      new Set(menuItems.map((item) => item.category)),
+    ).filter(Boolean);
+    return ["All", ...uniqueCats, "Chef Special"];
   }, [menuItems]);
 
   // Common colloquial and phonetic synonyms in Karnataka Donne Biryani dining
   const ALIAS_MAP: Record<string, string[]> = {
-    'biryani rice': ['kushka', 'kuska', 'khuska', 'plain rice', 'rice'],
-    'kaalu soup': ['kalu', 'leg', 'paya', 'bone soup', 'mutton soup', 'soup'],
-    'plain soup': ['soup', 'sherva', 'sherwa'],
-    'booti gojju': ['boti', 'botigojju', 'tripe', 'gojju'],
-    'keema gojju': ['kheema', 'qeema', 'mince', 'keema'],
-    'keema ball': ['kheema ball', 'meatball', 'kola urundai', 'ball'],
-    'chicken kabab': ['kebab', 'kebob', 'pakoda', 'kabab'],
-    'chilli chicken': ['chili', 'chilly', 'chilli'],
-    'chicken pepper dry': ['pepper', 'pepper dry', 'dry'],
-    'chicken fry': ['fry', 'roast'],
-    'mutton chops': ['chops', 'ribs'],
-    'mutton fry': ['mutton roast', 'fry', 'sukka'],
-    'chicken donne biryani': ['cb', 'biriyani', 'biryani'],
-    'mutton donne biryani': ['mb', 'biriyani', 'biryani'],
-    'egg biryani': ['egg', 'motte', 'mottai'],
+    "biryani rice": ["kushka", "kuska", "khuska", "plain rice", "rice"],
+    "kaalu soup": ["kalu", "leg", "paya", "bone soup", "mutton soup", "soup"],
+    "plain soup": ["soup", "sherva", "sherwa"],
+    "booti gojju": ["boti", "botigojju", "tripe", "gojju"],
+    "keema gojju": ["kheema", "qeema", "mince", "keema"],
+    "keema ball": ["kheema ball", "meatball", "kola urundai", "ball"],
+    "chicken kabab": ["kebab", "kebob", "pakoda", "kabab"],
+    "chilli chicken": ["chili", "chilly", "chilli"],
+    "chicken pepper dry": ["pepper", "pepper dry", "dry"],
+    "chicken fry": ["fry", "roast"],
+    "mutton chops": ["chops", "ribs"],
+    "mutton fry": ["mutton roast", "fry", "sukka"],
+    "chicken donne biryani": ["cb", "biriyani", "biryani"],
+    "mutton donne biryani": ["mb", "biriyani", "biryani"],
+    "egg biryani": ["egg", "motte", "mottai"],
   };
 
   // Helper to determine dietary badge: VEG, EGG, NON_VEG
-  const getDietType = (item: MenuItem): 'VEG' | 'EGG' | 'NON_VEG' => {
+  const getDietType = (item: MenuItem): "VEG" | "EGG" | "NON_VEG" => {
     const name = item.name.toLowerCase();
-    const cat = (item.category || '').toLowerCase();
-    if (name.includes('egg') && !name.includes('chicken') && !name.includes('mutton')) {
-      return 'EGG';
+    const cat = (item.category || "").toLowerCase();
+    if (
+      name.includes("egg") &&
+      !name.includes("chicken") &&
+      !name.includes("mutton")
+    ) {
+      return "EGG";
     }
-    if (cat === 'desserts' || name.includes('paneer') || name.includes('dosa') || name.includes('idli')) {
-      return 'VEG';
+    if (
+      cat === "desserts" ||
+      name.includes("paneer") ||
+      name.includes("dosa") ||
+      name.includes("idli")
+    ) {
+      return "VEG";
     }
-    return 'NON_VEG';
+    return "NON_VEG";
   };
 
   // Helper to determine Veg vs Non-Veg
   const isVegItem = (item: MenuItem) => {
-    return getDietType(item) === 'VEG';
+    return getDietType(item) === "VEG";
   };
 
   // Helper to select icon
   const getItemIcon = (item: MenuItem) => {
-    if (item.category === 'Rice & Bowls') {
+    if (item.category === "Rice & Bowls") {
       return <CookingPot className="h-8 w-8 text-amber-700/80" />;
     }
-    if (item.category === 'Desserts') {
+    if (item.category === "Desserts") {
       return <Sparkles className="h-8 w-8 text-amber-600/80" />;
     }
     return <Flame className="h-8 w-8 text-orange-600/80" />;
@@ -161,8 +172,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
         (item.prepMode && item.prepMode.toLowerCase().includes(term));
 
       const matchesCategory =
-        selectedCategory === 'All' ||
-        (selectedCategory === 'Chef Special' && (item.badge === 'Chef Special' || item.badge === 'Bestseller')) ||
+        selectedCategory === "All" ||
+        (selectedCategory === "Chef Special" &&
+          (item.badge === "Chef Special" || item.badge === "Bestseller")) ||
         item.category === selectedCategory;
 
       return matchesSearch && matchesCategory;
@@ -189,7 +201,10 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
     e.stopPropagation();
     const stockInfo = inventory86?.find((e) => e.id === item.id);
     if (stockInfo?.is86) return;
-    if (item.optionsGroup1?.choices?.length <= 1 && item.optionsGroup2?.addOns?.length === 0) {
+    if (
+      item.optionsGroup1?.choices?.length <= 1 &&
+      item.optionsGroup2?.addOns?.length === 0
+    ) {
       addToCart(item);
       setToastNotice(`Added ${item.name}!`);
       setTimeout(() => setToastNotice(null), 1800);
@@ -201,7 +216,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   const handleIncrement = (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
-    const existingUnplaced = cart.find((ci) => ci.menuItem.id === item.id && !ci.isOrdered);
+    const existingUnplaced = cart.find(
+      (ci) => ci.menuItem.id === item.id && !ci.isOrdered,
+    );
     if (existingUnplaced) {
       updateCartQuantity(existingUnplaced.cartItemId, 1);
     } else {
@@ -211,7 +228,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   const handleDecrement = (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
-    const existingUnplaced = cart.find((ci) => ci.menuItem.id === itemId && !ci.isOrdered);
+    const existingUnplaced = cart.find(
+      (ci) => ci.menuItem.id === itemId && !ci.isOrdered,
+    );
     if (existingUnplaced) {
       updateCartQuantity(existingUnplaced.cartItemId, -1);
     }
@@ -223,7 +242,10 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
       <WireHeader
         title={
           <span className="inline-flex items-center gap-2">
-            <UtensilsCrossed className="h-4 w-4 stroke-[2.2]" style={{ color: currentTheme.colors.primary }} />
+            <UtensilsCrossed
+              className="h-4 w-4 stroke-[2.2]"
+              style={{ color: currentTheme.colors.primary }}
+            />
             <span>Menu</span>
             <span
               className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
@@ -233,7 +255,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                 borderColor: currentTheme.colors.border,
               }}
             >
-              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, "0")}
             </span>
           </span>
         }
@@ -251,7 +273,10 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
         {/* Search Bar + Cart Action Button Row */}
         <div className="px-4 pt-3 pb-2 flex items-center gap-2">
           <div className="relative flex-1 flex items-center">
-            <Search className="absolute left-3.5 h-4 w-4" style={{ color: currentTheme.colors.primary }} />
+            <Search
+              className="absolute left-3.5 h-4 w-4"
+              style={{ color: currentTheme.colors.primary }}
+            />
             <input
               type="text"
               value={searchTerm}
@@ -267,7 +292,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => setSearchTerm('')}
+                onClick={() => setSearchTerm("")}
                 className="absolute right-3 p-1 rounded-full text-slate-400 hover:text-slate-600"
                 title="Clear search"
               >
@@ -393,8 +418,8 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
             <button
               type="button"
               onClick={() => {
-                setSearchTerm('');
-                setSelectedCategory('All');
+                setSearchTerm("");
+                setSelectedCategory("All");
               }}
               className="mt-2 rounded-xl border px-3 py-1.5 text-xs font-bold transition"
               style={{
@@ -425,8 +450,8 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                   onClick={() => handleOpenDetail(item)}
                   className={`group relative flex flex-col justify-between rounded-3xl border p-2.5 shadow-xs transition-all ${
                     is86
-                      ? 'opacity-60 cursor-not-allowed'
-                      : 'cursor-pointer hover:shadow-md'
+                      ? "opacity-60 cursor-not-allowed"
+                      : "cursor-pointer hover:shadow-md"
                   }`}
                   style={{
                     backgroundColor: currentTheme.colors.bgSurface,
@@ -461,11 +486,11 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                     <div className="absolute top-1.5 left-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-sm bg-white/95 p-0.5 shadow-2xs">
                       <div
                         className={`h-2.5 w-2.5 rounded-full ${
-                          getDietType(item) === 'VEG'
-                            ? 'bg-emerald-600'
-                            : getDietType(item) === 'EGG'
-                            ? 'bg-amber-500'
-                            : 'bg-rose-700'
+                          getDietType(item) === "VEG"
+                            ? "bg-emerald-600"
+                            : getDietType(item) === "EGG"
+                              ? "bg-amber-500"
+                              : "bg-rose-700"
                         }`}
                       />
                     </div>
@@ -537,7 +562,10 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                           type="button"
                           onClick={(e) => handleDecrement(e, item.id)}
                           className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
-                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
+                          style={{
+                            backgroundColor: currentTheme.colors.buttonBg,
+                            color: currentTheme.colors.buttonFg,
+                          }}
                         >
                           <Minus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
@@ -551,7 +579,10 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                           type="button"
                           onClick={(e) => handleIncrement(e, item)}
                           className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
-                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
+                          style={{
+                            backgroundColor: currentTheme.colors.buttonBg,
+                            color: currentTheme.colors.buttonFg,
+                          }}
                         >
                           <Plus className="h-2.5 w-2.5 stroke-[3]" />
                         </button>
@@ -603,11 +634,10 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                   <ShoppingCart className="h-4 w-4" />
                 </div>
                 <div className="text-left">
-                  <div className="text-xs font-black text-white">
-                    VIEW CART
-                  </div>
+                  <div className="text-xs font-black text-white">VIEW CART</div>
                   <div className="text-[9.5px] font-medium opacity-90">
-                    {totalCartCount} {totalCartCount === 1 ? 'item' : 'items'} selected
+                    {totalCartCount} {totalCartCount === 1 ? "item" : "items"}{" "}
+                    selected
                   </div>
                 </div>
               </div>

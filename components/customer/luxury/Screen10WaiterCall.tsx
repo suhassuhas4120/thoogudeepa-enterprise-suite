@@ -6,9 +6,8 @@ import { useCustomerTheme } from '../../../context/ThemeContext';
 import { useSharedBridge } from '../../../store/useSharedBridge';
 import { ScreenHousing } from '../../ui/ScreenHousing';
 import { WireHeader } from '../../ui/WireHeader';
-import { StickyBottomBar } from '../../ui/StickyBottomBar';
 import { WaiterPingType } from '../../../types/customer';
-import { Droplets, Scroll, Utensils, Sparkles, Send, ArrowRight, CreditCard, AlertCircle, CheckCircle2, X } from 'lucide-react';
+import { Droplets, Scroll, Utensils, Sparkles, Send, CreditCard, AlertCircle, CheckCircle2, X, Info } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../../store/useCustomerStore';
 
@@ -39,6 +38,7 @@ export const Screen10WaiterCall: React.FC = () => {
 
   const tableTickets = kdsTickets.filter((tk) => isTableMatch(tk.tableNumber, effectiveTable));
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
+  const captainName = currentTbl?.serverName && currentTbl.serverName !== 'Floor Captain' ? currentTbl.serverName : 'Floor Captain';
 
   // Latch served status so transient reconciliation frames never cause payment options to flicker
   const [hasEverBeenFullyServed, setHasEverBeenFullyServed] = useState(false);
@@ -118,7 +118,9 @@ export const Screen10WaiterCall: React.FC = () => {
   };
 
   const handleSendCustomText = () => {
+    if (cooldownRemaining > 0) return;
     const textToSend = customText.trim() || 'Floor Captain assistance requested at table';
+    setCooldownRemaining(45);
     pingWaiter('GENERAL CALL', textToSend);
     setCustomText('');
   };
@@ -154,7 +156,7 @@ export const Screen10WaiterCall: React.FC = () => {
   const returnTarget = previousScreen && previousScreen !== 10 && previousScreen !== 9 ? previousScreen : 2;
 
   return (
-    <ScreenHousing screenNumber={9} screenTitle="CALL WAITER">
+    <ScreenHousing screenNumber={10} screenTitle="CALL WAITER">
       {/* Header */}
       <WireHeader
         title={
@@ -168,7 +170,7 @@ export const Screen10WaiterCall: React.FC = () => {
                 borderColor: currentTheme.colors.border,
               }}
             >
-              {effectiveTable} • C-{String(effectiveSeat).padStart(2, '0')}
+              {effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`} • C-{String(effectiveSeat).padStart(2, '0')}
             </span>
           </span>
         }
@@ -180,7 +182,7 @@ export const Screen10WaiterCall: React.FC = () => {
       />
 
       <div
-        className="flex-1 overflow-y-auto p-4 space-y-4 transition-colors duration-300 relative select-none"
+        className="flex-1 overflow-y-auto p-4 pb-8 space-y-4 transition-colors duration-300 relative select-none"
         style={{
           background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
           color: '#FAF7F2',
@@ -250,7 +252,7 @@ export const Screen10WaiterCall: React.FC = () => {
               Heritage Service Chime
             </h3>
             <p className="text-[10.5px] text-stone-400 max-w-[240px] mt-0.5">
-              Tap chime to ring table bell for Floor Captain Suresh
+              Tap chime to ring table bell for {captainName}
             </p>
           </div>
 
@@ -356,32 +358,28 @@ export const Screen10WaiterCall: React.FC = () => {
             />
             <button
               onClick={handleSendCustomText}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-[20px] py-3 text-xs font-bold font-serif-luxury uppercase tracking-wider transition hover:brightness-105 active:scale-98 cursor-pointer text-stone-950 border border-amber-300/60 shadow-lg"
+              disabled={cooldownRemaining > 0}
+              className={`mt-3 flex w-full items-center justify-center gap-2 rounded-[20px] py-3 text-xs font-bold font-serif-luxury uppercase tracking-wider transition text-stone-950 border border-amber-300/60 shadow-lg ${
+                cooldownRemaining > 0
+                  ? 'opacity-60 cursor-not-allowed'
+                  : 'hover:brightness-105 active:scale-98 cursor-pointer'
+              }`}
               style={{
                 background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
               }}
             >
               <Send className="h-3.5 w-3.5" />
-              <span>{customText.trim() ? 'Send Message to Waiter' : 'Call Waiter to Table'}</span>
+              <span>
+                {cooldownRemaining > 0
+                  ? `Please wait (${cooldownRemaining}s)`
+                  : customText.trim()
+                  ? 'Send Message to Waiter'
+                  : 'Call Waiter to Table'}
+              </span>
             </button>
           </div>
         </div>
       </div>
-
-      {/* Sticky Bottom Bar */}
-      <StickyBottomBar>
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={() => navigateTo(returnTarget)}
-          className="flex w-full items-center justify-between rounded-[22px] px-5 py-3.5 text-xs font-bold font-serif-luxury uppercase tracking-wider shadow-lg transition hover:brightness-105 text-stone-950 border border-amber-300/60"
-          style={{
-            background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
-          }}
-        >
-          <span>Return to Previous Screen</span>
-          <ArrowRight className="h-4 w-4 stroke-[2.5]" />
-        </motion.button>
-      </StickyBottomBar>
 
       {/* Confirmation Modal for Calling Waiter for Payment */}
       <AnimatePresence>
@@ -396,22 +394,36 @@ export const Screen10WaiterCall: React.FC = () => {
               <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-300 border border-amber-400/40 mb-3 mx-auto">
                 <CreditCard className="h-6 w-6 stroke-[2]" />
               </div>
+
               <h3 className="text-base font-bold text-amber-100 font-serif-luxury">
-                Call Floor Captain for Payment?
+                Call Waiter for Payment
               </h3>
-              <p className="mt-2 text-xs text-stone-300 leading-relaxed font-normal">
-                Are you sure you want to call the Floor Captain for payment at <span className="font-bold text-amber-300">{effectiveTable} (Chair C-{String(effectiveSeat).padStart(2, '0')})</span>?
-              </p>
-              <p className="mt-1 text-[11px] text-stone-400 font-normal">
-                A captain will visit your seat with the payment terminal.
-              </p>
+
+              {/* Table & Chair location chip */}
+              <div className="mt-2 flex items-center justify-center">
+                <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold font-mono border border-amber-500/30 bg-amber-500/10 text-amber-300">
+                  <span>{effectiveTable.startsWith('T-') ? effectiveTable : `T-${effectiveTable}`}</span>
+                  <span>•</span>
+                  <span>Chair C-{String(effectiveSeat).padStart(2, '0')}</span>
+                </span>
+              </div>
+
+              {/* Simple Info Note */}
+              <div className="mt-3.5 flex items-center gap-2.5 rounded-2xl p-3 text-left border border-white/10 bg-white/5">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-300">
+                  <Info className="h-4 w-4" />
+                </div>
+                <p className="text-xs leading-snug text-stone-300 font-normal">
+                  A waiter will bring the bill to your chair for payment settlement.
+                </p>
+              </div>
 
               <div className="mt-6 grid grid-cols-2 gap-2.5">
                 <button
                   onClick={() => setShowPaymentConfirmModal(false)}
                   className="rounded-[20px] border border-white/10 bg-white/5 py-3 text-xs font-bold text-stone-300 transition hover:bg-white/10 active:scale-95 cursor-pointer"
                 >
-                  No, Go Back
+                  Cancel
                 </button>
                 <button
                   onClick={handleConfirmPaymentCall}
@@ -420,7 +432,7 @@ export const Screen10WaiterCall: React.FC = () => {
                     background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',
                   }}
                 >
-                  Yes, Call Captain
+                  Call Waiter
                 </button>
               </div>
             </motion.div>

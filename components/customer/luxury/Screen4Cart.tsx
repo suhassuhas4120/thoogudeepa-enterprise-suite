@@ -17,6 +17,7 @@ import {
   CookingPot,
   Flame,
   Loader2,
+  Receipt,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -213,31 +214,41 @@ export const Screen4Cart: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Quantity Stepper (Circular Brass Counter) */}
+                      {/* Quantity Stepper or Add More Option */}
                       {!isOrdered ? (
-                        <div className="flex items-center gap-2.5">
+                        <div className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-black/60 p-1 shadow-inner">
                           <button
                             onClick={() => updateCartQuantity(ci.cartItemId, -1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition active:scale-90"
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-300 hover:bg-amber-500/40 transition active:scale-90 cursor-pointer"
                             title="Decrease quantity"
                           >
                             <Minus className="h-3 w-3 stroke-[2.5]" />
                           </button>
-                          <span className="font-mono text-sm font-black text-amber-200 min-w-4 text-center">
+                          <span className="font-mono text-xs font-black text-amber-200 px-1 text-center min-w-[20px]">
                             {ci.quantity}
                           </span>
                           <button
                             onClick={() => updateCartQuantity(ci.cartItemId, 1)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20 transition active:scale-90"
+                            className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 hover:brightness-110 transition active:scale-90 shadow-xs cursor-pointer"
                             title="Increase quantity"
                           >
                             <Plus className="h-3 w-3 stroke-[2.5]" />
                           </button>
                         </div>
                       ) : (
-                        <span className="rounded-full px-3 py-1 text-[10px] font-bold bg-emerald-950/60 border border-emerald-500/40 text-emerald-300">
-                          In Kitchen
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-amber-200">
+                            Qty: {ci.quantity}
+                          </span>
+                          <button
+                            onClick={() => updateCartQuantity(ci.cartItemId, 1)}
+                            className="flex items-center gap-1 rounded-full border border-amber-400/50 bg-gradient-to-r from-amber-500/25 to-amber-600/35 px-2.5 py-1 text-[10.5px] font-bold text-amber-300 hover:bg-amber-500/40 transition active:scale-95 shadow-xs cursor-pointer"
+                            title="Add another serving to order"
+                          >
+                            <Plus className="h-3 w-3 stroke-[2.5]" />
+                            <span>Add More</span>
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -255,20 +266,14 @@ export const Screen4Cart: React.FC = () => {
                       </div>
 
                       {!isOrdered && (
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => handleSeparateOrder(ci.cartItemId, ci.menuItem.name)}
-                            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-bold border border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-amber-950/40 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.2)] hover:border-amber-300 transition active:scale-95"
-                          >
-                            <Flame className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-                            <span>Fire First</span>
-                          </button>
+                        <div className="flex items-center justify-end">
                           <button
                             onClick={() => removeCartItem(ci.cartItemId)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-stone-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
-                            title="Remove delicacy"
+                            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-bold text-stone-400 hover:text-rose-400 hover:bg-rose-500/10 transition cursor-pointer"
+                            title="Remove item"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
+                            <span>Remove</span>
                           </button>
                         </div>
                       )}
@@ -278,27 +283,47 @@ export const Screen4Cart: React.FC = () => {
               })}
             </AnimatePresence>
 
-            {/* Itemized Subtotal Breakdown with Thin Gold Separator Lines */}
-            <div className="rounded-[28px] p-5 border border-amber-500/20 bg-black/60 shadow-inner backdrop-blur-md space-y-2.5">
-              <div className="flex justify-between text-xs text-stone-400">
-                <span>Subtotal</span>
-                <span className="font-mono text-stone-200">
+            {/* Itemized Subtotal Breakdown with Thin Gold Separator Lines & Highlighted Grand Total */}
+            <div className="rounded-[28px] p-5 border border-amber-500/30 bg-black/75 shadow-xl backdrop-blur-md space-y-3">
+              <div className="flex items-center justify-between text-xs text-stone-300">
+                <span className="font-medium">
+                  Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} {cart.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'dish' : 'dishes'})
+                </span>
+                <span className="font-mono font-bold text-stone-100">
                   ₹{cart.reduce((sum, item) => sum + item.totalPrice, 0)}
                 </span>
               </div>
-              <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-amber-500/20 to-transparent" />
-              <div className="flex justify-between text-xs text-stone-400">
-                <span>Taxes & Service (GST 5%)</span>
-                <span className="font-mono text-stone-200">
+              <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-amber-500/25 to-transparent" />
+              <div className="flex items-center justify-between text-xs text-stone-300">
+                <span className="font-medium">Taxes & Service (GST 5%)</span>
+                <span className="font-mono font-bold text-stone-100">
                   ₹{Math.round(cart.reduce((sum, item) => sum + item.totalPrice, 0) * 0.05)}
                 </span>
               </div>
-              <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-amber-500/30 to-transparent" />
-              <div className="flex justify-between text-sm font-bold font-serif-luxury text-amber-200 pt-1">
-                <span>Grand Total</span>
-                <span className="font-mono text-base font-extrabold text-amber-300">
-                  ₹{Math.round(cart.reduce((sum, item) => sum + item.totalPrice, 0) * 1.05)}
-                </span>
+
+              {/* Prominently Highlighted Grand Total Container */}
+              <div className="mt-3 flex items-center justify-between rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-950/70 via-amber-900/40 to-black/90 p-3.5 shadow-[0_4px_20px_rgba(217,119,6,0.18)] backdrop-blur-md">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-stone-950 shadow-md">
+                    <Receipt className="h-5 w-5 stroke-[2.2]" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black uppercase tracking-wider font-serif-luxury text-amber-100">
+                      Total Amount
+                    </div>
+                    <div className="text-[10px] text-amber-300/80 font-medium mt-0.5">
+                      All taxes & charges included
+                    </div>
+                  </div>
+                </div>
+                <div className="shrink-0 rounded-xl px-3.5 py-1.5 border border-amber-400/60 bg-black/80 shadow-[0_0_16px_rgba(245,158,11,0.25)] text-right">
+                  <div className="text-[9px] font-black uppercase tracking-wider font-mono text-amber-400/80">
+                    To Pay
+                  </div>
+                  <div className="font-mono text-xl font-black text-amber-300 tracking-tight leading-none mt-0.5 drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)]">
+                    ₹{Math.round(cart.reduce((sum, item) => sum + item.totalPrice, 0) * 1.05)}
+                  </div>
+                </div>
               </div>
             </div>
 

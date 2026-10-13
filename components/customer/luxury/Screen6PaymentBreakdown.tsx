@@ -222,54 +222,54 @@ export const Screen6PaymentBreakdown: React.FC = () => {
           </div>
 
           {/* Subtotal, Tax, Tip, Total */}
-          <div className="space-y-1.5 pt-3 text-xs">
-            <div
-              className="flex justify-between font-medium"
-              style={{ color: currentTheme.colors.textSecondary }}
-            >
-              <span>Item Subtotal</span>
-              <span className="font-mono">₹{subtotal}</span>
+          <div className="space-y-2 pt-3 text-xs">
+            <div className="flex justify-between items-center text-stone-300">
+              <span className="font-medium">Item Subtotal</span>
+              <span className="font-mono font-bold text-stone-100">₹{subtotal}</span>
             </div>
-            <div
-              className="flex justify-between font-medium"
-              style={{ color: currentTheme.colors.textSecondary }}
-            >
-              <span>Taxes &amp; Charges (5% GST: 2.5% CGST + 2.5% SGST)</span>
-              <span className="font-mono">₹{tax}</span>
+            <div className="flex justify-between items-center text-stone-300">
+              <span className="font-medium">Taxes &amp; Charges (GST 5%)</span>
+              <span className="font-mono font-bold text-stone-100">₹{tax}</span>
             </div>
             {discount > 0 && (
-              <div className="flex justify-between font-bold text-emerald-700">
+              <div className="flex justify-between items-center font-bold text-emerald-400">
                 <span>Loyalty Reward Discount</span>
                 <span className="font-mono">-₹{discount}</span>
               </div>
             )}
             {payment.tipAmount > 0 && (
-              <div
-                className="flex justify-between font-bold"
-                style={{ color: currentTheme.colors.buttonBg }}
-              >
+              <div className="flex justify-between items-center font-bold text-amber-300">
                 <span>Staff Tip</span>
                 <span className="font-mono">+₹{payment.tipAmount}</span>
               </div>
             )}
-            <div
-              className="flex items-center justify-between border-t pt-2.5 text-sm font-black"
-              style={{
-                borderColor: currentTheme.colors.borderLight,
-                color: currentTheme.colors.textPrimary,
-              }}
-            >
-              <span>Total Payable</span>
-              <div className="text-right">
-                <div
-                  className="font-mono text-xl font-black"
-                  style={{ color: currentTheme.colors.textPrimary }}
-                >
+
+            {/* Prominently Highlighted Grand Total Container (Obsidian Gold Perfection) */}
+            <div className="mt-3 flex items-center justify-between rounded-2xl border border-amber-400/50 bg-gradient-to-r from-amber-950/70 via-amber-900/40 to-black/90 p-3.5 shadow-[0_4px_20px_rgba(217,119,6,0.18)] backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-stone-950 shadow-md">
+                  <Receipt className="h-5 w-5 stroke-[2.2]" />
+                </div>
+                <div>
+                  <div className="text-xs font-black uppercase tracking-wider font-serif-luxury text-amber-100">
+                    Total Payable
+                  </div>
+                  <div className="text-[10px] text-amber-300/80 font-medium mt-0.5">
+                    All taxes & charges included
+                  </div>
+                </div>
+              </div>
+
+              <div className="shrink-0 rounded-xl px-3.5 py-1.5 border border-amber-400/60 bg-black/80 shadow-[0_0_16px_rgba(245,158,11,0.25)] text-right">
+                <div className="text-[9px] font-black uppercase tracking-wider font-mono text-amber-400/80">
+                  Grand Total
+                </div>
+                <div className="font-mono text-xl font-black text-amber-300 tracking-tight leading-none mt-0.5 drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)]">
                   ₹{grandTotal}
                 </div>
                 {isSplitEnabled && (
-                  <div className="text-[10px] font-bold text-emerald-800 font-mono">
-                    (₹{perPersonAmount} each for {splitPersons} diners)
+                  <div className="text-[9px] font-bold text-amber-400 font-mono mt-1">
+                    ₹{perPersonAmount} each
                   </div>
                 )}
               </div>
@@ -278,22 +278,13 @@ export const Screen6PaymentBreakdown: React.FC = () => {
         </div>
 
         {/* Tip Selector */}
-        <div
-          className="rounded-[28px] border p-4 shadow-xs"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="mb-2.5 flex items-center justify-between">
-            <div
-              className="flex items-center gap-1.5 text-[9.5px] font-black uppercase tracking-[0.22em] font-mono"
-              style={{ color: currentTheme.colors.textMuted }}
-            >
-              <Heart className="h-3.5 w-3.5" style={{ color: currentTheme.colors.buttonBg }} />
+        <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
+              <Heart className="h-4 w-4 text-amber-400" />
               <span>Add Tip for Restaurant Staff</span>
             </div>
-            <span className="font-mono text-xs font-bold" style={{ color: currentTheme.colors.buttonBg }}>
+            <span className="font-mono text-xs font-bold text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-400/30">
               {payment.tipAmount > 0 ? `₹${payment.tipAmount}` : 'No Tip'}
             </span>
           </div>
@@ -305,20 +296,11 @@ export const Screen6PaymentBreakdown: React.FC = () => {
                 <button
                   key={amt}
                   onClick={() => handlePresetTip(amt)}
-                  style={
+                  className={`rounded-2xl border py-2.5 text-center text-xs font-black font-mono transition shadow-2xs active:scale-95 cursor-pointer ${
                     isSelected
-                      ? {
-                          borderColor: currentTheme.colors.pillActiveBorder,
-                          backgroundColor: currentTheme.colors.pillActiveBg,
-                          color: currentTheme.colors.pillActiveFg,
-                        }
-                      : {
-                          borderColor: currentTheme.colors.pillInactiveBorder,
-                          backgroundColor: currentTheme.colors.pillInactiveBg,
-                          color: currentTheme.colors.pillInactiveFg,
-                        }
-                  }
-                  className="rounded-2xl border py-2 text-center text-xs font-black font-mono transition shadow-2xs active:scale-95"
+                      ? 'border-amber-400 bg-gradient-to-r from-amber-500/30 to-amber-600/40 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                      : 'border-white/10 bg-white/5 text-stone-300 hover:bg-white/10 hover:text-stone-100'
+                  }`}
                 >
                   ₹{amt}
                 </button>
@@ -326,20 +308,11 @@ export const Screen6PaymentBreakdown: React.FC = () => {
             })}
             <button
               onClick={() => handlePresetTip(0)}
-              style={
+              className={`rounded-2xl border py-2.5 text-center text-xs font-black font-mono transition shadow-2xs active:scale-95 cursor-pointer ${
                 payment.tipAmount === 0 && !customTip
-                  ? {
-                      borderColor: currentTheme.colors.pillActiveBorder,
-                      backgroundColor: currentTheme.colors.pillActiveBg,
-                      color: currentTheme.colors.pillActiveFg,
-                    }
-                  : {
-                      borderColor: currentTheme.colors.pillInactiveBorder,
-                      backgroundColor: currentTheme.colors.pillInactiveBg,
-                      color: currentTheme.colors.pillInactiveFg,
-                    }
-              }
-              className="rounded-2xl border py-2 text-center text-xs font-black font-mono transition shadow-2xs active:scale-95"
+                  ? 'border-amber-400 bg-gradient-to-r from-amber-500/30 to-amber-600/40 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                  : 'border-white/10 bg-white/5 text-stone-300 hover:bg-white/10 hover:text-stone-100'
+              }`}
             >
               None
             </button>
@@ -347,44 +320,26 @@ export const Screen6PaymentBreakdown: React.FC = () => {
         </div>
 
         {/* Split Bill Option */}
-        <div
-          className="rounded-[28px] border p-4 shadow-xs"
-          style={{
-            backgroundColor: currentTheme.colors.bgSurface,
-            borderColor: currentTheme.colors.border,
-          }}
-        >
-          <div className="mb-2.5 flex items-center justify-between">
-            <div
-              className="flex items-center gap-1.5 text-[9.5px] font-black uppercase tracking-[0.22em] font-mono"
-              style={{ color: currentTheme.colors.textMuted }}
-            >
-              <Users className="h-3.5 w-3.5" style={{ color: currentTheme.colors.buttonBg }} />
+        <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
+              <Users className="h-4 w-4 text-amber-400" />
               <span>Split Bill Among Diners</span>
             </div>
             <button
               onClick={() => setIsSplitEnabled(!isSplitEnabled)}
-              style={
+              className={`rounded-full px-3 py-1 text-[10.5px] font-bold border transition shadow-2xs cursor-pointer ${
                 isSplitEnabled
-                  ? {
-                      borderColor: currentTheme.colors.pillActiveBorder,
-                      backgroundColor: currentTheme.colors.pillActiveBg,
-                      color: currentTheme.colors.pillActiveFg,
-                    }
-                  : {
-                      borderColor: currentTheme.colors.pillInactiveBorder,
-                      backgroundColor: currentTheme.colors.pillInactiveBg,
-                      color: currentTheme.colors.pillInactiveFg,
-                    }
-              }
-              className="rounded-full px-2.5 py-0.5 text-[10px] font-bold border transition shadow-2xs"
+                  ? 'border-amber-400 bg-amber-500/25 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+                  : 'border-white/10 bg-white/5 text-stone-300 hover:bg-white/10'
+              }`}
             >
               {isSplitEnabled ? 'Enabled' : 'Enable Split'}
             </button>
           </div>
 
           {isSplitEnabled && (
-            <div className="mt-2 space-y-2">
+            <div className="mt-3 space-y-2.5">
               <div className="flex items-center gap-2">
                 {[2, 3, 4, 5].map((count) => (
                   <button
@@ -393,26 +348,17 @@ export const Screen6PaymentBreakdown: React.FC = () => {
                       setSplitPersons(count);
                       setSplitMode('PERSONS', count);
                     }}
-                    style={
+                    className={`flex-1 rounded-2xl border py-2 text-center text-xs font-black transition shadow-2xs active:scale-95 cursor-pointer ${
                       splitPersons === count
-                        ? {
-                            borderColor: currentTheme.colors.pillActiveBorder,
-                            backgroundColor: currentTheme.colors.pillActiveBg,
-                            color: currentTheme.colors.pillActiveFg,
-                          }
-                        : {
-                            borderColor: currentTheme.colors.pillInactiveBorder,
-                            backgroundColor: currentTheme.colors.pillInactiveBg,
-                            color: currentTheme.colors.pillInactiveFg,
-                          }
-                    }
-                    className="flex-1 rounded-2xl border py-2 text-center text-xs font-black transition shadow-2xs active:scale-95"
+                        ? 'border-amber-400 bg-gradient-to-r from-amber-500/30 to-amber-600/40 text-amber-200 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                        : 'border-white/10 bg-white/5 text-stone-300 hover:bg-white/10'
+                    }`}
                   >
                     {count} Diners
                   </button>
                 ))}
               </div>
-              <div className="text-center font-mono text-[11px] font-bold text-emerald-800 bg-emerald-50 rounded-xl py-1.5 border border-emerald-200">
+              <div className="text-center font-mono text-[11px] font-bold text-amber-300 bg-amber-950/40 rounded-xl py-2 border border-amber-500/30">
                 ₹{perPersonAmount} each for {splitPersons} diners
               </div>
             </div>

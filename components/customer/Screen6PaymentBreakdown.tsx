@@ -229,54 +229,96 @@ export const Screen6PaymentBreakdown: React.FC = () => {
           </div>
 
           {/* Subtotal, Tax, Tip, Total */}
-          <div className="space-y-1.5 pt-3 text-xs">
+          <div className="space-y-2 pt-3 text-xs">
             <div
-              className="flex justify-between font-medium"
+              className="flex justify-between items-center font-medium"
               style={{ color: currentTheme.colors.textSecondary }}
             >
               <span>Item Subtotal</span>
-              <span className="font-mono">₹{subtotal}</span>
+              <span className="font-mono font-bold" style={{ color: currentTheme.colors.textPrimary }}>
+                ₹{subtotal}
+              </span>
             </div>
             <div
-              className="flex justify-between font-medium"
+              className="flex justify-between items-center font-medium"
               style={{ color: currentTheme.colors.textSecondary }}
             >
-              <span>Taxes &amp; Charges (5% GST: 2.5% CGST + 2.5% SGST)</span>
-              <span className="font-mono">₹{tax}</span>
+              <span>Taxes &amp; Charges (GST 5%)</span>
+              <span className="font-mono font-bold" style={{ color: currentTheme.colors.textPrimary }}>
+                ₹{tax}
+              </span>
             </div>
             {discount > 0 && (
-              <div className="flex justify-between font-bold text-emerald-700">
+              <div className="flex justify-between items-center font-bold text-emerald-700">
                 <span>Loyalty Reward Discount</span>
                 <span className="font-mono">-₹{discount}</span>
               </div>
             )}
             {payment.tipAmount > 0 && (
               <div
-                className="flex justify-between font-bold"
+                className="flex justify-between items-center font-bold"
                 style={{ color: currentTheme.colors.buttonBg }}
               >
                 <span>Staff Tip</span>
                 <span className="font-mono">+₹{payment.tipAmount}</span>
               </div>
             )}
+
+            {/* Prominently Highlighted Grand Total Container (Matching Screen 4 & Screen 5) */}
             <div
-              className="flex items-center justify-between border-t pt-2.5 text-sm font-black"
+              className="mt-3 flex items-center justify-between gap-2.5 rounded-2xl p-3 border transition-all"
               style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
                 borderColor: currentTheme.colors.borderLight,
-                color: currentTheme.colors.textPrimary,
+                boxShadow: currentTheme.colors.primaryShadow,
               }}
             >
-              <span>Total Payable</span>
-              <div className="text-right">
+              <div className="flex items-center gap-2.5 min-w-0">
                 <div
-                  className="font-mono text-xl font-black"
-                  style={{ color: currentTheme.colors.textPrimary }}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-xs"
+                  style={{ backgroundColor: currentTheme.colors.primary }}
+                >
+                  <Receipt className="h-4.5 w-4.5 stroke-[2.2]" />
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className="text-xs font-black uppercase tracking-wider truncate"
+                    style={{ color: currentTheme.colors.textPrimary }}
+                  >
+                    Total Payable
+                  </div>
+                  <div
+                    className="text-[9.5px] font-semibold mt-0.5 truncate"
+                    style={{ color: currentTheme.colors.textMuted }}
+                  >
+                    All taxes & charges included
+                  </div>
+                </div>
+              </div>
+
+              {/* Prominently Highlighted Amount Badge */}
+              <div
+                className="shrink-0 rounded-xl px-3 py-1.5 border text-right"
+                style={{
+                  backgroundColor: currentTheme.colors.bgSurface,
+                  borderColor: currentTheme.colors.border,
+                }}
+              >
+                <div
+                  className="text-[9px] font-black uppercase tracking-wider font-mono"
+                  style={{ color: currentTheme.colors.textMuted }}
+                >
+                  Grand Total
+                </div>
+                <div
+                  className="font-mono text-lg font-black tracking-tight leading-none mt-0.5"
+                  style={{ color: currentTheme.colors.buttonBg }}
                 >
                   ₹{grandTotal}
                 </div>
                 {isSplitEnabled && (
-                  <div className="text-[10px] font-bold text-emerald-800 font-mono">
-                    (₹{perPersonAmount} each for {splitPersons} diners)
+                  <div className="text-[9px] font-bold text-emerald-700 font-mono mt-0.5">
+                    ₹{perPersonAmount} each
                   </div>
                 )}
               </div>
@@ -419,7 +461,14 @@ export const Screen6PaymentBreakdown: React.FC = () => {
                   </button>
                 ))}
               </div>
-              <div className="text-center font-mono text-[11px] font-bold text-emerald-800 bg-emerald-50 rounded-xl py-1.5 border border-emerald-200">
+              <div
+                className="text-center font-mono text-[11px] font-bold rounded-xl py-1.5 border"
+                style={{
+                  backgroundColor: currentTheme.colors.secondaryBg,
+                  borderColor: currentTheme.colors.borderLight,
+                  color: currentTheme.colors.secondaryFg,
+                }}
+              >
                 ₹{perPersonAmount} each for {splitPersons} diners
               </div>
             </div>

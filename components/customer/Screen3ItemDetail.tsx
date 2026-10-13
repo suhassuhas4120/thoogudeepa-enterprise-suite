@@ -244,15 +244,13 @@ export const Screen3ItemDetail: React.FC = () => {
                   >
                     <span className="font-bold">{choice}</span>
                     <div
-                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md border-2 transition"
                       style={{
                         borderColor: isSelected ? currentTheme.colors.pillActiveBorder : '#94A3B8',
                         backgroundColor: isSelected ? currentTheme.colors.pillActiveBorder : 'transparent',
                       }}
                     >
-                      {isSelected && (
-                        <div className="h-2.5 w-2.5 rounded-full bg-white" />
-                      )}
+                      {isSelected && <Check className="h-3.5 w-3.5 stroke-[3] text-white" />}
                     </div>
                   </div>
                 );

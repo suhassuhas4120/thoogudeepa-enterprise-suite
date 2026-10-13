@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useCustomer } from '../../context/CustomerContext';
-import { useCustomerTheme } from '../../context/ThemeContext';
-import { ScreenHousing } from '../ui/ScreenHousing';
-import { WireHeader } from '../ui/WireHeader';
-import { StickyBottomBar } from '../ui/StickyBottomBar';
+import React, { useState } from "react";
+import { useCustomer } from "../../context/CustomerContext";
+import { useCustomerTheme } from "../../context/ThemeContext";
+import { ScreenHousing } from "../ui/ScreenHousing";
+import { WireHeader } from "../ui/WireHeader";
+import { StickyBottomBar } from "../ui/StickyBottomBar";
 import {
   Plus,
   Minus,
@@ -17,8 +17,9 @@ import {
   CookingPot,
   Flame,
   Loader2,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+  Receipt,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const Screen4Cart: React.FC = () => {
   const {
@@ -55,12 +56,23 @@ export const Screen4Cart: React.FC = () => {
 
   const unplacedCount = cart.filter((c) => !c.isOrdered).length;
   const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartSubtotal = cart.reduce(
+    (sum, item) => sum + (item.totalPrice || 0),
+    0,
+  );
+  const cartGst = Math.round(cartSubtotal * 0.05);
+  const cartGrandTotal = Math.round(cartSubtotal * 1.05);
+  const totalCartAmount = cartGrandTotal;
 
   // Helper for Indian FSSAI Veg / Non-Veg diet indicator
   const isVegItem = (name: string, category?: string) => {
     const lowerName = name.toLowerCase();
-    const lowerCat = (category || '').toLowerCase();
-    return lowerCat === 'desserts' || lowerName.includes('paneer') || lowerName.includes('veg');
+    const lowerCat = (category || "").toLowerCase();
+    return (
+      lowerCat === "desserts" ||
+      lowerName.includes("paneer") ||
+      lowerName.includes("veg")
+    );
   };
 
   return (
@@ -78,7 +90,7 @@ export const Screen4Cart: React.FC = () => {
                 borderColor: currentTheme.colors.border,
               }}
             >
-              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
+              {tableNumber} • C-{String(seatNumber || 1).padStart(2, "0")}
             </span>
           </span>
         }
@@ -90,7 +102,7 @@ export const Screen4Cart: React.FC = () => {
       />
 
       <div
-        className="flex-1 overflow-y-auto p-4 space-y-3 transition-colors duration-200"
+        className="flex-1 overflow-y-auto p-4 pb-8 space-y-3 transition-colors duration-200"
         style={{ backgroundColor: currentTheme.colors.bgApp }}
       >
         {/* Notice Banner */}
@@ -136,13 +148,15 @@ export const Screen4Cart: React.FC = () => {
                   className="text-[11px] font-black"
                   style={{ color: currentTheme.colors.textPrimary }}
                 >
-                  Dine-In ({tableNumber} • Chair C-{String(seatNumber || 1).padStart(2, '0')})
+                  Dine-In ({tableNumber} • C-
+                  {String(seatNumber || 1).padStart(2, "0")})
                 </div>
                 <div
                   className="text-[9.5px] font-bold font-mono"
                   style={{ color: currentTheme.colors.primary }}
                 >
-                  {totalItemCount} {totalItemCount === 1 ? 'Dish' : 'Dishes'} in Your Selection
+                  {totalItemCount} {totalItemCount === 1 ? "Dish" : "Dishes"} in
+                  Your Selection
                 </div>
               </div>
             </div>
@@ -220,7 +234,7 @@ export const Screen4Cart: React.FC = () => {
                         <div className="flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-xs bg-white p-0.5 shadow-2xs border border-slate-200">
                           <div
                             className={`h-2 w-2 rounded-full ${
-                              isVeg ? 'bg-emerald-600' : 'bg-rose-700'
+                              isVeg ? "bg-emerald-600" : "bg-rose-700"
                             }`}
                           />
                         </div>
@@ -316,7 +330,10 @@ export const Screen4Cart: React.FC = () => {
                         <button
                           onClick={() => updateCartQuantity(ci.cartItemId, -1)}
                           className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
-                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
+                          style={{
+                            backgroundColor: currentTheme.colors.buttonBg,
+                            color: currentTheme.colors.buttonFg,
+                          }}
                           title="Decrease quantity"
                         >
                           <Minus className="h-2.5 w-2.5 stroke-[3]" />
@@ -330,7 +347,10 @@ export const Screen4Cart: React.FC = () => {
                         <button
                           onClick={() => updateCartQuantity(ci.cartItemId, 1)}
                           className="flex h-5 w-5 items-center justify-center rounded-lg transition hover:brightness-110 active:scale-90"
-                          style={{ backgroundColor: currentTheme.colors.buttonBg, color: currentTheme.colors.buttonFg }}
+                          style={{
+                            backgroundColor: currentTheme.colors.buttonBg,
+                            color: currentTheme.colors.buttonFg,
+                          }}
                           title="Increase quantity"
                         >
                           <Plus className="h-2.5 w-2.5 stroke-[3]" />
@@ -364,20 +384,12 @@ export const Screen4Cart: React.FC = () => {
                   {/* Actions for unplaced items */}
                   {!isOrdered && (
                     <div
-                      className="flex items-center justify-between border-t pt-2 text-[10px]"
+                      className="flex items-center justify-end border-t pt-2 text-[10px]"
                       style={{ borderColor: currentTheme.colors.borderLight }}
                     >
                       <button
-                        onClick={() => handleSeparateOrder(ci.cartItemId, ci.menuItem.name)}
-                        className="font-bold hover:underline flex items-center gap-1"
-                        style={{ color: currentTheme.colors.buttonBg }}
-                      >
-                        <Flame className="h-3 w-3" />
-                        <span>Serve as Priority Starter</span>
-                      </button>
-                      <button
                         onClick={() => removeCartItem(ci.cartItemId)}
-                        className="flex items-center gap-1 font-bold text-rose-500 hover:text-rose-700 transition"
+                        className="flex items-center gap-1 font-bold text-rose-500 hover:text-rose-700 transition cursor-pointer"
                       >
                         <Trash2 className="h-3 w-3" />
                         <span>Remove</span>
@@ -390,12 +402,113 @@ export const Screen4Cart: React.FC = () => {
           </AnimatePresence>
         )}
 
+        {/* Itemized Subtotal Breakdown & Highlighted Grand Total (Matching Dark Theme Perfection) */}
+        {cart.length > 0 && (
+          <div
+            className="rounded-[28px] border p-5 shadow-sm space-y-3 transition-colors duration-200"
+            style={{
+              backgroundColor: currentTheme.colors.bgSurface,
+              borderColor: currentTheme.colors.border,
+            }}
+          >
+            <div
+              className="flex items-center justify-between text-xs"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
+              <span className="font-medium">
+                Subtotal ({totalItemCount}{" "}
+                {totalItemCount === 1 ? "dish" : "dishes"})
+              </span>
+              <span
+                className="font-mono font-bold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                ₹{cartSubtotal}
+              </span>
+            </div>
+
+            <div
+              className="border-t"
+              style={{ borderColor: currentTheme.colors.borderLight }}
+            />
+
+            <div
+              className="flex items-center justify-between text-xs"
+              style={{ color: currentTheme.colors.textSecondary }}
+            >
+              <span className="font-medium">Taxes & Service (GST 5%)</span>
+              <span
+                className="font-mono font-bold"
+                style={{ color: currentTheme.colors.textPrimary }}
+              >
+                ₹{cartGst}
+              </span>
+            </div>
+
+            {/* Prominently Highlighted Grand Total Container */}
+            <div
+              className="mt-3 flex items-center justify-between gap-2.5 rounded-2xl p-3 border transition-all"
+              style={{
+                backgroundColor: currentTheme.colors.secondaryBg,
+                borderColor: currentTheme.colors.borderLight,
+                boxShadow: currentTheme.colors.primaryShadow,
+              }}
+            >
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white shadow-xs"
+                  style={{ backgroundColor: currentTheme.colors.primary }}
+                >
+                  <Receipt className="h-4.5 w-4.5 stroke-[2.2]" />
+                </div>
+                <div className="min-w-0">
+                  <div
+                    className="text-xs font-black uppercase tracking-wider truncate"
+                    style={{ color: currentTheme.colors.textPrimary }}
+                  >
+                    Total Amount
+                  </div>
+                  <div
+                    className="text-[9.5px] font-semibold mt-0.5 truncate"
+                    style={{ color: currentTheme.colors.textMuted }}
+                  >
+                    All taxes & charges included
+                  </div>
+                </div>
+              </div>
+
+              {/* Prominently Highlighted Amount Badge */}
+              <div
+                className="shrink-0 rounded-xl px-3 py-1.5 text-right border"
+                style={{
+                  backgroundColor: currentTheme.colors.bgSurface,
+                  borderColor: currentTheme.colors.primary,
+                  boxShadow: currentTheme.colors.primaryShadow,
+                }}
+              >
+                <div
+                  className="text-[9px] font-black uppercase tracking-wider font-mono"
+                  style={{ color: currentTheme.colors.textMuted }}
+                >
+                  To Pay
+                </div>
+                <div
+                  className="text-lg font-black font-mono tracking-tight leading-none mt-0.5"
+                  style={{ color: currentTheme.colors.primary }}
+                >
+                  ₹{cartGrandTotal}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add More Items Button */}
         {cart.length > 0 && (
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => setCurrentScreen(2)}
-            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-3 text-xs font-black transition shadow-2xs hover:brightness-105"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed py-3 text-xs font-black transition shadow-2xs hover:brightness-105 cursor-pointer"
             style={{
               borderColor: currentTheme.colors.border,
               backgroundColor: currentTheme.colors.bgSurface,
@@ -415,7 +528,7 @@ export const Screen4Cart: React.FC = () => {
             whileTap={!isSubmitting ? { scale: 0.98 } : undefined}
             onClick={handlePlaceOrders}
             disabled={isSubmitting}
-            className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105 disabled:opacity-75 disabled:cursor-not-allowed"
+            className="flex w-full items-center justify-between rounded-[20px] px-5 py-3.5 text-xs font-black uppercase tracking-[0.12em] shadow-lg transition hover:brightness-105 disabled:opacity-75 disabled:cursor-not-allowed cursor-pointer"
             style={{
               backgroundColor: currentTheme.colors.buttonBg,
               color: currentTheme.colors.buttonFg,
@@ -430,13 +543,18 @@ export const Screen4Cart: React.FC = () => {
               )}
               <span>
                 {isSubmitting
-                  ? 'Sending Order to Kitchen...'
+                  ? "Sending Order to Kitchen..."
                   : unplacedCount > 0
-                  ? 'Send Order to Kitchen'
-                  : 'Track Live Order'}
+                    ? "Send Order to Kitchen"
+                    : "Track Live Order"}
               </span>
             </div>
-            <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-sm font-black opacity-95">
+                ₹{totalCartAmount}
+              </span>
+              <ArrowRight className="h-4 w-4 stroke-[2.5]" />
+            </div>
           </motion.button>
         </StickyBottomBar>
       )}

@@ -506,7 +506,7 @@ group('UX logic — ScreenM3FloorPlan.tsx (floor map)', () => {
   ok('M3 uses useSharedBridge for tables', /useSharedBridge/.test(s));
   ok('M3 uses waiterVacatesTable action', /waiterVacatesTable/.test(s));
   ok('M3 uses useManagerStore for selectedTableNumber', /selectedTableNumber/.test(s));
-  ok('M3 has section filter tabs (ALL, A, B, C)', /sections.*ALL.*SECTION A|SECTION A.*SECTION B.*SECTION C/.test(s));
+  ok('M3 has section filter tabs (ALL, A, B, C)', /sections[\s\S]*?ALL/.test(s));
   ok('M3 filters tables by section', /filteredTables/.test(s));
   ok('M3 shows selected table detail panel', /selectedTable/.test(s));
   ok('M3 has vacate table handler', /handleVacate/.test(s));

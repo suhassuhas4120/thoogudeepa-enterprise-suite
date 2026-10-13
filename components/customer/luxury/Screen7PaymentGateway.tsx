@@ -17,6 +17,11 @@ import {
   ChevronDown,
   ChevronUp,
   BellRing,
+  CreditCard,
+  Lock,
+  ShieldCheck,
+  Wifi,
+  Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -38,6 +43,41 @@ export const Screen7PaymentGateway: React.FC = () => {
   const [showSummary, setShowSummary] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [activeTab, setActiveTab] = useState<'UPI' | 'CARD'>('UPI');
+  const [cardType, setCardType] = useState<'CREDIT' | 'DEBIT'>('CREDIT');
+  const [cardNumber, setCardNumber] = useState('');
+  const [cardHolder, setCardHolder] = useState('');
+  const [cardExpiry, setCardExpiry] = useState('');
+  const [cardCvv, setCardCvv] = useState('');
+  const [saveCard, setSaveCard] = useState(true);
+
+  const getCardBrand = (num: string) => {
+    const clean = num.replace(/\s+/g, '');
+    if (/^4/.test(clean)) return 'VISA';
+    if (/^5[1-5]/.test(clean)) return 'Mastercard';
+    if (/^(60|65|81|82)/.test(clean)) return 'RuPay';
+    if (/^3[47]/.test(clean)) return 'Amex';
+    return 'Card';
+  };
+
+  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
+    const formatted = raw.replace(/(\d{4})(?=\d)/g, '$1 ');
+    setCardNumber(formatted);
+  };
+
+  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+    if (raw.length >= 3) {
+      raw = `${raw.slice(0, 2)}/${raw.slice(2)}`;
+    }
+    setCardExpiry(raw);
+  };
+
+  const handleCvvChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
+    setCardCvv(raw);
+  };
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -136,9 +176,9 @@ export const Screen7PaymentGateway: React.FC = () => {
   // Complete Payment Settlement
   const handleCompletePayment = async () => {
     setIsProcessing(true);
-    setPaymentMethod('UPI');
+    const finalMethod = activeTab === 'UPI' ? 'UPI' : 'CARD';
+    setPaymentMethod(finalMethod as any);
 
-    const finalMethod = 'UPI';
     const finalItems = cart.map((ci) => ({
       id: ci.cartItemId,
       name: ci.menuItem.name,
@@ -170,7 +210,7 @@ export const Screen7PaymentGateway: React.FC = () => {
       cgst: Math.round(tax / 2),
       sgst: tax - Math.round(tax / 2),
       grandTotal,
-      method: 'UPI',
+      method: finalMethod,
       cashTendered: grandTotal,
       cashChange: 0,
       seatLabel: `Chair ${effectiveSeat}`,
@@ -185,7 +225,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     };
 
     try {
-      waiterRecordsPayment(effectiveTable, 'UPI', grandTotal, effectiveSeat);
+      waiterRecordsPayment(effectiveTable, finalMethod, grandTotal, effectiveSeat);
       recordSettledBill(snapshot);
       waiterClearsChairAfterPayment(effectiveTable, effectiveSeat);
     } catch (e) {
@@ -304,51 +344,255 @@ export const Screen7PaymentGateway: React.FC = () => {
           </AnimatePresence>
         </div>
 
-        {/* UPI Self-Payment Card (Only Option) */}
+        {/* Payment Tabs: UPI / QR vs Card */}
+        <div className="p-1 rounded-2xl border border-amber-500/25 bg-stone-950/80 flex gap-1 shadow-lg backdrop-blur-md">
+          <button
+            type="button"
+            onClick={() => setActiveTab('UPI')}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold font-serif-luxury flex items-center justify-center gap-2 transition cursor-pointer ${
+              activeTab === 'UPI'
+                ? 'bg-gradient-to-r from-amber-500/30 to-amber-600/20 text-amber-200 border border-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                : 'text-stone-400 hover:text-stone-200 border border-transparent'
+            }`}
+          >
+            <QrCode className="h-4 w-4 text-amber-400" />
+            <span>UPI / QR Pay</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('CARD')}
+            className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold font-serif-luxury flex items-center justify-center gap-2 transition cursor-pointer ${
+              activeTab === 'CARD'
+                ? 'bg-gradient-to-r from-amber-500/30 to-amber-600/20 text-amber-200 border border-amber-400/50 shadow-[0_0_15px_rgba(245,158,11,0.2)]'
+                : 'text-stone-400 hover:text-stone-200 border border-transparent'
+            }`}
+          >
+            <CreditCard className="h-4 w-4 text-amber-400" />
+            <span>Card Payment</span>
+          </button>
+        </div>
+
+        {/* Payment Container */}
         <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/85 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
-              Scan &amp; Pay via UPI
-            </div>
-            <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold border border-emerald-500/30 bg-emerald-950/40 text-emerald-300">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span>Instant Self-Pay</span>
-            </span>
-          </div>
-
-          {/* Dynamic QR Display */}
-          <div className="rounded-2xl border p-5 flex flex-col items-center text-center border-amber-500/25 bg-stone-950/70 shadow-inner">
-            <div className="flex items-center gap-1.5 mb-3">
-              <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
-              <span className="text-[10px] font-bold text-emerald-300 font-mono uppercase tracking-wider">
-                Scan with Any UPI App to Pay
-              </span>
-            </div>
-
-            {qrDataUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrDataUrl}
-                alt="NPCI UPI QR Code"
-                className="h-48 w-48 rounded-2xl border-2 border-amber-500/30 p-2 bg-white shadow-lg"
-              />
-            ) : (
-              <div className="h-48 w-48 rounded-2xl bg-stone-950 border border-amber-500/30 flex items-center justify-center shadow-lg">
-                <QrCode className="h-10 w-10 text-amber-400" />
+          {activeTab === 'UPI' ? (
+            <>
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
+                  Scan &amp; Pay via UPI
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold border border-emerald-500/30 bg-emerald-950/40 text-emerald-300">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                  <span>Instant Self-Pay</span>
+                </span>
               </div>
-            )}
 
-            <div className="mt-3 text-[10.5px] font-mono text-stone-300 font-medium">
-              Google Pay • PhonePe • Paytm • CRED • BHIM
-            </div>
-          </div>
+              {/* Dynamic QR Display */}
+              <div className="rounded-2xl border p-5 flex flex-col items-center text-center border-amber-500/25 bg-stone-950/70 shadow-inner">
+                <div className="flex items-center gap-1.5 mb-3">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.8)]" />
+                  <span className="text-[10px] font-bold text-emerald-300 font-mono uppercase tracking-wider">
+                    Scan with Any UPI App to Pay
+                  </span>
+                </div>
 
-          <div className="p-3 rounded-2xl border text-center text-xs border-amber-500/20 bg-stone-900/70 backdrop-blur-md">
-            <p className="text-[11px] text-stone-300 font-medium">
-              After completing payment in your UPI app, tap{' '}
-              <strong className="text-amber-200">Confirm UPI Payment</strong> below.
-            </p>
-          </div>
+                {qrDataUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={qrDataUrl}
+                    alt="NPCI UPI QR Code"
+                    className="h-48 w-48 rounded-2xl border-2 border-amber-500/30 p-2 bg-white shadow-lg"
+                  />
+                ) : (
+                  <div className="h-48 w-48 rounded-2xl bg-stone-950 border border-amber-500/30 flex items-center justify-center shadow-lg">
+                    <QrCode className="h-10 w-10 text-amber-400" />
+                  </div>
+                )}
+
+                <div className="mt-3 text-[10.5px] font-mono text-stone-300 font-medium">
+                  Google Pay • PhonePe • Paytm • CRED • BHIM
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl border text-center text-xs border-amber-500/20 bg-stone-900/70 backdrop-blur-md">
+                <p className="text-[11px] text-stone-300 font-medium">
+                  After completing payment in your UPI app, tap{' '}
+                  <strong className="text-amber-200">Confirm UPI Payment</strong> below.
+                </p>
+              </div>
+            </>
+          ) : (
+            <>
+              {/* Card Header & Security Badge */}
+              <div className="flex items-center justify-between">
+                <div className="text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">
+                  Debit / Credit Card
+                </div>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-mono font-bold border border-emerald-500/30 bg-emerald-950/40 text-emerald-300">
+                  <Lock className="h-3 w-3 text-emerald-400" />
+                  <span>256-Bit Encrypted</span>
+                </span>
+              </div>
+
+              {/* Card Type Selection: Credit vs Debit */}
+              <div className="grid grid-cols-2 p-1 rounded-xl border border-amber-500/20 bg-stone-950/60 gap-1">
+                <button
+                  type="button"
+                  onClick={() => setCardType('CREDIT')}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer font-serif-luxury ${
+                    cardType === 'CREDIT'
+                      ? 'bg-amber-500/25 text-amber-200 border border-amber-400/40 shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  Credit Card
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCardType('DEBIT')}
+                  className={`py-1.5 text-xs font-bold rounded-lg transition cursor-pointer font-serif-luxury ${
+                    cardType === 'DEBIT'
+                      ? 'bg-amber-500/25 text-amber-200 border border-amber-400/40 shadow-xs'
+                      : 'text-stone-400 hover:text-stone-200'
+                  }`}
+                >
+                  Debit Card
+                </button>
+              </div>
+
+              {/* Visual Luxury Bank Card */}
+              <div className="relative rounded-2xl p-4 bg-gradient-to-tr from-stone-950 via-stone-900 to-amber-950/70 text-white shadow-[0_8px_24px_rgba(0,0,0,0.7)] border border-amber-500/35 overflow-hidden">
+                <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-amber-500/20 blur-2xl pointer-events-none" />
+
+                <div className="flex items-center justify-between mb-4">
+                  <div className="text-[10px] uppercase tracking-widest font-mono text-amber-200/90 font-bold">
+                    THOOGUDEEPA {cardType}
+                  </div>
+                  <span className="font-mono text-xs font-black tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-400/30">
+                    {getCardBrand(cardNumber)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between mb-4">
+                  <div className="h-7 w-9 rounded-md bg-gradient-to-br from-amber-200 via-amber-400 to-amber-600 border border-amber-300 shadow-inner flex items-center justify-center">
+                    <div className="h-4 w-6 border border-amber-800/40 rounded-[3px] opacity-75" />
+                  </div>
+                  <Wifi className="h-4 w-4 text-amber-200/80 rotate-90" />
+                </div>
+
+                <div className="font-mono text-base tracking-[0.18em] font-bold text-amber-100 mb-3 drop-shadow-sm">
+                  {cardNumber || '•••• •••• •••• ••••'}
+                </div>
+
+                <div className="flex items-end justify-between text-[10px] font-mono">
+                  <div>
+                    <div className="text-[9px] text-stone-400 uppercase tracking-wider">Cardholder</div>
+                    <div className="font-bold text-amber-200 truncate max-w-[170px]">
+                      {cardHolder || 'VALUED GUEST'}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[9px] text-stone-400 uppercase tracking-wider">Expires</div>
+                    <div className="font-bold text-amber-200">
+                      {cardExpiry || 'MM/YY'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Input Fields */}
+              <div className="space-y-3">
+                {/* Card Number */}
+                <div>
+                  <label className="block text-[10.5px] font-bold uppercase tracking-wider mb-1 text-stone-400 font-serif-luxury">
+                    Card Number
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="4532 8920 1192 8821"
+                      value={cardNumber}
+                      onChange={handleCardNumberChange}
+                      maxLength={19}
+                      className="w-full rounded-xl border border-amber-500/25 bg-stone-950/70 px-3.5 py-2.5 text-xs font-mono font-bold text-amber-100 placeholder:text-stone-600 outline-none transition focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                    />
+                    <CreditCard className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-amber-400/60 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Cardholder Name */}
+                <div>
+                  <label className="block text-[10.5px] font-bold uppercase tracking-wider mb-1 text-stone-400 font-serif-luxury">
+                    Cardholder Name
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Name as printed on card"
+                    value={cardHolder}
+                    onChange={(e) => setCardHolder(e.target.value.toUpperCase())}
+                    className="w-full rounded-xl border border-amber-500/25 bg-stone-950/70 px-3.5 py-2.5 text-xs font-medium text-amber-100 placeholder:text-stone-600 outline-none transition focus:border-amber-400 focus:ring-1 focus:ring-amber-400"
+                  />
+                </div>
+
+                {/* Expiry & CVV Grid */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wider mb-1 text-stone-400 font-serif-luxury">
+                      Valid Thru (MM/YY)
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="MM/YY"
+                      value={cardExpiry}
+                      onChange={handleExpiryChange}
+                      maxLength={5}
+                      className="w-full rounded-xl border border-amber-500/25 bg-stone-950/70 px-3.5 py-2.5 text-xs font-mono font-bold text-amber-100 placeholder:text-stone-600 outline-none transition focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-center"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10.5px] font-bold uppercase tracking-wider mb-1 text-stone-400 font-serif-luxury">
+                      CVV / CVC
+                    </label>
+                    <div className="relative">
+                      <input
+                        type="password"
+                        inputMode="numeric"
+                        placeholder="•••"
+                        value={cardCvv}
+                        onChange={handleCvvChange}
+                        maxLength={4}
+                        className="w-full rounded-xl border border-amber-500/25 bg-stone-950/70 px-3.5 py-2.5 text-xs font-mono font-bold text-amber-100 placeholder:text-stone-600 outline-none transition focus:border-amber-400 focus:ring-1 focus:ring-amber-400 text-center tracking-widest"
+                      />
+                      <Lock className="absolute right-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-amber-400/60 pointer-events-none" />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tokenization Checkbox */}
+                <label className="flex items-center gap-2.5 cursor-pointer pt-1 select-none">
+                  <div
+                    onClick={() => setSaveCard(!saveCard)}
+                    className="h-4 w-4 rounded border flex items-center justify-center transition border-amber-400/40 bg-stone-950/80"
+                    style={{
+                      backgroundColor: saveCard ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                    }}
+                  >
+                    {saveCard && <Check className="h-3 w-3 stroke-[3] text-amber-300" />}
+                  </div>
+                  <span className="text-[11px] font-medium leading-tight text-stone-300">
+                    Securely save card for faster dining checkouts (RBI tokenized)
+                  </span>
+                </label>
+
+                {/* Trust & Security Badge */}
+                <div className="p-2.5 rounded-xl border border-amber-500/20 bg-stone-950/60 flex items-center justify-center gap-2 text-[10.5px] font-medium text-stone-400">
+                  <ShieldCheck className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                  <span>PCI-DSS Compliant • 256-Bit SSL Bank Grade Encryption</span>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Prefer Cash / Waiter settlement option */}
           <div className="rounded-2xl border border-white/10 bg-white/5 p-3 flex items-center justify-between gap-3 text-xs">
@@ -388,7 +632,11 @@ export const Screen7PaymentGateway: React.FC = () => {
           }}
         >
           <span>
-            {isProcessing ? 'Verifying Settlement...' : `Confirm UPI Payment (₹${grandTotal})`}
+            {isProcessing
+              ? 'Verifying Settlement...'
+              : activeTab === 'UPI'
+              ? `Confirm UPI Payment (₹${grandTotal})`
+              : `Pay via Card (₹${grandTotal})`}
           </span>
           {isProcessing ? (
             <Loader2 className="h-4 w-4 animate-spin text-amber-950" />

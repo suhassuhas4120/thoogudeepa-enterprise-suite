@@ -8,6 +8,7 @@ export interface MenuItem {
   badge?: string;
   description: string;
   imagePlaceholder: string;
+  image?: string;
   prepMode: string;
   optionsGroup1: {
     title: string;
@@ -51,11 +52,22 @@ export interface PaymentDetails {
   totalAmount: number;
   splitMode: 'NONE' | 'ITEMS' | 'PERSONS';
   splitCount?: number;
-  paymentMethod: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH';
+  paymentMethod: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH' | 'RAZORPAY';
   redeemPoints: boolean;
   pointsAvailable: number;
   pointsRedeemed: number;
   transactionId?: string;
+  invoiceNumber?: string;
+  settledItems?: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+    totalPrice: number;
+    options?: string;
+    addOns?: string[];
+    seatNumber?: number;
+  }>;
 }
 
-export type WaiterPingType = 'WATER' | 'TISSUE' | 'CUTLERY' | 'TABLE CLEAN' | 'GENERAL CALL';
+export type WaiterPingType = 'WATER' | 'TISSUE' | 'CUTLERY' | 'TABLE CLEAN' | 'GENERAL CALL' | 'PAYMENT';

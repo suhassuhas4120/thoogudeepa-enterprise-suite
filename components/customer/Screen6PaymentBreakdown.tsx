@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
+import { useSharedBridge, SettledBillSnapshot } from '../../store/useSharedBridge';
+import { useCustomerStore } from '../../store/useCustomerStore';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
@@ -20,7 +22,10 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     tableNumber,
     seatNumber,
     venueName,
+    orderPlacedAt,
   } = useCustomer();
+
+  const { settledBills, kdsTickets, tables } = useSharedBridge();
 
   const [customTip, setCustomTip] = useState<string>('');
   const [splitPersons, setSplitPersons] = useState<number>(2);
@@ -29,13 +34,93 @@ export const Screen6PaymentBreakdown: React.FC = () => {
   const effectiveTable = tableNumber || 'T-01';
   const effectiveSeat = seatNumber || 1;
 
-  // Bill calculations (use live cart or authentic preview dishes)
-  const previewDishes = [
-    { cartItemId: 'sample-1', menuItem: { name: 'Special Mutton Donne Biryani' } as any, quantity: 2, totalPrice: 680 },
-    { cartItemId: 'sample-2', menuItem: { name: 'Chicken Ghee Roast' } as any, quantity: 1, totalPrice: 280 },
-    { cartItemId: 'sample-3', menuItem: { name: 'Mutton Nalli Fry' } as any, quantity: 1, totalPrice: 220 },
-  ];
-  const activeCart = cart.length > 0 ? cart : previewDishes;
+  // Auto-transition to Screen 8 only if waiter just settled this specific chair right now
+  useEffect(() => {
+    if (!settledBills || !orderPlacedAt || orderPlacedAt <= 0) return;
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const tNum = cleanNum(effectiveTable);
+    const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+    const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
+
+    let matchingSnapshot: SettledBillSnapshot | null = null;
+    if (settledBills[chairKey]) {
+      const b = settledBills[chairKey];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === effectiveSeat) {
+        matchingSnapshot = b;
+      }
+    } else if (settledBills[normTable]) {
+      const b = settledBills[normTable];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === effectiveSeat) {
+        matchingSnapshot = b;
+      }
+    }
+
+    if (matchingSnapshot && matchingSnapshot.timestamp) {
+      const now = Date.now();
+      const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
+      const isAfterOrder = matchingSnapshot.timestamp > orderPlacedAt + 500;
+      if (isRecent && isAfterOrder) {
+        useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
+      }
+    }
+  }, [settledBills, effectiveTable, effectiveSeat, orderPlacedAt]);
+
+  // Dismiss any lingering waiter summons when on self-pay breakdown
+  useEffect(() => {
+    useCustomerStore.getState().dismissWaiterNotification();
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const bridgeState = useSharedBridge.getState();
+    const paymentPing = bridgeState.pings.find(
+      (p) =>
+        cleanNum(p.tableNumber) === cleanNum(effectiveTable) &&
+        p.type === 'PAYMENT' &&
+        p.seatNumber === effectiveSeat &&
+        p.status === 'PENDING'
+    );
+    if (paymentPing) {
+      bridgeState.waiterResolvePing(paymentPing.id);
+    }
+  }, [effectiveTable, effectiveSeat]);
+
+  // Authentic items from cart, bridge tickets, or settled items (no fake/random data)
+  const activeCart = useMemo(() => {
+    const chairCart = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat);
+    if (chairCart.length > 0) return chairCart;
+
+    // Check if table has items in bridge tickets strictly for this chair
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const myTickets = kdsTickets.filter(
+      (tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) &&
+              tk.status !== 'COMPLETED' &&
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+    );
+    if (myTickets.length > 0) {
+      return myTickets.flatMap((tk) =>
+        tk.items
+          .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+          .map((it) => ({
+            cartItemId: it.id,
+            menuItem: { id: it.id, name: it.name, price: it.price || 0 } as any,
+            selectedOption: it.options || '',
+            selectedAddOns: it.addOns || [],
+            quantity: it.quantity,
+            totalPrice: (it.price || 0) * it.quantity,
+            prepMode: it.prepMode || '',
+            isOrdered: true,
+            seatNumber: effectiveSeat,
+          }))
+      );
+    }
+
+    return [];
+  }, [cart, kdsTickets, effectiveTable, effectiveSeat]);
+
   const subtotal = activeCart.reduce((s, i) => s + i.totalPrice, 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
@@ -76,7 +161,22 @@ export const Screen6PaymentBreakdown: React.FC = () => {
         }
         leftSubtitle={venueName.toUpperCase()}
         showBack={true}
-        onBack={() => setCurrentScreen(5)}
+        onBack={() => {
+          useCustomerStore.getState().dismissWaiterNotification();
+          const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const bridgeState = useSharedBridge.getState();
+          const paymentPing = bridgeState.pings.find(
+            (p) =>
+              cleanNum(p.tableNumber) === cleanNum(effectiveTable) &&
+              p.type === 'PAYMENT' &&
+              p.seatNumber === effectiveSeat &&
+              p.status === 'PENDING'
+          );
+          if (paymentPing) {
+            bridgeState.waiterResolvePing(paymentPing.id);
+          }
+          setCurrentScreen(5);
+        }}
         showCallWaiter={true}
         showCart={false}
       />
@@ -108,18 +208,24 @@ export const Screen6PaymentBreakdown: React.FC = () => {
             className="space-y-2 border-b border-dashed pb-3 text-xs"
             style={{ borderColor: currentTheme.colors.borderLight }}
           >
-            {activeCart.map((item) => (
-              <div
-                key={item.cartItemId}
-                className="flex items-center justify-between"
-                style={{ color: currentTheme.colors.textPrimary }}
-              >
-                <span className="font-semibold">
-                  {item.menuItem.name} × {item.quantity}
-                </span>
-                <span className="font-mono font-black">₹{item.totalPrice}</span>
+            {activeCart.length === 0 ? (
+              <div className="py-4 text-center text-xs font-mono" style={{ color: currentTheme.colors.textMuted }}>
+                No active items placed yet
               </div>
-            ))}
+            ) : (
+              activeCart.map((item) => (
+                <div
+                  key={item.cartItemId}
+                  className="flex items-center justify-between"
+                  style={{ color: currentTheme.colors.textPrimary }}
+                >
+                  <span className="font-semibold">
+                    {item.menuItem.name} × {item.quantity}
+                  </span>
+                  <span className="font-mono font-black">₹{item.totalPrice}</span>
+                </div>
+              ))
+            )}
           </div>
 
           {/* Subtotal, Tax, Tip, Total */}

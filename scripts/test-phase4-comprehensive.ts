@@ -730,5 +730,6 @@ function testComponentContractIntegrity(): void {
     process.exit(1);
   } else {
     process.stdout.write('  All Phase 4 tests passed.\n\n');
+    process.exit(0);
   }
 })();

@@ -19,7 +19,7 @@ import {
   Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 import { useWaiterStore } from '../../store/useWaiterStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 import QRCode from 'qrcode';
@@ -58,12 +58,14 @@ interface SettledBillSnapshot {
   cashTendered: number;
   cashChange: number;
   seatLabel: string;
+  seatNumber?: number;
   captainName: string;
   tableName: string;
   section: string;
   guestCount: number;
   formattedDate: string;
   formattedTime: string;
+  timestamp?: number;
 }
 
 export function ScreenM6Settlement({
@@ -80,9 +82,33 @@ export function ScreenM6Settlement({
     waiterRecordsPayment,
     waiterVacatesTable,
     waiterClearsChairAfterPayment,
+    recordSettledBill,
+    waiterInitiatesSettlement,
+    waiterClearsSettlementSession,
   } = useSharedBridge();
   const { activeCaptain } = useWaiterStore();
-  const table = tables.find((t) => t.number === tableNum);
+  // Robust table number matching (handles T-05, T-5, TABLE 5, 5, etc.)
+  const cleanTableNum = (s: string) => {
+    const raw = (s || '').toUpperCase().replace(/\s+/g, '').replace(/^TABLE/, '').replace(/^T-?/, '').trim();
+    const parsed = parseInt(raw, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : raw;
+  };
+
+  const fallbackTable: SharedTable = {
+    id: tableNum,
+    number: tableNum.startsWith('T-') ? tableNum : `T-${tableNum}`,
+    section: 'Main Dining Hall',
+    capacity: 4,
+    status: 'OCCUPIED',
+    guestCount: 1,
+    seatedTime: '--',
+    currentBill: 0,
+    serverName: 'Floor Captain',
+    kotCount: 1,
+    mergeGroupPeers: [tableNum],
+    activeItems: [],
+  };
+  const table: SharedTable = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(tableNum)) || tables.find((t) => t.number === tableNum) || fallbackTable;
 
   const [method, setMethod] = useState<PayMethod>('UPI');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -92,12 +118,10 @@ export function ScreenM6Settlement({
   const [settledSnapshot, setSettledSnapshot] = useState<SettledBillSnapshot | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
   const [qrZoomed, setQrZoomed] = useState(false);
-  const [isUpiVerified, setIsUpiVerified] = useState(false);
+  const [isUpiVerified, setIsUpiVerified] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [showOrderSummary, setShowOrderSummary] = useState(true);
 
-  // Clean table number matching
-  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
   const groupPeers: string[] = table?.mergeGroupPeers ?? [tableNum];
   const tickets = useMemo(() => {
     return kdsTickets.filter(
@@ -196,8 +220,7 @@ export function ScreenM6Settlement({
   // When settling a specific chair, show that chair's items
   const displayedItems = useMemo(() => {
     if (splitSeatNumber !== null) {
-      const chairItems = allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
-      return chairItems.length > 0 ? chairItems : allOrderedItems.filter((it) => !it.seatNumber);
+      return allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
     }
     return allOrderedItems;
   }, [allOrderedItems, splitSeatNumber]);
@@ -232,17 +255,20 @@ export function ScreenM6Settlement({
       };
     }
 
-    const tableBill = table?.currentBill || 0;
-    if (tableBill > 0) {
-      const calcSub = Math.round(tableBill / 1.05);
-      const calcTax = tableBill - calcSub;
-      return {
-        subtotal: calcSub,
-        totalTax: calcTax,
-        grandTotal: tableBill,
-        cgst: calcTax / 2,
-        sgst: calcTax / 2,
-      };
+    // Only fall back to whole table bill when this is a full-table settlement
+    if (splitSeatNumber === null) {
+      const tableBill = table?.currentBill || 0;
+      if (tableBill > 0) {
+        const calcSub = Math.round(tableBill / 1.05);
+        const calcTax = tableBill - calcSub;
+        return {
+          subtotal: calcSub,
+          totalTax: calcTax,
+          grandTotal: tableBill,
+          cgst: calcTax / 2,
+          sgst: calcTax / 2,
+        };
+      }
     }
 
     return {
@@ -252,7 +278,7 @@ export function ScreenM6Settlement({
       cgst: 0,
       sgst: 0,
     };
-  }, [splitAmount, displayedItemsSum, table?.currentBill]);
+  }, [splitAmount, displayedItemsSum, table?.currentBill, splitSeatNumber]);
 
   const hasUnservedDishes =
     displayedItems.length > 0 &&
@@ -305,6 +331,16 @@ export function ScreenM6Settlement({
         .catch(() => {});
     }
   }, [grandTotal, tableNum]);
+
+  // Real-time synchronization of floor captain settlement arrival to diner app
+  useEffect(() => {
+    waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, isUpiVerified);
+  }, [tableNum, splitSeatNumber, grandTotal, method, isUpiVerified, waiterInitiatesSettlement]);
+
+  const handleExplicitBack = () => {
+    waiterClearsSettlementSession(tableNum, splitSeatNumber ?? undefined);
+    onBack();
+  };
 
   // Modal scroll lock
   useEffect(() => {
@@ -359,24 +395,44 @@ export function ScreenM6Settlement({
       cashTendered: finalTendered,
       cashChange: finalChange,
       seatLabel: splitSeatNumber !== null ? `Chair ${splitSeatNumber}` : seatNumbersLabel,
+      seatNumber: splitSeatNumber ?? undefined,
       captainName,
       tableName: tableNum,
       section: table?.section || 'Main Dining Hall',
       guestCount: splitSeatNumber !== null ? 1 : table?.guestCount || table?.capacity || 1,
       formattedDate,
       formattedTime,
+      timestamp: Date.now(),
     };
 
     setSettledSnapshot(snapshot);
     setSettled(true);
 
+    // Record settled bill for real-time customer app synchronization
+    recordSettledBill({
+      ...snapshot,
+      seatNumber: splitSeatNumber ?? undefined,
+      timestamp: Date.now(),
+    });
+
     // Update store state
     waiterRecordsPayment(tableNum, method, finalGrandTotal, splitSeatNumber ?? undefined);
-    if (splitSeatNumber) {
-      setTimeout(() => waiterClearsChairAfterPayment(tableNum, splitSeatNumber), 800);
+
+    // Clear chair items and tickets immediately so no lingering items or bills remain
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
     } else if (vacateAfter) {
-      setTimeout(() => waiterVacatesTable(tableNum), 600);
+      waiterVacatesTable(tableNum);
     }
+  };
+
+  const handleFinish = () => {
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
+    } else if (vacateAfter) {
+      waiterVacatesTable(tableNum);
+    }
+    onDone();
   };
 
   if (!table) return null;
@@ -399,7 +455,7 @@ export function ScreenM6Settlement({
           </div>
           <button
             type="button"
-            onClick={onDone}
+            onClick={handleFinish}
             className="font-mono text-xs font-black text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-xl border border-stone-300 transition cursor-pointer"
           >
             Done
@@ -555,6 +611,12 @@ export function ScreenM6Settlement({
                 <span>Total GST (5%):</span>
                 <span>₹{s.totalTax.toFixed(2)}</span>
               </div>
+              {s.grandTotal > s.subtotal + s.totalTax && (
+                <div className="flex justify-between text-xs font-bold text-[#9C3D1E]">
+                  <span>Waiter Tip:</span>
+                  <span>+₹{(s.grandTotal - (s.subtotal + s.totalTax)).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm font-black text-stone-900 pt-1.5 border-t border-stone-200">
                 <span>GRAND TOTAL PAID:</span>
                 <span className="text-[#9C3D1E] text-base">₹{s.grandTotal.toFixed(2)}</span>
@@ -688,7 +750,7 @@ export function ScreenM6Settlement({
 
             <button
               type="button"
-              onClick={onDone}
+              onClick={handleFinish}
               className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
               <span>Return to Floor Grid</span>
@@ -724,7 +786,7 @@ export function ScreenM6Settlement({
       <header className="sticky top-0 z-40 bg-white/95 border-b border-[#EAE5DF] px-4 py-3 flex items-center justify-between shadow-2xs backdrop-blur-md">
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleExplicitBack}
           className="flex items-center gap-1.5 font-mono text-xs font-bold text-stone-700 hover:text-[#9C3D1E] py-1 px-2.5 -ml-1 rounded-xl bg-stone-50 hover:bg-[#FFF8F5] border border-[#EAE5DF] transition cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -1027,7 +1089,12 @@ export function ScreenM6Settlement({
             {/* Confirm QR Pay Button */}
             <button
               type="button"
-              onClick={() => setIsUpiVerified(!isUpiVerified)}
+              onClick={() => {
+                const nextVerified = !isUpiVerified;
+                setIsUpiVerified(nextVerified);
+                waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, nextVerified);
+                showToast(nextVerified ? 'UPI QR Terminal Confirmed for Diner ✓' : 'UPI QR Terminal reset');
+              }}
               className={`w-full p-3.5 rounded-xl font-mono text-xs font-black flex items-center justify-center gap-2 border transition cursor-pointer active:scale-98 shadow-xs ${
                 isUpiVerified
                   ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300'

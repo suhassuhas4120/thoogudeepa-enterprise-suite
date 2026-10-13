@@ -1,13 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '../../../../lib/supabase';
+import { supabase, broadcastStateChange } from '../../../../lib/supabase';
+import { clearSettledBillInMemory } from '../../../../lib/settlementStore';
+import { INITIAL_MENU_ITEMS } from '../../../../data/menuItems';
+import { enterpriseCache } from '../../../../lib/enterpriseCache';
 
 export const dynamic = 'force-dynamic';
+
+const globalForOrders = globalThis as unknown as {
+  inFlightOrderLocks: Map<string, Promise<any>>;
+  recentOrdersCache: Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>;
+  recentOrdersByIdempotencyKey: Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>;
+};
+const inFlightOrderLocks =
+  globalForOrders.inFlightOrderLocks ??
+  (globalForOrders.inFlightOrderLocks = new Map<string, Promise<any>>());
+const recentOrdersCache =
+  globalForOrders.recentOrdersCache ??
+  (globalForOrders.recentOrdersCache = new Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>());
+const recentOrdersByIdempotencyKey =
+  globalForOrders.recentOrdersByIdempotencyKey ??
+  (globalForOrders.recentOrdersByIdempotencyKey = new Map<string, { orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>());
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
+    const idempotencyKey = String(body.idempotencyKey || body.clientOrderId || '').trim();
     const tableNumber = (body.tableNumber || body.table || '').toUpperCase();
-    const seatNumber = parseInt(body.seatNumber || body.seat || '1', 10);
+    const rawSeat = body.seatNumber !== undefined ? body.seatNumber : body.seat !== undefined ? body.seat : '1';
+    const seatNumber = parseInt(String(rawSeat), 10);
     const guestName = body.guestName || `Seat ${seatNumber}`;
     const guestCount = parseInt(body.guestCount || '1', 10);
     const items = body.items || [];
@@ -17,8 +37,26 @@ export async function POST(req: NextRequest) {
     if (!tableNumber) {
       return NextResponse.json({ error: 'tableNumber is required' }, { status: 400 });
     }
-    if (!items.length) {
+    if (isNaN(seatNumber) || seatNumber < 1 || seatNumber > 12) {
+      return NextResponse.json({ error: 'seatNumber must be a valid number between 1 and 12' }, { status: 400 });
+    }
+    if (!Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: 'Order must contain at least one item' }, { status: 400 });
+    }
+
+    // Strict Schema Fuzzing Guard: Validate each item and quantity
+    for (const it of items) {
+      if (!it || typeof it !== 'object') {
+        return NextResponse.json({ error: 'Invalid item object in payload' }, { status: 400 });
+      }
+      const rawQty = it.quantity;
+      const numQty = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty), 10);
+      if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty) || numQty > 50) {
+        return NextResponse.json({
+          error: 'INVALID_QUANTITY',
+          message: `Quantity for item "${it.name || it.id || 'Dish'}" must be a positive integer between 1 and 50`,
+        }, { status: 400 });
+      }
     }
 
     // Verify table exists
@@ -32,46 +70,301 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Table ${tableNumber} does not exist in floor plan` }, { status: 404 });
     }
 
-    // Calculate financials
+    // Chair Device Concurrency & Ownership Protection
+    if (source === 'CUSTOMER') {
+      // 1. Strict Cross-Chair/Table Guard: Do not allow customer to place order on a different chair/table if they have an active unpaid order
+      if (deviceToken) {
+        const { data: activeUnpaidOrders } = await supabase
+          .from('orders')
+          .select('id, table_number, seat_number, total, total_amount')
+          .eq('device_token', deviceToken)
+          .eq('status', 'UNPAID')
+          .order('created_at', { ascending: false })
+          .limit(1);
+
+        if (activeUnpaidOrders && activeUnpaidOrders.length > 0) {
+          const activeOrd = activeUnpaidOrders[0];
+          const isSameTable = activeOrd.table_number.toUpperCase() === tableNumber.toUpperCase();
+          const isSameSeat = Number(activeOrd.seat_number) === Number(seatNumber);
+
+          if (!isSameTable || !isSameSeat) {
+            // Verify if the active order's chair is still occupied in the dining room
+            const { data: seatCheck } = await supabase
+              .from('table_seats')
+              .select('status, active_order_id, device_token')
+              .eq('table_number', activeOrd.table_number)
+              .eq('seat_number', activeOrd.seat_number)
+              .maybeSingle();
+
+            const isSeatStillOccupied = Boolean(
+              !seatCheck ||
+              (seatCheck.status === 'OCCUPIED' &&
+                (seatCheck.active_order_id || seatCheck.device_token === deviceToken))
+            );
+
+            if (isSeatStillOccupied) {
+              return NextResponse.json(
+                {
+                  error: 'ACTIVE_ORDER_PENDING',
+                  message: `You already have an active dining order at Table ${activeOrd.table_number} Chair ${activeOrd.seat_number}. Please settle your pending bill before placing orders on another chair.`,
+                  existingOrder: {
+                    id: activeOrd.id,
+                    tableNumber: activeOrd.table_number,
+                    seatNumber: activeOrd.seat_number,
+                    total: Number(activeOrd.total || activeOrd.total_amount || 0),
+                  },
+                },
+                { status: 403 }
+              );
+            }
+          }
+        }
+      }
+
+      // 2. Prevent taking over an already-occupied chair
+      const { data: currentSeat } = await supabase
+        .from('table_seats')
+        .select('*')
+        .eq('table_number', tableNumber)
+        .eq('seat_number', seatNumber)
+        .maybeSingle();
+
+      if (
+        currentSeat &&
+        currentSeat.status === 'OCCUPIED' &&
+        currentSeat.device_token &&
+        deviceToken &&
+        currentSeat.device_token !== deviceToken
+      ) {
+        const { data: allSeats } = await supabase
+          .from('table_seats')
+          .select('seat_number, status')
+          .eq('table_number', tableNumber)
+          .order('seat_number');
+
+        const vacantSeats = (allSeats || [])
+          .filter((s: any) => s.status === 'VACANT')
+          .map((s: any) => s.seat_number);
+
+        return NextResponse.json(
+          {
+            error: 'CHAIR_OCCUPIED_BY_ANOTHER_DEVICE',
+            message: `Chair ${seatNumber} at Table ${tableNumber} is already active on another device.`,
+            tableNumber,
+            occupiedSeat: seatNumber,
+            vacantSeats,
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // Calculate financials strictly from canonical server menu catalogue to prevent client price tampering
     const subtotal = items.reduce((acc: number, item: any) => {
-      const price = Number(item.unitPrice || item.price || 0);
-      const qty = Number(item.quantity || 1);
+      const canonical = INITIAL_MENU_ITEMS.find((m) => m.id === item.id || m.name.toLowerCase() === (item.name || '').toLowerCase());
+      const basePrice = canonical ? canonical.price : Number(item.unitPrice || item.price || 0);
+      
+      // Calculate add-ons against canonical catalog options
+      let addOnCost = 0;
+      if (Array.isArray(item.addOns) && canonical?.optionsGroup2?.addOns) {
+        for (const ao of item.addOns) {
+          const aoRecord = canonical.optionsGroup2.addOns.find((a) => a.name === ao);
+          if (aoRecord) addOnCost += aoRecord.extraPrice;
+        }
+      }
+      
+      const price = basePrice + addOnCost;
+      const qty = Math.max(1, Math.min(25, Number(item.quantity || 1)));
       return acc + price * qty;
     }, 0);
 
     const tax = Math.round(subtotal * 0.05); // 5% GST
     const total = subtotal + tax;
 
-    // Generate unique identifiers
-    const timestamp = Date.now();
-    const cleanTable = tableNumber.replace(/[^a-zA-Z0-9]/g, '');
-    const orderId = `ORD-${cleanTable}-S${seatNumber}-${timestamp.toString().slice(-6)}`;
-    const ticketId = `KOT-${cleanTable}-${timestamp.toString().slice(-4)}`;
+    const lockKey = `${tableNumber}-S${seatNumber}`;
 
-    const nowIso = new Date().toISOString();
-
-    // 1. Create order record
-    const { error: orderErr } = await supabase.from('orders').insert({
-      id: orderId,
-      table_number: tableNumber,
-      seat_number: seatNumber,
-      guest_name: guestName,
-      guest_count: guestCount,
-      items,
-      subtotal,
-      tax,
-      total,
-      total_amount: total,
-      status: 'UNPAID',
-      source,
-      device_token: deviceToken,
-      created_at: nowIso,
-      updated_at: nowIso,
+    // Synchronous mutex chaining: acquire reference to current tail, install ourselves as the new tail
+    const previousLock = inFlightOrderLocks.get(lockKey);
+    let releaseLock: () => void = () => {};
+    const myLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
     });
+    inFlightOrderLocks.set(lockKey, myLock);
+
+    // Wait for previous in-flight order for this exact chair if any
+    if (previousLock) {
+      try {
+        await previousLock;
+      } catch {}
+    }
+
+    try {
+      // Atomic Database-Level Seat Reservation
+      // Eliminates multi-worker / multi-device race conditions when two phones place orders at the exact same millisecond
+      if (source === 'CUSTOMER') {
+        const { data: claimedSeats, error: claimErr } = await supabase
+          .from('table_seats')
+          .update({
+            status: 'OCCUPIED',
+            device_token: deviceToken,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber)
+          .or(deviceToken ? `status.eq.VACANT,device_token.eq.${deviceToken}` : 'status.eq.VACANT')
+          .select('id, table_number, seat_number, status, device_token');
+
+        if (claimErr || !claimedSeats || claimedSeats.length === 0) {
+          // The atomic update matched 0 rows, meaning the seat is already occupied by another device!
+          const { data: allSeats } = await supabase
+            .from('table_seats')
+            .select('seat_number, status')
+            .eq('table_number', tableNumber)
+            .order('seat_number');
+
+          const vacantSeats = (allSeats || [])
+            .filter((s: any) => s.status === 'VACANT')
+            .map((s: any) => s.seat_number);
+
+          return NextResponse.json(
+            {
+              error: 'CHAIR_OCCUPIED_BY_ANOTHER_DEVICE',
+              message: `Chair ${seatNumber} at Table ${tableNumber} is already active on another device.`,
+              tableNumber,
+              occupiedSeat: seatNumber,
+              vacantSeats,
+            },
+            { status: 409 }
+          );
+        }
+      }
+
+      // 1. Explicit Idempotency Token Check (Guarantees safety across network retries without blocking new orders)
+      if (idempotencyKey) {
+        const keyCached = recentOrdersByIdempotencyKey.get(idempotencyKey) || enterpriseCache.get<{ orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>(`idem:${idempotencyKey}`);
+        if (keyCached && (Date.now() - keyCached.createdAt) < 120000) {
+          return NextResponse.json({
+            success: true,
+            orderId: keyCached.orderId,
+            ticketId: keyCached.ticketId,
+            tableNumber,
+            seatNumber,
+            subtotal,
+            tax,
+            total,
+            itemCount: items.length,
+            idempotent: true,
+            message: 'Order accepted idempotently from submission token',
+          });
+        }
+      }
+
+      // 2. Sub-second burst protection for accidental rapid double-taps (2000ms threshold)
+      if (!idempotencyKey) {
+        const cachedOrder = recentOrdersCache.get(lockKey) || enterpriseCache.get<{ orderId: string; ticketId: string; total: number; itemCount: number; createdAt: number }>(`order:${lockKey}`);
+        if (cachedOrder && (Date.now() - cachedOrder.createdAt) < 2000) {
+          if (Math.abs(cachedOrder.total - total) < 0.01 && cachedOrder.itemCount === items.length) {
+            return NextResponse.json({
+              success: true,
+              orderId: cachedOrder.orderId,
+              ticketId: cachedOrder.ticketId,
+              tableNumber,
+              seatNumber,
+              subtotal,
+              tax,
+              total,
+              itemCount: items.length,
+              idempotent: true,
+              message: 'Order accepted idempotently from rapid tap protection',
+            });
+          }
+        }
+
+        // Database fallback check for rapid burst within 2 seconds
+        const twoSecsAgo = new Date(Date.now() - 2000).toISOString();
+        const { data: recentOrder } = await supabase
+          .from('orders')
+          .select('id, table_number, seat_number, total, total_amount, status, created_at')
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber)
+          .eq('status', 'UNPAID')
+          .gte('created_at', twoSecsAgo)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const existingTotal = recentOrder ? Number(recentOrder.total || recentOrder.total_amount || 0) : 0;
+        if (recentOrder && Math.abs(existingTotal - total) < 0.01) {
+          const { data: recentItems } = await supabase
+            .from('order_items')
+            .select('name, quantity')
+            .eq('order_id', recentOrder.id);
+
+          const itemsMatch =
+            !recentItems || recentItems.length === 0 ||
+            (recentItems.length === items.length &&
+              items.every((it: any) =>
+                recentItems.some((ri: any) => ri.name === it.name && Number(ri.quantity) === Number(it.quantity || 1))
+              ));
+
+          if (itemsMatch) {
+            return NextResponse.json({
+              success: true,
+              orderId: recentOrder.id,
+              ticketId: `KOT-${tableNumber.replace(/[^a-zA-Z0-9]/g, '')}-${recentOrder.id.slice(-4)}`,
+              tableNumber,
+              seatNumber,
+              subtotal,
+              tax,
+              total,
+              source,
+              idempotent: true,
+              message: 'Order accepted idempotently from db tap lock',
+            });
+          }
+        }
+      }
+      // Generate unique identifiers
+      const timestamp = Date.now();
+      const cleanTable = tableNumber.replace(/[^a-zA-Z0-9]/g, '');
+      const orderId = `ORD-${cleanTable}-S${seatNumber}-${timestamp.toString().slice(-6)}`;
+      const ticketId = `KOT-${cleanTable}-${timestamp.toString().slice(-4)}`;
+
+      const nowIso = new Date().toISOString();
+
+      // 1. Create order record
+      const { error: orderErr } = await supabase.from('orders').insert({
+        id: orderId,
+        table_number: tableNumber,
+        seat_number: seatNumber,
+        guest_name: guestName,
+        guest_count: guestCount,
+        items,
+        subtotal,
+        tax,
+        total,
+        total_amount: total,
+        status: 'UNPAID',
+        source,
+        device_token: deviceToken,
+        created_at: nowIso,
+        updated_at: nowIso,
+      });
 
     if (orderErr) {
       return NextResponse.json({ error: `Failed to create order: ${orderErr.message}` }, { status: 500 });
     }
+
+    // Delete any previous settled bill for this chair
+    try {
+      const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+      clearSettledBillInMemory(nTable, seatNumber);
+      await supabase
+        .from('pings')
+        .delete()
+        .or(`id.eq.SETTLED-BILL-${nTable}-S${seatNumber},id.eq.SETTLE-SESSION-${nTable}-S${seatNumber}`);
+    } catch {}
 
     // 2. Insert line items
     const lineItems = items.map((it: any, index: number) => {
@@ -81,11 +374,10 @@ export async function POST(req: NextRequest) {
       const itemSeat = it.seat_number || it.seatNumber || seatNumber;
 
       return {
-        id: `${orderId}-it-${index + 1}`,
+        id: it.id || `${orderId}-it-${index + 1}`,
         order_id: orderId,
         table_number: tableNumber,
         seat_number: itemSeat,
-        seatNumber: itemSeat,
         name: it.name,
         quantity: qty,
         unit_price: unitPrice,
@@ -96,7 +388,6 @@ export async function POST(req: NextRequest) {
         options: it.options || it.selectedOption || null,
         selected_option: it.selectedOption || it.options || null,
         add_ons: it.addOns || it.add_ons || [],
-        addOns: it.addOns || it.add_ons || [],
         notes: it.notes || null,
         created_at: nowIso,
         updated_at: nowIso,
@@ -153,17 +444,45 @@ export async function POST(req: NextRequest) {
       })
       .eq('number', tableNumber);
 
-    return NextResponse.json({
-      success: true,
-      orderId,
-      ticketId,
+    broadcastStateChange('seatOccupied', {
       tableNumber,
       seatNumber,
-      subtotal,
-      tax,
+      orderId,
+      timestamp: Date.now(),
+    });
+
+    // Update fast resilient idempotency cache
+    const cacheRecord = {
+      orderId,
+      ticketId,
       total,
       itemCount: items.length,
-    });
+      createdAt: Date.now(),
+    };
+    recentOrdersCache.set(lockKey, cacheRecord);
+    enterpriseCache.set(`order:${lockKey}`, cacheRecord, 60);
+    if (idempotencyKey) {
+      recentOrdersByIdempotencyKey.set(idempotencyKey, cacheRecord);
+      enterpriseCache.set(`idem:${idempotencyKey}`, cacheRecord, 120);
+    }
+
+    return NextResponse.json({
+        success: true,
+        orderId,
+        ticketId,
+        tableNumber,
+        seatNumber,
+        subtotal,
+        tax,
+        total,
+        itemCount: items.length,
+      });
+    } finally {
+      if (inFlightOrderLocks.get(lockKey) === myLock) {
+        inFlightOrderLocks.delete(lockKey);
+      }
+      releaseLock();
+    }
   } catch (err: any) {
     return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
   }

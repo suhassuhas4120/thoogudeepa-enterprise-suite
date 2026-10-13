@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase';
+import { edgeCatalogCache } from '../../../../lib/edgeCatalogCache';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,6 +43,10 @@ export async function POST(req: NextRequest) {
     if (updateErr) {
       return NextResponse.json({ error: `Failed to update inventory status: ${updateErr.message}` }, { status: 500 });
     }
+
+    // Immediately reflect in zero-latency Edge Catalog Cache
+    edgeCatalogCache.update86Status(item.id, nextIs86);
+    if (item.name) edgeCatalogCache.update86Status(item.name, nextIs86);
 
     return NextResponse.json({
       success: true,

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import Image from 'next/image';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -89,10 +90,41 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
     return ['All', ...uniqueCats, 'Chef Special'];
   }, [menuItems]);
 
+  // Common colloquial and phonetic synonyms in Karnataka Donne Biryani dining
+  const ALIAS_MAP: Record<string, string[]> = {
+    'biryani rice': ['kushka', 'kuska', 'khuska', 'plain rice', 'rice'],
+    'kaalu soup': ['kalu', 'leg', 'paya', 'bone soup', 'mutton soup', 'soup'],
+    'plain soup': ['soup', 'sherva', 'sherwa'],
+    'booti gojju': ['boti', 'botigojju', 'tripe', 'gojju'],
+    'keema gojju': ['kheema', 'qeema', 'mince', 'keema'],
+    'keema ball': ['kheema ball', 'meatball', 'kola urundai', 'ball'],
+    'chicken kabab': ['kebab', 'kebob', 'pakoda', 'kabab'],
+    'chilli chicken': ['chili', 'chilly', 'chilli'],
+    'chicken pepper dry': ['pepper', 'pepper dry', 'dry'],
+    'chicken fry': ['fry', 'roast'],
+    'mutton chops': ['chops', 'ribs'],
+    'mutton fry': ['mutton roast', 'fry', 'sukka'],
+    'chicken donne biryani': ['cb', 'biriyani', 'biryani'],
+    'mutton donne biryani': ['mb', 'biriyani', 'biryani'],
+    'egg biryani': ['egg', 'motte', 'mottai'],
+  };
+
+  // Helper to determine dietary badge: VEG, EGG, NON_VEG
+  const getDietType = (item: MenuItem): 'VEG' | 'EGG' | 'NON_VEG' => {
+    const name = item.name.toLowerCase();
+    const cat = (item.category || '').toLowerCase();
+    if (name.includes('egg') && !name.includes('chicken') && !name.includes('mutton')) {
+      return 'EGG';
+    }
+    if (cat === 'desserts' || name.includes('paneer') || name.includes('dosa') || name.includes('idli')) {
+      return 'VEG';
+    }
+    return 'NON_VEG';
+  };
+
   // Helper to determine Veg vs Non-Veg
   const isVegItem = (item: MenuItem) => {
-    const name = item.name.toLowerCase();
-    return item.category === 'Desserts' || name.includes('paneer') || name.includes('veg');
+    return getDietType(item) === 'VEG';
   };
 
   // Helper to select icon
@@ -106,13 +138,24 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
     return <Flame className="h-8 w-8 text-orange-600/80" />;
   };
 
-  // Reactive filtering
+  // Reactive filtering with phonetic and alias matching
   const filteredItems = useMemo(() => {
     const term = searchTerm.trim().toLowerCase();
     return menuItems.filter((item) => {
+      const lowerName = item.name.toLowerCase();
+      const hasAliasMatch = term
+        ? Object.entries(ALIAS_MAP).some(([key, aliases]) => {
+            if (lowerName.includes(key)) {
+              return aliases.some((a) => a.includes(term) || term.includes(a));
+            }
+            return false;
+          })
+        : false;
+
       const matchesSearch =
         !term ||
-        item.name.toLowerCase().includes(term) ||
+        hasAliasMatch ||
+        lowerName.includes(term) ||
         item.description.toLowerCase().includes(term) ||
         item.category.toLowerCase().includes(term) ||
         (item.prepMode && item.prepMode.toLowerCase().includes(term));
@@ -158,9 +201,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   const handleIncrement = (e: React.MouseEvent, item: MenuItem) => {
     e.stopPropagation();
-    const existing = cart.find((ci) => ci.menuItem.id === item.id);
-    if (existing) {
-      updateCartQuantity(existing.cartItemId, 1);
+    const existingUnplaced = cart.find((ci) => ci.menuItem.id === item.id && !ci.isOrdered);
+    if (existingUnplaced) {
+      updateCartQuantity(existingUnplaced.cartItemId, 1);
     } else {
       addToCart(item);
     }
@@ -168,9 +211,9 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
 
   const handleDecrement = (e: React.MouseEvent, itemId: string) => {
     e.stopPropagation();
-    const existing = cart.find((ci) => ci.menuItem.id === itemId);
-    if (existing) {
-      updateCartQuantity(existing.cartItemId, -1);
+    const existingUnplaced = cart.find((ci) => ci.menuItem.id === itemId && !ci.isOrdered);
+    if (existingUnplaced) {
+      updateCartQuantity(existingUnplaced.cartItemId, -1);
     }
   };
 
@@ -392,27 +435,44 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                 >
                   {/* Photo / Illustration Container */}
                   <div
-                    className="relative flex h-28 w-full items-center justify-center overflow-hidden rounded-2xl"
+                    className="relative flex h-28 w-full items-center justify-center overflow-hidden rounded-2xl bg-stone-100"
                     style={{
                       backgroundColor: currentTheme.colors.bgElevated,
                     }}
                   >
-                    <div className="transition-transform duration-300 group-hover:scale-105">
-                      {getItemIcon(item)}
-                    </div>
+                    {item.image ? (
+                      <div className="relative h-full w-full">
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="(max-width: 640px) 50vw, 240px"
+                          className="object-cover object-center transition-transform duration-300 group-hover:scale-105"
+                          priority={filteredItems.indexOf(item) < 4}
+                        />
+                      </div>
+                    ) : (
+                      <div className="transition-transform duration-300 group-hover:scale-105">
+                        {getItemIcon(item)}
+                      </div>
+                    )}
 
-                    {/* Veg / Non-Veg Indicator */}
-                    <div className="absolute top-1.5 left-1.5 flex h-4 w-4 items-center justify-center rounded-sm bg-white/95 p-0.5 shadow-2xs">
+                    {/* Veg / Non-Veg / Egg Indicator */}
+                    <div className="absolute top-1.5 left-1.5 z-10 flex h-4 w-4 items-center justify-center rounded-sm bg-white/95 p-0.5 shadow-2xs">
                       <div
                         className={`h-2.5 w-2.5 rounded-full ${
-                          isVeg ? 'bg-emerald-600' : 'bg-rose-700'
+                          getDietType(item) === 'VEG'
+                            ? 'bg-emerald-600'
+                            : getDietType(item) === 'EGG'
+                            ? 'bg-amber-500'
+                            : 'bg-rose-700'
                         }`}
                       />
                     </div>
 
                     {/* Kitchen Prep Delay Badge */}
                     {prepDelay > 0 && !is86 && (
-                      <div className="absolute top-1.5 left-7 flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-2xs">
+                      <div className="absolute top-1.5 left-7 z-10 flex items-center gap-1 rounded-full bg-amber-500/95 px-1.5 py-0.5 text-[8px] font-bold text-white shadow-2xs">
                         <Clock className="h-2.5 w-2.5" />
                         <span>+{prepDelay}m</span>
                       </div>
@@ -421,7 +481,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                     {/* Badge */}
                     {item.badge && !is86 && (
                       <div
-                        className="absolute top-1.5 right-1.5 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider shadow-2xs"
+                        className="absolute top-1.5 right-1.5 z-10 rounded-full px-2 py-0.5 text-[8px] font-black uppercase tracking-wider shadow-2xs"
                         style={{
                           backgroundColor: currentTheme.colors.primary,
                           color: currentTheme.colors.primaryFg,

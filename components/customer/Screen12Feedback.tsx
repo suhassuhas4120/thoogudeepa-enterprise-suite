@@ -179,7 +179,7 @@ export const Screen12Feedback: React.FC = () => {
           ) : (
             <button
               onClick={() => navigateTo(1)}
-              className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800"
+              className="flex-1 py-3 bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-700"
             >
               <span>Done (Back to Start)</span>
             </button>

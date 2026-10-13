@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -83,27 +84,55 @@ export const Screen3ItemDetail: React.FC = () => {
       >
         {/* Dish Showcase Card */}
         <div
-          className="relative flex h-52 w-full flex-col items-center justify-center rounded-[28px] overflow-hidden border p-4 shadow-sm text-center"
+          className="relative flex h-60 w-full flex-col items-center justify-center rounded-[28px] overflow-hidden border shadow-sm text-center bg-stone-100"
           style={{
-            backgroundColor: currentTheme.colors.bgElevated,
             borderColor: currentTheme.colors.border,
           }}
         >
-          {isSoldOut ? (
-            <Ban className="h-16 w-16 text-stone-400" />
+          {item.image ? (
+            <div className="relative h-full w-full">
+              <Image
+                src={item.image}
+                alt={item.name}
+                fill
+                sizes="(max-width: 640px) 100vw, 420px"
+                className="object-cover object-center"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-transparent to-black/25" />
+              <div className="absolute bottom-3 left-4 right-4 text-left">
+                <span className="font-mono text-[10px] font-black uppercase tracking-wider text-amber-300 drop-shadow-sm">
+                  {item.prepMode || 'Traditional Military Dum'}
+                </span>
+                <h3 className="truncate text-base font-black text-white drop-shadow-sm">
+                  {item.name}
+                </h3>
+              </div>
+            </div>
           ) : (
-            <UtensilsCrossed className="h-16 w-16" style={{ color: currentTheme.colors.primary }} />
+            <div
+              className="flex h-full w-full flex-col items-center justify-center p-4"
+              style={{
+                backgroundColor: currentTheme.colors.bgElevated,
+              }}
+            >
+              {isSoldOut ? (
+                <Ban className="h-16 w-16 text-stone-400" />
+              ) : (
+                <UtensilsCrossed className="h-16 w-16" style={{ color: currentTheme.colors.primary }} />
+              )}
+              <span
+                className="mt-2 font-mono text-xs font-black uppercase tracking-wider"
+                style={{ color: currentTheme.colors.primary }}
+              >
+                {item.prepMode || 'Traditional Military Dum'}
+              </span>
+            </div>
           )}
-          <span
-            className="mt-2 font-mono text-xs font-black uppercase tracking-wider"
-            style={{ color: currentTheme.colors.primary }}
-          >
-            {item.prepMode || 'Traditional Military Dum'}
-          </span>
 
           {item.badge && !isSoldOut && (
             <div
-              className="absolute top-3 right-3 rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-wider shadow-xs"
+              className="absolute top-3 right-3 z-10 rounded-full px-3 py-1 text-[9px] font-black uppercase tracking-wider shadow-xs"
               style={{
                 backgroundColor: currentTheme.colors.primary,
                 color: currentTheme.colors.primaryFg,
@@ -114,7 +143,7 @@ export const Screen3ItemDetail: React.FC = () => {
           )}
 
           {isSoldOut && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/60 font-mono text-sm font-black uppercase tracking-wider text-rose-300">
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/60 font-mono text-sm font-black uppercase tracking-wider text-rose-300">
               Sold Out
             </div>
           )}

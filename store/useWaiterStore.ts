@@ -4,6 +4,7 @@ import {
 } from '../types/waiter';
 import { MenuItem, CartItem } from '../types/customer';
 import { useSharedBridge, SharedTable, SharedPing, SharedKDSTicket } from './useSharedBridge';
+import { waiterLocalOutbox } from '../lib/waiterOutbox';
 
 export type { SharedTable as FloorTable, SharedPing as WaiterCustomerPing };
 
@@ -120,6 +121,24 @@ export const useWaiterStore = create<WaiterStoreState>((set, get) => ({
     if (table && table.status === 'VACANT') {
       bridge.waiterSeatsGuests(selectedTableNumber, 1, activeCaptain || 'Captain');
     }
+
+    // Enqueue into persistent local outbox to guarantee delivery under intermittent dead zones
+    waiterLocalOutbox.enqueue({
+      type: 'FIRE_KOT',
+      payload: {
+        tableNumber: selectedTableNumber,
+        seatNumber: 1,
+        source: 'WAITER',
+        guestName: activeCaptain || 'Floor Captain',
+        items: orderCart.map((ci) => ({
+          id: ci.menuItem.id,
+          name: ci.menuItem.name,
+          quantity: ci.quantity,
+          selectedOption: ci.selectedOption,
+          addOns: ci.selectedAddOns,
+        })),
+      },
+    });
 
     set({ orderCart: [], currentScreen: 3 });
   },

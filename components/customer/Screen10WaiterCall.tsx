@@ -235,6 +235,48 @@ export const Screen10WaiterCall: React.FC = () => {
           )}
         </AnimatePresence>
 
+        {/* Heritage Concierge Table Chime */}
+        <div className="relative overflow-hidden rounded-[30px] border border-amber-500/35 bg-gradient-to-br from-amber-950/50 via-stone-900/90 to-black/95 p-5 text-center shadow-[0_16px_36px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+          <div className="flex flex-col items-center justify-center">
+            <motion.button
+              whileTap={{ scale: 0.92, rotate: -2 }}
+              onClick={() => handlePing('GENERAL CALL')}
+              className="relative flex h-16 w-16 items-center justify-center rounded-3xl border border-amber-400/50 bg-gradient-to-b from-amber-500/30 to-amber-950/60 shadow-[0_0_25px_rgba(245,158,11,0.35)] transition-all cursor-pointer hover:border-amber-300"
+            >
+              <Sparkles className="h-7 w-7 text-amber-300 drop-shadow-sm animate-pulse" />
+              <div className="absolute inset-0 rounded-3xl border border-amber-300/30 animate-ping pointer-events-none opacity-40" />
+            </motion.button>
+            <h3 className="mt-3 text-sm font-bold font-serif-luxury text-amber-100">
+              Heritage Service Chime
+            </h3>
+            <p className="text-[10.5px] text-stone-400 max-w-[240px] mt-0.5">
+              Tap chime to ring table bell for Floor Captain Suresh
+            </p>
+          </div>
+
+          {/* Contextual Rapid Assistance Chips */}
+          <div className="mt-4 pt-3.5 border-t border-amber-500/15 flex flex-wrap gap-1.5 justify-center">
+            {[
+              'Extra Biryani Sherva',
+              'Sliced Lime & Onion',
+              'Warm Finger Bowl',
+              'Banana Leaf Change',
+            ].map((chip) => (
+              <button
+                key={chip}
+                type="button"
+                onClick={() => {
+                  setCustomText(chip);
+                  pingWaiter('GENERAL CALL', chip);
+                }}
+                className="rounded-full px-2.5 py-1 text-[10px] font-bold border border-amber-500/30 bg-black/40 text-amber-200/90 hover:border-amber-400 hover:text-amber-100 transition active:scale-95"
+              >
+                + {chip}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Quick Ping Buttons */}
         <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-b from-stone-900/80 to-black/90 p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] backdrop-blur-xl">
           <div className="mb-3 text-xs font-bold uppercase tracking-widest text-amber-200 font-serif-luxury">

@@ -60,28 +60,17 @@ export const Screen4Cart: React.FC = () => {
   const isVegItem = (name: string, category?: string) => {
     const lowerName = name.toLowerCase();
     const lowerCat = (category || '').toLowerCase();
-    return lowerCat === 'desserts' || lowerName.includes('paneer') || lowerName.includes('veg');
+    if (lowerName.includes('chicken') || lowerName.includes('mutton') || lowerName.includes('booti') || lowerName.includes('keema') || lowerName.includes('kaalu') || lowerName.includes('kabab') || lowerName.includes('liver')) {
+      return false;
+    }
+    return lowerCat === 'desserts' || lowerCat === 'beverages' || lowerName.includes('paneer') || lowerName.includes('idli') || lowerName.includes('dosa') || lowerName.includes('veg');
   };
 
   return (
     <ScreenHousing screenNumber={4} screenTitle="ORDER REVIEW & CART">
       {/* Header */}
       <WireHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span>Order Cart</span>
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.secondaryFg,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
-              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
-            </span>
-          </span>
-        }
+        title={<span>Order Cart</span>}
         leftSubtitle={venueName.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(2)}
@@ -125,6 +114,17 @@ export const Screen4Cart: React.FC = () => {
               </div>
               <span className="rounded-full px-3 py-1 text-[10px] font-bold border border-amber-400/40 bg-amber-500/10 text-amber-300">
                 Active Order
+              </span>
+            </div>
+
+            {/* Fine Dining Table Distinction */}
+            <div className="mt-3.5 pt-3 border-t border-amber-500/15 flex items-center justify-between text-[10.5px]">
+              <span className="flex items-center gap-1.5 text-stone-400">
+                <span className="h-2 w-2 rounded-full bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.8)]" />
+                <span>Preparation Mode:</span>
+              </span>
+              <span className="font-serif-luxury font-bold text-amber-300">
+                Fresh Military Deg & Handi
               </span>
             </div>
           </div>
@@ -255,17 +255,18 @@ export const Screen4Cart: React.FC = () => {
                       </div>
 
                       {!isOrdered && (
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
                           <button
                             onClick={() => handleSeparateOrder(ci.cartItemId, ci.menuItem.name)}
-                            className="flex items-center gap-1 text-[11px] font-bold text-amber-300/90 hover:text-amber-200 transition"
+                            className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10.5px] font-bold border border-amber-400/50 bg-gradient-to-r from-amber-500/20 to-amber-950/40 text-amber-200 shadow-[0_0_10px_rgba(245,158,11,0.2)] hover:border-amber-300 transition active:scale-95"
                           >
-                            <Flame className="h-3.5 w-3.5 text-amber-400" />
-                            <span>Priority</span>
+                            <Flame className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
+                            <span>Fire First</span>
                           </button>
                           <button
                             onClick={() => removeCartItem(ci.cartItemId)}
-                            className="flex items-center gap-1 text-[11px] font-semibold text-rose-400 hover:text-rose-300 transition"
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-stone-500 hover:text-rose-400 hover:bg-rose-500/10 transition"
+                            title="Remove delicacy"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>

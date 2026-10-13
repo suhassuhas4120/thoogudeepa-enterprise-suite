@@ -275,7 +275,7 @@ export const INITIAL_MENU_ITEMS: MenuItem[] = [
     badge: 'Popular',
     description: 'Two succulent whole chicken drumsticks marinated in aromatic spices and roasted to tenderness.',
     imagePlaceholder: 'CHICKEN LEG PIECE (2PCS)',
-    image: '/images/dishes/chicken-leg-piece.webp',
+    image: '/images/dishes/chicken-leg-piece-2pcs.webp',
     prepMode: 'Tandoori Roast',
     optionsGroup1: {
       title: 'Preparation',
@@ -293,7 +293,7 @@ export const INITIAL_MENU_ITEMS: MenuItem[] = [
     category: 'Starters',
     description: 'Single tender whole chicken drumstick seasoned and roasted in traditional military masala.',
     imagePlaceholder: 'CHICKEN LEG PIECE (1PC)',
-    image: '/images/dishes/chicken-leg-piece.webp',
+    image: '/images/dishes/chicken-leg-piece-1pc.webp',
     prepMode: 'Tandoori Roast',
     optionsGroup1: {
       title: 'Preparation',

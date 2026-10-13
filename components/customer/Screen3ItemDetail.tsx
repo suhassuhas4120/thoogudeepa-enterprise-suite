@@ -56,21 +56,7 @@ export const Screen3ItemDetail: React.FC = () => {
     <ScreenHousing screenNumber={3} screenTitle="ITEM DETAILS">
       {/* Header */}
       <WireHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span>Delicacy Details</span>
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.secondaryFg,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
-              {tableNumber} • C-{String(seatNumber || 1).padStart(2, '0')}
-            </span>
-          </span>
-        }
+        title={<span>Delicacy Details</span>}
         leftSubtitle={venueName.toUpperCase()}
         showBack={true}
         onBack={() => setCurrentScreen(2)}
@@ -166,33 +152,85 @@ export const Screen3ItemDetail: React.FC = () => {
                 Select 1
               </span>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {item.optionsGroup1.choices.map((choice, idx) => {
+            <div className="grid grid-cols-2 gap-3">
+              {item.optionsGroup1.choices.map((choice) => {
                 const isSelected = selectedOption === choice;
-                const gemGradients = [
-                  'from-emerald-400 to-emerald-700',
-                  'from-amber-300 to-amber-700',
-                  'from-rose-400 to-rose-700',
-                ];
-                const gemTone = gemGradients[idx % 3];
+                const lowerChoice = choice.toLowerCase();
+                const groupTitle = (item.optionsGroup1?.title || '').toLowerCase();
+                const isSpiceOrHeat = groupTitle.includes('spice') || groupTitle.includes('pepper') || groupTitle.includes('heat') || groupTitle.includes('chilli');
+
+                // Determine subtle culinary indicator
+                const isFiery = lowerChoice.includes('hot') || lowerChoice.includes('fiery') || lowerChoice.includes('guntur') || lowerChoice.includes('extra') || lowerChoice.includes('high');
+                const isMild = lowerChoice.includes('mild') || lowerChoice.includes('warm') || lowerChoice.includes('balanced') || lowerChoice.includes('medium');
 
                 return (
-                  <div
+                  <button
                     key={choice}
+                    type="button"
                     onClick={() => setSelectedOption(choice)}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl cursor-pointer border transition-all text-center ${
+                    className={`relative flex flex-col items-start justify-center p-3.5 rounded-2xl cursor-pointer border text-left transition-all duration-300 ${
                       isSelected
-                        ? 'border-amber-400 bg-gradient-to-b from-amber-500/30 to-amber-900/40 shadow-[0_0_20px_rgba(245,158,11,0.35)]'
-                        : 'border-white/10 bg-white/5 hover:border-amber-400/30'
+                        ? 'border-amber-400/90 bg-gradient-to-b from-amber-500/15 via-amber-950/25 to-stone-900/90 shadow-[0_0_20px_rgba(245,158,11,0.22)]'
+                        : 'border-white/10 bg-stone-900/40 hover:border-amber-400/30 hover:bg-stone-900/60'
                     }`}
                   >
-                    <div className={`h-7 w-7 rounded-xl bg-gradient-to-br ${gemTone} shadow-md flex items-center justify-center mb-1.5 border border-white/30`}>
-                      <Sparkles className="h-3.5 w-3.5 text-white drop-shadow-sm" />
+                    {/* Header line with radio dot and optional spice flame tier */}
+                    <div className="w-full flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-1.5">
+                        {isSpiceOrHeat && (
+                          <span className="flex items-center text-xs tracking-tight" aria-hidden="true">
+                            {isFiery ? (
+                              <span className="text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.6)]">🔥🔥🔥</span>
+                            ) : isMild ? (
+                              <span className="text-amber-500/80">🔥</span>
+                            ) : (
+                              <span className="text-amber-400/90">🔥🔥</span>
+                            )}
+                          </span>
+                        )}
+                        {!isSpiceOrHeat && (
+                          <span className={`text-[10px] font-mono uppercase tracking-wider ${isSelected ? 'text-amber-300' : 'text-stone-400'}`}>
+                            Option
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Bespoke Radio Disc */}
+                      <div
+                        className={`h-4 w-4 rounded-full border flex items-center justify-center transition-all ${
+                          isSelected
+                            ? 'border-amber-400 bg-amber-500/20 shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+                            : 'border-stone-600/60 bg-transparent'
+                        }`}
+                      >
+                        {isSelected && (
+                          <div className="h-1.5 w-1.5 rounded-full bg-amber-300 shadow-[0_0_4px_#fde68a]" />
+                        )}
+                      </div>
                     </div>
-                    <span className={`text-[11px] font-bold leading-tight ${isSelected ? 'text-amber-200' : 'text-stone-300'}`}>
+
+                    {/* Choice Title */}
+                    <span
+                      className={`text-xs font-semibold tracking-wide ${
+                        isSelected ? 'text-amber-100 font-serif-luxury' : 'text-stone-300'
+                      }`}
+                    >
                       {choice}
                     </span>
-                  </div>
+
+                    {/* Subtitle explaining the choice clearly */}
+                    <span className="mt-1 text-[10px] font-mono text-stone-400/90">
+                      {isSpiceOrHeat
+                        ? isFiery
+                          ? 'High Heat • Military Spiced'
+                          : isMild
+                          ? 'Mild & Balanced Masala'
+                          : 'Traditional Heritage Spice'
+                        : isSelected
+                        ? 'Selected Choice'
+                        : 'Tap to Choose'}
+                    </span>
+                  </button>
                 );
               })}
             </div>
@@ -242,6 +280,22 @@ export const Screen3ItemDetail: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Master Culinary Pairing Recommendation */}
+        <div className="rounded-[28px] border border-amber-500/25 bg-gradient-to-r from-amber-950/40 via-stone-900/80 to-black/90 p-4 shadow-sm backdrop-blur-md">
+          <div className="flex items-center gap-2 mb-1.5">
+            <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-300 font-mono">
+              Chef's Recommended Harmony
+            </span>
+          </div>
+          <p className="text-xs text-stone-300 font-medium leading-relaxed">
+            {item.name.toLowerCase().includes('soup')
+              ? 'Traditional Pair: Savor piping-hot alongside 2 Steamed Rice Idlis or hot Kuska Rice for authentic bone marrow infusion.'
+              : item.name.toLowerCase().includes('biryani')
+              ? 'Traditional Pair: Best savored with hot Boti Gojju or refreshing curd pachadi to balance rich woodsmoke spices.'
+              : 'Traditional Pair: Pair with slow-simmered Donne Biryani Rice and cold spiced buttermilk.'}
+          </p>
+        </div>
 
         {/* Quantity Stepper (Brass Stepper Counter) */}
         <div className="flex items-center justify-between rounded-[24px] border border-amber-500/25 bg-black/40 p-4 backdrop-blur-md">

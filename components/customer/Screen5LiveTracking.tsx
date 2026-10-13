@@ -78,6 +78,7 @@ const DISH_STAGES = [
   { key: 'RECEIVED', label: 'Received', icon: CheckCircle2 },
   { key: 'PREPARING', label: 'Preparing', icon: Flame },
   { key: 'READY', label: 'Ready', icon: UtensilsCrossed },
+  { key: 'SERVED', label: 'Served', icon: CheckCheck },
 ];
 
 export const Screen5LiveTracking: React.FC = () => {
@@ -139,7 +140,10 @@ export const Screen5LiveTracking: React.FC = () => {
 
   const isVegItem = (name: string) => {
     const lower = name.toLowerCase();
-    return lower.includes('dessert') || lower.includes('paneer') || lower.includes('veg') || lower.includes('salad');
+    if (lower.includes('chicken') || lower.includes('mutton') || lower.includes('booti') || lower.includes('keema') || lower.includes('kaalu') || lower.includes('kabab') || lower.includes('liver')) {
+      return false;
+    }
+    return lower.includes('dessert') || lower.includes('paneer') || lower.includes('veg') || lower.includes('salad') || lower.includes('idli') || lower.includes('dosa');
   };
 
   // Normalized table key for bridge lookups
@@ -573,21 +577,7 @@ export const Screen5LiveTracking: React.FC = () => {
     <ScreenHousing screenNumber={5} screenTitle="LIVE ORDER TRACKING">
       {/* Header */}
       <WireHeader
-        title={
-          <span className="inline-flex items-center gap-2">
-            <span>Live Order Tracking</span>
-            <span
-              className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black font-mono tracking-tight border"
-              style={{
-                backgroundColor: currentTheme.colors.secondaryBg,
-                color: currentTheme.colors.secondaryFg,
-                borderColor: currentTheme.colors.border,
-              }}
-            >
-              {effectiveTable} • C-{String(effectiveSeat).padStart(2, '0')}
-            </span>
-          </span>
-        }
+        title={<span>Live Order Tracking</span>}
         leftSubtitle={venueName?.toUpperCase()}
         showBack={false}
         showCallWaiter={true}
@@ -762,69 +752,65 @@ export const Screen5LiveTracking: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Matching 4-Stage Dish Live Progress Tracker: PLACED -> RECEIVED -> PREPARING -> READY */}
-                      <div className="pt-3 border-t border-white/10">
-                        <div className="relative flex justify-between items-center px-2">
-                          {/* Background connecting line */}
-                          <div className="absolute top-3.5 left-5 right-5 h-0.5 bg-stone-800 -z-0" />
+                      {/* Refined 5-Stage Complete Dining Lifecycle Tracker: Placed -> Received -> Preparing -> Ready -> Served */}
+                      <div className="pt-3 border-t border-amber-500/15">
+                        <div className="relative px-1">
+                          {/* Segmented Milestone Progress Line */}
+                          <div className="absolute top-3.5 left-4 right-4 h-0.5 bg-stone-800/90 z-0 overflow-hidden rounded-full">
+                            <div
+                              className="h-full bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400 transition-all duration-500 shadow-[0_0_10px_rgba(245,158,11,0.6)]"
+                              style={{
+                                width: `${(dishCurrentIdx / 4) * 100}%`,
+                              }}
+                            />
+                          </div>
 
-                          {/* Active fill line */}
-                          <div
-                            className="absolute top-3.5 left-5 h-0.5 bg-gradient-to-r from-amber-400 via-amber-300 to-emerald-400 -z-0 transition-all duration-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]"
-                            style={{
-                              width: `${Math.min(100, Math.max(0, (dishCurrentIdx / 3) * 88))}%`,
-                            }}
-                          />
+                          <div className="relative z-10 flex justify-between items-center">
+                            {DISH_STAGES.map((stg, stgIdx) => {
+                              const isPast = stgIdx < dishCurrentIdx;
+                              const isCurrent = stgIdx === dishCurrentIdx;
+                              const Icon = stg.icon;
 
-                          {DISH_STAGES.map((stg, stgIdx) => {
-                            const isPast = stgIdx < dishCurrentIdx;
-                            const isCurrent = stgIdx === dishCurrentIdx;
-                            const isReceivedActive = isCurrent && stg.key === 'RECEIVED';
-                            const Icon = stg.icon;
-
-                            return (
-                              <div key={stg.key} className="relative z-10 flex flex-col items-center gap-1.5">
-                                <div
-                                  className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-black transition-all shadow-md ${
-                                    isPast
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-500/40'
-                                      : isReceivedActive
-                                      ? 'bg-teal-600 text-white ring-2 ring-teal-400 shadow-[0_0_12px_rgba(20,184,166,0.5)] animate-pulse'
-                                      : isCurrent && stg.key === 'PREPARING'
-                                      ? 'bg-gradient-to-br from-amber-500 to-amber-700 text-white ring-2 ring-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)] animate-pulse'
-                                      : isCurrent && stg.key === 'READY'
-                                      ? 'bg-emerald-600 text-white ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse'
-                                      : isCurrent
-                                      ? 'bg-amber-600 text-white ring-2 ring-amber-400'
-                                      : 'border border-stone-800 bg-stone-900 text-stone-500'
-                                  }`}
-                                >
-                                  {isPast ? (
-                                    <Check className="h-3.5 w-3.5 stroke-[3]" />
-                                  ) : (
-                                    <Icon className="h-3.5 w-3.5" />
-                                  )}
+                              return (
+                                <div key={stg.key} className="flex flex-col items-center gap-1.5">
+                                  <div
+                                    className={`flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-black transition-all shadow-md ${
+                                      isPast
+                                        ? 'bg-emerald-600 text-white ring-2 ring-emerald-500/50'
+                                        : isCurrent && stg.key === 'SERVED'
+                                        ? 'bg-emerald-500 text-stone-950 ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.7)]'
+                                        : isCurrent && stg.key === 'READY'
+                                        ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white ring-2 ring-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.6)] animate-pulse'
+                                        : isCurrent && stg.key === 'PREPARING'
+                                        ? 'bg-gradient-to-br from-amber-500 to-amber-700 text-white ring-2 ring-amber-400 shadow-[0_0_12px_rgba(245,158,11,0.6)] animate-pulse'
+                                        : isCurrent && stg.key === 'RECEIVED'
+                                        ? 'bg-teal-600 text-white ring-2 ring-teal-400 shadow-[0_0_12px_rgba(20,184,166,0.5)] animate-pulse'
+                                        : isCurrent
+                                        ? 'bg-amber-600 text-white ring-2 ring-amber-400'
+                                        : 'border border-stone-800 bg-stone-900/90 text-stone-500'
+                                    }`}
+                                  >
+                                    {isPast ? (
+                                      <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                    ) : (
+                                      <Icon className="h-3.5 w-3.5" />
+                                    )}
+                                  </div>
+                                  <span
+                                    className={`text-[9px] font-serif-luxury tracking-wide font-medium leading-none ${
+                                      isPast || isCurrent
+                                        ? isCurrent && stg.key === 'PREPARING'
+                                          ? 'text-amber-300 font-bold'
+                                          : 'text-emerald-300 font-bold'
+                                        : 'text-stone-500'
+                                    }`}
+                                  >
+                                    {stg.label}
+                                  </span>
                                 </div>
-                                <span
-                                  className={`text-[9.5px] font-serif-luxury tracking-wide font-medium leading-none ${
-                                    isPast
-                                      ? 'text-emerald-400 font-bold'
-                                      : isReceivedActive
-                                      ? 'text-teal-300 font-bold'
-                                      : isCurrent && stg.key === 'PREPARING'
-                                      ? 'text-amber-300 font-bold'
-                                      : isCurrent && stg.key === 'READY'
-                                      ? 'text-emerald-300 font-bold'
-                                      : isCurrent
-                                      ? 'text-amber-300 font-bold'
-                                      : 'text-stone-500'
-                                  }`}
-                                >
-                                  {stg.label}
-                                </span>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                     </motion.div>

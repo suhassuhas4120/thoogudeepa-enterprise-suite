@@ -318,6 +318,65 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
           )}
         </AnimatePresence>
 
+        {/* Heritage Dum Deg Live Editorial Spotlight (when on All or Chef Special) */}
+        {(selectedCategory === 'All' || selectedCategory === 'Chef Special') && !searchTerm && (
+          <div className="px-5 pt-1 pb-3">
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="relative overflow-hidden rounded-[30px] border border-amber-500/40 bg-gradient-to-br from-amber-950/60 via-stone-900/90 to-black/95 p-4 shadow-[0_16px_36px_rgba(0,0,0,0.7)] backdrop-blur-xl"
+            >
+              <div className="absolute top-0 right-0 w-36 h-36 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-2 w-2 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.9)]" />
+                  <span className="text-[10px] font-extrabold uppercase tracking-[0.2em] text-amber-300 font-mono">
+                    Heritage Dum Deg &bull; 1978 Daily Star
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex gap-3.5 items-center">
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border border-amber-500/30 bg-stone-950">
+                  <Image
+                    src="/images/dishes/mutton-biryani.webp"
+                    alt="Signature Dum Biryani"
+                    fill
+                    sizes="80px"
+                    className="object-cover object-center"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h4 className="text-sm font-bold font-serif-luxury text-amber-100 truncate">
+                    1978 Mutton Donne Dum Biryani
+                  </h4>
+                  <p className="text-[10.5px] text-stone-300 line-clamp-2 mt-0.5 leading-snug">
+                    Tender local cuts sealed in earthen handis with fragrant Seeraga Samba &amp; hand-ground black pepper.
+                  </p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-xs font-black font-mono text-amber-300">
+                      ₹340
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const target = menuItems.find((m) => m.name.toLowerCase().includes('mutton') && m.name.toLowerCase().includes('biryani')) || menuItems[0];
+                        if (target) handleOpenDetail(target);
+                      }}
+                      className="rounded-full px-3 py-1 text-[10px] font-bold tracking-wide uppercase text-amber-950 bg-gradient-to-r from-amber-400 to-amber-500 shadow-md hover:brightness-110 active:scale-95"
+                    >
+                      Taste Story &rarr;
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+
         {/* Menu Items Container */}
         {filteredItems.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center my-auto space-y-2.5">
@@ -428,6 +487,11 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                     <h3 className="line-clamp-2 text-sm font-bold leading-tight font-serif-luxury text-amber-100">
                       {item.name}
                     </h3>
+                    <div className="mt-1 flex items-center gap-1">
+                      <span className="text-[9px] font-medium text-amber-300/75 truncate font-mono">
+                        {item.prepMode || (item.category === 'Rice & Bowls' ? '12-Hr Dum' : 'Traditional')}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Price Badge & Sculpted Gold CTA */}

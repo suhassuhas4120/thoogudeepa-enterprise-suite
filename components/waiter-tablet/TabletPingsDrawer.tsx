@@ -82,7 +82,7 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
               </h2>
               <div className="flex items-center gap-2">
                 {activePings.length > 0 && (
-                  <span className="h-5 px-2 flex items-center bg-rose-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
+                  <span className="h-6 px-2.5 flex items-center bg-rose-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
                     {activePings.length} CALLS
                   </span>
                 )}
@@ -97,7 +97,7 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
             </div>
 
             {/* Pings list */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 font-mono">
               {activePings.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-stone-400 font-mono text-xs space-y-2">
                   <CheckCircle2 className="h-10 w-10 text-emerald-600 opacity-60" />
@@ -115,100 +115,111 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: 80, transition: { duration: 0.15 } }}
-                        className={`p-3.5 rounded-2xl shadow-xs space-y-2.5 relative touch-pan-y ${
+                        className={`p-4 rounded-2xl shadow-xs space-y-3 relative touch-pan-y ${
                           urgent
                             ? "bg-red-50/90 border-2 border-red-400 ring-2 ring-red-400/20"
                             : "bg-gradient-to-br from-amber-50/70 to-orange-50/50 border-2 border-orange-300"
                         }`}
                       >
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="space-y-1 min-w-0 flex-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span
-                                className={`font-mono text-xs font-black px-2 py-0.5 rounded-lg shadow-2xs ${
-                                  urgent
-                                    ? "text-red-950 bg-red-100 border border-red-300"
-                                    : p.type === "PAYMENT"
-                                    ? "text-purple-950 bg-purple-100 border border-purple-300"
-                                    : "text-orange-950 bg-orange-100 border border-orange-300"
-                                }`}
-                              >
-                                {p.tableNumber}
+                        {/* Table, Seat & Request Type Header */}
+                        <div className="flex items-center justify-between gap-2 flex-wrap font-mono">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`text-sm font-black px-2.5 py-0.5 rounded-lg shadow-2xs ${
+                                urgent
+                                  ? "text-red-950 bg-red-100 border border-red-300"
+                                  : p.type === "PAYMENT"
+                                  ? "text-purple-950 bg-purple-100 border border-purple-300"
+                                  : "text-orange-950 bg-orange-100 border border-orange-300"
+                              }`}
+                            >
+                              {p.tableNumber}
+                            </span>
+                            {p.seatNumber && (
+                              <span className="text-xs font-black text-amber-900 bg-amber-200 border border-amber-400 px-2 py-0.5 rounded-md">
+                                Chair {p.seatNumber}
                               </span>
-                              {p.seatNumber && (
-                                <span className="font-mono text-[10px] font-black text-amber-950 bg-amber-200 border border-amber-400 px-1.5 py-0.5 rounded-md">
-                                  Chair {p.seatNumber}
-                                </span>
-                              )}
-                              {p.type === "PAYMENT" ? (
-                                <span className="font-mono text-[10px] font-black uppercase text-purple-900 bg-purple-100 border border-purple-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                  <CreditCard className="h-2.5 w-2.5 text-purple-600" />
-                                  <span>Bill & Payment</span>
-                                </span>
-                              ) : (
-                                <span className="font-mono text-[10px] font-black uppercase text-amber-900 bg-white border border-amber-300 px-2 py-0.5 rounded-lg flex items-center gap-1">
-                                  <Bell className="h-2.5 w-2.5 text-amber-600" />
-                                  <span>{p.type} Request</span>
-                                </span>
-                              )}
-                              {urgent && (
-                                <span className="font-mono text-[9px] font-black uppercase text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full animate-pulse">
-                                  URGENT (&gt;2m)
-                                </span>
-                              )}
-                            </div>
-                            {p.guestName && (
-                              <p className="font-mono text-[10.5px] font-bold text-stone-800">
-                                Guest: {p.guestName}
-                              </p>
                             )}
-                            {p.message && (
-                              <p className="text-xs text-stone-700 italic font-sans bg-white/70 p-1.5 rounded-lg border border-orange-200">
-                                &ldquo;{p.message}&rdquo;
-                              </p>
+                          </div>
+
+                          <div className="flex items-center gap-1.5">
+                            {p.type === "PAYMENT" ? (
+                              <span className="text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                                <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                                <span>Bill Request</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs font-black text-amber-900 bg-white border border-amber-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
+                                <Bell className="h-3.5 w-3.5 text-amber-600" />
+                                <span>{p.type || "Service"} Request</span>
+                              </span>
                             )}
-                            <p className="font-mono text-[9.5px] text-stone-400 flex items-center gap-1">
-                              <Clock className="h-3 w-3" /> {p.timestamp || "Just now"}
-                            </p>
+                            {urgent && (
+                              <span className="text-[11px] font-black text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full animate-pulse">
+                                URGENT
+                              </span>
+                            )}
                           </div>
                         </div>
 
-                        <div className="flex items-center justify-between pt-1 border-t border-orange-200/60">
-                          {onSelectTable ? (
-                            <button
+                        {/* Guest Name & Message */}
+                        {p.guestName && (
+                          <p className="font-mono text-xs font-bold text-stone-800">
+                            Guest: <span className="font-black text-stone-950">{p.guestName}</span>
+                          </p>
+                        )}
+                        {p.message && (
+                          <div className="p-3 bg-white/90 rounded-xl border border-orange-200 text-sm text-stone-900 font-sans shadow-2xs leading-snug">
+                            &ldquo;{p.message}&rdquo;
+                          </div>
+                        )}
+
+                        {/* Timestamp */}
+                        <div className="flex items-center justify-between text-xs font-mono text-stone-500 pt-0.5">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5 text-stone-400" />
+                            <span>{p.timestamp || "Just now"}</span>
+                          </span>
+                          <span className="text-stone-400 font-medium">Customer Assistance</span>
+                        </div>
+
+                        {/* Action Buttons: Clear, uncluttered, prominent */}
+                        <div className="space-y-2 pt-1 border-t border-orange-200/70">
+                          {p.type === "PAYMENT" && onSelectTable && (
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
                               type="button"
-                              onClick={() => handleFocusTable(p.tableNumber)}
-                              className="px-3 py-1.5 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold font-mono rounded-xl transition cursor-pointer flex items-center gap-1.5 active:scale-95 shadow-2xs"
+                              onClick={() => {
+                                handleResolvePing(p.id, p.tableNumber);
+                                handleFocusTable(p.tableNumber);
+                              }}
+                              className="w-full h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer"
                             >
-                              <Eye className="h-3.5 w-3.5 text-stone-500" />
-                              <span>Focus Table</span>
-                            </button>
-                          ) : (
-                            <div />
+                              <CreditCard className="h-4 w-4" />
+                              <span>Settle Table Bill →</span>
+                            </motion.button>
                           )}
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {p.type === "PAYMENT" && onSelectTable && (
-                              <motion.button
-                                whileTap={{ scale: 0.93 }}
+                          <div className="grid grid-cols-2 gap-2.5">
+                            {onSelectTable && (
+                              <button
                                 type="button"
-                                onClick={() => {
-                                  handleResolvePing(p.id, p.tableNumber);
-                                  handleFocusTable(p.tableNumber);
-                                }}
-                                className="px-3.5 py-1.5 font-mono text-xs font-black rounded-xl shadow-xs transition shrink-0 flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer"
+                                onClick={() => handleFocusTable(p.tableNumber)}
+                                className="h-10 px-3 bg-white hover:bg-stone-50 border-2 border-stone-300 text-stone-800 text-xs font-bold font-mono rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
                               >
-                                <CreditCard className="h-3.5 w-3.5" />
-                                <span>Settle Bill →</span>
-                              </motion.button>
+                                <Eye className="h-4 w-4 text-stone-500" />
+                                <span>Open Table</span>
+                              </button>
                             )}
                             <motion.button
-                              whileTap={{ scale: 0.93 }}
+                              whileTap={{ scale: 0.95 }}
                               type="button"
                               onClick={() => handleResolvePing(p.id, p.tableNumber)}
-                              className="px-3.5 py-1.5 font-mono text-xs font-black rounded-xl shadow-xs transition shrink-0 flex items-center gap-1 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white cursor-pointer"
+                              className={`h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white cursor-pointer ${
+                                !onSelectTable ? "col-span-2" : ""
+                              }`}
                             >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
+                              <CheckCircle2 className="h-4 w-4" />
                               <span>Attended ✓</span>
                             </motion.button>
                           </div>

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Clock, CheckCircle2 } from 'lucide-react';
+import { X, Clock, CheckCircle2, Eye } from 'lucide-react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 
 interface Props {
@@ -23,26 +23,8 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
     }
   }, [feedbackToast]);
 
-  // Kitchen Ready Notifications matching mobile waiter logic exactly
-  interface ReadyItemNotif {
-    type: 'SINGLE';
-    id: string;
-    ticketId: string;
-    tableNumber: string;
-    seatNumber?: number;
-    serverName: string;
-    timestamp: string;
-    item: {
-      id: string;
-      name: string;
-      quantity: number;
-      options?: string;
-    };
-  }
-
-  interface ReadyGroupNotif {
-    type: 'COMBINED';
-    id: string;
+  // Aggregate ready tickets
+  interface ReadyTicketGroup {
     ticketId: string;
     tableNumber: string;
     seatNumber?: number;
@@ -56,22 +38,18 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
     }>;
   }
 
-  type ReadyNotif = ReadyItemNotif | ReadyGroupNotif;
-
-  const readyNotifications: ReadyNotif[] = [];
+  const readyGroups: ReadyTicketGroup[] = [];
 
   kdsTickets.forEach((tk) => {
     if (tk.status === 'COMPLETED' || tk.status === 'SERVED') return;
     const unservedItems = (tk.items || []).filter((it) => it.stage !== 'SERVED');
     if (unservedItems.length === 0) return;
 
-    // A ticket is considered ready if either tk.status === 'READY' OR all unserved items are PLATED
-    const allReady = tk.status === 'READY' || unservedItems.every((it) => it.stage === 'PLATED');
+    // Ticket is ready if status is READY or all unserved items are PLATED
+    const isReady = tk.status === 'READY' || unservedItems.every((it) => it.stage === 'PLATED');
 
-    if (allReady) {
-      readyNotifications.push({
-        type: 'COMBINED',
-        id: `group-${tk.id}`,
+    if (isReady) {
+      readyGroups.push({
         ticketId: tk.id,
         tableNumber: tk.tableNumber,
         seatNumber: tk.seatNumber,
@@ -85,35 +63,33 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
         })),
       });
     } else {
-      unservedItems.forEach((it) => {
-        if (it.stage === 'PLATED' || tk.status === 'READY') {
-          readyNotifications.push({
-            type: 'SINGLE',
-            id: `item-${tk.id}-${it.id}`,
-            ticketId: tk.id,
-            tableNumber: tk.tableNumber,
-            seatNumber: it.seatNumber || tk.seatNumber,
-            serverName: tk.serverName,
-            timestamp: tk.timestamp,
-            item: {
-              id: it.id,
-              name: it.name,
-              quantity: it.quantity,
-              options: it.options,
-            },
-          });
-        }
-      });
+      // Also include individual plated items if partially ready
+      const platedItems = unservedItems.filter((it) => it.stage === 'PLATED');
+      if (platedItems.length > 0) {
+        readyGroups.push({
+          ticketId: tk.id,
+          tableNumber: tk.tableNumber,
+          seatNumber: tk.seatNumber,
+          serverName: tk.serverName,
+          timestamp: tk.timestamp,
+          items: platedItems.map((it) => ({
+            id: it.id,
+            name: it.name,
+            quantity: it.quantity,
+            options: it.options,
+          })),
+        });
+      }
     }
   });
 
-  const handleServeSingleItem = (ticketId: string, itemId: string, tableNum: string, itemName: string) => {
-    setFeedbackToast(`✓ Table ${tableNum}: ${itemName} served`);
-    waiterMarkKitchenItemServed(ticketId, itemId);
-  };
-
-  const handleServeGroup = (ticketId: string, tableNum: string, items: Array<{ id: string }>) => {
-    setFeedbackToast(`✓ Table ${tableNum}: All dishes served`);
+  const handleServeTicket = (
+    ticketId: string,
+    tableNum: string,
+    items: Array<{ id: string; name: string }>
+  ) => {
+    const label = items.length > 1 ? 'All dishes' : items[0]?.name || 'Dish';
+    setFeedbackToast(`✓ Table ${tableNum}: ${label} served`);
     items.forEach((it) => waiterMarkKitchenItemServed(ticketId, it.id));
   };
 
@@ -145,9 +121,9 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
                 Kitchen Pickup
               </h2>
               <div className="flex items-center gap-2">
-                {readyNotifications.length > 0 && (
-                  <span className="h-5 px-2 flex items-center bg-emerald-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
-                    {readyNotifications.length} READY
+                {readyGroups.length > 0 && (
+                  <span className="h-6 px-2.5 flex items-center bg-emerald-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
+                    {readyGroups.length} READY
                   </span>
                 )}
                 <button
@@ -160,9 +136,9 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
               </div>
             </div>
 
-            {/* Ready Notifications List */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono">
-              {readyNotifications.length === 0 ? (
+            {/* Ready List */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 font-mono">
+              {readyGroups.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-stone-400 font-mono text-xs space-y-2">
                   <Clock className="h-10 w-10 text-emerald-500 opacity-60" />
                   <p className="font-bold text-stone-700 text-sm">Pass is clear</p>
@@ -170,166 +146,103 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
                 </div>
               ) : (
                 <AnimatePresence>
-                  {readyNotifications.map((notif) => {
-                    if (notif.type === 'COMBINED') {
-                      return (
-                        <motion.div
-                          key={notif.id}
-                          initial={{ opacity: 0, y: 8 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, x: 80, transition: { duration: 0.15 } }}
-                          className="p-4 rounded-2xl shadow-xs space-y-2.5 bg-white border-2 border-emerald-400 ring-2 ring-emerald-400/20"
-                        >
-                          <div className="flex items-center justify-between font-mono text-xs">
-                            <div className="flex items-center gap-2">
-                              <span className="font-black text-emerald-950 text-sm">
-                                {notif.tableNumber}
-                              </span>
-                              {notif.seatNumber && (
-                                <span className="text-[10px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded">
-                                  Chair {notif.seatNumber}
-                                </span>
-                              )}
-                              <span className="text-stone-400 text-[10px]">
-                                • KOT #{notif.ticketId.slice(-4)}
-                              </span>
-                            </div>
-                            <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-lg animate-pulse">
-                              ALL DISHES READY
-                            </span>
-                          </div>
+                  {readyGroups.map((group) => {
+                    const isMultiple = group.items.length > 1;
 
-                          <div className="space-y-1.5 pt-0.5 border-y border-dashed border-stone-200 py-2">
-                            {notif.items.map((it, idx) => (
-                              <div key={idx} className="flex items-center justify-between font-mono text-xs text-stone-800">
-                                <div>
-                                  <strong>{it.quantity}×</strong> {it.name}
-                                  {it.options && (
-                                    <span className="text-[10px] text-stone-400 font-normal ml-1">
-                                      ({it.options})
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                                    READY
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleServeSingleItem(notif.ticketId, it.id, notif.tableNumber, it.name)}
-                                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-mono text-[11px] font-black transition cursor-pointer flex items-center gap-1 active:scale-95 shadow-2xs"
-                                    title="Serve item"
-                                  >
-                                    <CheckCircle2 className="h-3 w-3 stroke-[2.5]" />
-                                    <span>Serve</span>
-                                  </button>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-
-                          <div className="flex items-center justify-between pt-1">
-                            <p className="font-mono text-[10px] text-stone-400">
-                              {notif.serverName ? `Server: ${notif.serverName} · ` : ''}{notif.timestamp}
-                            </p>
-                            <div className="flex items-center gap-2">
-                              {onFocusTable && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    onFocusTable(notif.tableNumber);
-                                    onClose();
-                                  }}
-                                  className="px-3 py-1.5 font-mono text-xs font-bold rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 transition cursor-pointer shadow-2xs active:scale-95"
-                                >
-                                  Open Table
-                                </button>
-                              )}
-                              <motion.button
-                                whileTap={{ scale: 0.93 }}
-                                type="button"
-                                onClick={() => handleServeGroup(notif.ticketId, notif.tableNumber, notif.items)}
-                                className="px-3.5 py-1.5 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
-                              >
-                                <CheckCircle2 className="h-3.5 w-3.5" />
-                                <span>Serve All to Table ✓</span>
-                              </motion.button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      );
-                    }
-
-                    // Single item notification
                     return (
                       <motion.div
-                        key={notif.id}
+                        key={group.ticketId}
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: 80, transition: { duration: 0.15 } }}
-                        className="p-3.5 rounded-2xl shadow-xs space-y-2.5 bg-white border-2 border-emerald-300"
+                        className="p-4 rounded-2xl shadow-xs space-y-3 bg-white border-2 border-emerald-400 ring-2 ring-emerald-400/20"
                       >
-                        <div className="flex items-center justify-between font-mono text-xs">
+                        {/* Table, Seat & Ticket Header */}
+                        <div className="flex items-center justify-between font-mono">
                           <div className="flex items-center gap-2">
-                            <span className="font-black text-stone-900 text-sm">
-                              {notif.tableNumber}
+                            <span className="font-black text-emerald-950 text-sm bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-lg">
+                              {group.tableNumber}
                             </span>
-                            {notif.seatNumber && (
-                              <span className="text-[10px] font-black text-amber-900 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded">
-                                Chair {notif.seatNumber}
+                            {group.seatNumber && (
+                              <span className="text-xs font-black text-amber-900 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md">
+                                Chair {group.seatNumber}
                               </span>
                             )}
-                            <span className="text-stone-400 text-[10px]">
-                              • KOT #{notif.ticketId.slice(-4)}
+                            <span className="text-stone-400 text-xs font-semibold">
+                              • KOT #{group.ticketId.slice(-4)}
                             </span>
                           </div>
-                          <span className="text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-lg animate-pulse">
-                            READY TO PASS
+                          <span className="text-[11px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 rounded-lg animate-pulse">
+                            {isMultiple ? 'ALL DISHES READY' : 'READY TO PASS'}
                           </span>
                         </div>
 
-                        <div className="flex items-center justify-between font-mono text-xs text-stone-900 py-1.5 border-y border-dashed border-stone-200">
-                          <div className="font-black">
-                            <span className="text-emerald-700 mr-1.5 font-black">{notif.item.quantity}×</span>
-                            <span>{notif.item.name}</span>
-                            {notif.item.options && (
-                              <span className="text-[10px] text-stone-400 font-normal ml-1">
-                                ({notif.item.options})
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-emerald-700 font-bold text-[10px] bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded shrink-0">
-                            READY
-                          </span>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-0.5">
-                          <p className="font-mono text-[10px] text-stone-400">
-                            {notif.serverName ? `Server: ${notif.serverName} · ` : ''}{notif.timestamp}
-                          </p>
-                          <div className="flex items-center gap-2">
-                            {onFocusTable && (
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  onFocusTable(notif.tableNumber);
-                                  onClose();
-                                }}
-                                className="px-3 py-1.5 font-mono text-xs font-bold rounded-xl border border-stone-300 hover:bg-stone-100 text-stone-700 transition cursor-pointer shadow-2xs active:scale-95"
-                              >
-                                Open Table
-                              </button>
-                            )}
-                            <motion.button
-                              whileTap={{ scale: 0.93 }}
-                              type="button"
-                              onClick={() => handleServeSingleItem(notif.ticketId, notif.item.id, notif.tableNumber, notif.item.name)}
-                              className="px-3 py-1.5 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
+                        {/* Food Items List - clean & clear, NO per-item serve button */}
+                        <div className="space-y-2 py-2.5 border-y border-dashed border-stone-200 font-mono">
+                          {group.items.map((it, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between text-xs text-stone-900"
                             >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              <span>Serve to Table ✓</span>
-                            </motion.button>
-                          </div>
+                              <div className="flex items-center gap-2 min-w-0 pr-2">
+                                <span className="font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md text-xs shrink-0">
+                                  {it.quantity}×
+                                </span>
+                                <span className="font-bold text-stone-900 truncate text-xs">
+                                  {it.name}
+                                </span>
+                                {it.options && (
+                                  <span className="text-[11px] text-stone-500 font-normal">
+                                    ({it.options})
+                                  </span>
+                                )}
+                              </div>
+                              <span className="text-emerald-700 font-bold text-[11px] bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md shrink-0">
+                                READY
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Timestamp & Server */}
+                        <div className="flex items-center justify-between text-xs font-mono text-stone-500 pt-0.5">
+                          <span className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5 text-stone-400" />
+                            <span>{group.timestamp || 'Just now'}</span>
+                          </span>
+                          {group.serverName && (
+                            <span>
+                              Server: <strong className="text-stone-700">{group.serverName}</strong>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Action Buttons Row: Open Table & Serve All side-by-side in a proper row */}
+                        <div className="grid grid-cols-2 gap-2.5 pt-1">
+                          {onFocusTable && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                onFocusTable(group.tableNumber);
+                                onClose();
+                              }}
+                              className="h-10 px-3 bg-white hover:bg-stone-50 border-2 border-stone-300 text-stone-800 font-mono text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
+                            >
+                              <Eye className="h-4 w-4 text-stone-500" />
+                              <span>Open Table</span>
+                            </button>
+                          )}
+                          <motion.button
+                            whileTap={{ scale: 0.95 }}
+                            type="button"
+                            onClick={() => handleServeTicket(group.ticketId, group.tableNumber, group.items)}
+                            className={`h-10 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs ${
+                              !onFocusTable ? 'col-span-2' : ''
+                            }`}
+                          >
+                            <CheckCircle2 className="h-4 w-4" />
+                            <span>{isMultiple ? 'Serve All ✓' : 'Serve to Table ✓'}</span>
+                          </motion.button>
                         </div>
                       </motion.div>
                     );

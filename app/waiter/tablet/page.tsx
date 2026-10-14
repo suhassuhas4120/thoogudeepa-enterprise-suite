@@ -1,48 +1,57 @@
-'use client';
+"use client";
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSharedBridge } from '../../../store/useSharedBridge';
-import { useWaiterStore } from '../../../store/useWaiterStore';
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useSharedBridge } from "../../../store/useSharedBridge";
+import { useWaiterStore } from "../../../store/useWaiterStore";
 import {
-  Bell, TrendingUp, Search, X, CheckCircle2, ChevronRight,
-  LogOut, Users, UtensilsCrossed, CreditCard, ChefHat
-} from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
+  Bell,
+  TrendingUp,
+  Search,
+  X,
+  CheckCircle2,
+  ChevronRight,
+  LogOut,
+  Users,
+  UtensilsCrossed,
+  CreditCard,
+  ChefHat,
+} from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
 
 // Tablet components
-import { TabletLoginPage } from '../../../components/waiter-tablet/TabletLoginPage';
-import { TabletFloorMap } from '../../../components/waiter-tablet/TabletFloorMap';
-import { TabletTableDetail } from '../../../components/waiter-tablet/TabletTableDetail';
-import { TabletPaymentPanel } from '../../../components/waiter-tablet/TabletPaymentPanel';
-import { Screen2Menu } from '../../../components/customer/Screen2Menu';
-import { TabletPingsDrawer } from '../../../components/waiter-tablet/TabletPingsDrawer';
-import { TabletPickupDrawer } from '../../../components/waiter-tablet/TabletPickupDrawer';
-import { TabletSplitModal } from '../../../components/waiter-tablet/TabletSplitModal';
-import { TabletMergeModal } from '../../../components/waiter-tablet/TabletMergeModal';
-import { TabletShiftModal } from '../../../components/waiter-tablet/TabletShiftModal';
+import { TabletLoginPage } from "../../../components/waiter-tablet/TabletLoginPage";
+import { TabletFloorMap } from "../../../components/waiter-tablet/TabletFloorMap";
+import { TabletTableDetail } from "../../../components/waiter-tablet/TabletTableDetail";
+import { TabletPaymentPanel } from "../../../components/waiter-tablet/TabletPaymentPanel";
+import { Screen2Menu } from "../../../components/customer/Screen2Menu";
+import { TabletPingsDrawer } from "../../../components/waiter-tablet/TabletPingsDrawer";
+import { TabletPickupDrawer } from "../../../components/waiter-tablet/TabletPickupDrawer";
+import { TabletSplitModal } from "../../../components/waiter-tablet/TabletSplitModal";
+import { TabletMergeModal } from "../../../components/waiter-tablet/TabletMergeModal";
+import { TabletShiftModal } from "../../../components/waiter-tablet/TabletShiftModal";
 
 // ── Tablet frame dimensions (iPad Pro 11" / Air Landscape resolution) ──────────
 const TAB_W = 1194;
 const TAB_H = 834;
 
 const SECTION_MATCH_MAP: Record<string, string[]> = {
-  'Section A': ['Express / Couple Hall', 'Section A'],
-  'Section B': ['Main Dining Hall', 'Section B'],
-  'Section C': ['Family Section', 'Section C'],
-  'Section D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
-  'SEC_A': ['Express / Couple Hall', 'Section A'],
-  'SEC_B': ['Main Dining Hall', 'Section B'],
-  'SEC_C': ['Family Section', 'Section C'],
-  'SEC_D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
+  "Section A": ["Express / Couple Hall", "Section A"],
+  "Section B": ["Main Dining Hall", "Section B"],
+  "Section C": ["Family Section", "Section C"],
+  "Section D": ["Courtyard Garden", "Grand Feast Hall", "Section D"],
+  SEC_A: ["Express / Couple Hall", "Section A"],
+  SEC_B: ["Main Dining Hall", "Section B"],
+  SEC_C: ["Family Section", "Section C"],
+  SEC_D: ["Courtyard Garden", "Grand Feast Hall", "Section D"],
 };
 
 // ── View state machine ─────────────────────────────────────────────────────
 type AppView =
-  | 'login'
-  | 'floor'           // Left: floor grid   | Right: floor summary
-  | 'table-detail';   // Left: table detail | Right: menu or payment panel
+  | "login"
+  | "floor" // Left: floor grid   | Right: floor summary
+  | "table-detail"; // Left: table detail | Right: menu or payment panel
 
-type RightPanelTab = 'menu' | 'payment';
+type RightPanelTab = "menu" | "payment";
 
 // ── Seat guests mini-modal ─────────────────────────────────────────────────
 function SeatGuestsModal({
@@ -68,7 +77,9 @@ function SeatGuestsModal({
           <p className="font-mono text-[10px] font-black uppercase tracking-widest text-[#9C3D1E]">
             Table Seating
           </p>
-          <h3 className="font-black text-stone-900 text-lg mt-0.5">Seat Guests — {tableNum}</h3>
+          <h3 className="font-black text-stone-900 text-lg mt-0.5">
+            Seat Guests — {tableNum}
+          </h3>
           <p className="font-mono text-xs text-stone-500 mt-1">
             Table Capacity: {table?.capacity || 4} Guests · {table?.section}
           </p>
@@ -83,14 +94,18 @@ function SeatGuestsModal({
             −
           </button>
           <div className="text-center">
-            <span className="font-black text-4xl text-stone-900 font-mono">{count}</span>
+            <span className="font-black text-4xl text-stone-900 font-mono">
+              {count}
+            </span>
             <p className="font-mono text-[9.5px] text-stone-400 font-bold uppercase mt-0.5">
-              {count === 1 ? 'Guest' : 'Guests'}
+              {count === 1 ? "Guest" : "Guests"}
             </p>
           </div>
           <button
             type="button"
-            onClick={() => setCount((c) => Math.min(table?.capacity || 8, c + 1))}
+            onClick={() =>
+              setCount((c) => Math.min(table?.capacity || 8, c + 1))
+            }
             className="h-12 w-12 rounded-2xl bg-stone-100 hover:bg-stone-200 font-black text-2xl flex items-center justify-center cursor-pointer transition text-stone-700"
           >
             +
@@ -119,18 +134,23 @@ function SeatGuestsModal({
 }
 
 export default function WaiterTabletPage() {
-  const { tables, pings, kdsTickets, shiftStats, waiterSeatsGuests } = useSharedBridge();
+  const { tables, pings, kdsTickets, shiftStats, waiterSeatsGuests } =
+    useSharedBridge();
   const { activeCaptain, setActiveCaptain } = useWaiterStore();
 
   // ── App state ──────────────────────────────────────────────────────────
-  const [view, setView] = useState<AppView>('login');
-  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('menu');
-  const [selectedTableNum, setSelectedTableNum] = useState<string>(tables[0]?.number ?? 'T-01');
-  const [assignedSection, setAssignedSection] = useState<string>('Section A');
-  const [sectionFilter, setSectionFilter] = useState<'MY' | 'ALL'>('MY');
-  const [selectedSection, setSelectedSection] = useState<string>('Section A');
-  const [selectedChair, setSelectedChair] = useState<'ALL' | number | string>('ALL');
-  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [view, setView] = useState<AppView>("login");
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>("menu");
+  const [selectedTableNum, setSelectedTableNum] = useState<string>(
+    tables[0]?.number ?? "T-01",
+  );
+  const [assignedSection, setAssignedSection] = useState<string>("Section A");
+  const [sectionFilter, setSectionFilter] = useState<"MY" | "ALL">("MY");
+  const [selectedSection, setSelectedSection] = useState<string>("Section A");
+  const [selectedChair, setSelectedChair] = useState<"ALL" | number | string>(
+    "ALL",
+  );
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   // Modals & Drawers
   const [callsOpen, setCallsOpen] = useState(false);
@@ -140,7 +160,10 @@ export default function WaiterTabletPage() {
   const [shiftOpen, setShiftOpen] = useState(false);
   const [seatOpen, setSeatOpen] = useState(false);
   const [confirmVacate, setConfirmVacate] = useState(false);
-  const [splitInfo, setSplitInfo] = useState<{ amount: number; label: string } | null>(null);
+  const [splitInfo, setSplitInfo] = useState<{
+    amount: number;
+    label: string;
+  } | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const openCallsDrawer = () => {
@@ -167,12 +190,12 @@ export default function WaiterTabletPage() {
       setScale(Number(s.toFixed(4)));
     };
     recalc();
-    window.addEventListener('resize', recalc);
-    return () => window.removeEventListener('resize', recalc);
+    window.addEventListener("resize", recalc);
+    return () => window.removeEventListener("resize", recalc);
   }, []);
 
-  const activePings = pings.filter((p) => p.status === 'PENDING');
-  const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
+  const activePings = pings.filter((p) => p.status === "PENDING");
+  const readyTickets = kdsTickets.filter((tk) => tk.status === "READY");
   const shiftRevenue = shiftStats?.totalRevenue || 0;
 
   // Chime + auto-open calls drawer on new customer assistance ping
@@ -187,10 +210,13 @@ export default function WaiterTabletPage() {
           [0, 0.18].forEach((off) => {
             const o = ctx.createOscillator();
             const g = ctx.createGain();
-            o.type = 'sine';
+            o.type = "sine";
             o.frequency.setValueAtTime(880, ctx.currentTime + off);
             g.gain.setValueAtTime(0.18, ctx.currentTime + off);
-            g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + off + 0.28);
+            g.gain.exponentialRampToValueAtTime(
+              0.001,
+              ctx.currentTime + off + 0.28,
+            );
             o.connect(g);
             g.connect(ctx.destination);
             o.start(ctx.currentTime + off);
@@ -207,27 +233,34 @@ export default function WaiterTabletPage() {
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
   }, []);
-  const onTouchEnd = useCallback((e: React.TouchEvent) => {
-    const endX = e.changedTouches[0].clientX;
-    const dx = touchStartX.current - endX;
-    const frameRect = frameRef.current?.getBoundingClientRect();
-    const frameRight = frameRect?.right ?? window.innerWidth;
-    const frameLeft = frameRect?.left ?? 0;
+  const onTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      const endX = e.changedTouches[0].clientX;
+      const dx = touchStartX.current - endX;
+      const frameRect = frameRef.current?.getBoundingClientRect();
+      const frameRight = frameRect?.right ?? window.innerWidth;
+      const frameLeft = frameRect?.left ?? 0;
 
-    // Swipe left from right edge (within 60px of frame right) -> open calls or pickup drawer
-    if (touchStartX.current > frameRight - 60 && dx > 40) {
-      if (activePings.length > 0) {
-        setCallsOpen(true);
-      } else {
-        setPickupOpen(true);
+      // Swipe left from right edge (within 60px of frame right) -> open calls or pickup drawer
+      if (touchStartX.current > frameRight - 60 && dx > 40) {
+        if (activePings.length > 0) {
+          setCallsOpen(true);
+        } else {
+          setPickupOpen(true);
+        }
       }
-    }
-    // Swipe right from left edge (within 60px of frame left) -> back to floor map
-    else if (touchStartX.current < frameLeft + 60 && dx < -40 && view === 'table-detail') {
-      setView('floor');
-      setConfirmVacate(false);
-    }
-  }, [activePings.length, view]);
+      // Swipe right from left edge (within 60px of frame left) -> back to floor map
+      else if (
+        touchStartX.current < frameLeft + 60 &&
+        dx < -40 &&
+        view === "table-detail"
+      ) {
+        setView("floor");
+        setConfirmVacate(false);
+      }
+    },
+    [activePings.length, view],
+  );
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -237,34 +270,36 @@ export default function WaiterTabletPage() {
   // ── Navigation helpers ─────────────────────────────────────────────────
   const selectTable = (num: string) => {
     setSelectedTableNum(num);
-    setSelectedChair('ALL');
+    setSelectedChair("ALL");
     setConfirmVacate(false);
     setSplitInfo(null);
 
     const targetTable = tables.find((t) => t.number === num);
-    if (!targetTable || targetTable.status === 'VACANT') {
+    if (!targetTable || targetTable.status === "VACANT") {
       // 2. When empty table clicked: right side should be menu page by default!
-      setRightPanelTab('menu');
+      setRightPanelTab("menu");
     } else {
       // 5. When non-vacant table clicked: right side should be payment page by default!
-      setRightPanelTab('payment');
+      setRightPanelTab("payment");
     }
-    setView('table-detail');
+    setView("table-detail");
   };
 
   const handleLogin = (captainName: string, section?: string) => {
     setActiveCaptain(captainName);
-    const sec = section && section !== 'ALL' ? section : 'ALL';
+    const sec = section && section !== "ALL" ? section : "ALL";
     setAssignedSection(sec);
-    if (sec !== 'ALL') {
-      setSectionFilter('MY');
+    if (sec !== "ALL") {
+      setSectionFilter("MY");
       setSelectedSection(sec);
     } else {
-      setSectionFilter('ALL');
-      setSelectedSection('ALL');
+      setSectionFilter("ALL");
+      setSelectedSection("ALL");
     }
-    setView('floor');
-    showToast(`Welcome ${captainName}! Shift active on ${sec === 'ALL' ? 'All Sections' : sec}`);
+    setView("floor");
+    showToast(
+      `Welcome ${captainName}! Shift active on ${sec === "ALL" ? "All Sections" : sec}`,
+    );
   };
 
   const handleVacate = () => {
@@ -274,40 +309,66 @@ export default function WaiterTabletPage() {
     }
     useSharedBridge.getState().waiterVacatesTable(selectedTableNum);
     setConfirmVacate(false);
-    setView('floor');
+    setView("floor");
     showToast(`Table ${selectedTableNum} cleared and vacated`);
   };
 
   const handleSeatGuests = (count: number) => {
-    waiterSeatsGuests(selectedTableNum, count, activeCaptain || 'Floor Captain');
+    waiterSeatsGuests(
+      selectedTableNum,
+      count,
+      activeCaptain || "Floor Captain",
+    );
     setSeatOpen(false);
     showToast(`${count} guests seated at ${selectedTableNum}`);
     // Keep on menu so waiter can immediately punch dishes
-    setRightPanelTab('menu');
+    setRightPanelTab("menu");
   };
 
   // Tables belonging to the active section (or all tables if ALL is selected)
   const sectionTables = tables.filter((t) => {
-    if (selectedSection && selectedSection !== 'ALL') {
+    if (selectedSection && selectedSection !== "ALL") {
       const allowed = SECTION_MATCH_MAP[selectedSection];
       if (allowed) {
-        return allowed.some((sec) => t.section.toLowerCase().includes(sec.toLowerCase()));
+        return allowed.some((sec) =>
+          t.section.toLowerCase().includes(sec.toLowerCase()),
+        );
       }
       return t.section.toLowerCase().includes(selectedSection.toLowerCase());
     }
     return true;
   });
 
-  const sectionTableNums = new Set(sectionTables.map((t) => t.number.toLowerCase()));
+  const sectionTableNums = new Set(
+    sectionTables.map((t) => t.number.toLowerCase()),
+  );
   const sectionReadyCount = readyTickets.filter(
-    (tk) => selectedSection === 'ALL' || sectionTableNums.has(tk.tableNumber.toLowerCase())
+    (tk) =>
+      selectedSection === "ALL" ||
+      sectionTableNums.has(tk.tableNumber.toLowerCase()),
   ).length;
 
   const stats = {
-    occupied: sectionTables.filter((t) => t.status === 'OCCUPIED').length,
-    vacant: sectionTables.filter((t) => t.status === 'VACANT').length,
-    billing: sectionTables.filter((t) => t.status === 'BILLING').length,
+    occupied: sectionTables.filter((t) => t.status === "OCCUPIED").length,
+    vacant: sectionTables.filter((t) => t.status === "VACANT").length,
+    billing: sectionTables.filter((t) => t.status === "BILLING").length,
   };
+
+  const totalFloorChairs = sectionTables.reduce(
+    (acc, t) =>
+      acc +
+      (t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity || 0),
+    0,
+  );
+  const totalOccupiedChairs = sectionTables.reduce((acc, t) => {
+    if (t.status === "OCCUPIED" || t.status === "BILLING") {
+      const cap =
+        t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity;
+      const occ = Math.min(cap, Math.max(1, t.guestCount || 1));
+      return acc + occ;
+    }
+    return acc;
+  }, 0);
 
   const currentTable = tables.find((t) => t.number === selectedTableNum);
 
@@ -326,25 +387,26 @@ export default function WaiterTabletPage() {
           width: TAB_W,
           height: TAB_H,
           transform: `scale(${scale})`,
-          transformOrigin: 'center center',
+          transformOrigin: "center center",
           flexShrink: 0,
           borderRadius: 28,
-          overflow: 'hidden',
-          boxShadow: '0 0 0 10px #27272A, 0 0 0 12px #3F3F46, 0 25px 65px -12px rgba(0, 0, 0, 0.75)',
-          background: '#FAF8F5',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: 'sans-serif',
-          position: 'relative',
-          willChange: 'transform',
-          WebkitFontSmoothing: 'antialiased',
+          overflow: "hidden",
+          boxShadow:
+            "0 0 0 10px #27272A, 0 0 0 12px #3F3F46, 0 25px 65px -12px rgba(0, 0, 0, 0.75)",
+          background: "#FAF8F5",
+          display: "flex",
+          flexDirection: "column",
+          fontFamily: "sans-serif",
+          position: "relative",
+          willChange: "transform",
+          WebkitFontSmoothing: "antialiased",
         }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
         {/* ── LOGIN VIEW ────────────────────────────────────────────────── */}
         <AnimatePresence mode="wait">
-          {view === 'login' && (
+          {view === "login" && (
             <motion.div
               key="login"
               initial={{ opacity: 0 }}
@@ -358,7 +420,7 @@ export default function WaiterTabletPage() {
         </AnimatePresence>
 
         {/* ── MAIN COCKPIT (shown for all non-login views) ──────────────── */}
-        {view !== 'login' && (
+        {view !== "login" && (
           <>
             {/* Toast */}
             <AnimatePresence>
@@ -380,31 +442,34 @@ export default function WaiterTabletPage() {
               {/* Brand / Captain Identity */}
               <div className="flex items-center gap-3">
                 <div className="h-9 w-9 rounded-2xl bg-[#9C3D1E] flex items-center justify-center text-white font-black text-base shrink-0 shadow-xs border border-amber-400/40">
-                  {(activeCaptain || 'F')[0]}
+                  {(activeCaptain || "F")[0]}
                 </div>
                 <div>
                   <p className="font-mono text-[9px] font-black uppercase tracking-widest text-[#9C3D1E] leading-none">
                     Floor Captain
                   </p>
                   <p className="text-sm font-black text-stone-950 leading-tight mt-0.5 font-mono">
-                    {activeCaptain || 'Captain'}
+                    {activeCaptain || "Captain"}
                     <span className="font-mono font-bold text-stone-500 text-[10px] ml-2">
-                      · {selectedSection === 'ALL' ? 'All Sections' : selectedSection}
+                      ·{" "}
+                      {selectedSection === "ALL"
+                        ? "All Sections"
+                        : selectedSection}
                     </span>
                   </p>
                 </div>
               </div>
 
               {/* Center switcher: Quick toggle between Menu and Payment tabs (Only in Table Detail view) */}
-              {view === 'table-detail' && (
+              {view === "table-detail" && (
                 <div className="flex items-center bg-stone-100 p-1 rounded-2xl border-2 border-stone-200 font-mono text-xs shadow-2xs">
                   <button
                     type="button"
-                    onClick={() => setRightPanelTab('menu')}
+                    onClick={() => setRightPanelTab("menu")}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition cursor-pointer ${
-                      rightPanelTab === 'menu'
-                        ? 'bg-[#9C3D1E] text-white shadow-xs'
-                        : 'text-stone-700 hover:text-stone-950'
+                      rightPanelTab === "menu"
+                        ? "bg-[#9C3D1E] text-white shadow-xs"
+                        : "text-stone-700 hover:text-stone-950"
                     }`}
                   >
                     <UtensilsCrossed className="h-4 w-4 stroke-[2.4]" />
@@ -412,11 +477,11 @@ export default function WaiterTabletPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRightPanelTab('payment')}
+                    onClick={() => setRightPanelTab("payment")}
                     className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition cursor-pointer ${
-                      rightPanelTab === 'payment'
-                        ? 'bg-purple-700 text-white shadow-xs'
-                        : 'text-stone-700 hover:text-stone-950'
+                      rightPanelTab === "payment"
+                        ? "bg-purple-700 text-white shadow-xs"
+                        : "text-stone-700 hover:text-stone-950"
                     }`}
                   >
                     <CreditCard className="h-4 w-4 stroke-[2.4]" />
@@ -429,15 +494,24 @@ export default function WaiterTabletPage() {
               <div className="flex items-center gap-2.5">
                 {/* Floor stats chips */}
                 <div className="flex items-center gap-3 font-mono text-xs font-black bg-stone-50 px-3.5 py-2 rounded-xl border-2 border-stone-200 shadow-2xs">
-                  <span className="flex items-center gap-1.5 text-amber-800" title="Occupied Dining">
+                  <span
+                    className="flex items-center gap-1.5 text-amber-800"
+                    title="Occupied Dining"
+                  >
                     <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
                     <span>{stats.occupied}</span>
                   </span>
-                  <span className="flex items-center gap-1.5 text-emerald-800" title="Vacant Ready">
+                  <span
+                    className="flex items-center gap-1.5 text-emerald-800"
+                    title="Vacant Ready"
+                  >
                     <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
                     <span>{stats.vacant}</span>
                   </span>
-                  <span className="flex items-center gap-1.5 text-purple-800" title="Billing Check">
+                  <span
+                    className="flex items-center gap-1.5 text-purple-800"
+                    title="Billing Check"
+                  >
                     <span className="h-2.5 w-2.5 rounded-full bg-purple-600" />
                     <span>{stats.billing}</span>
                   </span>
@@ -450,7 +524,9 @@ export default function WaiterTabletPage() {
                   className="flex items-center gap-1.5 px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-mono text-xs font-black transition cursor-pointer shadow-xs border border-stone-700"
                 >
                   <TrendingUp className="h-4 w-4 text-emerald-400 stroke-[2.4]" />
-                  <span>₹{shiftRevenue > 0 ? shiftRevenue.toLocaleString() : '0'}</span>
+                  <span>
+                    ₹{shiftRevenue > 0 ? shiftRevenue.toLocaleString() : "0"}
+                  </span>
                 </button>
 
                 {/* Separate Button 1: Customer Calls Drawer */}
@@ -459,10 +535,10 @@ export default function WaiterTabletPage() {
                   onClick={openCallsDrawer}
                   className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-mono text-xs font-black transition cursor-pointer ${
                     callsOpen
-                      ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                      ? "bg-rose-600 text-white border-rose-600 shadow-xs"
                       : activePings.length > 0
-                      ? 'bg-rose-50 border-rose-400 text-rose-800 shadow-xs'
-                      : 'bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100'
+                        ? "bg-rose-50 border-rose-400 text-rose-800 shadow-xs"
+                        : "bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100"
                   }`}
                   title="Customer Assistance Calls"
                 >
@@ -481,10 +557,10 @@ export default function WaiterTabletPage() {
                   onClick={openKitchenDrawer}
                   className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-mono text-xs font-black transition cursor-pointer ${
                     pickupOpen
-                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      ? "bg-blue-600 text-white border-blue-600 shadow-xs"
                       : readyTickets.length > 0
-                      ? 'bg-blue-50 border-blue-400 text-blue-800 shadow-xs'
-                      : 'bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100'
+                        ? "bg-blue-50 border-blue-400 text-blue-800 shadow-xs"
+                        : "bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100"
                   }`}
                   title="Kitchen Pickup Ready"
                 >
@@ -501,8 +577,8 @@ export default function WaiterTabletPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    setActiveCaptain('');
-                    setView('login');
+                    setActiveCaptain("");
+                    setView("login");
                   }}
                   className="p-2 hover:bg-stone-100 rounded-xl transition cursor-pointer text-stone-600 hover:text-stone-900 border border-stone-200"
                   title="End Shift"
@@ -517,7 +593,7 @@ export default function WaiterTabletPage() {
               {/* ════════════════════════════════════════════════════════
                   FLOOR VIEW (Left: grid | Right: floor summary)
               ════════════════════════════════════════════════════════ */}
-              {view === 'floor' && (
+              {view === "floor" && (
                 <>
                   {/* Left: Floor grid with section filter and search side-by-side (matching Waiter Mobile) */}
                   <div className="w-[62%] border-r-2 border-stone-200 flex flex-col overflow-hidden bg-[#FAF8F5]">
@@ -528,28 +604,36 @@ export default function WaiterTabletPage() {
                         <button
                           type="button"
                           onClick={() => {
-                            setSectionFilter('MY');
-                            setSelectedSection(assignedSection !== 'ALL' ? assignedSection : 'ALL');
+                            setSectionFilter("MY");
+                            setSelectedSection(
+                              assignedSection !== "ALL"
+                                ? assignedSection
+                                : "ALL",
+                            );
                           }}
                           className={`px-3.5 py-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                            sectionFilter === 'MY' && selectedSection !== 'ALL'
-                              ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                              : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                            sectionFilter === "MY" && selectedSection !== "ALL"
+                              ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs"
+                              : "bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100"
                           }`}
                           title={`Assigned Section: ${assignedSection}`}
                         >
-                          <span>{assignedSection !== 'ALL' ? `MY SECTION • ${assignedSection.toUpperCase()}` : 'MY SECTION'}</span>
+                          <span>
+                            {assignedSection !== "ALL"
+                              ? `MY SECTION • ${assignedSection.toUpperCase()}`
+                              : "MY SECTION"}
+                          </span>
                         </button>
                         <button
                           type="button"
                           onClick={() => {
-                            setSectionFilter('ALL');
-                            setSelectedSection('ALL');
+                            setSectionFilter("ALL");
+                            setSelectedSection("ALL");
                           }}
                           className={`px-3.5 py-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                            sectionFilter === 'ALL' || selectedSection === 'ALL'
-                              ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
-                              : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                            sectionFilter === "ALL" || selectedSection === "ALL"
+                              ? "bg-stone-900 text-white border-stone-900 shadow-xs"
+                              : "bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100"
                           }`}
                         >
                           <span>ALL TABLES</span>
@@ -569,7 +653,7 @@ export default function WaiterTabletPage() {
                         {searchQuery.length > 0 && (
                           <button
                             type="button"
-                            onClick={() => setSearchQuery('')}
+                            onClick={() => setSearchQuery("")}
                             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-0.5 rounded-full"
                             title="Clear search"
                           >
@@ -585,10 +669,10 @@ export default function WaiterTabletPage() {
                       onSelectTable={selectTable}
                       onSelectTableToPayment={(num) => {
                         setSelectedTableNum(num);
-                        setSelectedChair('ALL');
+                        setSelectedChair("ALL");
                         setSplitInfo(null);
-                        setRightPanelTab('payment');
-                        setView('table-detail');
+                        setRightPanelTab("payment");
+                        setView("table-detail");
                       }}
                       onOpenMerge={(num) => {
                         setSelectedTableNum(num);
@@ -599,41 +683,52 @@ export default function WaiterTabletPage() {
 
                   {/* Right: Floor summary */}
                   <div className="w-[38%] bg-white flex flex-col overflow-y-auto p-6 gap-4 font-sans">
-                    <div>
-                      <p className="font-mono text-xs font-black uppercase tracking-widest text-[#9C3D1E]">
-                        Floor Overview
-                      </p>
-                      <h2 className="text-xl font-black text-stone-950 mt-1">
-                        Select a table to begin
-                      </h2>
+                    <div className="flex items-center justify-between pb-1 border-b border-stone-200">
+                      <div>
+                        <h2 className="text-xl font-black text-stone-950 tracking-tight font-mono">
+                          Floor Overview
+                        </h2>
+                        <p className="font-mono text-xs text-stone-500 font-bold mt-0.5">
+                          {selectedSection === "ALL"
+                            ? "All Sections"
+                            : selectedSection}{" "}
+                          · Live Status
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-stone-100 border border-stone-300 font-mono text-xs font-bold text-stone-700">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span>{sectionTables.length} Tables</span>
+                      </div>
                     </div>
 
                     {/* Status cards - Ultra Sharp */}
                     <div className="grid grid-cols-2 gap-3 font-mono">
                       {[
                         {
-                          label: 'Dining',
+                          label: "Dining",
                           count: stats.occupied,
-                          color: 'bg-amber-50 border-amber-300 text-amber-950',
-                          dot: 'bg-amber-500',
+                          color: "bg-amber-50 border-amber-300 text-amber-950",
+                          dot: "bg-amber-500",
                         },
                         {
-                          label: 'Vacant',
+                          label: "Vacant",
                           count: stats.vacant,
-                          color: 'bg-emerald-50 border-emerald-300 text-emerald-950',
-                          dot: 'bg-emerald-500',
+                          color:
+                            "bg-emerald-50 border-emerald-300 text-emerald-950",
+                          dot: "bg-emerald-500",
                         },
                         {
-                          label: 'Billing',
+                          label: "Billing",
                           count: stats.billing,
-                          color: 'bg-purple-50 border-purple-300 text-purple-950',
-                          dot: 'bg-purple-600',
+                          color:
+                            "bg-purple-50 border-purple-300 text-purple-950",
+                          dot: "bg-purple-600",
                         },
                         {
-                          label: 'Ready Pass',
+                          label: "Ready Pass",
                           count: sectionReadyCount,
-                          color: 'bg-blue-50 border-blue-300 text-blue-950',
-                          dot: 'bg-blue-600',
+                          color: "bg-blue-50 border-blue-300 text-blue-950",
+                          dot: "bg-blue-600",
                         },
                       ].map((s) => (
                         <div
@@ -641,71 +736,129 @@ export default function WaiterTabletPage() {
                           className={`p-4 rounded-2xl border-2 ${s.color} flex flex-col gap-1 shadow-2xs`}
                         >
                           <div className="flex items-center gap-2">
-                            <span className={`h-2.5 w-2.5 rounded-full ${s.dot}`} />
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full ${s.dot}`}
+                            />
                             <span className="text-xs font-black uppercase tracking-wider">
                               {s.label}
                             </span>
                           </div>
-                          <span className="text-3xl font-black mt-1">{s.count}</span>
-                          <span className="text-xs font-bold opacity-80">tables</span>
+                          <span className="text-3xl font-black mt-1">
+                            {s.count}
+                          </span>
+                          <span className="text-xs font-bold opacity-80">
+                            tables
+                          </span>
                         </div>
                       ))}
                     </div>
 
                     {/* Pending calls teaser */}
-                    {activePings.length > 0 && (
+                    {activePings.length > 0 ? (
                       <button
                         type="button"
                         onClick={openCallsDrawer}
-                        className="w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 border-rose-300 bg-rose-50 text-left transition cursor-pointer hover:bg-rose-100 shadow-2xs"
+                        className="w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 border-orange-300 bg-gradient-to-br from-amber-50 to-orange-50 text-left transition cursor-pointer hover:border-orange-400 shadow-2xs active:scale-98"
                       >
-                        <Bell className="h-6 w-6 text-rose-600 shrink-0 stroke-[2.4]" />
-                        <div className="flex-1">
-                          <p className="font-black text-sm text-rose-950">
-                            {activePings.length} guest call(s) pending
-                          </p>
-                          <p className="font-mono text-xs text-rose-700 font-bold">
-                            Tap to view and attend
+                        <div className="h-10 w-10 rounded-xl bg-orange-100 border border-orange-300 flex items-center justify-center shrink-0">
+                          <Bell className="h-5 w-5 text-orange-600 stroke-[2.4]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="font-black text-sm text-stone-950 font-mono">
+                              {activePings.length}{" "}
+                              {activePings.length === 1
+                                ? "Customer Call"
+                                : "Customer Calls"}
+                            </p>
+                            <span className="font-mono text-[10px] font-black text-rose-700 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-full animate-pulse">
+                              ACTIVE
+                            </span>
+                          </div>
+                          <p className="font-mono text-xs text-stone-600 font-bold mt-0.5">
+                            Tap to view &amp; attend calls
                           </p>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-rose-500 stroke-[3]" />
+                        <ChevronRight className="h-5 w-5 text-stone-400 stroke-[2.5]" />
                       </button>
+                    ) : (
+                      <div className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-stone-200 bg-stone-50/80 font-mono text-xs text-stone-600 font-bold">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                        <span>All customer calls attended</span>
+                      </div>
                     )}
 
                     {/* Ready food teaser */}
-                    {readyTickets.length > 0 && (
+                    {readyTickets.length > 0 ? (
                       <button
                         type="button"
                         onClick={openKitchenDrawer}
-                        className="w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 border-blue-300 bg-blue-50 text-left transition cursor-pointer hover:bg-blue-100 shadow-2xs"
+                        className="w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 border-emerald-300 bg-emerald-50 text-left transition cursor-pointer hover:border-emerald-400 shadow-2xs active:scale-98"
                       >
-                        <span className="text-2xl">🍽</span>
-                        <div className="flex-1">
-                          <p className="font-black text-sm text-blue-950">
-                            {readyTickets.length} dish(es) ready at pass
-                          </p>
-                          <p className="font-mono text-xs text-blue-700 font-bold">
-                            Dispatch to tables now
+                        <div className="h-10 w-10 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center shrink-0">
+                          <ChefHat className="h-5 w-5 text-emerald-700 stroke-[2.4]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between">
+                            <p className="font-black text-sm text-stone-950 font-mono">
+                              {readyTickets.length}{" "}
+                              {readyTickets.length === 1 ? "Order" : "Orders"}{" "}
+                              Ready at Pass
+                            </p>
+                            <span className="font-mono text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full animate-pulse">
+                              PICKUP
+                            </span>
+                          </div>
+                          <p className="font-mono text-xs text-stone-600 font-bold mt-0.5">
+                            Tap to open kitchen pickup
                           </p>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-blue-500 stroke-[3]" />
+                        <ChevronRight className="h-5 w-5 text-stone-400 stroke-[2.5]" />
                       </button>
+                    ) : (
+                      <div className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-stone-200 bg-stone-50/80 font-mono text-xs text-stone-600 font-bold">
+                        <ChefHat className="h-4 w-4 text-stone-400 shrink-0" />
+                        <span>Kitchen pass is clear · No ready dishes</span>
+                      </div>
                     )}
 
-                    {/* Swipe hint */}
-                    <div className="mt-auto p-3.5 bg-stone-50 border-2 border-stone-200 rounded-2xl text-center font-mono text-xs text-stone-600 font-bold">
-                      ← Swipe right edge to open calls &amp; dispatch
+                    {/* Steward & Floor Activity Summary */}
+                    <div className="mt-auto p-4 rounded-2xl border-2 border-stone-200 bg-stone-50 space-y-2.5">
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-stone-500 font-bold">
+                          Logged In Steward
+                        </span>
+                        <span className="font-black text-stone-900">
+                          {activeCaptain || "Floor Steward"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-mono">
+                        <span className="text-stone-500 font-bold">
+                          Active Section
+                        </span>
+                        <span className="font-black text-[#9C3D1E]">
+                          {selectedSection === "ALL"
+                            ? "All Sections"
+                            : selectedSection}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs font-mono pt-2 border-t border-stone-200">
+                        <span className="text-stone-500 font-bold">
+                          Seated Covers
+                        </span>
+                        <span className="font-black text-emerald-700">
+                          {totalOccupiedChairs} / {totalFloorChairs} Guests
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </>
               )}
 
-
-
               {/* ════════════════════════════════════════════════════════
                   TABLE DETAIL (Left: Table Detail | Right: Customer Menu or Settle)
               ════════════════════════════════════════════════════════ */}
-              {view === 'table-detail' && (
+              {view === "table-detail" && (
                 <>
                   {/* Left (52%): Table detail panel */}
                   <div className="w-[52%] border-r border-[#EAE5DF] flex flex-col overflow-hidden">
@@ -714,19 +867,25 @@ export default function WaiterTabletPage() {
                       selectedChair={selectedChair}
                       onSelectChair={setSelectedChair}
                       onBackToFloor={() => {
-                        setView('floor');
+                        setView("floor");
                         setConfirmVacate(false);
                       }}
-                      onAddDishes={() => setRightPanelTab('menu')}
+                      onAddDishes={() => setRightPanelTab("menu")}
                       onSettle={() => {
                         setSplitInfo(null);
-                        setRightPanelTab('payment');
+                        setRightPanelTab("payment");
                       }}
                       onSeatGuests={() => {
-                        if (selectedChair !== 'ALL') {
-                          waiterSeatsGuests(selectedTableNum, 1, activeCaptain || 'Floor Captain');
-                          showToast(`Chair ${selectedChair} seated at ${selectedTableNum}`);
-                          setRightPanelTab('menu');
+                        if (selectedChair !== "ALL") {
+                          waiterSeatsGuests(
+                            selectedTableNum,
+                            1,
+                            activeCaptain || "Floor Captain",
+                          );
+                          showToast(
+                            `Chair ${selectedChair} seated at ${selectedTableNum}`,
+                          );
+                          setRightPanelTab("menu");
                         } else {
                           setSeatOpen(true);
                         }
@@ -741,7 +900,7 @@ export default function WaiterTabletPage() {
                   {/* Right (48%): Menu or Payment panel */}
                   <div className="w-[48%] flex flex-col overflow-hidden relative bg-white">
                     <AnimatePresence mode="wait">
-                      {rightPanelTab === 'menu' && (
+                      {rightPanelTab === "menu" && (
                         <motion.div
                           key="customer-menu"
                           initial={{ opacity: 0, x: 20 }}
@@ -754,19 +913,25 @@ export default function WaiterTabletPage() {
                             isWaiterMode={true}
                             tabletMode={true}
                             tableNum={selectedTableNum}
-                            seatNum={typeof selectedChair === 'number' ? selectedChair : undefined}
-                            waiterName={activeCaptain || 'Floor Captain'}
-                            onBack={() => setView('floor')}
+                            seatNum={
+                              typeof selectedChair === "number"
+                                ? selectedChair
+                                : undefined
+                            }
+                            waiterName={activeCaptain || "Floor Captain"}
+                            onBack={() => setView("floor")}
                             onKOTFired={() => {
                               showToast(`KOT fired for ${selectedTableNum}!`);
-                              setRightPanelTab('payment');
+                              setRightPanelTab("payment");
                             }}
-                            onSwitchToPayment={() => setRightPanelTab('payment')}
+                            onSwitchToPayment={() =>
+                              setRightPanelTab("payment")
+                            }
                           />
                         </motion.div>
                       )}
 
-                      {rightPanelTab === 'payment' && (
+                      {rightPanelTab === "payment" && (
                         <motion.div
                           key="payment-settlement"
                           initial={{ opacity: 0, x: 20 }}
@@ -778,10 +943,12 @@ export default function WaiterTabletPage() {
                           <TabletPaymentPanel
                             tableNum={selectedTableNum}
                             selectedChair={selectedChair}
-                            onSwitchToMenu={() => setRightPanelTab('menu')}
+                            onSwitchToMenu={() => setRightPanelTab("menu")}
                             onDone={() => {
-                              showToast(`Settlement completed for ${selectedTableNum}`);
-                              setView('floor');
+                              showToast(
+                                `Settlement completed for ${selectedTableNum}`,
+                              );
+                              setView("floor");
                             }}
                             onOpenSplit={() => setSplitOpen(true)}
                             splitAmount={splitInfo?.amount}
@@ -803,7 +970,8 @@ export default function WaiterTabletPage() {
                             Vacate {selectedTableNum}?
                           </p>
                           <p className="text-xs text-stone-500">
-                            This clears active orders and resets the table status to vacant.
+                            This clears active orders and resets the table
+                            status to vacant.
                           </p>
                           <div className="flex gap-2">
                             <button
@@ -864,7 +1032,7 @@ export default function WaiterTabletPage() {
               onClose={() => setSplitOpen(false)}
               onSelectSplit={(amount, label) => {
                 setSplitInfo({ amount, label });
-                setRightPanelTab('payment');
+                setRightPanelTab("payment");
               }}
             />
 
@@ -880,7 +1048,7 @@ export default function WaiterTabletPage() {
             <TabletShiftModal
               open={shiftOpen}
               onClose={() => setShiftOpen(false)}
-              captainName={activeCaptain || 'Floor Captain'}
+              captainName={activeCaptain || "Floor Captain"}
             />
           </>
         )}

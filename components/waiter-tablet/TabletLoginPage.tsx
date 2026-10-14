@@ -19,13 +19,20 @@ interface Props {
   onLogin: (captainName: string, section?: string) => void;
 }
 
-// Ready Steward Names requested by user: nayana, shiva, manja, suhas
+// Ready Steward Names starting with Section A Shiva, then Manja, Suhas, Nayana
 const QUICK_STEWARDS = [
-  { name: 'Nayana', sec: 'Section C' },
   { name: 'Shiva', sec: 'Section A' },
   { name: 'Manja', sec: 'Section B' },
-  { name: 'Suhas', sec: 'Section D' },
+  { name: 'Suhas', sec: 'Section C' },
+  { name: 'Nayana', sec: 'Section D' },
 ];
+
+const PIN_STEWARD_MAP: Record<string, { name: string; sec: string }> = {
+  '1111': { name: 'Shiva', sec: 'Section A' },
+  '2222': { name: 'Manja', sec: 'Section B' },
+  '3333': { name: 'Suhas', sec: 'Section C' },
+  '4444': { name: 'Nayana', sec: 'Section D' },
+};
 
 const SECTIONS = [
   { id: 'ALL', label: 'ALL SECTIONS' },
@@ -44,7 +51,7 @@ export function TabletLoginPage({ onLogin }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSelectQuickSteward = (steward: typeof QUICK_STEWARDS[0]) => {
-    // Autofill the name input section
+    // Autofill the name input section and assign corresponding section
     setWaiterName(steward.name);
     setSelectedSection(steward.sec);
     setError('');
@@ -70,19 +77,34 @@ export function TabletLoginPage({ onLogin }: Props) {
   };
 
   const executeLogin = (finalPin: string) => {
-    const trimmed = waiterName.trim();
-    if (!trimmed) {
-      setError('Please enter or select a captain name.');
+    let effectiveName = waiterName.trim();
+    let effectiveSec = selectedSection;
+
+    // Direct PIN mapping
+    if (finalPin in PIN_STEWARD_MAP) {
+      const mapped = PIN_STEWARD_MAP[finalPin];
+      if (!effectiveName) effectiveName = mapped.name;
+      if (effectiveSec === 'ALL') effectiveSec = mapped.sec;
+      setSuccess(true);
+      setError('');
+      setTimeout(() => {
+        onLogin(effectiveName, effectiveSec);
+      }, 700);
+      return;
+    }
+
+    if (!effectiveName) {
+      setError('Please enter or select a name.');
       inputRef.current?.focus();
       return;
     }
 
-    // Universal PIN 1234 or direct pins
-    if (finalPin === '1234' || finalPin === '1111' || finalPin === '2222' || finalPin === '3333' || finalPin === '4444') {
+    // Universal PIN 1234
+    if (finalPin === '1234') {
       setSuccess(true);
       setError('');
       setTimeout(() => {
-        onLogin(trimmed, selectedSection);
+        onLogin(effectiveName, effectiveSec);
       }, 700);
     } else {
       setError('Invalid PIN code. Use default 1234');
@@ -186,20 +208,20 @@ export function TabletLoginPage({ onLogin }: Props) {
       {/* ── Right Login Input Panel (62%) ── */}
       <div className="w-[62%] h-full flex flex-col justify-between p-8 overflow-y-auto">
         <div className="space-y-5 max-w-xl mx-auto w-full">
-          {/* Section 1: Captain Name with Quick Chips */}
+          {/* Section 1: Staff Name with Quick Pills */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="font-mono text-xs font-black uppercase tracking-wider text-stone-800 flex items-center gap-1.5">
                 <User className="h-4 w-4 text-[#9C3D1E]" />
-                <span>Captain / Steward Name</span>
+                <span>Name</span>
               </label>
               <span className="text-[10px] font-mono font-bold text-[#9C3D1E] bg-[#FFF8F5] border border-[#9C3D1E]/20 px-2 py-0.5 rounded-md">
                 Required
               </span>
             </div>
 
-            {/* Quick Name Chips (Nayana, Shiva, Manja, Suhas) */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {/* Quick Name Pills (Shiva, Manja, Suhas, Nayana) */}
+            <div className="grid grid-cols-4 gap-2">
               {QUICK_STEWARDS.map((st) => {
                 const isSelected = waiterName.toLowerCase() === st.name.toLowerCase();
                 return (
@@ -207,7 +229,7 @@ export function TabletLoginPage({ onLogin }: Props) {
                     key={st.name}
                     type="button"
                     onClick={() => handleSelectQuickSteward(st)}
-                    className={`px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold border-2 transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    className={`py-2 px-2.5 rounded-xl font-mono text-xs font-bold border-2 transition cursor-pointer text-center truncate ${
                       isSelected
                         ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
                         : 'bg-white text-stone-700 border-stone-300 hover:border-stone-400 hover:bg-stone-50'
@@ -229,7 +251,7 @@ export function TabletLoginPage({ onLogin }: Props) {
                   setWaiterName(e.target.value);
                   if (error) setError('');
                 }}
-                placeholder="Enter Captain Name"
+                placeholder="Enter name"
                 className="w-full px-4 py-3 bg-white border-2 border-stone-300 focus:border-[#9C3D1E] rounded-2xl text-sm font-mono font-black text-stone-900 placeholder:text-stone-400 focus:outline-none shadow-xs transition"
               />
             </div>

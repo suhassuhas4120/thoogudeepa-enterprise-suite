@@ -16,7 +16,8 @@ import {
   UserX,
   Split,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 import { useCustomer } from '../../context/CustomerContext';
@@ -435,7 +436,7 @@ export function TabletTableDetail({
           </div>
         )}
 
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pt-2.5 pb-2 px-1.5 -mt-1.5">
           {/* ALL Seats Button — supports dropping menu dish */}
           <button
             type="button"
@@ -537,9 +538,9 @@ export function TabletTableDetail({
                     onSelectChair('ALL');
                   }}
                   title="Unmerge Chairs"
-                  className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white shadow-xs cursor-pointer"
+                  className="absolute -top-2 -right-2 h-6 w-6 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-full flex items-center justify-center border-2 border-white shadow-md z-20 cursor-pointer transition-transform"
                 >
-                  ×
+                  <X className="h-3.5 w-3.5 stroke-[3]" />
                 </button>
               </div>
             );
@@ -671,15 +672,15 @@ export function TabletTableDetail({
                 </span>
                 {/* Food Ready Dot */}
                 {hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-600 border-2 border-white animate-pulse" />
+                  <span className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 rounded-full bg-blue-600 border-2 border-white shadow-xs animate-pulse z-10" />
                 )}
                 {/* Active Items Dot */}
                 {hasItems && !hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 border-2 border-white" />
+                  <span className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 rounded-full bg-amber-500 border-2 border-white shadow-xs z-10" />
                 )}
                 {/* Draft Items Dot */}
                 {hasDraft && !hasItems && !hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-400 border-2 border-white animate-bounce" />
+                  <span className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 rounded-full bg-amber-400 border-2 border-white shadow-xs animate-pulse z-10" />
                 )}
               </button>
             );

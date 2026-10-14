@@ -738,7 +738,7 @@ export function TabletTableDetail({
               >
                 <div className="min-w-0 flex-1 pr-2">
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-black text-stone-950 leading-tight">
+                    <p className="text-[14px] font-black text-stone-950 leading-tight antialiased">
                       {ci.menuItem.name}
                     </p>
                     {ci.seatNumber && (
@@ -846,7 +846,7 @@ export function TabletTableDetail({
                       <div className="min-w-0 flex-1 pr-2">
                         <div className="flex items-center gap-2">
                           <p
-                            className={`text-xs font-black leading-tight ${
+                            className={`text-[14px] font-black leading-tight antialiased ${
                               isServed ? 'line-through text-stone-400' : 'text-stone-950'
                             }`}
                           >

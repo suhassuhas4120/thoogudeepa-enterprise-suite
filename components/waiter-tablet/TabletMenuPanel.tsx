@@ -268,9 +268,9 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-[11px] font-bold text-stone-900 leading-tight line-clamp-1">{item.name}</p>
-                  <p className="text-[9.5px] text-stone-400 font-mono mt-0.5 line-clamp-1">{item.description}</p>
-                  <p className="text-[10px] font-bold text-[#9C3D1E] mt-1">₹{item.price}</p>
+                  <p className="text-[15px] font-black text-stone-950 leading-snug tracking-tight line-clamp-2 antialiased">{item.name}</p>
+                  <p className="text-[10px] text-stone-500 font-mono mt-0.5 line-clamp-1">{item.description}</p>
+                  <p className="text-xs font-black text-[#9C3D1E] mt-1 font-mono">₹{item.price}</p>
                 </div>
 
                 {/* Add/Qty controls */}
@@ -416,8 +416,8 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
           {/* Cart preview */}
           <div className="mb-2 space-y-1 max-h-[80px] overflow-y-auto">
             {cart.map((c) => (
-              <div key={c.itemId} className="flex items-center justify-between text-[10px] font-mono">
-                <span className="text-stone-700 font-bold">{c.name} ×{c.quantity}</span>
+              <div key={c.itemId} className="flex items-center justify-between text-xs font-mono">
+                <span className="text-stone-900 font-bold antialiased">{c.name} ×{c.quantity}</span>
                 <div className="flex items-center gap-2">
                   <span className="text-stone-500">₹{c.price * c.quantity}</span>
                   <button type="button" onClick={() => removeFromCart(c.itemId)} className="text-stone-300 hover:text-rose-500 transition cursor-pointer">

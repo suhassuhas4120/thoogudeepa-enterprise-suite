@@ -299,7 +299,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                         <span className="font-bold text-stone-700">Quick Cash Presets:</span>
                         {typeof change === 'number' && change >= 0 && (
                           <span className="font-black text-emerald-700">
-                            Change Due: ₹{change.toFixed(2)}
+                            Return Change: ₹{change === 0 ? '0.0' : change.toFixed(2)}
                           </span>
                         )}
                       </div>
@@ -316,7 +316,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                                 : 'bg-white border-stone-300 text-stone-800 hover:bg-stone-100'
                             }`}
                           >
-                            {preset === bill ? `Exact (₹${preset.toFixed(0)})` : `₹${preset.toFixed(0)}`}
+                            ₹{preset}
                           </button>
                         ))}
                       </div>

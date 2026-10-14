@@ -415,8 +415,9 @@ export default function WaiterTabletPage() {
           flexDirection: "column",
           fontFamily: "sans-serif",
           position: "relative",
-          willChange: "transform",
           WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+          textRendering: "optimizeLegibility",
         }}
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}

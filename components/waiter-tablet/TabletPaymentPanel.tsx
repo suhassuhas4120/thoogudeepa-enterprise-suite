@@ -509,21 +509,17 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                           : 'border-stone-300 bg-stone-100 text-stone-800 hover:bg-stone-200'
                       }`}
                     >
-                      {preset === bill ? `Exact (₹${preset.toFixed(0)})` : `₹${preset.toFixed(0)}`}
+                      ₹{preset}
                     </button>
                   ))}
                 </div>
 
-                {typeof cashTendered === 'number' && cashTendered > bill && (
+                {((typeof cashTendered === 'number' && cashTendered >= bill) || cashTendered === '') && (
                   <div className="flex items-center justify-between p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl text-xs font-black text-emerald-950">
                     <span>Return Change:</span>
-                    <span className="text-base text-emerald-800">₹{change.toFixed(2)}</span>
-                  </div>
-                )}
-                {typeof cashTendered === 'number' && cashTendered === bill && (
-                  <div className="flex items-center justify-between p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl text-xs font-black text-emerald-950">
-                    <span>Exact Amount Received:</span>
-                    <span className="text-base text-emerald-800">₹{bill.toFixed(2)}</span>
+                    <span className="text-base text-emerald-800 font-mono">
+                      ₹{change === 0 ? '0.0' : change.toFixed(2)}
+                    </span>
                   </div>
                 )}
                 {typeof cashTendered === 'number' && cashTendered < bill && (

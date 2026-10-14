@@ -177,17 +177,27 @@ export function TabletFloorMap({
   const activePings = pings.filter((p) => p.status === 'PENDING');
   const urgentSet = new Set(activePings.map((p) => p.tableNumber));
 
-  // Compute elapsed minutes safely (avoid negative time post-midnight)
-  const getElapsedMins = (seatedAt?: string) => {
-    if (!seatedAt || seatedAt === '--') return 0;
-    const parts = seatedAt.split(':');
-    if (parts.length >= 2) {
+  // Compute elapsed minutes safely (handles 12-hour AM/PM & 24-hour formats, avoid negative time post-midnight)
+  const getElapsedMins = (timeStr?: string) => {
+    if (!timeStr || timeStr === '--') return 0;
+    try {
       const now = new Date();
-      const seatedTime = new Date();
-      seatedTime.setHours(parseInt(parts[0], 10), parseInt(parts[1], 10), 0, 0);
-      let diffMs = now.getTime() - seatedTime.getTime();
-      if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
-      return Math.max(1, Math.round(diffMs / 60000));
+      const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})(?:\s*([ap]m))?/i);
+      if (match) {
+        let hours = parseInt(match[1], 10);
+        const mins = parseInt(match[2], 10);
+        const ampm = match[3]?.toLowerCase();
+        if (ampm === 'pm' && hours < 12) hours += 12;
+        if (ampm === 'am' && hours === 12) hours = 0;
+
+        const target = new Date();
+        target.setHours(hours, mins, 0, 0);
+        let diffMs = now.getTime() - target.getTime();
+        if (diffMs < 0) diffMs += 24 * 60 * 60 * 1000;
+        return Math.max(1, Math.round(diffMs / 60000));
+      }
+    } catch {
+      return 0;
     }
     return 0;
   };
@@ -260,6 +270,7 @@ export function TabletFloorMap({
     section: string;
     hasPing: boolean;
     elapsedMins: number;
+    isTimerActive: boolean;
     memberNumbers: string[];
     isSelected: boolean;
   }
@@ -281,6 +292,7 @@ export function TabletFloorMap({
         .map((p) => tables.find((t) => t.number === p))
         .filter(Boolean) as SharedTable[];
 
+      const groupTickets = kdsTickets.filter((tk) => peers.includes(tk.tableNumber));
       const totalCapacity = allMembers.reduce((sum, m) => sum + (m.capacity || 2), 0);
       const totalBill = primaryTbl.currentBill || allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0);
       const kotCount = allMembers.reduce(
@@ -292,7 +304,18 @@ export function TabletFloorMap({
         0
       );
       const hasPing = allMembers.some((m) => urgentSet.has(m.number));
-      const elapsedMins = getElapsedMins(primaryTbl.seatedTime);
+
+      // Order placed check: tickets exist, KOTs fired, active items exist, or bill > 0
+      const hasPlacedOrder =
+        groupTickets.length > 0 ||
+        kotCount > 0 ||
+        totalBill > 0 ||
+        allMembers.some((m) => (m.activeItems && m.activeItems.length > 0) || (m.kotCount || 0) > 0);
+
+      // Timer active from order placed to kitchen until bill settled (cleared when status is VACANT)
+      const isTimerActive = hasPlacedOrder && (primaryTbl.status === 'OCCUPIED' || primaryTbl.status === 'BILLING');
+      const earliestOrderTime = groupTickets[0]?.timestamp || (primaryTbl.seatedTime !== '--' ? primaryTbl.seatedTime : undefined);
+      const elapsedMins = isTimerActive ? getElapsedMins(earliestOrderTime) : 0;
 
       unifiedList.push({
         id: groupKey,
@@ -308,6 +331,7 @@ export function TabletFloorMap({
         section: primaryTbl.section,
         hasPing,
         elapsedMins,
+        isTimerActive,
         memberNumbers: peers,
         isSelected: peers.includes(selectedTableNum),
       });
@@ -317,6 +341,18 @@ export function TabletFloorMap({
 
       const tblKOTs = kdsTickets.filter((tk) => tk.tableNumber === tbl.number);
       const readyCount = tblKOTs.filter((tk) => tk.status === 'READY').length;
+
+      // Order placed check: tickets exist, KOTs fired, active items exist, or bill > 0
+      const hasPlacedOrder =
+        tblKOTs.length > 0 ||
+        tbl.kotCount > 0 ||
+        (tbl.currentBill || 0) > 0 ||
+        Boolean(tbl.activeItems && tbl.activeItems.length > 0);
+
+      // Timer active from order placed to kitchen until bill settled (cleared when status is VACANT)
+      const isTimerActive = hasPlacedOrder && (tbl.status === 'OCCUPIED' || tbl.status === 'BILLING');
+      const earliestOrderTime = tblKOTs[0]?.timestamp || (tbl.seatedTime !== '--' ? tbl.seatedTime : undefined);
+      const elapsedMins = isTimerActive ? getElapsedMins(earliestOrderTime) : 0;
 
       unifiedList.push({
         id: tbl.number,
@@ -331,7 +367,8 @@ export function TabletFloorMap({
         status: tbl.status,
         section: tbl.section,
         hasPing: urgentSet.has(tbl.number),
-        elapsedMins: getElapsedMins(tbl.seatedTime),
+        elapsedMins,
+        isTimerActive,
         memberNumbers: [tbl.number],
         isSelected: tbl.number === selectedTableNum,
       });
@@ -434,6 +471,7 @@ export function TabletFloorMap({
               const isMerged = entry.isMerged;
               const groupPeers = entry.memberNumbers;
               const elapsedMins = entry.elapsedMins;
+              const isTimerActive = entry.isTimerActive;
               const isOccupied = tbl.status === 'OCCUPIED' || tbl.status === 'BILLING';
               const showBubble = bubbleTable === tbl.number;
               const isBeingHeld = holdingTable === tbl.number;
@@ -567,8 +605,8 @@ export function TabletFloorMap({
                       </span>
                     </div>
 
-                    {/* Middle: Bill & Section */}
-                    <div className="my-2 font-mono">
+                    {/* Middle: Bill */}
+                    <div className="my-2.5 font-mono">
                       <div className="flex items-baseline justify-between">
                         <div className="text-xl font-black text-[#9C3D1E]">
                           ₹{entry.totalBill.toLocaleString()}
@@ -589,12 +627,14 @@ export function TabletFloorMap({
                           </button>
                         )}
                       </div>
-                      <div className="text-stone-700 text-xs font-bold truncate mt-0.5">
-                        {formatSectionName(entry.section)} {isMerged ? `· ${groupPeers.join(' + ')}` : ''}
-                      </div>
+                      {isMerged && (
+                        <div className="text-purple-700 text-xs font-bold truncate mt-1">
+                          Merged: {groupPeers.join(' + ')}
+                        </div>
+                      )}
                     </div>
 
-                    {/* Bottom: Capacity & Time */}
+                    {/* Bottom: Capacity & Fixed Time Icon */}
                     <div className="pt-2 border-t border-stone-200 flex items-center justify-between font-mono text-xs text-stone-700 font-bold">
                       <span className="flex items-center gap-1.5">
                         <Users className="h-4 w-4 text-stone-600 stroke-[2.2]" />
@@ -602,20 +642,25 @@ export function TabletFloorMap({
                           {entry.totalCapacity} seats {isMerged ? '(Combined)' : ''}
                         </span>
                       </span>
-                      {tbl.status === 'OCCUPIED' ? (
+                      {isTimerActive ? (
                         <span
                           className={`flex items-center gap-1 px-2 py-0.5 rounded-md font-black text-[11px] ${
                             elapsedMins > 55
                               ? 'bg-rose-100 text-rose-800 border border-rose-300 animate-pulse'
                               : elapsedMins > 35
                               ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                              : 'bg-stone-100 text-stone-700'
+                              : 'bg-stone-100 text-stone-800 border border-stone-200'
                           }`}
                         >
-                          <Clock className="h-3.5 w-3.5" />
+                          <Clock className="h-3.5 w-3.5 text-[#9C3D1E]" />
                           <span>{elapsedMins}m</span>
                         </span>
-                      ) : null}
+                      ) : (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 font-mono text-[11px] font-bold text-stone-400">
+                          <Clock className="h-3.5 w-3.5 text-stone-300" />
+                          <span>--</span>
+                        </span>
+                      )}
                     </div>
                   </motion.div>
 

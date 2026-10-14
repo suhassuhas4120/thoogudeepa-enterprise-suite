@@ -99,12 +99,13 @@ export function TabletLoginPage({ onLogin }: Props) {
       return;
     }
 
+    const trimmed = effectiveName;
     // Universal PIN 1234
     if (finalPin === '1234') {
       setSuccess(true);
       setError('');
       setTimeout(() => {
-        onLogin(effectiveName, effectiveSec);
+        onLogin(trimmed, selectedSection);
       }, 700);
     } else {
       setError('Invalid PIN code. Use default 1234');

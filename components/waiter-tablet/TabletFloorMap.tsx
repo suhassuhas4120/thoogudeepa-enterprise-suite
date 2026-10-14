@@ -54,6 +54,17 @@ const SECTIONS = [
   'Grand Feast Hall',
 ];
 
+const SECTION_MATCH_MAP: Record<string, string[]> = {
+  'Section A': ['Express / Couple Hall', 'Section A'],
+  'Section B': ['Main Dining Hall', 'Section B'],
+  'Section C': ['Family Section', 'Section C'],
+  'Section D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
+  'SEC_A': ['Express / Couple Hall', 'Section A'],
+  'SEC_B': ['Main Dining Hall', 'Section B'],
+  'SEC_C': ['Family Section', 'Section C'],
+  'SEC_D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
+};
+
 export function TabletFloorMap({
   selectedTableNum,
   selectedSection,
@@ -173,12 +184,24 @@ export function TabletFloorMap({
 
   const visible = tables.filter((t) => {
     // Section match
-    if (selectedSection !== 'ALL' && t.section !== selectedSection) return false;
+    if (selectedSection && selectedSection !== 'ALL') {
+      const allowed = SECTION_MATCH_MAP[selectedSection];
+      if (allowed) {
+        if (!allowed.some((sec) => t.section.toLowerCase().includes(sec.toLowerCase()))) {
+          return false;
+        }
+      } else if (!t.section.toLowerCase().includes(selectedSection.toLowerCase())) {
+        return false;
+      }
+    }
 
     // Search query match
     if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchNum = t.number.toLowerCase().includes(q);
+      const q = searchQuery.toLowerCase().trim();
+      const cleanNum = t.number.toLowerCase().replace(/^(table\s*|t-?)/i, '');
+      const matchNum =
+        t.number.toLowerCase().includes(q) ||
+        cleanNum.includes(q.replace(/^(table\s*|t-?)/i, ''));
       const matchSec = t.section.toLowerCase().includes(q);
       const matchServer = t.serverName?.toLowerCase().includes(q);
       if (!matchNum && !matchSec && !matchServer) return false;

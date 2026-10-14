@@ -11,7 +11,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 
 // Tablet components
 import { TabletLoginPage } from '../../../components/waiter-tablet/TabletLoginPage';
-import { TabletFloorMap, SECTIONS } from '../../../components/waiter-tablet/TabletFloorMap';
+import { TabletFloorMap } from '../../../components/waiter-tablet/TabletFloorMap';
 import { TabletTableDetail } from '../../../components/waiter-tablet/TabletTableDetail';
 import { TabletPaymentPanel } from '../../../components/waiter-tablet/TabletPaymentPanel';
 import { Screen2Menu } from '../../../components/customer/Screen2Menu';
@@ -114,7 +114,9 @@ export default function WaiterTabletPage() {
   const [view, setView] = useState<AppView>('login');
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('menu');
   const [selectedTableNum, setSelectedTableNum] = useState<string>(tables[0]?.number ?? 'T-01');
-  const [selectedSection, setSelectedSection] = useState<string>('ALL');
+  const [assignedSection, setAssignedSection] = useState<string>('Section A');
+  const [sectionFilter, setSectionFilter] = useState<'MY' | 'ALL'>('MY');
+  const [selectedSection, setSelectedSection] = useState<string>('Section A');
   const [selectedChair, setSelectedChair] = useState<'ALL' | number | string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -238,13 +240,17 @@ export default function WaiterTabletPage() {
 
   const handleLogin = (captainName: string, section?: string) => {
     setActiveCaptain(captainName);
-    if (section && section !== 'ALL') {
-      setSelectedSection(section);
+    const sec = section && section !== 'ALL' ? section : 'ALL';
+    setAssignedSection(sec);
+    if (sec !== 'ALL') {
+      setSectionFilter('MY');
+      setSelectedSection(sec);
     } else {
+      setSectionFilter('ALL');
       setSelectedSection('ALL');
     }
     setView('floor');
-    showToast(`Welcome ${captainName}! Shift active on ${section || 'All Sections'}`);
+    showToast(`Welcome ${captainName}! Shift active on ${sec === 'ALL' ? 'All Sections' : sec}`);
   };
 
   const handleVacate = () => {
@@ -358,29 +364,8 @@ export default function WaiterTabletPage() {
                 </div>
               </div>
 
-              {/* Center switcher / search */}
-              {view === 'floor' ? (
-                <div className="relative w-64">
-                  <Search className="h-4 w-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-stone-400 stroke-[2.4]" />
-                  <input
-                    type="text"
-                    placeholder="Search table number or section…"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2 bg-stone-50 border-2 border-stone-300 focus:border-[#9C3D1E] rounded-xl text-xs font-mono font-bold text-stone-900 focus:outline-none transition shadow-2xs"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-500 hover:text-stone-800"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              ) : (
-                /* In Table Detail view: Quick toggle between Menu and Payment tabs */
+              {/* Center switcher: Quick toggle between Menu and Payment tabs (Only in Table Detail view) */}
+              {view === 'table-detail' && (
                 <div className="flex items-center bg-stone-100 p-1 rounded-2xl border-2 border-stone-200 font-mono text-xs shadow-2xs">
                   <button
                     type="button"
@@ -499,23 +484,64 @@ export default function WaiterTabletPage() {
               ════════════════════════════════════════════════════════ */}
               {view === 'floor' && (
                 <>
-                  {/* Left: Floor grid with section pills */}
+                  {/* Left: Floor grid with section filter and search side-by-side (matching Waiter Mobile) */}
                   <div className="w-[62%] border-r-2 border-stone-200 flex flex-col overflow-hidden bg-[#FAF8F5]">
-                    <div className="px-4 py-2.5 border-b-2 border-stone-200 bg-white flex items-center gap-2 overflow-x-auto shrink-0 shadow-2xs">
-                      {SECTIONS.map((sec) => (
+                    {/* Sticky Toolbar: Left Section Filter (MY SECTION / ALL TABLES) | Right Search Input */}
+                    <div className="px-4 py-2.5 border-b-2 border-stone-200 bg-white flex items-center justify-between gap-3 shrink-0 shadow-2xs">
+                      {/* Left: MY SECTION & ALL TABLES */}
+                      <div className="flex items-center gap-2 font-mono text-xs font-black">
                         <button
-                          key={sec}
                           type="button"
-                          onClick={() => setSelectedSection(sec)}
-                          className={`px-3.5 py-1.5 rounded-xl font-mono text-xs font-black whitespace-nowrap border-2 transition cursor-pointer ${
-                            selectedSection === sec
+                          onClick={() => {
+                            setSectionFilter('MY');
+                            setSelectedSection(assignedSection !== 'ALL' ? assignedSection : 'ALL');
+                          }}
+                          className={`px-3.5 py-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                            sectionFilter === 'MY' && selectedSection !== 'ALL'
                               ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
                               : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
                           }`}
+                          title={`Assigned Section: ${assignedSection}`}
                         >
-                          {sec === 'ALL' ? `All Tables (${tables.length})` : sec}
+                          <span>{assignedSection !== 'ALL' ? `MY SECTION • ${assignedSection.toUpperCase()}` : 'MY SECTION'}</span>
                         </button>
-                      ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSectionFilter('ALL');
+                            setSelectedSection('ALL');
+                          }}
+                          className={`px-3.5 py-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
+                            sectionFilter === 'ALL' || selectedSection === 'ALL'
+                              ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
+                              : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                          }`}
+                        >
+                          <span>ALL TABLES</span>
+                        </button>
+                      </div>
+
+                      {/* Right: Search table input beside section filter */}
+                      <div className="relative flex-1 max-w-xs">
+                        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 stroke-[2.2]" />
+                        <input
+                          type="text"
+                          placeholder="Search table…"
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full pl-9 pr-8 py-2 bg-stone-50 border-2 border-stone-300 focus:border-[#9C3D1E] rounded-xl text-xs font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none transition shadow-2xs"
+                        />
+                        {searchQuery.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 p-0.5 rounded-full"
+                            title="Clear search"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <TabletFloorMap
                       selectedTableNum={selectedTableNum}

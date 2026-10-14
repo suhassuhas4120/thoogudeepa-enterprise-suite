@@ -33,14 +33,14 @@ const TAB_W = 1194;
 const TAB_H = 834;
 
 const SECTION_MATCH_MAP: Record<string, string[]> = {
-  "Section A": ["Express / Couple Hall", "Section A"],
-  "Section B": ["Main Dining Hall", "Section B"],
-  "Section C": ["Family Section", "Section C"],
-  "Section D": ["Courtyard Garden", "Grand Feast Hall", "Section D"],
-  SEC_A: ["Express / Couple Hall", "Section A"],
-  SEC_B: ["Main Dining Hall", "Section B"],
-  SEC_C: ["Family Section", "Section C"],
-  SEC_D: ["Courtyard Garden", "Grand Feast Hall", "Section D"],
+  "Section A": ["Express / Couple Hall", "Section A", "SEC_A"],
+  "Section B": ["Main Dining Hall", "Section B", "SEC_B"],
+  "Section C": ["Family Section", "Section C", "SEC_C"],
+  "Section D": ["Courtyard Garden", "Grand Feast Hall", "Section D", "SEC_D"],
+  SEC_A: ["Express / Couple Hall", "Section A", "SEC_A"],
+  SEC_B: ["Main Dining Hall", "Section B", "SEC_B"],
+  SEC_C: ["Family Section", "Section C", "SEC_C"],
+  SEC_D: ["Courtyard Garden", "Grand Feast Hall", "Section D", "SEC_D"],
 };
 
 // ── View state machine ─────────────────────────────────────────────────────
@@ -79,7 +79,7 @@ function SeatGuestsModal({
             Seat Guests — {tableNum}
           </h3>
           <p className="font-mono text-xs text-stone-500 mt-1">
-            Table Capacity: {table?.capacity || 4} Guests · {formatSectionName(table?.section || '')}
+            Table Capacity: {table?.capacity || 4} Guests · {formatSectionName(table?.section || '', table?.number)}
           </p>
         </div>
 

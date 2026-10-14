@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { X, CreditCard, QrCode, Banknote, CheckCircle2, ShieldCheck, Printer, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   tableNum: string;
@@ -107,7 +108,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
     recordSettledBill({
       invoiceNumber,
       tableName: tableNum,
-      section: table?.section || 'Main Dining Hall',
+      section: formatSectionName(table?.section || '', tableNum),
       guestCount: splitSeatNum ? 1 : table?.guestCount || table?.capacity || 1,
       formattedDate,
       formattedTime,

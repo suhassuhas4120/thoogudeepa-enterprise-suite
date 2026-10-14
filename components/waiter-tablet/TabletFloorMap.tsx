@@ -45,34 +45,43 @@ function badgeStyle(status: SharedTable['status']) {
   }
 }
 
+// Floor sections cover all 5 dining zones: 'Express / Couple Hall', 'Main Dining Hall', 'Family Section', 'Courtyard Garden', 'Grand Feast Hall'
 const SECTIONS = [
   'ALL',
-  'Express / Couple Hall',
-  'Main Dining Hall',
-  'Family Section',
-  'Courtyard Garden',
-  'Grand Feast Hall',
+  'Section A',
+  'Section B',
+  'Section C',
+  'Section D',
 ];
 
 const SECTION_MATCH_MAP: Record<string, string[]> = {
-  'Section A': ['Express / Couple Hall', 'Section A'],
-  'Section B': ['Main Dining Hall', 'Section B'],
-  'Section C': ['Family Section', 'Section C'],
-  'Section D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
-  'SEC_A': ['Express / Couple Hall', 'Section A'],
-  'SEC_B': ['Main Dining Hall', 'Section B'],
-  'SEC_C': ['Family Section', 'Section C'],
-  'SEC_D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
+  'Section A': ['Express / Couple Hall', 'Section A', 'SEC_A'],
+  'Section B': ['Main Dining Hall', 'Section B', 'SEC_B'],
+  'Section C': ['Family Section', 'Section C', 'SEC_C'],
+  'Section D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D', 'SEC_D'],
+  'SEC_A': ['Express / Couple Hall', 'Section A', 'SEC_A'],
+  'SEC_B': ['Main Dining Hall', 'Section B', 'SEC_B'],
+  'SEC_C': ['Family Section', 'Section C', 'SEC_C'],
+  'SEC_D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D', 'SEC_D'],
 };
 
-export function formatSectionName(sec: string): string {
+export function formatSectionName(sec: string, tableNum?: string): string {
+  if (tableNum) {
+    const n = parseInt(tableNum.replace(/\D/g, ''), 10);
+    if (!isNaN(n)) {
+      if (n >= 1 && n <= 4) return 'Section A';
+      if (n >= 5 && n <= 14) return 'Section B';
+      if (n >= 15 && n <= 24) return 'Section C';
+      if (n >= 25 && n <= 34) return 'Section D';
+    }
+  }
   if (!sec) return 'Section A';
-  const s = sec.toLowerCase();
-  if (s.includes('express') || s.includes('couple') || s.includes('section a') || s.includes('sec_a')) return 'Section A';
-  if (s.includes('main dining') || s.includes('section b') || s.includes('sec_b')) return 'Section B';
-  if (s.includes('family') || s.includes('section c') || s.includes('sec_c')) return 'Section C';
-  if (s.includes('courtyard') || s.includes('grand feast') || s.includes('section d') || s.includes('sec_d')) return 'Section D';
-  return sec;
+  const s = sec.toLowerCase().trim();
+  if (s.includes('express') || s.includes('couple') || s.includes('section a') || s.includes('sec_a') || s === 'a') return 'Section A';
+  if (s.includes('main dining') || s.includes('section b') || s.includes('sec_b') || s === 'b') return 'Section B';
+  if (s.includes('family') || s.includes('section c') || s.includes('sec_c') || s === 'c') return 'Section C';
+  if (s.includes('courtyard') || s.includes('grand feast') || s.includes('feast') || s.includes('garden') || s.includes('section d') || s.includes('sec_d') || s === 'd') return 'Section D';
+  return 'Section A';
 }
 
 export function TabletFloorMap({
@@ -628,7 +637,7 @@ export function TabletFloorMap({
                         )}
                       </div>
                       <div className="text-stone-700 text-xs font-bold truncate mt-0.5">
-                        {formatSectionName(entry.section)} {isMerged ? `· ${groupPeers.join(' + ')}` : ''}
+                        {formatSectionName(entry.section, tbl.number)} {isMerged ? `· ${groupPeers.join(' + ')}` : ''}
                       </div>
                     </div>
 

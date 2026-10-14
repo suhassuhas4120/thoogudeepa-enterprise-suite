@@ -348,7 +348,7 @@ export function TabletTableDetail({
                 )}
               </div>
               <p className="font-mono text-xs text-stone-700 mt-1 font-bold">
-                {formatSectionName(table.section)} · Maximum Capacity: {totalCapacity} Seats
+                {formatSectionName(table.section, table.number)} · Maximum Capacity: {totalCapacity} Seats
               </p>
             </div>
           </div>
@@ -704,7 +704,7 @@ export function TabletTableDetail({
                 Table {tableNum} is Vacant
               </h3>
               <p className="font-mono text-xs text-stone-600 mt-1 font-bold">
-                Capacity: {table.capacity} Guests · {formatSectionName(table.section)}
+                Capacity: {table.capacity} Guests · {formatSectionName(table.section, table.number)}
               </p>
               <p className="text-xs text-stone-500 mt-2 max-w-xs leading-relaxed">
                 {selectedChair !== 'ALL'

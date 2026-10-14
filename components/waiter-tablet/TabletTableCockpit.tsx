@@ -161,7 +161,7 @@ export function TabletTableCockpit({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-black text-[#9C3D1E] uppercase tracking-widest">
-                {formatSectionName(table.section)}
+                {formatSectionName(table.section, table.number)}
               </span>
               {isMerged && (
                 <span className="font-mono text-[9px] font-black bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded-full flex items-center gap-1">

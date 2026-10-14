@@ -15,6 +15,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useWaiterStore } from '../../store/useWaiterStore';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   open: boolean;
@@ -24,16 +25,14 @@ interface Props {
 }
 
 const SECTION_MATCH_MAP: Record<string, string[]> = {
-  'SECTION A': ['Express / Couple Hall', 'Section A', 'SECTION A'],
-  'Section A': ['Express / Couple Hall', 'Section A', 'SECTION A'],
-  'SECTION B': ['Main Dining Hall', 'Section B', 'SECTION B'],
-  'Section B': ['Main Dining Hall', 'Section B', 'SECTION B'],
-  'SECTION C': ['Family Section', 'Section C', 'SECTION C'],
-  'Section C': ['Family Section', 'Section C', 'SECTION C'],
-  'SECTION D': ['Courtyard Garden', 'Section D', 'SECTION D'],
-  'Section D': ['Courtyard Garden', 'Section D', 'SECTION D'],
-  'SECTION E': ['Grand Feast Hall', 'Section E', 'SECTION E'],
-  'Section E': ['Grand Feast Hall', 'Section E', 'SECTION E'],
+  'SECTION A': ['Express / Couple Hall', 'Section A', 'SECTION A', 'SEC_A'],
+  'Section A': ['Express / Couple Hall', 'Section A', 'SECTION A', 'SEC_A'],
+  'SECTION B': ['Main Dining Hall', 'Section B', 'SECTION B', 'SEC_B'],
+  'Section B': ['Main Dining Hall', 'Section B', 'SECTION B', 'SEC_B'],
+  'SECTION C': ['Family Section', 'Section C', 'SECTION C', 'SEC_C'],
+  'Section C': ['Family Section', 'Section C', 'SECTION C', 'SEC_C'],
+  'SECTION D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D', 'SECTION D', 'SEC_D'],
+  'Section D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D', 'SECTION D', 'SEC_D'],
 };
 
 export function TabletShiftModal({ open, onClose, captainName, sectionName }: Props) {
@@ -42,7 +41,7 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
 
   const currentSection = sectionName || activeSection || 'Section A';
 
-  // Waiter's assigned tables (4 tables in Section A / Express Couple Hall)
+  // Waiter's assigned tables (Station Tables in Section A, B, C, or D)
   const myTables = tables.filter((t) => {
     if (!currentSection || currentSection === 'ALL') return true;
     const allowed = SECTION_MATCH_MAP[currentSection] || [currentSection];
@@ -72,10 +71,7 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
   const upiTotal = Math.round(shiftRevenue * 0.55);
   const cardTotal = Math.round(shiftRevenue * 0.10);
 
-  const displaySectionTitle =
-    currentSection === 'Section A' || currentSection === 'SECTION A'
-      ? 'Express / Couple Hall (Section A)'
-      : currentSection;
+  const displaySectionTitle = formatSectionName(currentSection);
 
   return (
     <AnimatePresence>
@@ -229,7 +225,7 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                           My Assigned Tables ({myTables.length} Tables)
                         </h3>
                         <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-900 border border-amber-200">
-                          {currentSection}
+                          {displaySectionTitle}
                         </span>
                       </div>
                       <p className="text-xs text-stone-500 mt-0.5">

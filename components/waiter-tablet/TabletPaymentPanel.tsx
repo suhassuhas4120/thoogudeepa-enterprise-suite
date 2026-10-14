@@ -18,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useCustomer } from '../../context/CustomerContext';
+import { formatSectionName } from './TabletFloorMap';
 import QRCode from 'qrcode';
 
 interface Props {
@@ -228,7 +229,7 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     recordSettledBill({
       invoiceNumber,
       tableName: tableNum,
-      section: table?.section || 'Main Dining Hall',
+      section: formatSectionName(table?.section || '', tableNum),
       guestCount: splitSeatNum ? 1 : table?.guestCount || table?.capacity || 1,
       formattedDate,
       formattedTime,

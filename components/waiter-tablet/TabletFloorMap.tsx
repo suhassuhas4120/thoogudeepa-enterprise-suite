@@ -182,19 +182,33 @@ export function TabletFloorMap({
     return 0;
   };
 
-  const visible = tables.filter((t) => {
-    // Section match
+  // Tables belonging to the active section (before status or search filtering)
+  const sectionTables = tables.filter((t) => {
     if (selectedSection && selectedSection !== 'ALL') {
       const allowed = SECTION_MATCH_MAP[selectedSection];
       if (allowed) {
-        if (!allowed.some((sec) => t.section.toLowerCase().includes(sec.toLowerCase()))) {
-          return false;
-        }
-      } else if (!t.section.toLowerCase().includes(selectedSection.toLowerCase())) {
-        return false;
+        return allowed.some((sec) => t.section.toLowerCase().includes(sec.toLowerCase()));
       }
+      return t.section.toLowerCase().includes(selectedSection.toLowerCase());
     }
+    return true;
+  });
 
+  // Calculate live counts for status pills based on the active section (or all tables)
+  const sectionTableNums = new Set(sectionTables.map((t) => t.number.toLowerCase()));
+  const sectionReadyTickets = kdsTickets.filter(
+    (tk) => tk.status === 'READY' && (selectedSection === 'ALL' || sectionTableNums.has(tk.tableNumber.toLowerCase()))
+  );
+
+  const statusCounts = {
+    all: sectionTables.length,
+    occupied: sectionTables.filter((t) => t.status === 'OCCUPIED').length,
+    vacant: sectionTables.filter((t) => t.status === 'VACANT').length,
+    billing: sectionTables.filter((t) => t.status === 'BILLING').length,
+    ready: sectionReadyTickets.length,
+  };
+
+  const visible = sectionTables.filter((t) => {
     // Search query match
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
@@ -329,55 +343,55 @@ export function TabletFloorMap({
               : 'bg-stone-100 text-stone-700 border-stone-300 hover:bg-stone-200'
           }`}
         >
-          All ({tables.length})
+          All ({statusCounts.all})
         </button>
 
         <button
           type="button"
-          onClick={() => setStatusFilter('OCCUPIED')}
+          onClick={() => setStatusFilter(statusFilter === 'OCCUPIED' ? 'ALL' : 'OCCUPIED')}
           className={`px-3.5 py-1.5 rounded-xl font-black transition cursor-pointer border-2 ${
             statusFilter === 'OCCUPIED'
               ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
               : 'bg-amber-50 text-amber-900 border-amber-300 hover:bg-amber-100'
           }`}
         >
-          Dining ({tables.filter((t) => t.status === 'OCCUPIED').length})
+          Dining ({statusCounts.occupied})
         </button>
 
         <button
           type="button"
-          onClick={() => setStatusFilter('VACANT')}
+          onClick={() => setStatusFilter(statusFilter === 'VACANT' ? 'ALL' : 'VACANT')}
           className={`px-3.5 py-1.5 rounded-xl font-black transition cursor-pointer border-2 ${
             statusFilter === 'VACANT'
               ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
               : 'bg-emerald-50 text-emerald-900 border-emerald-300 hover:bg-emerald-100'
           }`}
         >
-          Vacant ({tables.filter((t) => t.status === 'VACANT').length})
+          Vacant ({statusCounts.vacant})
         </button>
 
         <button
           type="button"
-          onClick={() => setStatusFilter('BILLING')}
+          onClick={() => setStatusFilter(statusFilter === 'BILLING' ? 'ALL' : 'BILLING')}
           className={`px-3.5 py-1.5 rounded-xl font-black transition cursor-pointer border-2 ${
             statusFilter === 'BILLING'
               ? 'bg-purple-700 text-white border-purple-700 shadow-xs'
               : 'bg-purple-50 text-purple-900 border-purple-300 hover:bg-purple-100'
           }`}
         >
-          Billing ({tables.filter((t) => t.status === 'BILLING').length})
+          Billing ({statusCounts.billing})
         </button>
 
         <button
           type="button"
-          onClick={() => setStatusFilter('READY')}
+          onClick={() => setStatusFilter(statusFilter === 'READY' ? 'ALL' : 'READY')}
           className={`px-3.5 py-1.5 rounded-xl font-black transition cursor-pointer border-2 ${
             statusFilter === 'READY'
               ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
               : 'bg-blue-50 text-blue-900 border-blue-300 hover:bg-blue-100'
           }`}
         >
-          Ready at Pass ({kdsTickets.filter((tk) => tk.status === 'READY').length})
+          Ready at Pass ({statusCounts.ready})
         </button>
       </div>
 

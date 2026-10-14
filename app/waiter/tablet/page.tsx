@@ -24,6 +24,17 @@ import { TabletShiftModal } from '../../../components/waiter-tablet/TabletShiftM
 const TAB_W = 1194;
 const TAB_H = 834;
 
+const SECTION_MATCH_MAP: Record<string, string[]> = {
+  'Section A': ['Express / Couple Hall', 'Section A'],
+  'Section B': ['Main Dining Hall', 'Section B'],
+  'Section C': ['Family Section', 'Section C'],
+  'Section D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
+  'SEC_A': ['Express / Couple Hall', 'Section A'],
+  'SEC_B': ['Main Dining Hall', 'Section B'],
+  'SEC_C': ['Family Section', 'Section C'],
+  'SEC_D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
+};
+
 // ── View state machine ─────────────────────────────────────────────────────
 type AppView =
   | 'login'
@@ -272,10 +283,27 @@ export default function WaiterTabletPage() {
     setRightPanelTab('menu');
   };
 
+  // Tables belonging to the active section (or all tables if ALL is selected)
+  const sectionTables = tables.filter((t) => {
+    if (selectedSection && selectedSection !== 'ALL') {
+      const allowed = SECTION_MATCH_MAP[selectedSection];
+      if (allowed) {
+        return allowed.some((sec) => t.section.toLowerCase().includes(sec.toLowerCase()));
+      }
+      return t.section.toLowerCase().includes(selectedSection.toLowerCase());
+    }
+    return true;
+  });
+
+  const sectionTableNums = new Set(sectionTables.map((t) => t.number.toLowerCase()));
+  const sectionReadyCount = readyTickets.filter(
+    (tk) => selectedSection === 'ALL' || sectionTableNums.has(tk.tableNumber.toLowerCase())
+  ).length;
+
   const stats = {
-    occupied: tables.filter((t) => t.status === 'OCCUPIED').length,
-    vacant: tables.filter((t) => t.status === 'VACANT').length,
-    billing: tables.filter((t) => t.status === 'BILLING').length,
+    occupied: sectionTables.filter((t) => t.status === 'OCCUPIED').length,
+    vacant: sectionTables.filter((t) => t.status === 'VACANT').length,
+    billing: sectionTables.filter((t) => t.status === 'BILLING').length,
   };
 
   const currentTable = tables.find((t) => t.number === selectedTableNum);
@@ -596,7 +624,7 @@ export default function WaiterTabletPage() {
                         },
                         {
                           label: 'Ready Pass',
-                          count: readyTickets.length,
+                          count: sectionReadyCount,
                           color: 'bg-blue-50 border-blue-300 text-blue-950',
                           dot: 'bg-blue-600',
                         },

@@ -170,6 +170,15 @@ export function TabletTableDetail({
     tk.items.map((item) => ({ ...item, tableNum: tk.tableNumber }))
   );
 
+  const allFiredItems = allItems;
+  const hasFiredItems = allFiredItems.length > 0;
+  const allFoodServed =
+    !isVacant &&
+    hasFiredItems &&
+    allFiredItems.every(
+      (it) => it.stage === 'SERVED' || (it.stage as string) === 'Served'
+    );
+
   const mergedSeatGroups = table.mergedSeatGroups || {};
   const groupSeats = Object.values(mergedSeatGroups).flat();
 
@@ -318,13 +327,19 @@ export function TabletTableDetail({
                 <h2 className="text-3xl font-black text-stone-950 tracking-tight font-mono">
                   {groupPeers.length > 1 ? groupPeers.join(' + ') : tableNum}
                 </h2>
-                <span
-                  className={`px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider ${statusBadge(
-                    table.status
-                  )}`}
-                >
-                  {table.status}
-                </span>
+                {allFoodServed ? (
+                  <span className="px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300 shadow-2xs">
+                    SERVED
+                  </span>
+                ) : (
+                  <span
+                    className={`px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider ${statusBadge(
+                      table.status
+                    )}`}
+                  >
+                    {table.status}
+                  </span>
+                )}
                 {groupPeers.length > 1 && (
                   <span className="px-2.5 py-0.5 rounded-xl bg-indigo-600 text-white text-xs font-black font-mono flex items-center gap-1">
                     <Link2 className="h-3 w-3" />
@@ -819,19 +834,11 @@ export function TabletTableDetail({
                       KOT #{tk.id ? tk.id.slice(-4) : String(tkIdx + 1)} · {tk.timestamp}
                     </span>
                   </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider ${
-                      isAllServed || tk.status === 'COMPLETED' || tk.status === 'SERVED'
-                        ? 'text-emerald-800 bg-emerald-100 border-emerald-300'
-                        : tk.status === 'READY'
-                        ? 'text-white bg-blue-600 border-blue-700 animate-pulse'
-                        : tk.status === 'PREP'
-                        ? 'text-white bg-amber-600 border-amber-700'
-                        : 'text-stone-800 bg-stone-200 border-stone-300'
-                    }`}
-                  >
-                    {isAllServed ? 'SERVED ✓' : tk.status}
-                  </span>
+                  {(isAllServed || tk.status === 'COMPLETED' || tk.status === 'SERVED') && (
+                    <span className="px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300">
+                      SERVED
+                    </span>
+                  )}
                 </div>
 
                 {tkItems.map((item) => {

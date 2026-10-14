@@ -122,7 +122,7 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
               </h2>
               <div className="flex items-center gap-2">
                 {readyGroups.length > 0 && (
-                  <span className="h-6 px-2.5 flex items-center bg-emerald-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
+                  <span className="h-6 px-2.5 flex items-center bg-blue-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
                     {readyGroups.length} READY
                   </span>
                 )}

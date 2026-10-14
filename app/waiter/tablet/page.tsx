@@ -788,15 +788,15 @@ export default function WaiterTabletPage() {
                       </div>
                     )}
 
-                    {/* Ready food teaser */}
+                    {/* Ready food teaser - Blue color theme matching Kitchen Pass */}
                     {readyTickets.length > 0 ? (
                       <button
                         type="button"
                         onClick={openKitchenDrawer}
-                        className="w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 border-emerald-300 bg-emerald-50 text-left transition cursor-pointer hover:border-emerald-400 shadow-2xs active:scale-98"
+                        className="w-full flex items-center gap-3.5 p-4 rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-indigo-50/40 text-left transition cursor-pointer hover:border-blue-400 shadow-2xs active:scale-98"
                       >
-                        <div className="h-10 w-10 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center shrink-0">
-                          <ChefHat className="h-5 w-5 text-emerald-700 stroke-[2.4]" />
+                        <div className="h-10 w-10 rounded-xl bg-blue-100 border border-blue-300 flex items-center justify-center shrink-0">
+                          <ChefHat className="h-5 w-5 text-blue-700 stroke-[2.4]" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between">
@@ -805,19 +805,19 @@ export default function WaiterTabletPage() {
                               {readyTickets.length === 1 ? "Order" : "Orders"}{" "}
                               Ready at Pass
                             </p>
-                            <span className="font-mono text-[10px] font-black text-emerald-800 bg-emerald-100 border border-emerald-300 px-2 py-0.5 rounded-full animate-pulse">
+                            <span className="font-mono text-[10px] font-black text-blue-800 bg-blue-100 border border-blue-300 px-2 py-0.5 rounded-full animate-pulse">
                               PICKUP
                             </span>
                           </div>
-                          <p className="font-mono text-xs text-stone-600 font-bold mt-0.5">
+                          <p className="font-mono text-xs text-blue-700 font-bold mt-0.5">
                             Tap to open kitchen pickup
                           </p>
                         </div>
-                        <ChevronRight className="h-5 w-5 text-stone-400 stroke-[2.5]" />
+                        <ChevronRight className="h-5 w-5 text-blue-500 stroke-[2.5]" />
                       </button>
                     ) : (
                       <div className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-stone-200 bg-stone-50/80 font-mono text-xs text-stone-600 font-bold">
-                        <ChefHat className="h-4 w-4 text-stone-400 shrink-0" />
+                        <ChefHat className="h-4 w-4 text-blue-500 shrink-0" />
                         <span>Kitchen pass is clear · No ready dishes</span>
                       </div>
                     )}
@@ -858,7 +858,7 @@ export default function WaiterTabletPage() {
               {/* ════════════════════════════════════════════════════════
                   TABLE DETAIL (Left: Table Detail | Right: Customer Menu or Settle)
               ════════════════════════════════════════════════════════ */}
-              {view === "table-detail" && (
+              {view === 'table-detail' && (
                 <>
                   {/* Left (52%): Table detail panel */}
                   <div className="w-[52%] border-r border-[#EAE5DF] flex flex-col overflow-hidden">
@@ -867,7 +867,7 @@ export default function WaiterTabletPage() {
                       selectedChair={selectedChair}
                       onSelectChair={setSelectedChair}
                       onBackToFloor={() => {
-                        setView("floor");
+                        setView('floor');
                         setConfirmVacate(false);
                       }}
                       onAddDishes={() => setRightPanelTab("menu")}

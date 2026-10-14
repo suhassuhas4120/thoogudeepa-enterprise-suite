@@ -20,7 +20,7 @@ import { AnimatePresence, motion } from "framer-motion";
 
 // Tablet components
 import { TabletLoginPage } from "../../../components/waiter-tablet/TabletLoginPage";
-import { TabletFloorMap } from "../../../components/waiter-tablet/TabletFloorMap";
+import { TabletFloorMap, formatSectionName } from "../../../components/waiter-tablet/TabletFloorMap";
 import { TabletTableDetail } from "../../../components/waiter-tablet/TabletTableDetail";
 import { TabletPaymentPanel } from "../../../components/waiter-tablet/TabletPaymentPanel";
 import { Screen2Menu } from "../../../components/customer/Screen2Menu";
@@ -81,7 +81,7 @@ function SeatGuestsModal({
             Seat Guests — {tableNum}
           </h3>
           <p className="font-mono text-xs text-stone-500 mt-1">
-            Table Capacity: {table?.capacity || 4} Guests · {table?.section}
+            Table Capacity: {table?.capacity || 4} Guests · {formatSectionName(table?.section || '')}
           </p>
         </div>
 
@@ -198,10 +198,10 @@ export default function WaiterTabletPage() {
   const readyTickets = kdsTickets.filter((tk) => tk.status === "READY");
   const shiftRevenue = shiftStats?.totalRevenue || 0;
 
-  // Chime + auto-open calls drawer on new customer assistance ping
+  // Chime + auto-open calls drawer on new customer assistance ping (only when logged in)
   const prevPingRef = useRef(activePings.length);
   useEffect(() => {
-    if (activePings.length > prevPingRef.current) {
+    if (view !== "login" && activePings.length > prevPingRef.current) {
       setCallsOpen(true);
       try {
         const Ctx = window.AudioContext || (window as any).webkitAudioContext;
@@ -226,7 +226,7 @@ export default function WaiterTabletPage() {
       } catch {}
     }
     prevPingRef.current = activePings.length;
-  }, [activePings.length]);
+  }, [activePings.length, view]);
 
   // Right-edge swipe to open notif drawer (opens calls if calls exist, else kitchen)
   const touchStartX = useRef(0);
@@ -235,6 +235,7 @@ export default function WaiterTabletPage() {
   }, []);
   const onTouchEnd = useCallback(
     (e: React.TouchEvent) => {
+      if (view === "login") return;
       const endX = e.changedTouches[0].clientX;
       const dx = touchStartX.current - endX;
       const frameRect = frameRef.current?.getBoundingClientRect();
@@ -273,6 +274,8 @@ export default function WaiterTabletPage() {
     setSelectedChair("ALL");
     setConfirmVacate(false);
     setSplitInfo(null);
+    setCallsOpen(false);
+    setPickupOpen(false);
 
     const targetTable = tables.find((t) => t.number === num);
     if (!targetTable || targetTable.status === "VACANT") {
@@ -283,6 +286,22 @@ export default function WaiterTabletPage() {
       setRightPanelTab("payment");
     }
     setView("table-detail");
+  };
+
+  const handleLogout = () => {
+    setActiveCaptain("");
+    setAssignedSection("Section A");
+    setSectionFilter("MY");
+    setSelectedSection("Section A");
+    setSearchQuery("");
+    setCallsOpen(false);
+    setPickupOpen(false);
+    setSplitOpen(false);
+    setMergeOpen(false);
+    setShiftOpen(false);
+    setSeatOpen(false);
+    setConfirmVacate(false);
+    setView("login");
   };
 
   const handleLogin = (captainName: string, section?: string) => {
@@ -576,10 +595,7 @@ export default function WaiterTabletPage() {
                 {/* Logout */}
                 <button
                   type="button"
-                  onClick={() => {
-                    setActiveCaptain("");
-                    setView("login");
-                  }}
+                  onClick={handleLogout}
                   className="p-2 hover:bg-stone-100 rounded-xl transition cursor-pointer text-stone-600 hover:text-stone-900 border border-stone-200"
                   title="End Shift"
                 >
@@ -612,7 +628,7 @@ export default function WaiterTabletPage() {
                             );
                           }}
                           className={`px-3.5 py-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                            sectionFilter === "MY" && selectedSection !== "ALL"
+                            sectionFilter === "MY"
                               ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs"
                               : "bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100"
                           }`}
@@ -631,7 +647,7 @@ export default function WaiterTabletPage() {
                             setSelectedSection("ALL");
                           }}
                           className={`px-3.5 py-2 rounded-xl border-2 transition-all cursor-pointer flex items-center gap-1.5 shadow-2xs ${
-                            sectionFilter === "ALL" || selectedSection === "ALL"
+                            sectionFilter === "ALL"
                               ? "bg-stone-900 text-white border-stone-900 shadow-xs"
                               : "bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100"
                           }`}
@@ -671,6 +687,8 @@ export default function WaiterTabletPage() {
                         setSelectedTableNum(num);
                         setSelectedChair("ALL");
                         setSplitInfo(null);
+                        setCallsOpen(false);
+                        setPickupOpen(false);
                         setRightPanelTab("payment");
                         setView("table-detail");
                       }}

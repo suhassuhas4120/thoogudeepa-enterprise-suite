@@ -97,23 +97,23 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
             className="absolute inset-0 bg-stone-950/60 backdrop-blur-xs"
           />
 
-          {/* Modal Card */}
+          {/* Modal Card - Constrained height so it never exceeds screen and scrolls smoothly inside */}
           <motion.div
             initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="relative w-[620px] max-w-full max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-10 flex flex-col overflow-hidden font-sans"
+            className="relative w-[620px] max-w-full h-[580px] max-h-[75vh] bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-10 flex flex-col overflow-hidden font-sans"
           >
             {/* Header */}
-            <div className="px-6 py-4.5 bg-[#FAF8F5] border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
+            <div className="px-6 py-4 bg-[#FAF8F5] border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3 min-w-0">
                 <div className="h-10 w-10 rounded-2xl bg-[#9C3D1E] text-white flex items-center justify-center shadow-sm shrink-0">
                   <TrendingUp className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-stone-900 tracking-tight">Shift Performance</h2>
+                    <h2 className="text-base font-bold text-stone-900 tracking-tight">Shift Performance</h2>
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
                       <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Live Shift
@@ -133,21 +133,21 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
               </button>
             </div>
 
-            {/* Content Body with clean vertical gap between all cards */}
-            <div className="p-6 overflow-y-auto flex flex-col gap-4">
+            {/* Content Body with flex-1 min-h-0 and overflow-y-auto so it scrolls cleanly */}
+            <div className="p-5 overflow-y-auto flex-1 min-h-0 flex flex-col gap-3.5">
 
               {/* 1. Total Shift Revenue Card with Highlighted Icons */}
-              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-5 shadow-2xs">
+              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-4.5 shadow-2xs shrink-0">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3.5">
-                    <div className="h-12 w-12 rounded-2xl bg-[#9C3D1E] text-white flex items-center justify-center shadow-md shadow-[#9C3D1E]/20 shrink-0">
-                      <IndianRupee className="h-6 w-6" />
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 rounded-2xl bg-[#9C3D1E] text-white flex items-center justify-center shadow-md shadow-[#9C3D1E]/20 shrink-0">
+                      <IndianRupee className="h-5.5 w-5.5" />
                     </div>
                     <div>
                       <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
                         Total Shift Revenue
                       </span>
-                      <div className="text-3xl font-extrabold text-[#9C3D1E] tracking-tight mt-0.5">
+                      <div className="text-2xl font-extrabold text-[#9C3D1E] tracking-tight mt-0.5">
                         ₹{shiftRevenue.toLocaleString()}
                       </div>
                     </div>
@@ -163,56 +163,56 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                 </div>
 
                 {/* 3 Highlighted Payment Collection Cards */}
-                <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#EAE5DF]">
+                <div className="grid grid-cols-3 gap-2.5 mt-3.5 pt-3.5 border-t border-[#EAE5DF]">
                   {/* UPI */}
-                  <div className="bg-white p-3.5 rounded-xl border border-[#EAE5DF] flex items-center gap-3 shadow-2xs">
-                    <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0">
-                      <Smartphone className="h-4.5 w-4.5" />
+                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF] flex items-center gap-2.5 shadow-2xs">
+                    <div className="h-8 w-8 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0">
+                      <Smartphone className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-stone-500 font-medium">UPI</span>
+                        <span className="text-[11px] text-stone-500 font-medium">UPI</span>
                         <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
                           {Math.round((upiTotal / shiftRevenue) * 100)}%
                         </span>
                       </div>
-                      <div className="text-base font-extrabold text-stone-900 mt-0.5">
+                      <div className="text-sm font-extrabold text-stone-900 mt-0.5">
                         ₹{upiTotal.toLocaleString()}
                       </div>
                     </div>
                   </div>
 
                   {/* Cash */}
-                  <div className="bg-white p-3.5 rounded-xl border border-[#EAE5DF] flex items-center gap-3 shadow-2xs">
-                    <div className="h-9 w-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center shrink-0">
-                      <Banknote className="h-4.5 w-4.5" />
+                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF] flex items-center gap-2.5 shadow-2xs">
+                    <div className="h-8 w-8 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center shrink-0">
+                      <Banknote className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-stone-500 font-medium">Cash</span>
+                        <span className="text-[11px] text-stone-500 font-medium">Cash</span>
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded">
                           {Math.round((cashTotal / shiftRevenue) * 100)}%
                         </span>
                       </div>
-                      <div className="text-base font-extrabold text-stone-900 mt-0.5">
+                      <div className="text-sm font-extrabold text-stone-900 mt-0.5">
                         ₹{cashTotal.toLocaleString()}
                       </div>
                     </div>
                   </div>
 
                   {/* Card */}
-                  <div className="bg-white p-3.5 rounded-xl border border-[#EAE5DF] flex items-center gap-3 shadow-2xs">
-                    <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center justify-center shrink-0">
-                      <CreditCard className="h-4.5 w-4.5" />
+                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF] flex items-center gap-2.5 shadow-2xs">
+                    <div className="h-8 w-8 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center justify-center shrink-0">
+                      <CreditCard className="h-4 w-4" />
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-xs text-stone-500 font-medium">Card</span>
+                        <span className="text-[11px] text-stone-500 font-medium">Card</span>
                         <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded">
                           {Math.round((cardTotal / shiftRevenue) * 100)}%
                         </span>
                       </div>
-                      <div className="text-base font-extrabold text-stone-900 mt-0.5">
+                      <div className="text-sm font-extrabold text-stone-900 mt-0.5">
                         ₹{cardTotal.toLocaleString()}
                       </div>
                     </div>
@@ -221,7 +221,7 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
               </div>
 
               {/* 2. Captain's Assigned Section (4 Tables) Card */}
-              <div className="bg-white border border-[#EAE5DF] rounded-2xl p-5 shadow-2xs space-y-4">
+              <div className="bg-white border border-[#EAE5DF] rounded-2xl p-4.5 shadow-2xs space-y-3.5 shrink-0">
                 <div className="flex items-center justify-between pb-3 border-b border-[#EAE5DF]">
                   <div className="flex items-center gap-2.5">
                     <div className="h-8 w-8 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 flex items-center justify-center shrink-0">
@@ -264,7 +264,7 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                   </div>
 
                   {/* Segmented Bar for Section Tables */}
-                  <div className="h-3 w-full bg-stone-100 rounded-full overflow-hidden flex p-0.5 gap-0.5 border border-stone-200/60">
+                  <div className="h-2.5 w-full bg-stone-100 rounded-full overflow-hidden flex p-0.5 gap-0.5 border border-stone-200/60">
                     <div
                       className="h-full bg-amber-500 rounded-l-full transition-all duration-500"
                       style={{
@@ -288,11 +288,11 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                   </div>
 
                   {/* Section 4-table interactive cards */}
-                  <div className="grid grid-cols-4 gap-2 pt-1">
+                  <div className="grid grid-cols-4 gap-2 pt-0.5">
                     {myTables.map((tbl) => (
                       <div
                         key={tbl.id}
-                        className={`p-2.5 rounded-xl border text-center transition ${
+                        className={`p-2 rounded-xl border text-center transition ${
                           tbl.status === 'OCCUPIED'
                             ? 'bg-amber-50/80 border-amber-300 text-amber-900'
                             : tbl.status === 'BILLING'
@@ -301,9 +301,9 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                         }`}
                       >
                         <span className="font-mono text-xs font-black block">{tbl.number}</span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider block mt-0.5">
+                        <span className="text-[9.5px] font-bold uppercase tracking-wider block mt-0.5">
                           {tbl.status === 'OCCUPIED'
-                            ? `${tbl.guestCount || 2} Guests`
+                            ? `${tbl.guestCount || 2} G`
                             : tbl.status === 'BILLING'
                             ? 'Billing'
                             : 'Vacant'}
@@ -318,12 +318,12 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
               </div>
 
               {/* 3. Restaurant-Wide Floor Scope (34 Tables) & Kitchen Speed */}
-              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-5 shadow-2xs space-y-3.5">
+              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-4.5 space-y-3 shadow-2xs shrink-0">
                 {/* Header Row */}
-                <div className="flex items-center justify-between pb-3 border-b border-[#EAE5DF]">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="h-8 w-8 rounded-xl bg-[#9C3D1E]/10 text-[#9C3D1E] flex items-center justify-center shrink-0">
-                      <Users className="h-4 w-4" />
+                <div className="flex items-center justify-between pb-2.5 border-b border-[#EAE5DF]">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="h-7 w-7 rounded-lg bg-[#9C3D1E]/10 text-[#9C3D1E] flex items-center justify-center shrink-0">
+                      <Users className="h-3.5 w-3.5" />
                     </div>
                     <div className="min-w-0">
                       <span className="text-xs font-bold text-stone-900 uppercase tracking-wider block">
@@ -345,34 +345,34 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                 </div>
 
                 {/* 3 Balanced Summary Pills: Total Occupied, Total Billing, Total Vacant */}
-                <div className="grid grid-cols-3 gap-2.5">
-                  <div className="bg-white p-2.5 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="bg-white p-2 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
                     <span className="text-[11px] text-stone-500 font-medium">Occupied</span>
-                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
                       {totalOccupied} Tables
                     </span>
                   </div>
 
-                  <div className="bg-white p-2.5 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
+                  <div className="bg-white p-2 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
                     <span className="text-[11px] text-stone-500 font-medium">Billing</span>
-                    <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                    <span className="text-xs font-bold text-purple-700 bg-purple-50 px-1.5 py-0.5 rounded border border-purple-200">
                       {totalBilling} Tables
                     </span>
                   </div>
 
-                  <div className="bg-white p-2.5 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
+                  <div className="bg-white p-2 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
                     <span className="text-[11px] text-stone-500 font-medium">Vacant</span>
-                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
                       {totalVacant} Tables
                     </span>
                   </div>
                 </div>
 
                 {/* Kitchen Pass & Staff Tips Sub-bar */}
-                <div className="pt-3 border-t border-[#EAE5DF] flex items-center justify-between">
-                  <div className="flex items-center gap-3 min-w-0">
+                <div className="pt-2.5 border-t border-[#EAE5DF] flex items-center justify-between">
+                  <div className="flex items-center gap-2.5 min-w-0">
                     <div
-                      className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                      className={`h-8 w-8 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                         readyTickets.length > 0
                           ? 'bg-amber-100 text-amber-900 border border-amber-300'
                           : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
@@ -390,7 +390,7 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                               : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           }`}
                         >
-                          {readyTickets.length > 0 ? `${readyTickets.length} Dishes Ready` : 'Pass Clear'}
+                          {readyTickets.length > 0 ? `${readyTickets.length} Ready` : 'Pass Clear'}
                         </span>
                       </div>
                       <p className="text-[11px] text-stone-500 mt-0.5 truncate">
@@ -399,11 +399,11 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                     </div>
                   </div>
 
-                  <div className="text-right pl-4 border-l border-[#EAE5DF] shrink-0">
+                  <div className="text-right pl-3.5 border-l border-[#EAE5DF] shrink-0">
                     <span className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider block">
                       Staff Tips
                     </span>
-                    <span className="text-base font-extrabold text-emerald-700">
+                    <span className="text-sm font-extrabold text-emerald-700">
                       ₹{(shiftStats?.tipsEarned || 850).toLocaleString()}
                     </span>
                   </div>
@@ -413,14 +413,14 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 bg-[#FAF8F5] border-t border-[#EAE5DF] flex items-center justify-between shrink-0">
+            <div className="px-6 py-3.5 bg-[#FAF8F5] border-t border-[#EAE5DF] flex items-center justify-between shrink-0">
               <span className="text-xs text-stone-400 font-medium">
                 Thoogudeepa Enterprise System · Auto-synced with floor
               </span>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 bg-[#9C3D1E] hover:bg-[#7D2F17] active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+                className="px-6 py-2 bg-[#9C3D1E] hover:bg-[#7D2F17] active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
               >
                 Close Summary
               </button>

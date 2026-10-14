@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Link2, Unlink, CheckCircle2, AlertCircle, Users, Armchair } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   open: boolean;
@@ -130,7 +131,7 @@ export function TabletMergeModal({ open, onClose, tableNum, onMergedSuccess }: P
                         Current Focus Table
                       </span>
                       <span className="text-xl font-black text-stone-950">
-                        {currentTable.number} ({currentTable.section})
+                        {currentTable.number} ({formatSectionName(currentTable.section)})
                       </span>
                       <span className="text-xs text-stone-600 block mt-0.5">
                         {currentTable.capacity} seats · Status: {currentTable.status} · Bill: ₹{currentTable.currentBill || 0}

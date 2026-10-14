@@ -20,6 +20,7 @@ import {
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   selectedTableNum: string;
@@ -160,7 +161,7 @@ export function TabletTableCockpit({
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-black text-[#9C3D1E] uppercase tracking-widest">
-                {table.section}
+                {formatSectionName(table.section)}
               </span>
               {isMerged && (
                 <span className="font-mono text-[9px] font-black bg-purple-100 text-purple-900 border border-purple-300 px-2 py-0.5 rounded-full flex items-center gap-1">

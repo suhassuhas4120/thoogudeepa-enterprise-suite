@@ -65,6 +65,16 @@ const SECTION_MATCH_MAP: Record<string, string[]> = {
   'SEC_D': ['Courtyard Garden', 'Grand Feast Hall', 'Section D'],
 };
 
+export function formatSectionName(sec: string): string {
+  if (!sec) return 'Section A';
+  const s = sec.toLowerCase();
+  if (s.includes('express') || s.includes('couple') || s.includes('section a') || s.includes('sec_a')) return 'Section A';
+  if (s.includes('main dining') || s.includes('section b') || s.includes('sec_b')) return 'Section B';
+  if (s.includes('family') || s.includes('section c') || s.includes('sec_c')) return 'Section C';
+  if (s.includes('courtyard') || s.includes('grand feast') || s.includes('section d') || s.includes('sec_d')) return 'Section D';
+  return sec;
+}
+
 export function TabletFloorMap({
   selectedTableNum,
   selectedSection,
@@ -216,7 +226,9 @@ export function TabletFloorMap({
       const matchNum =
         t.number.toLowerCase().includes(q) ||
         cleanNum.includes(q.replace(/^(table\s*|t-?)/i, ''));
-      const matchSec = t.section.toLowerCase().includes(q);
+      const matchSec =
+        t.section.toLowerCase().includes(q) ||
+        formatSectionName(t.section).toLowerCase().includes(q);
       const matchServer = t.serverName?.toLowerCase().includes(q);
       if (!matchNum && !matchSec && !matchServer) return false;
     }
@@ -578,7 +590,7 @@ export function TabletFloorMap({
                         )}
                       </div>
                       <div className="text-stone-700 text-xs font-bold truncate mt-0.5">
-                        {entry.section} {isMerged ? `· ${groupPeers.join(' + ')}` : ''}
+                        {formatSectionName(entry.section)} {isMerged ? `· ${groupPeers.join(' + ')}` : ''}
                       </div>
                     </div>
 
@@ -603,12 +615,7 @@ export function TabletFloorMap({
                           <Clock className="h-3.5 w-3.5" />
                           <span>{elapsedMins}m</span>
                         </span>
-                      ) : (
-                        <span className="text-emerald-700 font-black flex items-center gap-1">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                          Vacant
-                        </span>
-                      )}
+                      ) : null}
                     </div>
                   </motion.div>
 

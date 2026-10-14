@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 import { useCustomer } from '../../context/CustomerContext';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   tableNum: string;
@@ -289,7 +290,7 @@ export function TabletTableDetail({
                 )}
               </div>
               <p className="font-mono text-xs text-stone-700 mt-1 font-bold">
-                {table.section} · Maximum Capacity: {totalCapacity} Seats
+                {formatSectionName(table.section)} · Maximum Capacity: {totalCapacity} Seats
               </p>
             </div>
           </div>
@@ -645,7 +646,7 @@ export function TabletTableDetail({
                 Table {tableNum} is Vacant
               </h3>
               <p className="font-mono text-xs text-stone-600 mt-1 font-bold">
-                Capacity: {table.capacity} Guests · {table.section}
+                Capacity: {table.capacity} Guests · {formatSectionName(table.section)}
               </p>
               <p className="text-xs text-stone-500 mt-2 max-w-xs leading-relaxed">
                 {selectedChair !== 'ALL'

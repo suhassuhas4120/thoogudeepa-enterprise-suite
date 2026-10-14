@@ -1,9 +1,17 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Bell, CheckCircle2, Clock, X, Eye, Utensils, MessageSquare } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import React from "react";
+import {
+  Bell,
+  CheckCircle2,
+  Clock,
+  X,
+  Eye,
+  Utensils,
+  MessageSquare,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSharedBridge } from "../../store/useSharedBridge";
 
 interface Props {
   open: boolean;
@@ -13,7 +21,7 @@ interface Props {
 
 export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
   const { pings, waiterResolvePing } = useSharedBridge();
-  const activePings = pings.filter((p) => p.status === 'PENDING');
+  const activePings = pings.filter((p) => p.status === "PENDING");
 
   const handleFocusTable = (tblNum: string) => {
     if (onSelectTable) {
@@ -32,37 +40,41 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-stone-950/30 backdrop-blur-2xs z-40"
+            className="absolute inset-0 bg-stone-950/60 backdrop-blur-xs z-50"
           />
 
           <motion.div
             key="pings-drawer"
-            initial={{ x: '100%' }}
+            initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed right-0 top-0 bottom-0 w-96 bg-white border-l border-[#EAE5DF] z-50 flex flex-col shadow-2xl font-sans"
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 320 }}
+            className="absolute right-0 top-0 h-full w-[400px] bg-white shadow-2xl border-l-2 border-stone-300 z-50 flex flex-col overflow-hidden font-sans select-none"
           >
             {/* Drawer header */}
-            <div className="px-5 py-4 border-b border-[#EAE5DF] bg-[#FAF8F5] flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5 font-mono text-xs font-black text-stone-900">
-                <div className="h-8 w-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
-                  <Bell className="h-4 w-4" />
-                </div>
-                <div>
-                  <span className="block">CUSTOMER ASSISTANCE</span>
-                  <span className="text-[10px] text-stone-400 font-bold">
-                    {activePings.length} urgent {activePings.length === 1 ? 'call' : 'calls'}
-                  </span>
-                </div>
+            <div className="px-6 py-4 border-b-2 border-stone-200 bg-white flex items-center justify-between shrink-0 shadow-2xs">
+              <div>
+                <p className="font-mono text-xs font-black uppercase tracking-widest text-[#9C3D1E]">
+                  Customer Call Service
+                </p>
+                <h2 className="text-xl font-black text-stone-950 tracking-tight mt-0.5">
+                  Guest Assistance Calls
+                </h2>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2 bg-white hover:bg-stone-200 border border-[#EAE5DF] rounded-xl transition cursor-pointer"
-              >
-                <X className="h-4 w-4 text-stone-500" />
-              </button>
+              <div className="flex items-center gap-2">
+                {activePings.length > 0 && (
+                  <span className="h-5 px-2 flex items-center bg-rose-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
+                    {activePings.length} CALLS
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 hover:bg-stone-100 border border-stone-300 rounded-xl transition cursor-pointer text-stone-600 hover:text-stone-900"
+                >
+                  <X className="h-5 w-5 stroke-[2.4]" />
+                </button>
+              </div>
             </div>
 
             {/* Pings list */}
@@ -73,8 +85,12 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                     <CheckCircle2 className="h-6 w-6" />
                   </div>
                   <div className="text-center">
-                    <p className="font-bold text-stone-700 text-sm">All Calls Attended</p>
-                    <p className="text-[11px] text-stone-400 mt-0.5">No guests currently waiting for service</p>
+                    <p className="font-bold text-stone-700 text-sm">
+                      All Calls Attended
+                    </p>
+                    <p className="text-[11px] text-stone-400 mt-0.5">
+                      No guests currently waiting for service
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -96,7 +112,8 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
 
                     {p.guestName && (
                       <p className="text-[11px] text-stone-600 font-bold">
-                        Guest: <span className="text-stone-900">{p.guestName}</span>
+                        Guest:{" "}
+                        <span className="text-stone-900">{p.guestName}</span>
                       </p>
                     )}
 
@@ -109,7 +126,8 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
 
                     <div className="flex items-center justify-between text-[10px] text-stone-400 pt-1">
                       <span className="flex items-center gap-1 font-bold text-stone-500">
-                        <Clock className="h-3 w-3 text-rose-500" /> {p.timestamp || 'Just now'}
+                        <Clock className="h-3 w-3 text-rose-500" />{" "}
+                        {p.timestamp || "Just now"}
                       </span>
                       <span className="text-rose-700 font-bold uppercase text-[9px]">
                         Urgent Action

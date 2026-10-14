@@ -15,7 +15,8 @@ import { TabletFloorMap } from '../../../components/waiter-tablet/TabletFloorMap
 import { TabletTableDetail } from '../../../components/waiter-tablet/TabletTableDetail';
 import { TabletPaymentPanel } from '../../../components/waiter-tablet/TabletPaymentPanel';
 import { Screen2Menu } from '../../../components/customer/Screen2Menu';
-import { TabletNotifDrawer } from '../../../components/waiter-tablet/TabletNotifDrawer';
+import { TabletPingsDrawer } from '../../../components/waiter-tablet/TabletPingsDrawer';
+import { TabletPickupDrawer } from '../../../components/waiter-tablet/TabletPickupDrawer';
 import { TabletSplitModal } from '../../../components/waiter-tablet/TabletSplitModal';
 import { TabletMergeModal } from '../../../components/waiter-tablet/TabletMergeModal';
 import { TabletShiftModal } from '../../../components/waiter-tablet/TabletShiftModal';
@@ -131,9 +132,9 @@ export default function WaiterTabletPage() {
   const [selectedChair, setSelectedChair] = useState<'ALL' | number | string>('ALL');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
-  // Modals & Panels
-  const [notifOpen, setNotifOpen] = useState(false);
-  const [notifTab, setNotifTab] = useState<'calls' | 'kitchen'>('calls');
+  // Modals & Drawers
+  const [callsOpen, setCallsOpen] = useState(false);
+  const [pickupOpen, setPickupOpen] = useState(false);
   const [splitOpen, setSplitOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [shiftOpen, setShiftOpen] = useState(false);
@@ -143,13 +144,13 @@ export default function WaiterTabletPage() {
   const [toast, setToast] = useState<string | null>(null);
 
   const openCallsDrawer = () => {
-    setNotifTab('calls');
-    setNotifOpen(true);
+    setPickupOpen(false);
+    setCallsOpen(true);
   };
 
   const openKitchenDrawer = () => {
-    setNotifTab('kitchen');
-    setNotifOpen(true);
+    setCallsOpen(false);
+    setPickupOpen(true);
   };
 
   // Scale-to-fit with tablet margin
@@ -174,12 +175,11 @@ export default function WaiterTabletPage() {
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
   const shiftRevenue = shiftStats?.totalRevenue || 0;
 
-  // Chime + auto-open notif drawer on new ping strictly on calls tab
+  // Chime + auto-open calls drawer on new customer assistance ping
   const prevPingRef = useRef(activePings.length);
   useEffect(() => {
     if (activePings.length > prevPingRef.current) {
-      setNotifTab('calls');
-      setNotifOpen(true);
+      setCallsOpen(true);
       try {
         const Ctx = window.AudioContext || (window as any).webkitAudioContext;
         if (Ctx) {
@@ -214,10 +214,13 @@ export default function WaiterTabletPage() {
     const frameRight = frameRect?.right ?? window.innerWidth;
     const frameLeft = frameRect?.left ?? 0;
 
-    // Swipe left from right edge (within 60px of frame right) -> open notif drawer
+    // Swipe left from right edge (within 60px of frame right) -> open calls or pickup drawer
     if (touchStartX.current > frameRight - 60 && dx > 40) {
-      setNotifTab(activePings.length > 0 ? 'calls' : 'kitchen');
-      setNotifOpen(true);
+      if (activePings.length > 0) {
+        setCallsOpen(true);
+      } else {
+        setPickupOpen(true);
+      }
     }
     // Swipe right from left edge (within 60px of frame left) -> back to floor map
     else if (touchStartX.current < frameLeft + 60 && dx < -40 && view === 'table-detail') {
@@ -450,16 +453,18 @@ export default function WaiterTabletPage() {
                   <span>₹{shiftRevenue > 0 ? shiftRevenue.toLocaleString() : '0'}</span>
                 </button>
 
-                {/* Separate Button 1: Customer Calls & Resolve */}
+                {/* Separate Button 1: Customer Calls Drawer */}
                 <button
                   type="button"
                   onClick={openCallsDrawer}
                   className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-mono text-xs font-black transition cursor-pointer ${
-                    activePings.length > 0
+                    callsOpen
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                      : activePings.length > 0
                       ? 'bg-rose-50 border-rose-400 text-rose-800 shadow-xs'
                       : 'bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100'
                   }`}
-                  title="Resolve Customer Calls"
+                  title="Customer Assistance Calls"
                 >
                   <Bell className="h-4 w-4 stroke-[2.4]" />
                   <span>Calls</span>
@@ -470,12 +475,14 @@ export default function WaiterTabletPage() {
                   )}
                 </button>
 
-                {/* Separate Button 2: Kitchen Pickup Ready Pass */}
+                {/* Separate Button 2: Kitchen Pickup Ready Drawer */}
                 <button
                   type="button"
                   onClick={openKitchenDrawer}
                   className={`relative flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 font-mono text-xs font-black transition cursor-pointer ${
-                    readyTickets.length > 0
+                    pickupOpen
+                      ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                      : readyTickets.length > 0
                       ? 'bg-blue-50 border-blue-400 text-blue-800 shadow-xs'
                       : 'bg-stone-50 border-stone-300 text-stone-700 hover:bg-stone-100'
                   }`}
@@ -822,13 +829,20 @@ export default function WaiterTabletPage() {
               )}
             </div>
 
-            {/* ── Modals / Drawers ───────────────────────────────────── */}
-            {/* Live Notifications Drawer (Calls & Ready Dispatch strictly separated) */}
-            <TabletNotifDrawer
-              open={notifOpen}
-              activeTab={notifTab}
-              onTabChange={setNotifTab}
-              onClose={() => setNotifOpen(false)}
+            {/* ── Modals & Separate Drawers ─────────────────────────── */}
+            {/* Customer Calls Drawer */}
+            <TabletPingsDrawer
+              open={callsOpen}
+              onClose={() => setCallsOpen(false)}
+              onSelectTable={(num) => {
+                selectTable(num);
+              }}
+            />
+
+            {/* Kitchen Pickup Drawer */}
+            <TabletPickupDrawer
+              open={pickupOpen}
+              onClose={() => setPickupOpen(false)}
               onFocusTable={(num) => {
                 selectTable(num);
               }}

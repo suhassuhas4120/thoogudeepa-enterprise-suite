@@ -21,18 +21,18 @@ interface Props {
 
 // Ready Steward Names requested by user: nayana, shiva, manja, suhas
 const QUICK_STEWARDS = [
-  { name: 'Nayana', sec: 'Section C', label: 'Nayana (Sec C)' },
-  { name: 'Shiva', sec: 'Section A', label: 'Shiva (Sec A)' },
-  { name: 'Manja', sec: 'Section B', label: 'Manja (Sec B)' },
-  { name: 'Suhas', sec: 'Section D', label: 'Suhas (Sec D)' },
+  { name: 'Nayana', sec: 'Section C' },
+  { name: 'Shiva', sec: 'Section A' },
+  { name: 'Manja', sec: 'Section B' },
+  { name: 'Suhas', sec: 'Section D' },
 ];
 
 const SECTIONS = [
   { id: 'ALL', label: 'ALL SECTIONS' },
-  { id: 'Section A', label: 'Section A (Express Hall)' },
-  { id: 'Section B', label: 'Section B (Main Dining)' },
-  { id: 'Section C', label: 'Section C (Family Section)' },
-  { id: 'Section D', label: 'Section D (Courtyard Garden)' },
+  { id: 'Section A', label: 'Section A' },
+  { id: 'Section B', label: 'Section B' },
+  { id: 'Section C', label: 'Section C' },
+  { id: 'Section D', label: 'Section D' },
 ];
 
 export function TabletLoginPage({ onLogin }: Props) {
@@ -173,12 +173,13 @@ export function TabletLoginPage({ onLogin }: Props) {
           </div>
         </div>
 
-        {/* Bottom PIN Hint */}
+        {/* Bottom Status */}
         <div className="relative z-10 pt-4 border-t border-stone-800 flex items-center justify-between text-stone-400 text-xs font-mono">
-          <span>Standard Demo PIN:</span>
-          <span className="font-black text-amber-400 bg-stone-900 px-2.5 py-1 rounded-xl border border-stone-800">
-            1234
-          </span>
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-emerald-400" />
+            <span>Authorized Captain Access</span>
+          </div>
+          <span className="font-bold text-stone-400">POS Console</span>
         </div>
       </div>
 
@@ -206,16 +207,13 @@ export function TabletLoginPage({ onLogin }: Props) {
                     key={st.name}
                     type="button"
                     onClick={() => handleSelectQuickSteward(st)}
-                    className={`px-3 py-1.5 rounded-xl font-mono text-xs font-bold border-2 transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
+                    className={`px-3.5 py-1.5 rounded-xl font-mono text-xs font-bold border-2 transition cursor-pointer flex items-center gap-1.5 shrink-0 ${
                       isSelected
                         ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
                         : 'bg-white text-stone-700 border-stone-300 hover:border-stone-400 hover:bg-stone-50'
                     }`}
                   >
                     <span>{st.name}</span>
-                    <span className={`text-[10px] opacity-80 ${isSelected ? 'text-amber-200' : 'text-stone-500'}`}>
-                      ({st.sec.replace('Section ', '')})
-                    </span>
                   </button>
                 );
               })}
@@ -231,7 +229,7 @@ export function TabletLoginPage({ onLogin }: Props) {
                   setWaiterName(e.target.value);
                   if (error) setError('');
                 }}
-                placeholder="Type your name or tap a quick steward above"
+                placeholder="Enter Captain Name"
                 className="w-full px-4 py-3 bg-white border-2 border-stone-300 focus:border-[#9C3D1E] rounded-2xl text-sm font-mono font-black text-stone-900 placeholder:text-stone-400 focus:outline-none shadow-xs transition"
               />
             </div>
@@ -255,7 +253,7 @@ export function TabletLoginPage({ onLogin }: Props) {
                     : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
                 }`}
               >
-                <span>ALL SECTIONS (Entire Restaurant Floor)</span>
+                <span>ALL SECTIONS</span>
                 {selectedSection === 'ALL' && (
                   <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">
                     Active
@@ -289,21 +287,14 @@ export function TabletLoginPage({ onLogin }: Props) {
 
           {/* Section 3: Standard Clean 4-Digit PIN & Numpad */}
           <div className="space-y-3 pt-1">
-            <div className="flex items-center justify-between">
-              <label className="font-mono text-xs font-black uppercase tracking-wider text-stone-800">
-                Security PIN Code
-              </label>
-              {error ? (
+            {error && (
+              <div className="flex items-center justify-center">
                 <span className="text-xs font-mono font-bold text-rose-600 flex items-center gap-1">
                   <AlertCircle className="h-3.5 w-3.5" />
                   {error}
                 </span>
-              ) : (
-                <span className="text-xs font-mono text-stone-500 font-bold">
-                  Enter 4 Digits
-                </span>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* PIN Indicator Circles / Boxes */}
             <div className="flex items-center justify-center gap-3">

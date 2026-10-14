@@ -92,7 +92,7 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 12 }}
             transition={{ type: 'spring', damping: 30, stiffness: 350 }}
-            className="relative w-[620px] max-w-full h-[580px] max-h-[75vh] bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-10 flex flex-col overflow-hidden font-sans"
+            className="relative w-[620px] max-w-full h-[710px] max-h-[86vh] bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-10 flex flex-col overflow-hidden font-sans"
           >
             {/* Header */}
             <div className="px-6 py-4 bg-[#FAF8F5] border-b border-[#EAE5DF] flex items-center justify-between shrink-0">

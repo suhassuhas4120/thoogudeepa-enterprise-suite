@@ -605,8 +605,8 @@ export function TabletFloorMap({
                       </span>
                     </div>
 
-                    {/* Middle: Bill */}
-                    <div className="my-2.5 font-mono">
+                    {/* Middle: Bill & Section */}
+                    <div className="my-2 font-mono">
                       <div className="flex items-baseline justify-between">
                         <div className="text-xl font-black text-[#9C3D1E]">
                           ₹{entry.totalBill.toLocaleString()}
@@ -627,11 +627,9 @@ export function TabletFloorMap({
                           </button>
                         )}
                       </div>
-                      {isMerged && (
-                        <div className="text-purple-700 text-xs font-bold truncate mt-1">
-                          Merged: {groupPeers.join(' + ')}
-                        </div>
-                      )}
+                      <div className="text-stone-600 text-xs font-bold truncate mt-0.5">
+                        {formatSectionName(entry.section)} {isMerged ? `· ${groupPeers.join(' + ')}` : ''}
+                      </div>
                     </div>
 
                     {/* Bottom: Capacity & Fixed Time Icon */}

@@ -12,8 +12,6 @@ import {
   ChevronRight,
   LogOut,
   Users,
-  UtensilsCrossed,
-  CreditCard,
   ChefHat,
 } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
@@ -478,36 +476,6 @@ export default function WaiterTabletPage() {
                   </p>
                 </div>
               </div>
-
-              {/* Center switcher: Quick toggle between Menu and Payment tabs (Only in Table Detail view) */}
-              {view === "table-detail" && (
-                <div className="flex items-center bg-stone-100 p-1 rounded-2xl border-2 border-stone-200 font-mono text-xs shadow-2xs">
-                  <button
-                    type="button"
-                    onClick={() => setRightPanelTab("menu")}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition cursor-pointer ${
-                      rightPanelTab === "menu"
-                        ? "bg-[#9C3D1E] text-white shadow-xs"
-                        : "text-stone-700 hover:text-stone-950"
-                    }`}
-                  >
-                    <UtensilsCrossed className="h-4 w-4 stroke-[2.4]" />
-                    <span>Menu & Order</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setRightPanelTab("payment")}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black transition cursor-pointer ${
-                      rightPanelTab === "payment"
-                        ? "bg-purple-700 text-white shadow-xs"
-                        : "text-stone-700 hover:text-stone-950"
-                    }`}
-                  >
-                    <CreditCard className="h-4 w-4 stroke-[2.4]" />
-                    <span>Settle Bill / Payment</span>
-                  </button>
-                </div>
-              )}
 
               {/* Right controls */}
               <div className="flex items-center gap-2.5">

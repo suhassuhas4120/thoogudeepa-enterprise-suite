@@ -97,7 +97,7 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
             </div>
 
             {/* Pings list */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3.5 font-mono">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
               {activePings.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-stone-400 font-mono text-xs space-y-2">
                   <CheckCircle2 className="h-10 w-10 text-emerald-600 opacity-60" />
@@ -121,11 +121,11 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                             : "bg-gradient-to-br from-amber-50/70 to-orange-50/50 border-2 border-orange-300"
                         }`}
                       >
-                        {/* Table, Seat & Request Type Header */}
-                        <div className="flex items-center justify-between gap-2 flex-wrap font-mono">
-                          <div className="flex items-center gap-2">
+                        {/* Table, Seat & Request Type Header - Perfectly aligned horizontal row */}
+                        <div className="flex items-center justify-between gap-2 font-mono">
+                          <div className="flex items-center gap-2 min-w-0">
                             <span
-                              className={`text-sm font-black px-2.5 py-0.5 rounded-lg shadow-2xs ${
+                              className={`text-xs font-black px-2.5 py-1 rounded-lg shadow-2xs shrink-0 ${
                                 urgent
                                   ? "text-red-950 bg-red-100 border border-red-300"
                                   : p.type === "PAYMENT"
@@ -133,57 +133,59 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                                   : "text-orange-950 bg-orange-100 border border-orange-300"
                               }`}
                             >
-                              {p.tableNumber}
+                              Table {p.tableNumber.replace(/^TABLE\s*/i, "")}
                             </span>
                             {p.seatNumber && (
-                              <span className="text-xs font-black text-amber-900 bg-amber-200 border border-amber-400 px-2 py-0.5 rounded-md">
+                              <span className="text-xs font-bold text-amber-950 bg-amber-200/90 border border-amber-400 px-2 py-0.5 rounded-md shrink-0">
                                 Chair {p.seatNumber}
                               </span>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5">
+                          <div className="flex items-center gap-1.5 shrink-0">
                             {p.type === "PAYMENT" ? (
-                              <span className="text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
-                                <CreditCard className="h-3.5 w-3.5 text-purple-700" />
+                              <span className="text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                                <CreditCard className="h-3.5 w-3.5 text-purple-700 shrink-0" />
                                 <span>Bill Request</span>
                               </span>
                             ) : (
-                              <span className="text-xs font-black text-amber-900 bg-white border border-amber-300 px-2.5 py-0.5 rounded-lg flex items-center gap-1.5">
-                                <Bell className="h-3.5 w-3.5 text-amber-600" />
-                                <span>{p.type || "Service"} Request</span>
+                              <span className="text-xs font-black text-amber-900 bg-white border border-amber-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                                <Bell className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                <span>{p.type ? `${p.type} Request` : "Service Request"}</span>
                               </span>
                             )}
                             {urgent && (
-                              <span className="text-[11px] font-black text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full animate-pulse">
+                              <span className="text-[10.5px] font-black text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full animate-pulse shrink-0">
                                 URGENT
                               </span>
                             )}
                           </div>
                         </div>
 
-                        {/* Guest Name & Message */}
-                        {p.guestName && (
-                          <p className="font-mono text-xs font-bold text-stone-800">
-                            Guest: <span className="font-black text-stone-950">{p.guestName}</span>
-                          </p>
-                        )}
-                        {p.message && (
-                          <div className="p-3 bg-white/90 rounded-xl border border-orange-200 text-sm text-stone-900 font-sans shadow-2xs leading-snug">
-                            &ldquo;{p.message}&rdquo;
+                        {/* Guest & Message Details Box - Clean structure and aligned text */}
+                        <div className="bg-white/95 rounded-xl border border-orange-200/90 p-3 space-y-2 shadow-2xs">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-stone-700 font-medium">
+                              Guest: <strong className="font-bold text-stone-900">{p.guestName || "Guest"}</strong>
+                            </span>
+                            <span className="flex items-center gap-1 font-mono text-stone-500 text-[11px]">
+                              <Clock className="h-3 w-3 text-stone-400" />
+                              <span>{p.timestamp || "Just now"}</span>
+                            </span>
                           </div>
-                        )}
 
-                        {/* Timestamp */}
-                        <div className="flex items-center justify-between text-xs font-mono text-stone-500 pt-0.5">
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-stone-400" />
-                            <span>{p.timestamp || "Just now"}</span>
-                          </span>
-                          <span className="text-stone-400 font-medium">Customer Assistance</span>
+                          {p.message ? (
+                            <div className="text-xs font-medium text-stone-900 leading-relaxed bg-orange-50/60 rounded-lg p-2.5 border border-orange-200/70">
+                              &ldquo;{p.message}&rdquo;
+                            </div>
+                          ) : (
+                            <p className="text-xs text-stone-500 italic pt-0.5">
+                              Customer requested assistance at table.
+                            </p>
+                          )}
                         </div>
 
-                        {/* Action Buttons: Clear, uncluttered, prominent */}
+                        {/* Action Buttons: Clean 2-column balanced row */}
                         <div className="space-y-2 pt-1 border-t border-orange-200/70">
                           {p.type === "PAYMENT" && onSelectTable && (
                             <motion.button
@@ -193,10 +195,10 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                                 handleResolvePing(p.id, p.tableNumber);
                                 handleFocusTable(p.tableNumber);
                               }}
-                              className="w-full h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer"
+                              className="w-full h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer active:scale-98"
                             >
                               <CreditCard className="h-4 w-4" />
-                              <span>Settle Table Bill →</span>
+                              <span>Settle Bill →</span>
                             </motion.button>
                           )}
 
@@ -215,7 +217,7 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                               whileTap={{ scale: 0.95 }}
                               type="button"
                               onClick={() => handleResolvePing(p.id, p.tableNumber)}
-                              className={`h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white cursor-pointer ${
+                              className={`h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white cursor-pointer active:scale-95 ${
                                 !onSelectTable ? "col-span-2" : ""
                               }`}
                             >

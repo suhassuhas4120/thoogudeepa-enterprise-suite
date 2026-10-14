@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -40,14 +40,9 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
           >
             {/* Top Header with Title, Badge & Close Button */}
             <div className="px-6 py-4 border-b-2 border-stone-200 bg-white flex items-center justify-between shrink-0 shadow-2xs">
-              <div>
-                <p className="font-mono text-xs font-black uppercase tracking-widest text-blue-600">
-                  Kitchen Dispatch Pass
-                </p>
-                <h2 className="text-xl font-black text-stone-950 tracking-tight mt-0.5">
-                  Kitchen Pickup Ready
-                </h2>
-              </div>
+              <h2 className="text-lg font-black text-stone-950 tracking-tight font-mono">
+                Kitchen Pickup
+              </h2>
               <div className="flex items-center gap-2">
                 {readyTickets.length > 0 && (
                   <span className="h-5 px-2 flex items-center bg-blue-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
@@ -144,14 +139,6 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
                   </motion.div>
                 ))
               )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-5 py-3 border-t-2 border-stone-200 bg-stone-50 shrink-0">
-              <div className="flex items-center gap-2 text-xs font-mono text-stone-600 font-bold">
-                <AlertCircle className="h-4 w-4 text-blue-600 stroke-[2.4]" />
-                <span>Managing kitchen pass pickup items · Live KDS sync</span>
-              </div>
             </div>
           </motion.div>
         </>

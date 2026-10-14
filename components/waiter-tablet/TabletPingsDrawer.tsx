@@ -53,14 +53,9 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
           >
             {/* Drawer header */}
             <div className="px-6 py-4 border-b-2 border-stone-200 bg-white flex items-center justify-between shrink-0 shadow-2xs">
-              <div>
-                <p className="font-mono text-xs font-black uppercase tracking-widest text-[#9C3D1E]">
-                  Customer Call Service
-                </p>
-                <h2 className="text-xl font-black text-stone-950 tracking-tight mt-0.5">
-                  Guest Assistance Calls
-                </h2>
-              </div>
+              <h2 className="text-lg font-black text-stone-950 tracking-tight font-mono">
+                Customer Calls
+              </h2>
               <div className="flex items-center gap-2">
                 {activePings.length > 0 && (
                   <span className="h-5 px-2 flex items-center bg-rose-600 text-white font-mono text-xs font-black rounded-full animate-pulse">

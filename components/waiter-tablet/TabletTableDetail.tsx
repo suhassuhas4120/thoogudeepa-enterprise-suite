@@ -925,9 +925,7 @@ export function TabletTableDetail({
             <button
               type="button"
               onClick={() => onAddDishes(typeof selectedChair === 'number' ? selectedChair : targetSeats[0])}
-              className={`min-h-[46px] rounded-xl bg-[#9C3D1E] hover:bg-[#853318] text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs cursor-pointer active:scale-98 ${
-                activePanelTab === 'menu' ? 'ring-2 ring-[#9C3D1E]/40 shadow-sm' : ''
-              }`}
+              className="min-h-[46px] rounded-xl bg-[#9C3D1E] hover:bg-[#853318] text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs cursor-pointer active:scale-98 border-0"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
               <span>Add Dishes</span>
@@ -936,12 +934,10 @@ export function TabletTableDetail({
               type="button"
               onClick={onSettle}
               disabled={targetChairBill === 0 && totalTableBill === 0}
-              className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs ${
+              className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
                 targetChairBill === 0 && totalTableBill === 0
-                  ? 'bg-stone-200 text-stone-400 cursor-not-allowed border border-stone-300'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98'
-              } ${
-                activePanelTab === 'payment' ? 'ring-2 ring-emerald-500/40 shadow-sm' : ''
+                  ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs'
               }`}
             >
               <CreditCard className="h-4 w-4 stroke-[2.4]" />

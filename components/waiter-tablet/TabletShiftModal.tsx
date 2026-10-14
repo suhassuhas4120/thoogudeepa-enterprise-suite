@@ -1,27 +1,74 @@
 'use client';
 
 import React from 'react';
-import { X, TrendingUp, Users, DollarSign, Clock } from 'lucide-react';
+import {
+  X,
+  TrendingUp,
+  Users,
+  IndianRupee,
+  Clock,
+  Smartphone,
+  Banknote,
+  CreditCard,
+  Layers,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
+import { useWaiterStore } from '../../store/useWaiterStore';
 
 interface Props {
   open: boolean;
   onClose: () => void;
   captainName: string;
+  sectionName?: string;
 }
 
-export function TabletShiftModal({ open, onClose, captainName }: Props) {
+const SECTION_MATCH_MAP: Record<string, string[]> = {
+  'SECTION A': ['Express / Couple Hall', 'Section A', 'SECTION A'],
+  'Section A': ['Express / Couple Hall', 'Section A', 'SECTION A'],
+  'SECTION B': ['Main Dining Hall', 'Section B', 'SECTION B'],
+  'Section B': ['Main Dining Hall', 'Section B', 'SECTION B'],
+  'SECTION C': ['Family Section', 'Section C', 'SECTION C'],
+  'Section C': ['Family Section', 'Section C', 'SECTION C'],
+  'SECTION D': ['Courtyard Garden', 'Section D', 'SECTION D'],
+  'Section D': ['Courtyard Garden', 'Section D', 'SECTION D'],
+  'SECTION E': ['Grand Feast Hall', 'Section E', 'SECTION E'],
+  'Section E': ['Grand Feast Hall', 'Section E', 'SECTION E'],
+};
+
+export function TabletShiftModal({ open, onClose, captainName, sectionName }: Props) {
   const { tables, kdsTickets, shiftStats } = useSharedBridge();
+  const { activeSection } = useWaiterStore();
 
+  const currentSection = sectionName || activeSection || 'Section A';
+
+  // Section-specific tables (typically 4 tables in Section A / Express Hall)
+  const myTables = tables.filter((t) => {
+    if (!currentSection || currentSection === 'ALL') return true;
+    const allowed = SECTION_MATCH_MAP[currentSection] || [currentSection];
+    return allowed.some(
+      (sec) =>
+        t.section.toLowerCase().includes(sec.toLowerCase()) ||
+        sec.toLowerCase().includes(t.section.toLowerCase())
+    );
+  });
+
+  const myOccupied = myTables.filter((t) => t.status === 'OCCUPIED').length;
+  const myBilling = myTables.filter((t) => t.status === 'BILLING').length;
+  const myVacant = myTables.filter((t) => t.status === 'VACANT').length;
+  const myCovers = myTables.reduce(
+    (acc, t) => acc + (t.status === 'OCCUPIED' ? (t.guestCount || t.capacity || 2) : 0),
+    0
+  );
+  const myBill = myTables.reduce((acc, t) => acc + (t.currentBill || 0), 0);
+  const myOccupancyRate = Math.round((myOccupied / (myTables.length || 1)) * 100);
+
+  // Overall restaurant metrics (34 tables across all 5 zones)
   const totalTables = tables.length;
-  const occupiedCount = tables.filter((t) => t.status === 'OCCUPIED').length;
-  const billingCount = tables.filter((t) => t.status === 'BILLING').length;
-  const vacantCount = tables.filter((t) => t.status === 'VACANT').length;
-  const activeCovers = tables.reduce((acc, t) => acc + (t.status === 'OCCUPIED' ? (t.guestCount || t.capacity || 2) : 0), 0);
-
-  // Active pending bill sum on floor
-  const activeBillTotal = tables.reduce((acc, t) => acc + (t.currentBill || 0), 0);
+  const totalOccupied = tables.filter((t) => t.status === 'OCCUPIED').length;
+  const totalBilling = tables.filter((t) => t.status === 'BILLING').length;
+  const totalVacant = tables.filter((t) => t.status === 'VACANT').length;
+  const totalActiveBill = tables.reduce((acc, t) => acc + (t.currentBill || 0), 0);
 
   // Ready food tickets waiting at pass
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
@@ -32,7 +79,10 @@ export function TabletShiftModal({ open, onClose, captainName }: Props) {
   const upiTotal = Math.round(shiftRevenue * 0.55);
   const cardTotal = Math.round(shiftRevenue * 0.10);
 
-  const occupancyRate = Math.round((occupiedCount / totalTables) * 100);
+  const displaySectionTitle =
+    currentSection === 'Section A' || currentSection === 'SECTION A'
+      ? 'Express / Couple Hall (Section A)'
+      : currentSection;
 
   return (
     <AnimatePresence>
@@ -70,7 +120,7 @@ export function TabletShiftModal({ open, onClose, captainName }: Props) {
                     </span>
                   </div>
                   <p className="text-xs text-stone-500 mt-0.5 truncate">
-                    Captain {captainName || 'Floor Captain'} · Terminal TAB-CPT-01 · 34 Tables
+                    Captain {captainName || 'Floor Captain'} · Terminal TAB-CPT-01
                   </p>
                 </div>
               </div>
@@ -83,18 +133,23 @@ export function TabletShiftModal({ open, onClose, captainName }: Props) {
               </button>
             </div>
 
-            {/* Content Body */}
-            <div className="p-6 overflow-y-auto space-y-4.5">
+            {/* Content Body with clean vertical gap between all cards */}
+            <div className="p-6 overflow-y-auto flex flex-col gap-4">
 
-              {/* Consolidated Revenue & Collections Card */}
+              {/* 1. Total Shift Revenue Card with Highlighted Icons */}
               <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-5 shadow-2xs">
-                <div className="flex items-center justify-between pb-4 border-b border-[#EAE5DF]">
-                  <div>
-                    <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider block">
-                      Total Shift Revenue
-                    </span>
-                    <div className="text-3xl font-extrabold text-[#9C3D1E] tracking-tight mt-1">
-                      ₹{shiftRevenue.toLocaleString()}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3.5">
+                    <div className="h-12 w-12 rounded-2xl bg-[#9C3D1E] text-white flex items-center justify-center shadow-md shadow-[#9C3D1E]/20 shrink-0">
+                      <IndianRupee className="h-6 w-6" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-bold text-stone-500 uppercase tracking-wider block">
+                        Total Shift Revenue
+                      </span>
+                      <div className="text-3xl font-extrabold text-[#9C3D1E] tracking-tight mt-0.5">
+                        ₹{shiftRevenue.toLocaleString()}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">
@@ -102,207 +157,219 @@ export function TabletShiftModal({ open, onClose, captainName }: Props) {
                       {shiftOrders} Orders Settled
                     </span>
                     <p className="text-[11px] text-stone-500 mt-1">
-                      Avg ₹{Math.round(shiftRevenue / (shiftOrders || 1))} per order
+                      Avg ₹{Math.round(shiftRevenue / (shiftOrders || 1))} / table
                     </p>
                   </div>
                 </div>
 
-                {/* 3 Payment Breakdown Columns */}
-                <div className="grid grid-cols-3 gap-3 pt-4">
-                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF]">
-                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 shrink-0" />
-                        <span>UPI Digital</span>
-                      </span>
-                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                        {Math.round((upiTotal / shiftRevenue) * 100)}%
-                      </span>
+                {/* 3 Highlighted Payment Collection Cards */}
+                <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t border-[#EAE5DF]">
+                  {/* UPI */}
+                  <div className="bg-white p-3.5 rounded-xl border border-[#EAE5DF] flex items-center gap-3 shadow-2xs">
+                    <div className="h-9 w-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center justify-center shrink-0">
+                      <Smartphone className="h-4.5 w-4.5" />
                     </div>
-                    <div className="text-base font-bold text-stone-900 mt-1">
-                      ₹{upiTotal.toLocaleString()}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-stone-500 font-medium">UPI</span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">
+                          {Math.round((upiTotal / shiftRevenue) * 100)}%
+                        </span>
+                      </div>
+                      <div className="text-base font-extrabold text-stone-900 mt-0.5">
+                        ₹{upiTotal.toLocaleString()}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-stone-400 block mt-0.5">
-                      QR & Instant Online
-                    </span>
                   </div>
 
-                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF]">
-                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-amber-500 shrink-0" />
-                        <span>Cash Drawer</span>
-                      </span>
-                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                        {Math.round((cashTotal / shiftRevenue) * 100)}%
-                      </span>
+                  {/* Cash */}
+                  <div className="bg-white p-3.5 rounded-xl border border-[#EAE5DF] flex items-center gap-3 shadow-2xs">
+                    <div className="h-9 w-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center justify-center shrink-0">
+                      <Banknote className="h-4.5 w-4.5" />
                     </div>
-                    <div className="text-base font-bold text-stone-900 mt-1">
-                      ₹{cashTotal.toLocaleString()}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-stone-500 font-medium">Cash</span>
+                        <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.2 rounded">
+                          {Math.round((cashTotal / shiftRevenue) * 100)}%
+                        </span>
+                      </div>
+                      <div className="text-base font-extrabold text-stone-900 mt-0.5">
+                        ₹{cashTotal.toLocaleString()}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-stone-400 block mt-0.5">
-                      Physical Register
-                    </span>
                   </div>
 
-                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF]">
-                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-blue-500 shrink-0" />
-                        <span>Card / POS</span>
-                      </span>
-                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                        {Math.round((cardTotal / shiftRevenue) * 100)}%
-                      </span>
+                  {/* Card */}
+                  <div className="bg-white p-3.5 rounded-xl border border-[#EAE5DF] flex items-center gap-3 shadow-2xs">
+                    <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center justify-center shrink-0">
+                      <CreditCard className="h-4.5 w-4.5" />
                     </div>
-                    <div className="text-base font-bold text-stone-900 mt-1">
-                      ₹{cardTotal.toLocaleString()}
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-stone-500 font-medium">Card</span>
+                        <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded">
+                          {Math.round((cardTotal / shiftRevenue) * 100)}%
+                        </span>
+                      </div>
+                      <div className="text-base font-extrabold text-stone-900 mt-0.5">
+                        ₹{cardTotal.toLocaleString()}
+                      </div>
                     </div>
-                    <span className="text-[10px] text-stone-400 block mt-0.5">
-                      Swiped EDC Slips
-                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Full-Width Unified Floor Dynamics Card */}
+              {/* 2. Captain's Assigned Section (4 Tables) Card */}
               <div className="bg-white border border-[#EAE5DF] rounded-2xl p-5 shadow-2xs space-y-4">
-                {/* Header with Title and Status */}
                 <div className="flex items-center justify-between pb-3 border-b border-[#EAE5DF]">
                   <div className="flex items-center gap-2.5">
-                    <div className="h-8 w-8 rounded-xl bg-amber-50 text-amber-700 border border-amber-200/60 flex items-center justify-center shrink-0">
-                      <Users className="h-4 w-4" />
+                    <div className="h-8 w-8 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 flex items-center justify-center shrink-0">
+                      <Layers className="h-4 w-4" />
                     </div>
                     <div>
-                      <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider">
-                        Floor Occupancy & Table Dynamics
-                      </h3>
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-xs font-bold text-stone-900 uppercase tracking-wider">
+                          {displaySectionTitle}
+                        </h3>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-200">
+                          {myTables.length} Tables Assigned
+                        </span>
+                      </div>
                       <p className="text-[11px] text-stone-500">
-                        Real-time cover velocity across all 5 dining zones
+                        {myTables.map((t) => t.number).join(', ')} · Floor station assigned to {captainName || 'Captain'}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-bold text-stone-900 block">
-                      {occupiedCount} / {totalTables} Tables Active
+                      {myOccupied} / {myTables.length} Tables Active
                     </span>
                     <p className="text-[11px] font-medium text-amber-800">
-                      ₹{activeBillTotal.toLocaleString()} running bill
+                      ₹{myBill.toLocaleString()} running bill
                     </p>
                   </div>
                 </div>
 
-                {/* Sleek Segmented Progress Bar */}
+                {/* Section Progress Bar */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-stone-800 font-bold flex items-center gap-1.5">
-                      <span>Floor Capacity</span>
-                      <span className="text-stone-400 font-normal">({occupancyRate}% utilized)</span>
+                      <span>Section Capacity Utilization</span>
+                      <span className="text-stone-400 font-normal">({myOccupancyRate}%)</span>
                     </span>
                     <span className="text-stone-600 font-semibold text-[11px]">
-                      {activeCovers} covers seated
+                      {myCovers} covers seated
                     </span>
                   </div>
 
-                  {/* Visual Bar: Occupied (Amber), Billing (Purple), Vacant (Emerald) */}
+                  {/* Segmented Bar for Section Tables */}
                   <div className="h-3 w-full bg-stone-100 rounded-full overflow-hidden flex p-0.5 gap-0.5 border border-stone-200/60">
                     <div
                       className="h-full bg-amber-500 rounded-l-full transition-all duration-500"
-                      style={{ width: `${Math.max(occupiedCount > 0 ? 5 : 0, Math.round((occupiedCount / totalTables) * 100))}%` }}
-                      title={`${occupiedCount} Occupied`}
+                      style={{
+                        width: `${Math.max(myOccupied > 0 ? 8 : 0, Math.round((myOccupied / (myTables.length || 1)) * 100))}%`,
+                      }}
+                      title={`${myOccupied} Occupied`}
                     />
-                    {billingCount > 0 && (
+                    {myBilling > 0 && (
                       <div
                         className="h-full bg-purple-500 transition-all duration-500"
-                        style={{ width: `${Math.max(4, Math.round((billingCount / totalTables) * 100))}%` }}
-                        title={`${billingCount} Billing`}
+                        style={{
+                          width: `${Math.max(8, Math.round((myBilling / (myTables.length || 1)) * 100))}%`,
+                        }}
+                        title={`${myBilling} Billing`}
                       />
                     )}
                     <div
                       className="h-full bg-emerald-500 rounded-r-full transition-all duration-500 flex-1"
-                      title={`${vacantCount} Vacant`}
+                      title={`${myVacant} Vacant`}
                     />
                   </div>
 
-                  {/* Legend Cards below Progress Bar */}
-                  <div className="grid grid-cols-3 gap-2.5 pt-1">
-                    <div className="p-2.5 rounded-xl bg-amber-50/70 border border-amber-200/80 flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-amber-500 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-amber-900 font-bold uppercase leading-tight truncate">Occupied</p>
-                        <p className="text-xs font-extrabold text-stone-900 mt-0.5">{occupiedCount} Tables</p>
+                  {/* Section 4-table interactive cards */}
+                  <div className="grid grid-cols-4 gap-2 pt-1">
+                    {myTables.map((tbl) => (
+                      <div
+                        key={tbl.id}
+                        className={`p-2.5 rounded-xl border text-center transition ${
+                          tbl.status === 'OCCUPIED'
+                            ? 'bg-amber-50/80 border-amber-300 text-amber-900'
+                            : tbl.status === 'BILLING'
+                            ? 'bg-purple-50/80 border-purple-300 text-purple-900'
+                            : 'bg-emerald-50/80 border-emerald-300 text-emerald-900'
+                        }`}
+                      >
+                        <span className="font-mono text-xs font-black block">{tbl.number}</span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider block mt-0.5">
+                          {tbl.status === 'OCCUPIED'
+                            ? `${tbl.guestCount || 2} Guests`
+                            : tbl.status === 'BILLING'
+                            ? 'Billing'
+                            : 'Vacant'}
+                        </span>
+                        <span className="text-[9.5px] font-mono text-stone-500 block mt-0.5">
+                          {tbl.currentBill > 0 ? `₹${tbl.currentBill}` : 'Ready'}
+                        </span>
                       </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-purple-50/70 border border-purple-200/80 flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-purple-500 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-purple-900 font-bold uppercase leading-tight truncate">Billing</p>
-                        <p className="text-xs font-extrabold text-stone-900 mt-0.5">{billingCount} Tables</p>
-                      </div>
-                    </div>
-
-                    <div className="p-2.5 rounded-xl bg-emerald-50/70 border border-emerald-200/80 flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 shrink-0" />
-                      <div className="min-w-0">
-                        <p className="text-[10px] text-emerald-900 font-bold uppercase leading-tight truncate">Vacant Ready</p>
-                        <p className="text-xs font-extrabold text-stone-900 mt-0.5">{vacantCount} Tables</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
-                </div>
-
-                {/* Turnaround Insight Row */}
-                <div className="pt-3 border-t border-[#EAE5DF] flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-stone-600">
-                    <Clock className="h-3.5 w-3.5 text-stone-400 shrink-0" />
-                    <span>Avg Turnaround:</span>
-                    <span className="font-bold text-stone-900">{shiftStats?.avgTurnaroundMinutes || 38} mins</span>
-                  </div>
-                  <span className="text-[11px] text-emerald-800 font-bold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
-                    Target: 35–45m / party
-                  </span>
                 </div>
               </div>
 
-              {/* Kitchen Pass & Service Dispatch */}
-              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-4 flex items-center justify-between shadow-2xs">
-                <div className="flex items-center gap-3.5 min-w-0">
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 ${
-                    readyTickets.length > 0
-                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                      : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
-                  }`}>
-                    {readyTickets.length}
+              {/* 3. Restaurant-Wide Floor Scope (34 Tables) & Kitchen Speed */}
+              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-4.5 space-y-3 shadow-2xs">
+                <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-[#9C3D1E]" />
+                    <span className="font-bold text-stone-900">Entire Floor Context:</span>
+                    <span className="text-stone-600">
+                      {totalTables} Tables Total · {totalOccupied} Occupied · {totalBilling} Billing · {totalVacant} Vacant
+                    </span>
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs font-bold text-stone-900">
-                        Kitchen Pass Counter
-                      </span>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
-                        readyTickets.length > 0
-                          ? 'bg-amber-100 text-amber-900 border-amber-300'
-                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                      }`}>
-                        {readyTickets.length > 0 ? 'Urgent Runner Dispatch' : 'Pass Clear'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-stone-500 mt-0.5 truncate">
-                      {readyTickets.length > 0
-                        ? `${readyTickets.length} hot dish tickets plated and awaiting runner dispatch.`
-                        : 'All hot orders cleared and served to tables.'}
-                    </p>
-                  </div>
+                  <span className="font-bold text-[#9C3D1E]">
+                    ₹{totalActiveBill.toLocaleString()} active on floor
+                  </span>
                 </div>
 
-                <div className="text-right pl-4 border-l border-[#EAE5DF] shrink-0">
-                  <span className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider block">
-                    Staff Tips
-                  </span>
-                  <span className="text-base font-extrabold text-emerald-700">
-                    ₹{(shiftStats?.tipsEarned || 850).toLocaleString()}
-                  </span>
+                <div className="pt-3 border-t border-[#EAE5DF] flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                        readyTickets.length > 0
+                          ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                          : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+                      }`}
+                    >
+                      {readyTickets.length}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-bold text-stone-900">Kitchen Pass</span>
+                        <span
+                          className={`px-1.5 py-0.2 rounded-full text-[9.5px] font-bold border ${
+                            readyTickets.length > 0
+                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                          }`}
+                        >
+                          {readyTickets.length > 0 ? `${readyTickets.length} Ready` : 'Clear'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-stone-500">
+                        Avg turnaround: {shiftStats?.avgTurnaroundMinutes || 38} mins per table
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right pl-4 border-l border-[#EAE5DF]">
+                    <span className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider block">
+                      Staff Tips
+                    </span>
+                    <span className="text-base font-extrabold text-emerald-700">
+                      ₹{(shiftStats?.tipsEarned || 850).toLocaleString()}
+                    </span>
+                  </div>
                 </div>
               </div>
 

@@ -1036,6 +1036,7 @@ export default function WaiterTabletPage() {
               open={shiftOpen}
               onClose={() => setShiftOpen(false)}
               captainName={activeCaptain || "Floor Captain"}
+              sectionName={assignedSection || selectedSection || "Section A"}
             />
           </>
         )}

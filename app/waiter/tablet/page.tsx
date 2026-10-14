@@ -694,27 +694,27 @@ export default function WaiterTabletPage() {
                         {
                           label: "Dining",
                           count: stats.occupied,
-                          color: "bg-amber-50 border-amber-300 text-amber-950",
+                          color: "bg-amber-50 border-amber-400 text-amber-950",
                           dot: "bg-amber-500",
                         },
                         {
                           label: "Vacant",
                           count: stats.vacant,
                           color:
-                            "bg-emerald-50 border-emerald-300 text-emerald-950",
+                            "bg-emerald-50 border-emerald-400 text-emerald-950",
                           dot: "bg-emerald-500",
                         },
                         {
                           label: "Billing",
                           count: stats.billing,
                           color:
-                            "bg-purple-50 border-purple-300 text-purple-950",
+                            "bg-purple-50 border-purple-400 text-purple-950",
                           dot: "bg-purple-600",
                         },
                         {
                           label: "Ready Pass",
                           count: sectionReadyCount,
-                          color: "bg-blue-50 border-blue-300 text-blue-950",
+                          color: "bg-blue-50 border-blue-400 text-blue-950",
                           dot: "bg-blue-600",
                         },
                       ].map((s) => (

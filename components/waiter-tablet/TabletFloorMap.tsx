@@ -22,13 +22,13 @@ function tileStyle(status: SharedTable['status'], isSelected: boolean) {
   }
   switch (status) {
     case 'OCCUPIED':
-      return 'border-2 border-amber-400 bg-white hover:border-amber-500 hover:shadow-md';
+      return 'border-2 border-amber-500 bg-white hover:border-amber-600 hover:shadow-md';
     case 'BILLING':
-      return 'border-2 border-purple-400 bg-white hover:border-purple-500 hover:shadow-md';
+      return 'border-2 border-purple-500 bg-white hover:border-purple-600 hover:shadow-md';
     case 'CLEANING':
       return 'border-2 border-stone-400 bg-stone-100 hover:border-stone-500 hover:shadow-md';
     default:
-      return 'border-2 border-emerald-400 bg-white hover:border-emerald-500 hover:shadow-md';
+      return 'border-2 border-emerald-500 bg-white hover:border-emerald-600 hover:shadow-md';
   }
 }
 
@@ -552,7 +552,7 @@ export function TabletFloorMap({
                         : isMerged
                         ? isSelected
                           ? 'border-2 border-indigo-600 bg-indigo-50 ring-4 ring-indigo-300/40 shadow-lg'
-                          : 'border-2 border-indigo-400 bg-indigo-50/50 hover:border-indigo-500 hover:shadow-md'
+                          : 'border-2 border-indigo-500 bg-indigo-50/50 hover:border-indigo-600 hover:shadow-md'
                         : tileStyle(tbl.status, isSelected)
                     }`}
                   >
@@ -627,7 +627,7 @@ export function TabletFloorMap({
                           </button>
                         )}
                       </div>
-                      <div className="text-stone-600 text-xs font-bold truncate mt-0.5">
+                      <div className="text-stone-700 text-xs font-bold truncate mt-0.5">
                         {formatSectionName(entry.section)} {isMerged ? `· ${groupPeers.join(' + ')}` : ''}
                       </div>
                     </div>

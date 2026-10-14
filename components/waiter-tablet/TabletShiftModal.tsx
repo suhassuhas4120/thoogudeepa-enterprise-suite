@@ -32,6 +32,8 @@ export function TabletShiftModal({ open, onClose, captainName }: Props) {
   const upiTotal = Math.round(shiftRevenue * 0.55);
   const cardTotal = Math.round(shiftRevenue * 0.10);
 
+  const occupancyRate = Math.round((occupiedCount / totalTables) * 100);
+
   return (
     <AnimatePresence>
       {open && (
@@ -47,325 +49,244 @@ export function TabletShiftModal({ open, onClose, captainName }: Props) {
 
           {/* Modal Card */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 15 }}
+            initial={{ opacity: 0, scale: 0.96, y: 12 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 15 }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="relative w-[620px] max-w-full max-h-[88vh] bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-10 flex flex-col overflow-hidden font-sans"
+            exit={{ opacity: 0, scale: 0.96, y: 12 }}
+            transition={{ type: 'spring', damping: 30, stiffness: 350 }}
+            className="relative w-[620px] max-w-full max-h-[90vh] bg-white rounded-3xl shadow-2xl border border-[#EAE5DF] z-10 flex flex-col overflow-hidden font-sans"
           >
             {/* Header */}
-            <div className="px-6 py-4.5 border-b border-[#EAE5DF] bg-[#FAF8F5] flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-3.5">
-                <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#9C3D1E] to-[#7D2F17] text-white flex items-center justify-center shadow-md shadow-[#9C3D1E]/20">
+            <div className="px-6 py-5 bg-[#FAF8F5] border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-2xl bg-[#9C3D1E] text-white flex items-center justify-center shadow-sm">
                   <TrendingUp className="h-5 w-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="font-mono text-[10px] font-black uppercase tracking-widest text-[#9C3D1E]">
-                      Floor Captain Operations
-                    </p>
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <span className="font-mono text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded">
-                      Live
+                    <h2 className="text-lg font-bold text-stone-900 tracking-tight">Shift Performance</h2>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      Live Shift
                     </span>
                   </div>
-                  <h2 className="text-xl font-black text-stone-900 tracking-tight">
-                    Shift Performance Summary
-                  </h2>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Captain {captainName || 'Floor Captain'} · Terminal TAB-CPT-01 · 34 Tables
+                  </p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="p-2 bg-white hover:bg-stone-100 border border-[#EAE5DF] rounded-xl transition cursor-pointer text-stone-500 hover:text-stone-800"
+                className="h-8 w-8 rounded-full bg-white hover:bg-stone-100 border border-[#EAE5DF] text-stone-500 hover:text-stone-800 flex items-center justify-center transition cursor-pointer"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             {/* Content Body */}
-            <div className="p-6 overflow-y-auto space-y-5.5">
-              {/* Captain Identity & Status */}
-              <div className="p-4 bg-gradient-to-r from-amber-50/90 via-[#FFFDF9] to-amber-50/50 border border-amber-200/80 rounded-2xl flex items-center justify-between shadow-2xs">
-                <div className="flex items-center gap-3.5">
-                  <div className="h-10 w-10 rounded-xl bg-amber-100 text-amber-900 border border-amber-200 flex items-center justify-center font-black font-mono text-sm shadow-2xs">
-                    {captainName ? captainName.slice(0, 2).toUpperCase() : 'CP'}
-                  </div>
+            <div className="p-6 overflow-y-auto space-y-5">
+
+              {/* Consolidated Revenue & Collections Card */}
+              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-5 shadow-2xs">
+                <div className="flex items-center justify-between pb-4 border-b border-[#EAE5DF]">
                   <div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] text-amber-900 font-mono font-bold uppercase tracking-wider">
-                        Active Floor Captain
-                      </span>
-                      <span className="px-1.5 py-0.5 bg-amber-100 text-amber-900 border border-amber-300 rounded font-mono text-[9px] font-black">
-                        Duty Active
-                      </span>
-                    </div>
-                    <span className="text-base font-black text-stone-950 block leading-tight">
-                      {captainName || 'Station Commander'}
+                    <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider block">
+                      Total Shift Revenue
                     </span>
-                    <p className="text-[11px] text-stone-600 font-sans mt-0.5">
-                      Overseeing 34 Dining Tables across all 5 operational dining halls.
+                    <div className="text-3xl font-extrabold text-[#9C3D1E] tracking-tight mt-1">
+                      ₹{shiftRevenue.toLocaleString()}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="inline-block px-3 py-1 bg-white border border-[#EAE5DF] rounded-xl text-xs font-bold text-stone-800 shadow-2xs">
+                      {shiftOrders} Orders Settled
+                    </span>
+                    <p className="text-[11px] text-stone-500 mt-1">
+                      Avg ₹{Math.round(shiftRevenue / (shiftOrders || 1))} per order
                     </p>
                   </div>
                 </div>
-                <div className="text-right shrink-0">
-                  <span className="px-2.5 py-1 bg-emerald-50 text-emerald-800 border border-emerald-300 rounded-lg text-xs font-mono font-black uppercase tracking-wide inline-flex items-center gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping inline-block" />
-                    Shift Active
-                  </span>
-                  <span className="text-[10px] text-stone-500 font-mono block mt-1">
-                    Terminal ID: TAB-CPT-01
-                  </span>
-                </div>
-              </div>
 
-              {/* Revenue & Collections Grid */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <p className="font-mono text-xs font-black text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <DollarSign className="h-3.5 w-3.5 text-[#9C3D1E]" />
-                    <span>Shift Revenue & Collections</span>
-                  </p>
-                  <span className="font-mono text-[10px] text-stone-500 font-medium">
-                    Consolidated Gross Collections
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-4 gap-3 font-mono">
-                  {/* Total Revenue - Rich Terracotta Brand Card */}
-                  <div className="p-3.5 bg-gradient-to-br from-[#9C3D1E] via-[#873216] to-[#702710] text-white rounded-2xl shadow-sm border border-[#9C3D1E]/30 relative overflow-hidden flex flex-col justify-between">
-                    <div className="absolute -right-3 -bottom-3 text-white/5 pointer-events-none">
-                      <TrendingUp className="h-20 w-20" />
-                    </div>
-                    <div>
-                      <span className="text-[9.5px] text-amber-200 font-bold uppercase tracking-wider block">
-                        Total Revenue
-                      </span>
-                      <span className="text-xl font-black text-white mt-1 block tracking-tight">
-                        ₹{shiftRevenue.toLocaleString()}
-                      </span>
-                    </div>
-                    <div className="mt-2 pt-1.5 border-t border-white/15">
-                      <span className="text-[9.5px] text-amber-100/90 block leading-tight">
-                        {shiftOrders} settled orders
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* UPI Digital */}
-                  <div className="p-3.5 bg-white border border-[#EAE5DF] hover:border-emerald-300 rounded-2xl shadow-2xs flex flex-col justify-between transition">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] text-stone-500 font-bold uppercase tracking-wider block">
-                          UPI Digital
-                        </span>
+                {/* 3 Payment Breakdown Columns */}
+                <div className="grid grid-cols-3 gap-3 pt-4">
+                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF]">
+                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
+                      <span className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                      </div>
-                      <span className="text-lg font-black text-stone-900 mt-1 block">
-                        ₹{upiTotal.toLocaleString()}
+                        UPI Digital
+                      </span>
+                      <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                        {Math.round((upiTotal / shiftRevenue) * 100)}%
                       </span>
                     </div>
-                    <div className="mt-2 pt-1.5 border-t border-stone-100">
-                      <span className="text-[9.5px] text-emerald-700 font-bold block leading-tight">
-                        {Math.round((upiTotal / shiftRevenue) * 100)}% · QR & Instant Pay
-                      </span>
+                    <div className="text-base font-bold text-stone-900 mt-1">
+                      ₹{upiTotal.toLocaleString()}
                     </div>
+                    <span className="text-[10px] text-stone-400 block mt-0.5">
+                      QR & Instant Online
+                    </span>
                   </div>
 
-                  {/* Cash Drawer */}
-                  <div className="p-3.5 bg-white border border-[#EAE5DF] hover:border-amber-300 rounded-2xl shadow-2xs flex flex-col justify-between transition">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] text-stone-500 font-bold uppercase tracking-wider block">
-                          Cash Drawer
-                        </span>
+                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF]">
+                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
+                      <span className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-amber-500" />
-                      </div>
-                      <span className="text-lg font-black text-stone-900 mt-1 block">
-                        ₹{cashTotal.toLocaleString()}
+                        Cash Drawer
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
+                        {Math.round((cashTotal / shiftRevenue) * 100)}%
                       </span>
                     </div>
-                    <div className="mt-2 pt-1.5 border-t border-stone-100">
-                      <span className="text-[9.5px] text-stone-500 block leading-tight">
-                        {Math.round((cashTotal / shiftRevenue) * 100)}% · Physical register
-                      </span>
+                    <div className="text-base font-bold text-stone-900 mt-1">
+                      ₹{cashTotal.toLocaleString()}
                     </div>
+                    <span className="text-[10px] text-stone-400 block mt-0.5">
+                      Physical Register
+                    </span>
                   </div>
 
-                  {/* Card POS */}
-                  <div className="p-3.5 bg-white border border-[#EAE5DF] hover:border-blue-300 rounded-2xl shadow-2xs flex flex-col justify-between transition">
-                    <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-[9.5px] text-stone-500 font-bold uppercase tracking-wider block">
-                          Card / EDC
-                        </span>
+                  <div className="bg-white p-3 rounded-xl border border-[#EAE5DF]">
+                    <div className="flex items-center justify-between text-xs text-stone-500 font-medium">
+                      <span className="flex items-center gap-1.5">
                         <span className="h-2 w-2 rounded-full bg-blue-500" />
-                      </div>
-                      <span className="text-lg font-black text-stone-900 mt-1 block">
-                        ₹{cardTotal.toLocaleString()}
+                        Card / POS
+                      </span>
+                      <span className="text-[10px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
+                        {Math.round((cardTotal / shiftRevenue) * 100)}%
                       </span>
                     </div>
-                    <div className="mt-2 pt-1.5 border-t border-stone-100">
-                      <span className="text-[9.5px] text-stone-500 block leading-tight">
-                        {Math.round((cardTotal / shiftRevenue) * 100)}% · Swiped slips
-                      </span>
+                    <div className="text-base font-bold text-stone-900 mt-1">
+                      ₹{cardTotal.toLocaleString()}
                     </div>
+                    <span className="text-[10px] text-stone-400 block mt-0.5">
+                      Swiped EDC Slips
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Current Floor Utilization */}
-              <div className="space-y-2.5">
-                <div className="flex items-center justify-between">
-                  <p className="font-mono text-xs font-black text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Users className="h-3.5 w-3.5 text-[#9C3D1E]" />
-                    <span>Live Floor Occupancy & Turn Rate</span>
-                  </p>
-                  <span className="font-mono text-[10px] text-stone-500 font-medium">
-                    Real-time Floor State
-                  </span>
+              {/* 2-Column Clean Floor Analytics */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Dining Floor Status */}
+                <div className="bg-white border border-[#EAE5DF] rounded-2xl p-4.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Users className="h-3.5 w-3.5 text-[#9C3D1E]" />
+                      Floor Occupancy
+                    </span>
+                    <span className="text-xs font-bold text-stone-900">
+                      {occupiedCount} / {totalTables} Tables
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="text-2xl font-extrabold text-stone-900">
+                      {activeCovers} <span className="text-xs font-medium text-stone-500">Guests Seated</span>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      ₹{activeBillTotal.toLocaleString()} active running bill on dining tables
+                    </p>
+                  </div>
+
+                  {/* Progress bar */}
+                  <div className="space-y-1">
+                    <div className="h-2 w-full bg-stone-100 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-amber-500 rounded-full transition-all duration-500"
+                        style={{ width: `${occupancyRate}%` }}
+                      />
+                    </div>
+                    <div className="flex justify-between text-[10px] text-stone-400 font-medium">
+                      <span>{occupancyRate}% occupied</span>
+                      <span>{vacantCount} vacant tables</span>
+                    </div>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3 font-mono">
-                  {/* Dining Tables */}
-                  <div className="p-4 bg-gradient-to-br from-amber-50/70 to-white border border-amber-200 rounded-2xl shadow-2xs">
-                    <div className="flex items-center justify-between text-amber-900 text-xs font-bold">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-amber-500" />
-                        Dining Tables
-                      </span>
-                      <span className="px-1.5 py-0.5 bg-amber-100 rounded text-[10px]">
-                        {occupiedCount} / {totalTables}
-                      </span>
+                {/* Table Turn & Settlement Status */}
+                <div className="bg-white border border-[#EAE5DF] rounded-2xl p-4.5 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-stone-700 uppercase tracking-wider flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-[#9C3D1E]" />
+                      Turnaround & Billing
+                    </span>
+                    <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-lg border border-purple-200">
+                      {billingCount} Billing
+                    </span>
+                  </div>
+
+                  <div>
+                    <div className="text-2xl font-extrabold text-stone-900">
+                      {shiftStats?.avgTurnaroundMinutes || 38} <span className="text-xs font-medium text-stone-500">Mins Avg Turn</span>
                     </div>
-                    <div className="text-2xl font-black text-stone-950 mt-1.5">
-                      {activeCovers} <span className="text-xs font-bold text-stone-500">Covers Seated</span>
-                    </div>
-                    <p className="text-[10.5px] text-amber-900 font-sans font-medium mt-1 leading-snug">
-                      ₹{activeBillTotal.toLocaleString()} running bill currently active on tables.
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      {billingCount > 0
+                        ? `${billingCount} tables awaiting settlement check`
+                        : 'All active tables enjoying meal service'}
                     </p>
                   </div>
 
-                  {/* Billing State */}
-                  <div className="p-4 bg-gradient-to-br from-purple-50/70 to-white border border-purple-200 rounded-2xl shadow-2xs">
-                    <div className="flex items-center justify-between text-purple-900 text-xs font-bold">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-purple-500" />
-                        Billing State
-                      </span>
-                      <span className="px-1.5 py-0.5 bg-purple-100 rounded text-[10px]">
-                        {billingCount} Tables
-                      </span>
-                    </div>
-                    <div className="text-2xl font-black text-stone-950 mt-1.5">
-                      {billingCount} <span className="text-xs font-bold text-stone-500">Awaiting Pay</span>
-                    </div>
-                    <p className="text-[10.5px] text-purple-900 font-sans font-medium mt-1 leading-snug">
-                      {billingCount > 0 ? 'Checks printed; ready for immediate cashier settlement.' : 'All checks settled; smooth floor turn.'}
-                    </p>
-                  </div>
-
-                  {/* Vacant & Clean */}
-                  <div className="p-4 bg-gradient-to-br from-emerald-50/70 to-white border border-emerald-200 rounded-2xl shadow-2xs">
-                    <div className="flex items-center justify-between text-emerald-900 text-xs font-bold">
-                      <span className="flex items-center gap-1.5">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                        Vacant & Clean
-                      </span>
-                      <span className="px-1.5 py-0.5 bg-emerald-100 rounded text-[10px]">
-                        {vacantCount} Tables
-                      </span>
-                    </div>
-                    <div className="text-2xl font-black text-stone-950 mt-1.5">
-                      {Math.round((vacantCount / totalTables) * 100)}% <span className="text-xs font-bold text-stone-500">Available</span>
-                    </div>
-                    <p className="text-[10.5px] text-emerald-900 font-sans font-medium mt-1 leading-snug">
-                      Sanitized and immediately ready to seat waiting guests.
-                    </p>
+                  <div className="p-2.5 bg-[#FAF8F5] rounded-xl border border-stone-200/60 flex items-center justify-between text-xs">
+                    <span className="text-stone-600 font-medium">Ready Vacant Tables</span>
+                    <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {vacantCount} Ready to Seat
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Kitchen & Dispatch Velocity */}
-              <div className="p-4 bg-gradient-to-r from-[#FAF8F5] to-white border border-[#EAE5DF] rounded-2xl flex items-center justify-between font-mono text-xs shadow-2xs">
-                <div className="flex items-center gap-3.5">
-                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-black text-sm ${
-                    readyTickets.length > 0 ? 'bg-amber-100 text-amber-900 border border-amber-300' : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
+              {/* Kitchen Pass Status Bar */}
+              <div className="bg-white border border-[#EAE5DF] rounded-2xl p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`h-10 w-10 rounded-xl flex items-center justify-center font-bold text-sm ${
+                    readyTickets.length > 0
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                      : 'bg-emerald-100 text-emerald-900 border border-emerald-300'
                   }`}>
                     {readyTickets.length}
                   </div>
                   <div>
-                    <span className="font-black text-stone-900 block text-xs">
-                      Dishes Ready at Pass Counter
-                    </span>
-                    <p className="text-stone-500 text-[11px] font-sans mt-0.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-stone-900">
+                        Kitchen Pass Counter
+                      </span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+                        readyTickets.length > 0
+                          ? 'bg-amber-50 text-amber-800 border-amber-300'
+                          : 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                      }`}>
+                        {readyTickets.length > 0 ? 'Urgent Pickup' : 'Pass Clear'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-0.5">
                       {readyTickets.length > 0
-                        ? `${readyTickets.length} food items plated by kitchen chefs — awaiting runner delivery to tables.`
-                        : 'Kitchen pass is completely clear. All hot dishes have been dispatched to dining tables.'}
+                        ? `${readyTickets.length} dish tickets plated and awaiting runner dispatch.`
+                        : 'All hot orders cleared and served to tables.'}
                     </p>
                   </div>
                 </div>
-                <span className={`px-2.5 py-1 rounded-lg font-black uppercase text-[10px] border shrink-0 ${
-                  readyTickets.length > 0
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-2xs animate-pulse'
-                    : 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                }`}>
-                  {readyTickets.length > 0 ? 'Dispatch Urgent' : 'Pass Clear'}
-                </span>
-              </div>
 
-              {/* Service Velocity & Quality Insights */}
-              <div className="grid grid-cols-3 gap-3 font-mono text-xs">
-                <div className="p-3 bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl">
-                  <div className="flex items-center gap-1.5 text-stone-500 font-bold text-[10px] uppercase">
-                    <Clock className="h-3 w-3 text-stone-400" />
-                    <span>Avg Turn Time</span>
-                  </div>
-                  <span className="text-base font-black text-stone-900 mt-1 block">
-                    {shiftStats?.avgTurnaroundMinutes || 38} mins
+                <div className="text-right pl-4 border-l border-stone-100">
+                  <span className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider block">
+                    Staff Tips
                   </span>
-                  <span className="text-[9.5px] text-stone-500 font-sans block mt-0.5">
-                    Target: 35–45 mins per party
-                  </span>
-                </div>
-
-                <div className="p-3 bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl">
-                  <div className="flex items-center gap-1.5 text-stone-500 font-bold text-[10px] uppercase">
-                    <Award className="h-3 w-3 text-stone-400" />
-                    <span>Staff Tips Earned</span>
-                  </div>
-                  <span className="text-base font-black text-emerald-700 mt-1 block">
+                  <span className="text-base font-bold text-emerald-700">
                     ₹{(shiftStats?.tipsEarned || 850).toLocaleString()}
                   </span>
-                  <span className="text-[9.5px] text-stone-500 font-sans block mt-0.5">
-                    Distributed post-shift
-                  </span>
-                </div>
-
-                <div className="p-3 bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl">
-                  <div className="flex items-center gap-1.5 text-stone-500 font-bold text-[10px] uppercase">
-                    <CheckCircle2 className="h-3 w-3 text-stone-400" />
-                    <span>Service Quality</span>
-                  </div>
-                  <span className="text-base font-black text-stone-900 mt-1 block">
-                    99.4%
-                  </span>
-                  <span className="text-[9.5px] text-emerald-700 font-sans font-bold block mt-0.5">
-                    Optimal guest satisfaction
-                  </span>
                 </div>
               </div>
+
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-[#EAE5DF] bg-[#FAF8F5] flex items-center justify-between shrink-0">
-              <p className="font-mono text-[10.5px] text-stone-500">
-                Thoogudeepa Enterprise System · Shift Metrics Auto-Refreshed
-              </p>
+            <div className="px-6 py-4 bg-[#FAF8F5] border-t border-[#EAE5DF] flex items-center justify-between shrink-0">
+              <span className="text-xs text-stone-400 font-medium">
+                Thoogudeepa Enterprise System · Auto-synced with floor
+              </span>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-6 py-2.5 bg-[#9C3D1E] hover:bg-[#7D2F17] active:scale-95 text-white rounded-xl font-mono text-xs font-black shadow-xs transition cursor-pointer"
+                className="px-6 py-2.5 bg-[#9C3D1E] hover:bg-[#7D2F17] active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
               >
                 Close Summary
               </button>

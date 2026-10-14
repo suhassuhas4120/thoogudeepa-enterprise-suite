@@ -5,9 +5,10 @@ import { useSharedBridge } from '../../store/useSharedBridge';
 import { TrendingUp, PieChart, IndianRupee, Trophy } from 'lucide-react';
 
 export function ScreenM11SalesReport() {
-  const { shiftStats } = useSharedBridge();
+  const { shiftStats, settledBills } = useSharedBridge();
 
-  const totalSales = Math.max(38400, shiftStats.totalRevenue);
+  const realSettledSum = Object.values(settledBills || {}).reduce((acc, b) => acc + (b.grandTotal || 0), 0);
+  const totalSales = Math.max(38400, shiftStats.totalRevenue + realSettledSum);
 
   const categories = [
     { name: 'Donne Biryani (Dum Pots)', share: 58, amount: Math.round(totalSales * 0.58) },
@@ -36,7 +37,6 @@ export function ScreenM11SalesReport() {
       {/* Top Total */}
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span className="text-xs font-bold text-slate-500">[ANALYTICS DESK]</span>
           <h3 className="text-base font-black text-slate-900 mt-0.5">
             TODAY SHIFT SALES &amp; REVENUE REPORT
           </h3>

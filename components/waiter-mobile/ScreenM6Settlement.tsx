@@ -11,48 +11,129 @@ import {
   Phone,
   ArrowRight,
   Check,
-  UtensilsCrossed,
   ChevronDown,
   ChevronUp,
   User,
   Armchair,
+  Smartphone,
+  Search,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 import { useWaiterStore } from '../../store/useWaiterStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 import QRCode from 'qrcode';
 
 interface Props {
   tableNum: string;
+  splitAmount?: number;
+  splitLabel?: string;
+  waiterName?: string;
   onBack: () => void;
   onDone: () => void;
 }
 
 type PayMethod = 'UPI' | 'CASH';
 
-export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable } = useSharedBridge();
+interface SettledBillSnapshot {
+  invoiceNumber: string;
+  items: {
+    id: string;
+    name: string;
+    quantity: number;
+    price: number;
+    totalPrice: number;
+    options?: string;
+    addOns?: string[];
+    stage?: string;
+    seatNumber?: number;
+    ticketNumber: string;
+  }[];
+  subtotal: number;
+  totalTax: number;
+  cgst: number;
+  sgst: number;
+  grandTotal: number;
+  method: PayMethod;
+  cashTendered: number;
+  cashChange: number;
+  seatLabel: string;
+  seatNumber?: number;
+  captainName: string;
+  tableName: string;
+  section: string;
+  guestCount: number;
+  formattedDate: string;
+  formattedTime: string;
+  timestamp?: number;
+}
+
+export function ScreenM6Settlement({
+  tableNum,
+  splitAmount,
+  splitLabel,
+  waiterName,
+  onBack,
+  onDone,
+}: Props) {
+  const {
+    tables,
+    kdsTickets,
+    waiterRecordsPayment,
+    waiterVacatesTable,
+    waiterClearsChairAfterPayment,
+    recordSettledBill,
+    waiterInitiatesSettlement,
+    waiterClearsSettlementSession,
+  } = useSharedBridge();
   const { activeCaptain } = useWaiterStore();
-  const table = tables.find((t) => t.number === tableNum);
+  // Robust table number matching (handles T-05, T-5, TABLE 5, 5, etc.)
+  const cleanTableNum = (s: string) => {
+    const raw = (s || '').toUpperCase().replace(/\s+/g, '').replace(/^TABLE/, '').replace(/^T-?/, '').trim();
+    const parsed = parseInt(raw, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : raw;
+  };
+
+  const fallbackTable: SharedTable = {
+    id: tableNum,
+    number: tableNum.startsWith('T-') ? tableNum : `T-${tableNum}`,
+    section: 'Main Dining Hall',
+    capacity: 4,
+    status: 'OCCUPIED',
+    guestCount: 1,
+    seatedTime: '--',
+    currentBill: 0,
+    serverName: 'Floor Captain',
+    kotCount: 1,
+    mergeGroupPeers: [tableNum],
+    activeItems: [],
+  };
+  const table: SharedTable = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(tableNum)) || tables.find((t) => t.number === tableNum) || fallbackTable;
 
   const [method, setMethod] = useState<PayMethod>('UPI');
   const [customerPhone, setCustomerPhone] = useState('');
   const [cashTendered, setCashTendered] = useState<number | ''>('');
-  const [vacateAfter, setVacateAfter] = useState(true);
+  const [vacateAfter, setVacateAfter] = useState(!splitAmount);
   const [settled, setSettled] = useState(false);
+  const [settledSnapshot, setSettledSnapshot] = useState<SettledBillSnapshot | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
-  const [isUpiVerified, setIsUpiVerified] = useState(false);
+  const [qrZoomed, setQrZoomed] = useState(false);
+  const [isUpiVerified, setIsUpiVerified] = useState(true);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [showOrderSummary, setShowOrderSummary] = useState(false);
+  const [showOrderSummary, setShowOrderSummary] = useState(true);
 
-  // Captain Name from store or table
-  const captainName = activeCaptain || table?.serverName || 'Floor Captain';
+  const groupPeers: string[] = table?.mergeGroupPeers ?? [tableNum];
+  const tickets = useMemo(() => {
+    return kdsTickets.filter(
+      (tk) =>
+        groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber)) &&
+        tk.status !== 'COMPLETED'
+    );
+  }, [kdsTickets, groupPeers]);
 
-  // Tickets for table (including merged partner table if merged)
-  const tickets = kdsTickets.filter(
-    (tk) => tk.tableNumber === tableNum || (table?.mergedWith && tk.tableNumber === table.mergedWith)
-  );
+  // Captain Name
+  const ticketCaptain = tickets.find((t) => t.serverName && t.serverName !== 'Floor Captain')?.serverName;
+  const captainName = ticketCaptain || table?.serverName || waiterName || activeCaptain || 'Floor Captain';
 
   // Gather all ordered items
   const allOrderedItems = useMemo(() => {
@@ -63,15 +144,25 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
       price: number;
       totalPrice: number;
       options?: string;
+      addOns?: string[];
+      stage?: string;
       seatNumber?: number;
       ticketNumber: string;
     }[] = [];
 
+    const seenIds = new Set<string>();
+
     tickets.forEach((tk) => {
       tk.items.forEach((it) => {
         const fallbackPrice =
-          INITIAL_MENU_ITEMS.find((m) => m.name.toLowerCase() === it.name.toLowerCase())?.price || 0;
-        const unitPrice = it.price || fallbackPrice;
+          INITIAL_MENU_ITEMS.find(
+            (m) =>
+              m.name.toLowerCase() === it.name.toLowerCase() ||
+              m.name.toLowerCase().includes(it.name.toLowerCase()) ||
+              it.name.toLowerCase().includes(m.name.toLowerCase())
+          )?.price || 220;
+        const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
+        seenIds.add(it.id);
         list.push({
           id: it.id,
           name: it.name,
@@ -79,39 +170,119 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           price: unitPrice,
           totalPrice: unitPrice * it.quantity,
           options: it.options,
+          addOns: it.addOns || [],
+          stage: it.stage,
           seatNumber: it.seatNumber || tk.seatNumber,
           ticketNumber: tk.id.slice(-4),
         });
       });
     });
 
-    if (list.length === 0 && table?.activeItems && table.activeItems.length > 0) {
+    if (table?.activeItems && table.activeItems.length > 0) {
       table.activeItems.forEach((ai, idx) => {
-        const fallbackPrice =
-          INITIAL_MENU_ITEMS.find((m) => m.name.toLowerCase() === ai.name.toLowerCase())?.price || 0;
-        const unitPrice = ai.price || fallbackPrice;
-        list.push({
-          id: ai.id || `ai-${idx}`,
-          name: ai.name,
-          quantity: ai.quantity,
-          price: unitPrice,
-          totalPrice: unitPrice * ai.quantity,
-          options: ai.options,
-          seatNumber: ai.seatNumber,
-          ticketNumber: 'TBL',
-        });
+        const id = ai.id || `ai-${idx}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          const fallbackPrice =
+            INITIAL_MENU_ITEMS.find(
+              (m) =>
+                m.name.toLowerCase() === ai.name.toLowerCase() ||
+                m.name.toLowerCase().includes(ai.name.toLowerCase()) ||
+                ai.name.toLowerCase().includes(m.name.toLowerCase())
+            )?.price || 220;
+          const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
+          list.push({
+            id,
+            name: ai.name,
+            quantity: ai.quantity,
+            price: unitPrice,
+            totalPrice: unitPrice * ai.quantity,
+            options: ai.options,
+            addOns: (ai as any).addOns || [],
+            stage: ai.status || 'Placed',
+            seatNumber: ai.seatNumber,
+            ticketNumber: 'TBL',
+          });
+        }
       });
     }
 
     return list;
   }, [tickets, table?.activeItems]);
 
-  const itemsSubtotal = allOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
-  const subtotal = Math.max(table?.currentBill || 0, itemsSubtotal);
-  const cgst = Math.round(subtotal * 0.025);
-  const sgst = Math.round(subtotal * 0.025);
-  const totalTax = cgst + sgst;
-  const grandTotal = subtotal + totalTax;
+  // Detect if this is a single-chair settle
+  const splitSeatNumber = useMemo(() => {
+    if (!splitLabel) return null;
+    const m = splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i);
+    return m ? Number(m[1]) : null;
+  }, [splitLabel]);
+
+  // When settling a specific chair, show that chair's items
+  const displayedItems = useMemo(() => {
+    if (splitSeatNumber !== null) {
+      return allOrderedItems.filter((it) => it.seatNumber === splitSeatNumber);
+    }
+    return allOrderedItems;
+  }, [allOrderedItems, splitSeatNumber]);
+
+  const displayedItemsSum = useMemo(() => {
+    return displayedItems.reduce((sum, it) => sum + (it.totalPrice || it.price * it.quantity || 0), 0);
+  }, [displayedItems]);
+
+  // Subtotal and tax calculations
+  const { subtotal, totalTax, grandTotal, cgst, sgst } = useMemo(() => {
+    if (splitAmount && splitAmount > 0) {
+      const calcSub = Math.round(splitAmount / 1.05);
+      const calcTax = splitAmount - calcSub;
+      return {
+        subtotal: calcSub,
+        totalTax: calcTax,
+        grandTotal: splitAmount,
+        cgst: calcTax / 2,
+        sgst: calcTax / 2,
+      };
+    }
+
+    if (displayedItemsSum > 0) {
+      const calcTax = Math.round(displayedItemsSum * 0.05);
+      const calcGrand = displayedItemsSum + calcTax;
+      return {
+        subtotal: displayedItemsSum,
+        totalTax: calcTax,
+        grandTotal: calcGrand,
+        cgst: calcTax / 2,
+        sgst: calcTax / 2,
+      };
+    }
+
+    // Only fall back to whole table bill when this is a full-table settlement
+    if (splitSeatNumber === null) {
+      const tableBill = table?.currentBill || 0;
+      if (tableBill > 0) {
+        const calcSub = Math.round(tableBill / 1.05);
+        const calcTax = tableBill - calcSub;
+        return {
+          subtotal: calcSub,
+          totalTax: calcTax,
+          grandTotal: tableBill,
+          cgst: calcTax / 2,
+          sgst: calcTax / 2,
+        };
+      }
+    }
+
+    return {
+      subtotal: 0,
+      totalTax: 0,
+      grandTotal: 0,
+      cgst: 0,
+      sgst: 0,
+    };
+  }, [splitAmount, displayedItemsSum, table?.currentBill, splitSeatNumber]);
+
+  const hasUnservedDishes =
+    displayedItems.length > 0 &&
+    displayedItems.some((it) => it.stage !== 'SERVED' && it.stage !== 'Served');
 
   const invoiceNumber = useMemo(() => {
     const cleanTbl = tableNum.replace(/[^a-zA-Z0-9]/g, '');
@@ -119,8 +290,9 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
     return `INV-${cleanTbl}-${stamp}`;
   }, [tableNum]);
 
-  // Unique seat numbers allocated to this table / orders
+  // Unique seat numbers
   const seatNumbers = useMemo(() => {
+    if (splitSeatNumber !== null) return [splitSeatNumber];
     const seatsSet = new Set<number>();
     allOrderedItems.forEach((it) => {
       if (it.seatNumber) seatsSet.add(it.seatNumber);
@@ -130,7 +302,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
     }
     const count = table?.guestCount || table?.capacity || 1;
     return Array.from({ length: count }, (_, i) => i + 1);
-  }, [allOrderedItems, table]);
+  }, [allOrderedItems, splitSeatNumber, table]);
 
   const seatNumbersLabel =
     seatNumbers.length === 1
@@ -143,7 +315,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
       ? cashTendered
       : grandTotal;
 
-  const cashChange = effectiveCashTendered - grandTotal;
+  const cashChange = Math.max(0, effectiveCashTendered - grandTotal);
 
   const changePreview =
     typeof cashTendered === 'number' && cashTendered >= grandTotal
@@ -160,17 +332,107 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
     }
   }, [grandTotal, tableNum]);
 
+  // Real-time synchronization of floor captain settlement arrival to diner app
+  useEffect(() => {
+    waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, isUpiVerified);
+  }, [tableNum, splitSeatNumber, grandTotal, method, isUpiVerified, waiterInitiatesSettlement]);
+
+  const handleExplicitBack = () => {
+    waiterClearsSettlementSession(tableNum, splitSeatNumber ?? undefined);
+    onBack();
+  };
+
+  // Modal scroll lock
+  useEffect(() => {
+    if (qrZoomed) {
+      const originalOverflow = window.getComputedStyle(document.body).overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [qrZoomed]);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 2500);
   };
 
   const handleSettle = () => {
-    waiterRecordsPayment(tableNum, method, grandTotal);
-    if (vacateAfter) {
-      setTimeout(() => waiterVacatesTable(tableNum), 300);
-    }
+    const itemsToRecord = displayedItems.length > 0 ? displayedItems : allOrderedItems;
+    const finalSubtotal = subtotal > 0 ? subtotal : itemsToRecord.reduce((sum, it) => sum + it.totalPrice, 0);
+    const finalTax = totalTax > 0 ? totalTax : Math.round(finalSubtotal * 0.05);
+    const finalGrandTotal = grandTotal > 0 ? grandTotal : finalSubtotal + finalTax;
+    const finalTendered =
+      method === 'CASH'
+        ? typeof cashTendered === 'number' && cashTendered >= finalGrandTotal
+          ? cashTendered
+          : finalGrandTotal
+        : finalGrandTotal;
+    const finalChange = method === 'CASH' ? Math.max(0, finalTendered - finalGrandTotal) : 0;
+
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const formattedTime = now.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+
+    const snapshot: SettledBillSnapshot = {
+      invoiceNumber,
+      items: itemsToRecord,
+      subtotal: finalSubtotal,
+      totalTax: finalTax,
+      cgst: finalTax / 2,
+      sgst: finalTax / 2,
+      grandTotal: finalGrandTotal,
+      method,
+      cashTendered: finalTendered,
+      cashChange: finalChange,
+      seatLabel: splitSeatNumber !== null ? `Chair ${splitSeatNumber}` : seatNumbersLabel,
+      seatNumber: splitSeatNumber ?? undefined,
+      captainName,
+      tableName: tableNum,
+      section: table?.section || 'Main Dining Hall',
+      guestCount: splitSeatNumber !== null ? 1 : table?.guestCount || table?.capacity || 1,
+      formattedDate,
+      formattedTime,
+      timestamp: Date.now(),
+    };
+
+    setSettledSnapshot(snapshot);
     setSettled(true);
+
+    // Record settled bill for real-time customer app synchronization
+    recordSettledBill({
+      ...snapshot,
+      seatNumber: splitSeatNumber ?? undefined,
+      timestamp: Date.now(),
+    });
+
+    // Update store state
+    waiterRecordsPayment(tableNum, method, finalGrandTotal, splitSeatNumber ?? undefined);
+
+    // Clear chair items and tickets immediately so no lingering items or bills remain
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
+    } else if (vacateAfter) {
+      waiterVacatesTable(tableNum);
+    }
+  };
+
+  const handleFinish = () => {
+    if (splitSeatNumber !== null) {
+      waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
+    } else if (vacateAfter) {
+      waiterVacatesTable(tableNum);
+    }
+    onDone();
   };
 
   if (!table) return null;
@@ -178,17 +440,8 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
   // ══════════════════════════════════════════════════════════════════════════════
   // ── 1. POST-PAYMENT RECEIPT VIEW (AFTER PAY ONLY) ───────────────────────────
   // ══════════════════════════════════════════════════════════════════════════════
-  if (settled) {
-    const formattedDate = new Date().toLocaleDateString('en-IN', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric',
-    });
-    const formattedTime = new Date().toLocaleTimeString('en-IN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true,
-    });
+  if (settled && settledSnapshot) {
+    const s = settledSnapshot;
 
     return (
       <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans max-w-md mx-auto border-x border-[#EAE5DF] shadow-2xl relative select-none">
@@ -202,7 +455,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           </div>
           <button
             type="button"
-            onClick={onDone}
+            onClick={handleFinish}
             className="font-mono text-xs font-black text-stone-700 bg-stone-100 hover:bg-stone-200 px-3 py-1.5 rounded-xl border border-stone-300 transition cursor-pointer"
           >
             Done
@@ -220,11 +473,12 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               Payment Recorded &amp; Settled!
             </h2>
             <p className="font-mono text-xs font-bold text-emerald-800">
-              ₹{grandTotal.toFixed(2)} collected via {method} for Table {tableNum}
+              ₹{s.grandTotal.toFixed(2)} collected via {s.method} for Table {s.tableName}
             </p>
             {customerPhone && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 border border-emerald-300 font-mono text-[11px] font-bold text-emerald-900 mt-1">
-                <span>📱 Digital bill dispatched to +91 {customerPhone}</span>
+                <Smartphone className="h-4 w-4 text-emerald-600" />
+                <span>Digital bill dispatched to +91 {customerPhone}</span>
               </div>
             )}
           </div>
@@ -244,14 +498,14 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               </p>
 
               <div className="pt-2 flex items-center justify-between text-[10.5px] text-stone-700 border-t border-stone-100 mt-2">
-                <span className="font-black text-stone-900">TAX INVOICE: #{invoiceNumber}</span>
+                <span className="font-black text-stone-900">TAX INVOICE: #{s.invoiceNumber}</span>
                 <span className="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-black border border-emerald-300 text-[10px]">
-                  PAID ({method})
+                  PAID ({s.method})
                 </span>
               </div>
               <div className="flex items-center justify-between text-[10px] text-stone-500 pt-0.5">
-                <span>Date: {formattedDate}</span>
-                <span>Time: {formattedTime}</span>
+                <span>Date: {s.formattedDate}</span>
+                <span>Time: {s.formattedTime}</span>
               </div>
             </div>
 
@@ -261,15 +515,14 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                 <div>
                   <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Table Number</span>
                   <span className="font-black text-stone-900">
-                    {tableNum} ({table.section})
-                    {table.mergedWith && <span className="text-purple-700 ml-1">+{table.mergedWith}</span>}
+                    {s.tableName} ({s.section})
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Floor Captain</span>
                   <span className="font-black text-[#9C3D1E] flex items-center justify-end gap-1">
                     <User className="h-3 w-3" />
-                    <span>{captainName}</span>
+                    <span>{s.captainName}</span>
                   </span>
                 </div>
               </div>
@@ -279,13 +532,13 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                   <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Assigned Seats</span>
                   <span className="font-bold text-stone-800 flex items-center gap-1">
                     <Armchair className="h-3 w-3 text-stone-500" />
-                    <span>{seatNumbersLabel}</span>
+                    <span>{s.seatLabel}</span>
                   </span>
                 </div>
                 <div className="text-right">
                   <span className="text-stone-400 font-bold block text-[9.5px] uppercase">Guest Count</span>
                   <span className="font-bold text-stone-800">
-                    {table.guestCount || table.capacity || 1} Guests
+                    {s.guestCount} {s.guestCount === 1 ? 'Guest' : 'Guests'}
                   </span>
                 </div>
               </div>
@@ -297,8 +550,8 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                 <span>Item Particulars &amp; Chair</span>
                 <span>Amount (₹)</span>
               </div>
-              {allOrderedItems.length > 0 ? (
-                allOrderedItems.map((item, idx) => (
+              {s.items.length > 0 ? (
+                s.items.map((item, idx) => (
                   <div key={item.id || idx} className="flex justify-between text-stone-800 text-[11.5px] py-0.5">
                     <div>
                       <div className="font-bold">
@@ -310,10 +563,22 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                           </span>
                         )}
                       </div>
-                      <div className="text-[9.5px] text-stone-400 flex items-center gap-2">
+                      <div className="text-[9.5px] text-stone-400 flex flex-wrap items-center gap-1.5 pt-0.5">
                         <span>@ ₹{item.price} each</span>
                         {item.options && <span>• {item.options}</span>}
                       </div>
+                      {item.addOns && item.addOns.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-0.5">
+                          {item.addOns.map((ao: string, aoIdx: number) => (
+                            <span
+                              key={aoIdx}
+                              className="px-1 py-0.2 rounded bg-amber-100 border border-amber-300 text-[8px] font-black text-amber-900"
+                            >
+                              + {ao}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <span className="font-bold shrink-0 ml-2">₹{item.totalPrice.toFixed(2)}</span>
                   </div>
@@ -321,7 +586,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               ) : (
                 <div className="flex justify-between text-stone-800 text-[11.5px]">
                   <span className="font-bold">1× Dine-in Food Orders</span>
-                  <span className="font-bold">₹{subtotal.toFixed(2)}</span>
+                  <span className="font-bold">₹{s.subtotal.toFixed(2)}</span>
                 </div>
               )}
             </div>
@@ -329,29 +594,37 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
             {/* ── TAXES & CHARGES BREAKDOWN ── */}
             <div className="space-y-1.5 pb-3 border-b border-stone-200 text-xs text-stone-600">
               <div className="flex justify-between">
-                <span>Items Subtotal ({allOrderedItems.reduce((s, i) => s + i.quantity, 0) || 1} items):</span>
-                <span className="font-bold text-stone-900">₹{subtotal.toFixed(2)}</span>
+                <span>
+                  Items Subtotal ({s.items.length > 0 ? s.items.reduce((acc, i) => acc + i.quantity, 0) : 1} items):
+                </span>
+                <span className="font-bold text-stone-900">₹{s.subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[11px] text-stone-500">
                 <span>CGST (2.5%):</span>
-                <span>₹{cgst.toFixed(2)}</span>
+                <span>₹{s.cgst.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[11px] text-stone-500">
                 <span>SGST (2.5%):</span>
-                <span>₹{sgst.toFixed(2)}</span>
+                <span>₹{s.sgst.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-[11px] text-stone-500">
                 <span>Total GST (5%):</span>
-                <span>₹{totalTax.toFixed(2)}</span>
+                <span>₹{s.totalTax.toFixed(2)}</span>
               </div>
+              {s.grandTotal > s.subtotal + s.totalTax && (
+                <div className="flex justify-between text-xs font-bold text-[#9C3D1E]">
+                  <span>Waiter Tip:</span>
+                  <span>+₹{(s.grandTotal - (s.subtotal + s.totalTax)).toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm font-black text-stone-900 pt-1.5 border-t border-stone-200">
                 <span>GRAND TOTAL PAID:</span>
-                <span className="text-[#9C3D1E] text-base">₹{grandTotal.toFixed(2)}</span>
+                <span className="text-[#9C3D1E] text-base">₹{s.grandTotal.toFixed(2)}</span>
               </div>
             </div>
 
             {/* ── PROMINENT PAYMENT DETAILS & CHANGE CALCULATION ── */}
-            {method === 'CASH' ? (
+            {s.method === 'CASH' ? (
               <div className="p-3 bg-emerald-50 border-2 border-emerald-400 rounded-2xl space-y-1.5 font-mono text-xs">
                 <div className="flex items-center justify-between text-emerald-950 font-black uppercase tracking-wider text-[11px] pb-1 border-b border-emerald-200">
                   <span className="flex items-center gap-1.5">
@@ -365,11 +638,11 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
 
                 <div className="flex justify-between text-stone-700 pt-0.5">
                   <span>Bill Total Amount:</span>
-                  <span className="font-bold text-stone-900">₹{grandTotal.toFixed(2)}</span>
+                  <span className="font-bold text-stone-900">₹{s.grandTotal.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-stone-700">
                   <span>Cash Received from Guest:</span>
-                  <span className="font-black text-stone-900">₹{effectiveCashTendered.toFixed(2)}</span>
+                  <span className="font-black text-stone-900">₹{s.cashTendered.toFixed(2)}</span>
                 </div>
 
                 <div className="pt-2 border-t-2 border-emerald-300 flex justify-between items-center">
@@ -378,11 +651,11 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                       Change to be Given:
                     </span>
                     <span className="text-[10px] text-emerald-700 font-bold">
-                      {cashChange > 0 ? `Return ₹${cashChange.toFixed(2)} to guest` : 'Exact amount received'}
+                      {s.cashChange > 0 ? `Return ₹${s.cashChange.toFixed(2)} to guest` : 'Exact amount received'}
                     </span>
                   </div>
                   <span className="font-black text-xl text-emerald-800">
-                    ₹{cashChange.toFixed(2)}
+                    ₹{s.cashChange.toFixed(2)}
                   </span>
                 </div>
               </div>
@@ -403,11 +676,11 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                 </div>
                 <div className="flex justify-between text-stone-700">
                   <span>NPCI Reference:</span>
-                  <span className="font-mono text-stone-900">#UPI-{invoiceNumber}</span>
+                  <span className="font-mono text-stone-900">#UPI-{s.invoiceNumber}</span>
                 </div>
                 <div className="flex justify-between text-stone-700">
                   <span>Amount Debited:</span>
-                  <span className="font-black text-stone-900">₹{grandTotal.toFixed(2)}</span>
+                  <span className="font-black text-stone-900">₹{s.grandTotal.toFixed(2)}</span>
                 </div>
               </div>
             )}
@@ -428,7 +701,10 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           <div className="space-y-2.5 pt-2 pb-6 font-mono">
             <button
               type="button"
-              onClick={() => showToast('🖨️ Thermal tax invoice printed')}
+              onClick={() => {
+                showToast('Thermal tax invoice printed');
+                if (typeof window !== 'undefined') window.print?.();
+              }}
               className="w-full py-3.5 bg-stone-900 hover:bg-stone-800 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
               <Printer className="h-4 w-4 text-amber-400" />
@@ -437,7 +713,44 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
 
             <button
               type="button"
-              onClick={onDone}
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/receipts/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      tableNumber: s.tableName,
+                      invoiceNumber: s.invoiceNumber,
+                      phone: customerPhone,
+                      total: s.grandTotal,
+                      subtotal: s.subtotal,
+                      tax: s.totalTax,
+                      bankUtr: s.method === 'CASH' ? 'CASH-SETTLED' : `#UPI-${s.invoiceNumber}`,
+                      items: s.items.map((it) => ({
+                        name: it.name,
+                        quantity: it.quantity,
+                        price: it.price,
+                      })),
+                    }),
+                  });
+                  const data = await res.json();
+                  if (data?.deliveryStatus?.whatsappWebLink) {
+                    window.open(data.deliveryStatus.whatsappWebLink, '_blank');
+                  }
+                  showToast('WhatsApp bill dispatched');
+                } catch {
+                  showToast('Bill generated');
+                }
+              }}
+              className="w-full py-3.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
+            >
+              <Smartphone className="h-4 w-4" />
+              <span>Send Bill on WhatsApp</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleFinish}
               className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
             >
               <span>Return to Floor Grid</span>
@@ -473,7 +786,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
       <header className="sticky top-0 z-40 bg-white/95 border-b border-[#EAE5DF] px-4 py-3 flex items-center justify-between shadow-2xs backdrop-blur-md">
         <button
           type="button"
-          onClick={onBack}
+          onClick={handleExplicitBack}
           className="flex items-center gap-1.5 font-mono text-xs font-bold text-stone-700 hover:text-[#9C3D1E] py-1 px-2.5 -ml-1 rounded-xl bg-stone-50 hover:bg-[#FFF8F5] border border-[#EAE5DF] transition cursor-pointer"
         >
           <ChevronLeft className="h-4 w-4" />
@@ -493,12 +806,19 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               <p className="text-[10px] text-[#9C3D1E] font-black uppercase tracking-widest">
                 {table.section}
               </p>
-              <h1 className="text-2xl font-black text-stone-900 tracking-tight mt-0.5">
-                {table.number}
-                {table.mergedWith && (
-                  <span className="text-purple-700 text-sm font-bold ml-1.5">+ {table.mergedWith}</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <h1 className="text-2xl font-black text-stone-900 tracking-tight">
+                  {table.number}
+                  {table.mergedWith && (
+                    <span className="text-purple-700 text-sm font-bold ml-1.5">+ {table.mergedWith}</span>
+                  )}
+                </h1>
+                {splitLabel && (
+                  <span className="font-mono text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 px-2 py-0.5 rounded-lg shadow-2xs">
+                    {splitLabel}
+                  </span>
                 )}
-              </h1>
+              </div>
             </div>
             <div className="text-right">
               <span className="text-[10px] text-stone-400 uppercase font-bold block">
@@ -513,11 +833,15 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           <div className="pt-2.5 border-t border-stone-100 grid grid-cols-2 gap-2 text-xs text-stone-600">
             <div className="flex items-center gap-1.5">
               <User className="h-3.5 w-3.5 text-stone-400" />
-              <span>Captain: <strong className="text-stone-900">{captainName}</strong></span>
+              <span>
+                Captain: <strong className="text-stone-900">{captainName}</strong>
+              </span>
             </div>
             <div className="text-right flex items-center justify-end gap-1.5">
               <Armchair className="h-3.5 w-3.5 text-stone-400" />
-              <span>Seats: <strong className="text-stone-900">{seatNumbersLabel}</strong></span>
+              <span>
+                Seats: <strong className="text-stone-900">{seatNumbersLabel}</strong>
+              </span>
             </div>
           </div>
         </div>
@@ -532,7 +856,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               </span>
             </div>
             <span className="text-xs font-bold text-stone-500">
-              {allOrderedItems.reduce((s, i) => s + i.quantity, 0)} Items
+              {displayedItems.reduce((s, i) => s + i.quantity, 0)} Items
             </span>
           </div>
 
@@ -552,14 +876,14 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           </div>
 
           {/* Collapsible toggle to inspect dishes */}
-          {allOrderedItems.length > 0 && (
+          {displayedItems.length > 0 && (
             <div className="pt-1 border-t border-stone-100">
               <button
                 type="button"
                 onClick={() => setShowOrderSummary(!showOrderSummary)}
                 className="w-full flex items-center justify-between text-[11px] font-bold text-stone-600 hover:text-[#9C3D1E] py-1 cursor-pointer transition"
               >
-                <span>{showOrderSummary ? 'Hide Ordered Items' : `View Ordered Items (${allOrderedItems.length})`}</span>
+                <span>{showOrderSummary ? 'Hide Ordered Items' : `View Ordered Items (${displayedItems.length})`}</span>
                 {showOrderSummary ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
               </button>
 
@@ -571,12 +895,29 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                     exit={{ height: 0, opacity: 0 }}
                     className="overflow-hidden space-y-1.5 pt-2 max-h-48 overflow-y-auto"
                   >
-                    {allOrderedItems.map((item, idx) => (
+                    {displayedItems.map((item, idx) => (
                       <div key={item.id || idx} className="flex justify-between text-[11px] text-stone-700 py-0.5">
                         <div>
-                          <span>{item.quantity}× {item.name}</span>
-                          {item.seatNumber && (
-                            <span className="text-[9.5px] text-[#9C3D1E] ml-1.5 font-bold">[Chair {item.seatNumber}]</span>
+                          <div>
+                            <span className="font-bold">{item.quantity}× {item.name}</span>
+                            {!splitSeatNumber && item.seatNumber && (
+                              <span className="text-[9.5px] text-[#9C3D1E] ml-1.5 font-bold">[Chair {item.seatNumber}]</span>
+                            )}
+                          </div>
+                          {item.options && (
+                            <div className="text-[9.5px] text-stone-400">[{item.options}]</div>
+                          )}
+                          {item.addOns && item.addOns.length > 0 && (
+                            <div className="flex flex-wrap gap-1 mt-0.5">
+                              {item.addOns.map((ao: string, aIdx: number) => (
+                                <span
+                                  key={aIdx}
+                                  className="px-1 py-0.2 rounded bg-amber-100 border border-amber-300 text-[8px] font-black text-amber-900"
+                                >
+                                  + {ao}
+                                </span>
+                              ))}
+                            </div>
                           )}
                         </div>
                         <span className="font-bold shrink-0 ml-2">₹{item.totalPrice.toFixed(2)}</span>
@@ -589,7 +930,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
           )}
         </div>
 
-        {/* ── CUSTOMER MOBILE NUMBER INPUT (WITH FIXED +91 PREFIX) ── */}
+        {/* ── CUSTOMER MOBILE NUMBER INPUT ── */}
         <div className="space-y-1.5 font-mono">
           <label className="flex items-center justify-between text-xs font-black text-stone-700 uppercase tracking-wider">
             <span className="flex items-center gap-1.5">
@@ -597,16 +938,14 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               <span>Customer Mobile (E-Receipt)</span>
             </span>
             <span className="text-[10px] text-stone-400 font-bold lowercase">
-              (optional sms / whatsapp)
+              (optional whatsapp)
             </span>
           </label>
           <div className="relative flex items-center rounded-2xl border-2 border-[#EAE5DF] bg-white shadow-2xs focus-within:border-[#9C3D1E] focus-within:ring-2 focus-within:ring-[#9C3D1E]/20 overflow-hidden transition">
-            {/* Fixed +91 Country Code Badge for India */}
             <div className="flex items-center gap-1.5 px-3 py-3 bg-stone-100/90 border-r border-[#EAE5DF] font-mono text-xs font-black text-stone-800 shrink-0 select-none">
-              <span className="text-sm">🇮🇳</span>
+              <span className="text-xs font-bold">IN</span>
               <span>+91</span>
             </div>
-            {/* Strictly Numeric Input Only */}
             <input
               type="tel"
               inputMode="numeric"
@@ -614,7 +953,6 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               maxLength={10}
               value={customerPhone}
               onChange={(e) => {
-                // Strictly allow numbers only (no alphabets or symbols)
                 const numeric = e.target.value.replace(/\D/g, '').slice(0, 10);
                 setCustomerPhone(numeric);
               }}
@@ -648,7 +986,7 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               <div className="text-center">
                 <span className="block text-sm">UPI / QR Code</span>
                 <span className={`text-[9.5px] font-bold block ${method === 'UPI' ? 'text-indigo-200' : 'text-stone-400'}`}>
-                  GPay • PhonePe • Paytm
+                  Scan Dynamic QR
                 </span>
               </div>
             </button>
@@ -686,42 +1024,95 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
               </span>
             </div>
 
-            {/* Dynamic QR Code Card */}
-            <div className="p-4 bg-white rounded-xl border border-indigo-100 flex flex-col items-center justify-center text-center space-y-2 shadow-2xs">
-              <div className="text-[11px] font-black text-stone-800">
-                Scan with any UPI App to Pay ₹{grandTotal}
+            {/* QR Card — blurred until Confirm QR Pay is tapped */}
+            <div
+              onClick={() => isUpiVerified && setQrZoomed(true)}
+              className={`p-4 bg-white rounded-xl border flex flex-col items-center justify-center text-center space-y-2 shadow-2xs transition ${
+                isUpiVerified
+                  ? 'border-indigo-200 cursor-pointer hover:border-indigo-300 group'
+                  : 'border-stone-200 cursor-default'
+              }`}
+            >
+              <div className="flex items-center justify-between w-full px-1">
+                <span className="text-[11px] font-black text-stone-800">
+                  Scan to Pay ₹{grandTotal.toFixed(2)}
+                </span>
+                {isUpiVerified && (
+                  <span className="text-[9.5px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full group-hover:bg-indigo-100 flex items-center gap-1">
+                    <Search className="h-3.5 w-3.5" />
+                    <span>Tap to Enlarge</span>
+                  </span>
+                )}
               </div>
-              {qrCodeUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={qrCodeUrl}
-                  alt="Dynamic UPI QR"
-                  className="w-44 h-44 rounded-xl border border-stone-200 shadow-xs"
-                />
-              ) : (
-                <div className="w-44 h-44 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 text-xs">
-                  Generating UPI QR...
-                </div>
-              )}
-              <div className="pt-1 text-[10.5px] text-stone-600 font-bold">
-                UPI ID: <span className="text-indigo-800 select-all">thoogudeepa@okicici</span>
+
+              {/* QR with blur-reveal */}
+              <div className="relative w-44 h-44">
+                {qrCodeUrl ? (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={qrCodeUrl}
+                      alt="Dynamic UPI QR"
+                      className={`w-44 h-44 rounded-xl border border-stone-200 shadow-xs transition-all duration-500 ${
+                        isUpiVerified
+                          ? 'blur-none scale-100 opacity-100'
+                          : 'blur-md scale-95 opacity-50'
+                      }`}
+                    />
+                    {/* Lock overlay — shown until Confirm QR Pay is clicked */}
+                    {!isUpiVerified && (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-white/60 backdrop-blur-xs space-y-1.5 pointer-events-none p-3">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center shadow-2xs">
+                          <QrCode className="h-5 w-5 text-indigo-600" />
+                        </div>
+                        <p className="text-[11px] font-black text-indigo-950 text-center leading-tight">
+                          QR code hidden
+                        </p>
+                        <p className="text-[9.5px] text-stone-600 text-center">
+                          Tap &quot;Confirm QR Pay&quot; below to display scanner
+                        </p>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div className="w-44 h-44 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center text-stone-400 text-xs">
+                    Generating QR...
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-1.5 text-[9px] text-stone-400">
-                <span>Google Pay • PhonePe • Paytm • BHIM • Cred</span>
+
+              <div className="pt-0.5 text-[11px] text-stone-600 font-bold">
+                UPI ID: <span className="text-indigo-800 font-black select-all">thoogudeepa@okicici</span>
               </div>
             </div>
 
-            <label className="flex items-center gap-2.5 p-2.5 bg-white border border-indigo-200 rounded-xl cursor-pointer">
-              <input
-                type="checkbox"
-                checked={isUpiVerified}
-                onChange={(e) => setIsUpiVerified(e.target.checked)}
-                className="h-4 w-4 rounded accent-indigo-700"
-              />
-              <span className="text-xs font-bold text-indigo-950">
-                Customer confirmed UPI transfer on phone
-              </span>
-            </label>
+            {/* Confirm QR Pay Button */}
+            <button
+              type="button"
+              onClick={() => {
+                const nextVerified = !isUpiVerified;
+                setIsUpiVerified(nextVerified);
+                waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, nextVerified);
+                showToast(nextVerified ? 'UPI QR Terminal Confirmed for Diner ✓' : 'UPI QR Terminal reset');
+              }}
+              className={`w-full p-3.5 rounded-xl font-mono text-xs font-black flex items-center justify-center gap-2 border transition cursor-pointer active:scale-98 shadow-xs ${
+                isUpiVerified
+                  ? 'bg-emerald-600 text-white border-emerald-600 ring-2 ring-emerald-300'
+                  : 'bg-white text-indigo-950 border-indigo-300 hover:border-indigo-500 hover:bg-indigo-50/50'
+              }`}
+            >
+              {isUpiVerified ? (
+                <>
+                  <CheckCircle2 className="h-4 w-4 text-white" />
+                  <span>Confirm QR Pay (Verified ✓)</span>
+                </>
+              ) : (
+                <>
+                  <QrCode className="h-4 w-4 text-indigo-700" />
+                  <span>Confirm QR Pay</span>
+                </>
+              )}
+            </button>
           </div>
         )}
 
@@ -733,8 +1124,8 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                 <Banknote className="h-4 w-4 text-[#9C3D1E]" />
                 <span>Cash Tendered</span>
               </span>
-              <span className="text-[10px] text-amber-800 font-bold">
-                Bill Due: ₹{grandTotal}
+              <span className="text-[11px] text-amber-900 font-black">
+                Bill Due: ₹{grandTotal.toFixed(2)}
               </span>
             </div>
 
@@ -742,25 +1133,27 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
             <div className="flex flex-wrap gap-1.5">
               {[
                 grandTotal,
+                grandTotal % 50 !== 0 ? Math.ceil(grandTotal / 50) * 50 : null,
                 grandTotal % 100 !== 0 ? Math.ceil(grandTotal / 100) * 100 : null,
-                500,
-                1000,
-                2000,
+                grandTotal <= 400 ? 500 : null,
+                grandTotal > 400 && grandTotal <= 800 ? 1000 : null,
+                grandTotal > 800 ? Math.ceil(grandTotal / 500) * 500 : null,
               ]
-                .filter(Boolean)
-                .filter((val, i, arr) => arr.indexOf(val) === i && (val as number) >= grandTotal)
+                .filter((v): v is number => typeof v === 'number' && v >= grandTotal)
+                .filter((val, i, arr) => arr.indexOf(val) === i)
+                .slice(0, 4)
                 .map((val) => (
                   <button
-                    key={val as number}
+                    key={val}
                     type="button"
-                    onClick={() => setCashTendered(val as number)}
+                    onClick={() => setCashTendered(val)}
                     className={`px-3 py-1.5 rounded-xl border font-mono text-xs font-black transition cursor-pointer ${
                       cashTendered === val
                         ? 'bg-stone-900 text-white border-stone-900 shadow-xs'
                         : 'bg-white text-stone-700 border-[#EAE5DF] hover:bg-stone-50'
                     }`}
                   >
-                    ₹{val}
+                    {val === grandTotal ? `Exact (₹${val.toFixed(0)})` : `₹${val.toFixed(0)}`}
                   </button>
                 ))}
             </div>
@@ -789,11 +1182,11 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
                     Change to Return:
                   </span>
                   <span className="text-[10px] text-emerald-600 font-medium">
-                    Cash ₹{cashTendered} - Bill ₹{grandTotal}
+                    Cash ₹{cashTendered} - Bill ₹{grandTotal.toFixed(2)}
                   </span>
                 </div>
                 <span className="font-mono text-xl font-black text-emerald-700">
-                  ₹{changePreview}
+                  ₹{changePreview.toFixed(2)}
                 </span>
               </div>
             )}
@@ -801,45 +1194,128 @@ export function ScreenM6Settlement({ tableNum, onBack, onDone }: Props) {
             {typeof cashTendered === 'number' && cashTendered > 0 && cashTendered < grandTotal && (
               <div className="flex items-center justify-between px-3 py-2 bg-amber-100 border border-amber-300 rounded-xl text-xs text-amber-900">
                 <span>Remaining Due:</span>
-                <span className="font-black">₹{grandTotal - cashTendered}</span>
+                <span className="font-black">₹{(grandTotal - cashTendered).toFixed(2)}</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Vacate Table Guard */}
-        <label className="flex items-center gap-3 p-3 bg-white border border-[#EAE5DF] rounded-2xl cursor-pointer font-mono shadow-2xs">
+        {/* Vacate / Free-Chair Guard */}
+        <label
+          className={`flex items-start gap-3 p-3.5 rounded-2xl cursor-pointer font-mono shadow-2xs border transition ${
+            vacateAfter ? 'bg-emerald-50 border-emerald-300' : 'bg-white border-[#EAE5DF]'
+          }`}
+        >
           <input
             type="checkbox"
             checked={vacateAfter}
             onChange={(e) => setVacateAfter(e.target.checked)}
-            className="h-4 w-4 rounded accent-[#9C3D1E]"
+            className="mt-0.5 h-4 w-4 rounded accent-emerald-600 shrink-0"
           />
-          <span className="text-xs font-bold text-stone-700">
-            Vacate &amp; reset table {tableNum} after settlement
-          </span>
+          <div className="space-y-0.5">
+            <span className="text-xs font-black text-stone-800 block">
+              {splitSeatNumber
+                ? `Free Chair ${splitSeatNumber} after settlement`
+                : `Vacate & reset Table ${tableNum} after settlement`}
+            </span>
+            <span className="text-[10px] text-stone-500 block">
+              {splitSeatNumber
+                ? `Chair ${splitSeatNumber} will show available for new guests`
+                : 'All chairs will be released and table marked clean'}
+            </span>
+          </div>
         </label>
 
         {/* ── SETTLEMENT CONFIRMATION ACTION ── */}
-        <div className="pt-1 pb-6">
+        <div className="pt-1 pb-6 space-y-2">
+          {hasUnservedDishes && (
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-center text-amber-900 text-xs font-mono font-bold">
+              ⚠️ All dishes must be served before finalizing payment.
+            </div>
+          )}
+          {!vacateAfter && !hasUnservedDishes && grandTotal > 0 && (
+            <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-center text-stone-600 text-xs font-mono font-bold">
+              ☝️ {splitSeatNumber ? `Confirm freeing Chair ${splitSeatNumber}` : 'Confirm vacate'} above to enable settlement
+            </div>
+          )}
           <motion.button
-            whileTap={{ scale: 0.98 }}
+            whileTap={!hasUnservedDishes && vacateAfter ? { scale: 0.98 } : undefined}
             type="button"
             onClick={handleSettle}
             disabled={
               grandTotal === 0 ||
+              hasUnservedDishes ||
+              !vacateAfter ||
+              (method === 'UPI' && !isUpiVerified) ||
               (method === 'CASH' &&
                 typeof cashTendered === 'number' &&
                 cashTendered > 0 &&
                 cashTendered < grandTotal)
             }
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-40 text-white rounded-2xl font-mono text-sm font-black flex items-center justify-center gap-2 shadow-md transition cursor-pointer active:scale-95"
+            className={`w-full py-4 text-white rounded-2xl font-mono text-sm font-black flex items-center justify-center gap-2 shadow-md transition ${
+              hasUnservedDishes || grandTotal === 0 || !vacateAfter || (method === 'UPI' && !isUpiVerified)
+                ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
+                : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 cursor-pointer'
+            }`}
           >
             <CheckCircle2 className="h-5 w-5" />
-            <span>Confirm &amp; Settle ₹{grandTotal} via {method}</span>
+            <span>
+              {hasUnservedDishes
+                ? 'Serve All Dishes to Settle'
+                : !vacateAfter
+                ? 'Confirm above to enable'
+                : method === 'UPI' && !isUpiVerified
+                ? 'Confirm QR Pay above to enable'
+                : `Confirm & Settle ₹${grandTotal.toFixed(2)} via ${method}`}
+            </span>
           </motion.button>
         </div>
       </div>
+
+      {/* ── FULL-SCREEN QR LIGHTBOX ── */}
+      <AnimatePresence>
+        {qrZoomed && qrCodeUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setQrZoomed(false)}
+            className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-6 text-white text-center cursor-pointer select-none"
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 15 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.9, y: 15 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white p-6 rounded-3xl text-stone-900 shadow-2xl flex flex-col items-center space-y-3.5 max-w-xs border-2 border-stone-200"
+            >
+              <span className="font-mono text-xs font-black uppercase tracking-wider text-[#9C3D1E] bg-[#FFF8F5] border border-[#9C3D1E]/20 px-3 py-1 rounded-full">
+                Scan to Pay • Table {tableNum}
+              </span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={qrCodeUrl}
+                alt="UPI QR Fullscreen"
+                className="w-60 h-60 rounded-2xl border border-stone-200 shadow-md"
+              />
+              <div className="text-2xl font-mono font-black text-stone-900">
+                ₹{grandTotal.toFixed(2)}
+              </div>
+              <p className="text-[10px] font-mono text-stone-500">
+                Scan with any UPI Scanner
+              </p>
+              <button
+                type="button"
+                onClick={() => setQrZoomed(false)}
+                className="w-full py-2.5 bg-stone-900 text-white rounded-xl font-mono text-xs font-bold"
+              >
+                Close Lightbox
+              </button>
+            </motion.div>
+            <p className="mt-4 font-mono text-xs text-stone-400">Tap anywhere outside to dismiss</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </main>
   );
 }

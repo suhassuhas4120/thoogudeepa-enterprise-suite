@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { Download, Share2, RotateCcw, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { downloadPdfBill } from '../../lib/generatePdfBill';
 
 export const Screen9DigitalBill: React.FC = () => {
   const {
@@ -17,28 +18,108 @@ export const Screen9DigitalBill: React.FC = () => {
     tableNumber,
     venueName,
     resetSession,
+    seatNumber: contextSeatNumber,
   } = useCustomer();
 
   const [downloadMsg, setDownloadMsg] = useState(false);
   const [shareMsg, setShareMsg] = useState(false);
 
-  const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : payment.subtotal;
-  const cgst = Math.round(subtotal * 0.025);
-  const sgst = Math.round(subtotal * 0.025);
-  const totalTax = cgst + sgst;
-  const paidTotal = subtotal + totalTax + payment.tipAmount;
+  // Active items: prioritize settledItems from waiter or self payment, then cart
+  const activeItems = useMemo(() => {
+    if (payment.settledItems && payment.settledItems.length > 0) {
+      return payment.settledItems.map((si) => ({
+        cartItemId: si.id,
+        menuItem: { name: si.name },
+        quantity: si.quantity,
+        totalPrice: si.totalPrice || si.price * si.quantity,
+      }));
+    }
+    if (cart.length > 0) return cart;
+    return [];
+  }, [payment.settledItems, cart]);
 
-  // Read seat from URL
+  const subtotal = payment.subtotal > 0 ? payment.subtotal : activeItems.reduce((s, i) => s + i.totalPrice, 0);
+  const totalTax = payment.tax > 0 ? payment.tax : Math.round(subtotal * 0.05);
+  const cgst = Math.round(totalTax / 2);
+  const sgst = totalTax - cgst;
+  const paidTotal = payment.totalAmount > 0 ? payment.totalAmount : subtotal + totalTax + payment.tipAmount;
+
+  // Read seat from context with URL fallback
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams();
-  const seatNumber = parseInt(params.get('seat') || '1', 10);
-  const invoiceNumber = `INV-${tableNumber.replace('-', '')}-${Date.now().toString().slice(-6)}`;
+  const seatNumber = contextSeatNumber || parseInt(params.get('seat') || '1', 10);
+  const invoiceNumber = payment.invoiceNumber || `INV-${tableNumber.replace('-', '')}-${Date.now().toString().slice(-4)}`;
+
+  const { formattedDate, formattedTime } = useMemo(() => {
+    const d = new Date();
+    return {
+      formattedDate: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+      formattedTime: d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+    };
+  }, []);
+
+  const effectiveTip =
+    payment.tipAmount > 0
+      ? payment.tipAmount
+      : Math.max(0, paidTotal - (subtotal + totalTax - (payment.discount || 0)));
 
   const handleDownload = () => {
+    downloadPdfBill({
+      invoiceNumber,
+      tableNumber,
+      seatNumber,
+      formattedDate,
+      formattedTime,
+      items: activeItems.map((it: any) => ({
+        name: it.menuItem?.name || it.name || 'Dish',
+        quantity: it.quantity || 1,
+        price: Math.round(it.totalPrice || (it.price && it.quantity ? it.price * it.quantity : it.price) || 0),
+      })),
+      subtotal,
+      cgst,
+      sgst,
+      totalTax,
+      discount: payment.discount || 0,
+      tipAmount: effectiveTip,
+      paidAmount: paidTotal,
+      paymentMethod: payment.paymentMethod || 'UPI',
+      bankUtr: payment.paymentMethod === 'CASH' ? 'CASH-SETTLED' : 'PAID-SETTLED',
+      captainName: 'Floor Captain',
+    });
     setDownloadMsg(true);
     setTimeout(() => setDownloadMsg(false), 2200);
   };
 
   const handleShareWhatsApp = () => {
+    const itemLines = activeItems.map((it: any) => {
+      const name = it.menuItem?.name || it.name || 'Dish';
+      const qty = it.quantity || 1;
+      const price = it.totalPrice || (it.price ? it.price * qty : 0);
+      return `${qty}x ${name} — ₹${price}`;
+    }).join('\n');
+
+    const receiptText = [
+      '🍗 THOOGUDEEPA DONNE BIRYANI MANE',
+      'Authentic Military Style Restaurant',
+      'Bengaluru, Karnataka',
+      '────────────────────────────',
+      `Invoice: ${invoiceNumber}`,
+      `Table: ${tableNumber} (Seat C-${String(seatNumber).padStart(2, '0')})`,
+      '────────────────────────────',
+      itemLines || 'Food & Beverage Service',
+      '────────────────────────────',
+      `Subtotal:    ₹${subtotal}`,
+      `GST (5%):    ₹${totalTax}`,
+      `Total Paid:  ₹${paidTotal}`,
+      `Payment Ref: ${payment.paymentMethod === 'CASH' ? 'CASH-SETTLED' : 'PAID-SETTLED'}`,
+      '────────────────────────────',
+      'Thank you! Visit again.',
+      typeof window !== 'undefined' ? window.location.origin : 'https://thoogudeepa-enterprise-suite.vercel.app',
+    ].join('\n');
+
+    const waUrl = `https://wa.me/?text=${encodeURIComponent(receiptText)}`;
+    if (typeof window !== 'undefined') {
+      window.open(waUrl, '_blank');
+    }
     setShareMsg(true);
     setTimeout(() => setShareMsg(false), 2200);
   };
@@ -79,7 +160,7 @@ export const Screen9DigitalBill: React.FC = () => {
 
           {/* Itemized Table */}
           <div className="space-y-1.5 border-b border-dashed border-[#E8D5C3] pb-3 text-xs">
-            {cart.map((ci) => (
+            {activeItems.map((ci) => (
               <div key={ci.cartItemId} className="flex justify-between items-center text-[#5B5049]">
                 <span className="font-semibold">
                   {ci.menuItem.name} × {ci.quantity}
@@ -103,10 +184,10 @@ export const Screen9DigitalBill: React.FC = () => {
               <span>SGST (2.5%)</span>
               <span>₹{sgst}</span>
             </div>
-            {payment.tipAmount > 0 && (
+            {effectiveTip > 0 && (
               <div className="flex justify-between font-bold text-[#8A4228]">
-                <span className="font-sans">Staff Tip</span>
-                <span>+₹{payment.tipAmount}</span>
+                <span className="font-sans">Waiter Tip</span>
+                <span>+₹{effectiveTip}</span>
               </div>
             )}
             <div className="flex items-center justify-between border-t border-[#E8D5C3] pt-2 text-sm font-black text-[#5B5049]">
@@ -143,27 +224,6 @@ export const Screen9DigitalBill: React.FC = () => {
           >
             <Share2 className="h-4 w-4 text-emerald-700" />
             <span>{shareMsg ? 'Bill Sent via WhatsApp!' : 'Share Bill via WhatsApp'}</span>
-          </motion.button>
-        </div>
-
-        {/* Post-Dine Engagement: Loyalty Club & Review */}
-        <div className="grid grid-cols-2 gap-2 pt-1">
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setCurrentScreen(11)}
-            className="flex flex-col items-center justify-center rounded-2xl border border-amber-300 bg-amber-50/80 p-3 text-center transition hover:bg-amber-100/80 shadow-xs"
-          >
-            <span className="text-[10px] font-mono font-black uppercase text-amber-800">VIP Club</span>
-            <span className="text-xs font-extrabold text-amber-950 mt-0.5">Scratch Card &amp; Points</span>
-          </motion.button>
-
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => setCurrentScreen(12)}
-            className="flex flex-col items-center justify-center rounded-2xl border border-orange-300 bg-orange-50/80 p-3 text-center transition hover:bg-orange-100/80 shadow-xs"
-          >
-            <span className="text-[10px] font-mono font-black uppercase text-orange-800">Chef Review</span>
-            <span className="text-xs font-extrabold text-orange-950 mt-0.5">Rate Meal &amp; Staff</span>
           </motion.button>
         </div>
       </div>

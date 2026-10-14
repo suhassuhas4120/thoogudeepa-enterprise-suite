@@ -1,5 +1,7 @@
 # dependencies
 /node_modules
+node_modules/
+node_modules
 /.pnp
 .pnp.js
 
@@ -8,6 +10,8 @@
 
 # next.js
 /.next/
+.next/
+.next
 /out/
 
 # production
@@ -23,6 +27,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
+.env.local
 .env*.local
 
 # typescript
@@ -32,3 +38,5 @@ next-env.d.ts
 # local task tracking
 CHECKLIST.md
 
+# Local AI assistant rules (private)
+.clinerules

@@ -1,9 +1,9 @@
-export type ManagerScreenId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16;
+export type ManagerScreenId = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 | 17;
 
 export interface ManagerProfile {
   id: string;
   name: string;
-  role: 'General Manager' | 'Floor Lead' | 'Head Cashier';
+  role: 'General Manager' | 'Floor Lead' | 'Head Cashier' | 'Staff';
   pin: string;
 }
 

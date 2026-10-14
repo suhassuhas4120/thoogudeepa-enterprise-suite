@@ -1,129 +1,454 @@
-﻿import { MenuItem } from '../types/customer';
+import { MenuItem } from "../types/customer";
 
-/** Canonical menu catalogue for Thoogudeepa donne biryani mane - consumed by TanStack Query */
+/** Canonical 22-dish menu catalogue for Thoogudeepa Donne Biryani Mane */
 export const INITIAL_MENU_ITEMS: MenuItem[] = [
+  // ── Sunday Specials / Breakfast ─────────────────────────────────────
   {
-    id: 'item-1',
-    name: 'Special Chicken Donne Biryani',
+    id: "dish-1",
+    name: "Kaalu Soup",
+    price: 120,
+    category: "Sunday Specials",
+    badge: "Chef Special",
+    description:
+      "Traditional military hotel mutton trotter soup slow-simmered with crushed black pepper, bone marrow, and fresh coriander.",
+    imagePlaceholder: "KAALU SOUP",
+    image: "/images/dishes/kaalu-soup.webp",
+    prepMode: "Slow Deg Simmer",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Traditional Pepper Hot", "Mild Warm Spice"],
+    },
+    optionsGroup2: {
+      title: "Accompaniments",
+      addOns: [
+        { name: "Extra Soup Bowl", extraPrice: 60 },
+        { name: "Lemon & Pepper Spritz", extraPrice: 10 },
+      ],
+    },
+  },
+  {
+    id: "dish-2",
+    name: "Plain Soup",
+    price: 25,
+    category: "Sunday Specials",
+    description:
+      "Aromatic clear mutton bone broth spiced with peppercorns, garlic, and fresh herbs without trotter cuts.",
+    imagePlaceholder: "PLAIN SOUP",
+    image: "/images/dishes/plain-soup.webp",
+    prepMode: "Aromatic Infusion",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Piping Hot", "Warm"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Peppercorn Dust", extraPrice: 5 }],
+    },
+  },
+  {
+    id: "dish-3",
+    name: "Idli (2pcs)",
+    price: 50,
+    category: "Sunday Specials",
+    description:
+      "Ultra-soft, steamed rice cakes served hot on banana leaf, ideal pairing with mutton curries and kaalu soup.",
+    imagePlaceholder: "IDLI (2PCS)",
+    image: "/images/dishes/idli-2pcs.webp",
+    prepMode: "Steamed Pot",
+    optionsGroup1: {
+      title: "Serving Style",
+      choices: ["With Non-Veg Gravy", "With Chutney & Sambar"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Idli (1 Pc)", extraPrice: 25 }],
+    },
+  },
+  {
+    id: "dish-4",
+    name: "Dosa (2pcs)",
+    price: 50,
+    category: "Sunday Specials",
+    description:
+      "Soft, golden spongy set dosas cooked to perfection on an iron tawa, served hot.",
+    imagePlaceholder: "DOSA (2PCS)",
+    image: "/images/dishes/dosa-2pcs.webp",
+    prepMode: "Tawa Roasted",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Soft Spongy Set", "Crisp Edge Roast"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Pure Ghee Topping", extraPrice: 20 }],
+    },
+  },
+  {
+    id: "dish-5",
+    name: "Booti Gojju",
+    price: 180,
+    category: "Sunday Specials",
+    badge: "Popular",
+    description:
+      "Tender diced mutton tripe simmered in a dark, rich, highly spiced military hotel onion-coconut masala gravy.",
+    imagePlaceholder: "BOOTI GOJJU",
+    image: "/images/dishes/booti-gojju.webp",
+    prepMode: "Kadhai Masala Simmer",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Traditional Hot", "Extra Spicy Guntur"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Gravy Portion", extraPrice: 40 }],
+    },
+  },
+  {
+    id: "dish-6",
+    name: "Keema Gojju",
+    price: 180,
+    category: "Sunday Specials",
+    badge: "Bestseller",
+    description:
+      "Fine minced mutton simmered into a deeply flavored rustic gravy with ground spices and fresh mint.",
+    imagePlaceholder: "KEEMA GOJJU",
+    image: "/images/dishes/keema-gojju.webp",
+    prepMode: "Handi Dum Stew",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Traditional Medium Spicy", "Military Hotel Hot"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Boiled Egg (1 Pc)", extraPrice: 20 }],
+    },
+  },
+
+  // ── Starters ────────────────────────────────────────────────────────
+  {
+    id: "dish-7",
+    name: "Mutton Fry",
     price: 260,
-    category: 'Rice & Bowls',
-    badge: 'Bestseller',
+    category: "Starters",
+    badge: "Chef Special",
     description:
-      'Fragrant Seeraga Samba short-grain rice cooked with succulent chicken, fresh mint, coriander, native green masala, served hot in authentic leaf donne.',
-    imagePlaceholder: 'CHICKEN DONNE BIRYANI',
-    prepMode: 'Military Dum Handi',
+      "Tender chunks of fresh country mutton pan-tossed with shallots, crushed spices, and curry leaves.",
+    imagePlaceholder: "MUTTON FRY",
+    image: "/images/dishes/mutton-fry.webp",
+    prepMode: "Tawa Shallow Fry",
     optionsGroup1: {
-      title: 'Spice Level',
-      choices: ['Medium Spicy (Traditional)', 'Extra Hot Guntur Chilli'],
+      title: "Spice Level",
+      choices: ["Semi-Gravy Roast", "Dry Masala Fry"],
     },
     optionsGroup2: {
-      title: 'Add-Ons',
-      addOns: [
-        { name: 'Extra Boiled Egg (1 Pc)', extraPrice: 20 },
-        { name: 'Kushka Rice Portion', extraPrice: 90 },
-      ],
+      title: "Add-Ons",
+      addOns: [{ name: "Lemon & Sliced Onions Platter", extraPrice: 15 }],
     },
   },
   {
-    id: 'item-2',
-    name: 'Thoogudeepa Mutton Donne Biryani',
-    price: 340,
-    category: 'Rice & Bowls',
-    badge: 'Chef Special',
+    id: "dish-8",
+    name: "Mutton Dry",
+    price: 260,
+    category: "Starters",
     description:
-      'Tender country mutton slow-cooked with military hotel spices, fragrant jeera samba rice and rich bone gravy, served in leaf donne with raita and salan.',
-    imagePlaceholder: 'MUTTON DONNE BIRYANI',
-    prepMode: 'Slow Dum Deg',
+      "Succulent mutton cuts slow-roasted with black pepper, roasted coriander, and caramelized onions.",
+    imagePlaceholder: "MUTTON DRY",
+    image: "/images/dishes/mutton-dry.webp",
+    prepMode: "Slow Tawa Roast",
     optionsGroup1: {
-      title: 'Preparation Choice',
-      choices: ['Boneless Cuts', 'Traditional Bone-In Cut'],
+      title: "Pepper Intensity",
+      choices: ["Extra Black Pepper", "Medium Peppery"],
     },
     optionsGroup2: {
-      title: 'Add-Ons',
-      addOns: [
-        { name: 'Extra Pepper Gravy Bowl', extraPrice: 35 },
-        { name: 'Boiled Egg (2 Pcs)', extraPrice: 35 },
-      ],
+      title: "Add-Ons",
+      addOns: [{ name: "Fried Green Chillies", extraPrice: 15 }],
     },
   },
   {
-    id: 'item-3',
-    name: 'Kshatriya Chicken Kebab (Crispy)',
-    price: 220,
-    category: 'Starters',
-    badge: 'Popular',
+    id: "dish-9",
+    name: "Mutton Chops",
+    price: 260,
+    category: "Starters",
+    badge: "Bestseller",
     description:
-      'Crisp deep-fried boneless chicken marinated in curd, crushed red chillies, ginger-garlic paste and fresh curry leaves.',
-    imagePlaceholder: 'CHICKEN KEBAB',
-    prepMode: 'Kadhai Deep Fry',
+      "Juicy rib chops marinated in authentic military green masala and braised to tender perfection.",
+    imagePlaceholder: "MUTTON CHOPS",
+    image: "/images/dishes/mutton-chops.webp",
+    prepMode: "Handi Braised",
     optionsGroup1: {
-      title: 'Portion Size',
-      choices: ['Regular (8 Pcs)', 'Family Platter (14 Pcs)'],
+      title: "Portion Style",
+      choices: ["Juicy Bone-In Chops", "Tender Soft Cut"],
     },
     optionsGroup2: {
-      title: 'Add-Ons',
-      addOns: [
-        { name: 'Extra Onion Rings & Lemon', extraPrice: 15 },
-        { name: 'Green Mint Chutney', extraPrice: 20 },
-      ],
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Green Masala Dip", extraPrice: 25 }],
     },
   },
   {
-    id: 'item-4',
-    name: 'Paneer Donne Biryani',
+    id: "dish-10",
+    name: "Mutton Liver",
     price: 240,
-    category: 'Rice & Bowls',
+    category: "Starters",
     description:
-      'Fresh cottage cheese cubes marinated in green herbal paste and blended with fragrant seeraga samba rice cooked to perfection.',
-    imagePlaceholder: 'PANEER DONNE BIRYANI',
-    prepMode: 'Dum Pukht Handi',
+      "Fresh mutton liver pieces pan-roasted with black peppercorns, browned onions, and curry leaves.",
+    imagePlaceholder: "MUTTON LIVER",
+    image: "/images/dishes/mutton-liver.webp",
+    prepMode: "Pan Saute",
     optionsGroup1: {
-      title: 'Spice Level',
-      choices: ['Mild Spiced', 'Authentic Green Chilli Hot'],
+      title: "Preparation",
+      choices: ["Pan Roast Pepper", "Masala Tossed"],
     },
     optionsGroup2: {
-      title: 'Add-Ons',
+      title: "Add-Ons",
+      addOns: [{ name: "Lemon Wedge & Onion Rings", extraPrice: 15 }],
+    },
+  },
+  {
+    id: "dish-11",
+    name: "Botti Gujju",
+    price: 180,
+    category: "Starters",
+    description:
+      "Classic Bangalore military hotel goat tripe curry prepared in thick aromatic spice reduction.",
+    imagePlaceholder: "BOTTI GUJJU",
+    image: "/images/dishes/booti-gojju.webp",
+    prepMode: "Kadhai Simmer",
+    optionsGroup1: {
+      title: "Spice Style",
+      choices: ["Traditional Karnataka Masala", "Extra Hot Pepper"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Curry Leaf Garnish", extraPrice: 10 }],
+    },
+  },
+  {
+    id: "dish-12",
+    name: "Keema Ball",
+    price: 180,
+    category: "Starters",
+    badge: "Popular",
+    description:
+      "Crispy deep-fried seasoned minced mutton meatballs with aromatic herbs and crunch exterior.",
+    imagePlaceholder: "KEEMA BALL",
+    image: "/images/dishes/keema-ball.webp",
+    prepMode: "Deep Fry",
+    optionsGroup1: {
+      title: "Serving",
+      choices: ["Hot Crispy Toss", "With Mint Chutney"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Chutney Bowl", extraPrice: 20 }],
+    },
+  },
+  {
+    id: "dish-13",
+    name: "Chicken Fry",
+    price: 160,
+    category: "Starters",
+    badge: "Bestseller",
+    description:
+      "Boneless and tender chicken chunks marinated in native spice blend, shallow fried to a golden crisp.",
+    imagePlaceholder: "CHICKEN FRY",
+    image: "/images/dishes/chicken-fry.webp",
+    prepMode: "Tawa Shallow Fry",
+    optionsGroup1: {
+      title: "Style",
+      choices: ["Crispy Dry", "Semi-Roast"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Onion & Lemon", extraPrice: 15 }],
+    },
+  },
+  {
+    id: "dish-14",
+    name: "Chicken Pepper Dry",
+    price: 160,
+    category: "Starters",
+    description:
+      "Tender chicken pieces tossed with freshly cracked black pepper, caramelized garlic, and shallots.",
+    imagePlaceholder: "CHICKEN PEPPER DRY",
+    image: "/images/dishes/chicken-pepper-dry.webp",
+    prepMode: "Wok Tossed",
+    optionsGroup1: {
+      title: "Pepper Heat",
+      choices: ["High Pepper Heat", "Balanced Pepper"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Garlic Flakes Topping", extraPrice: 15 }],
+    },
+  },
+  {
+    id: "dish-15",
+    name: "Chicken Leg Piece (2pcs)",
+    price: 160,
+    category: "Starters",
+    badge: "Popular",
+    description:
+      "Two succulent whole chicken drumsticks marinated in aromatic spices and roasted to tenderness.",
+    imagePlaceholder: "CHICKEN LEG PIECE (2PCS)",
+    image: "/images/dishes/chicken-leg-piece-2pcs.webp",
+    prepMode: "Tandoori Roast",
+    optionsGroup1: {
+      title: "Preparation",
+      choices: ["Masala Roasted", "Crispy Tawa Fry"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Mint Chutney & Lime Dip", extraPrice: 20 }],
+    },
+  },
+  {
+    id: "dish-16",
+    name: "Chicken Leg Piece (1pc)",
+    price: 80,
+    category: "Starters",
+    description:
+      "Single tender whole chicken drumstick seasoned and roasted in traditional military masala.",
+    imagePlaceholder: "CHICKEN LEG PIECE (1PC)",
+    image: "/images/dishes/chicken-leg-piece-1pc.webp",
+    prepMode: "Tandoori Roast",
+    optionsGroup1: {
+      title: "Preparation",
+      choices: ["Masala Roasted", "Crispy Tawa Fry"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Lime & Sliced Onions", extraPrice: 10 }],
+    },
+  },
+  {
+    id: "dish-17",
+    name: "Chilli Chicken",
+    price: 160,
+    category: "Starters",
+    description:
+      "Bite-sized chicken chunks tossed with fiery green chillies, curry leaves, and native seasoning.",
+    imagePlaceholder: "CHILLI CHICKEN",
+    image: "/images/dishes/chilli-chicken.webp",
+    prepMode: "Wok Fry",
+    optionsGroup1: {
+      title: "Chilli Heat",
+      choices: ["Fiery Andhra Style", "Medium Spicy"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Fried Green Chillies", extraPrice: 15 }],
+    },
+  },
+  {
+    id: "dish-18",
+    name: "Chicken Kabab",
+    price: 160,
+    category: "Starters",
+    badge: "Bestseller",
+    description:
+      "Crispy deep-fried chicken cubes coated with curd, ginger-garlic paste, and vibrant Indian spices.",
+    imagePlaceholder: "CHICKEN KABAB",
+    image: "/images/dishes/chicken-kabab.webp",
+    prepMode: "Deep Fry",
+    optionsGroup1: {
+      title: "Cut Preference",
+      choices: ["Boneless Cuts", "Traditional Bone-In"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
       addOns: [
-        { name: 'Extra Onion Cucumber Raita', extraPrice: 30 },
-        { name: 'Spiced Salan Bowl', extraPrice: 35 },
+        { name: "Onion Salad Plate", extraPrice: 15 },
+        { name: "Mint Dip", extraPrice: 20 },
       ],
     },
   },
   {
-    id: 'item-5',
-    name: 'Gunpowder Pepper Chicken Dry',
-    price: 250,
-    category: 'Starters',
+    id: "dish-19",
+    name: "Chicken Chops",
+    price: 160,
+    category: "Starters",
     description:
-      'Tender chicken pieces tossed with crushed Tellicherry black peppercorns, roasted fennel and caramelized shallots.',
-    imagePlaceholder: 'PEPPER CHICKEN',
-    prepMode: 'Tawa Roasted Fry',
+      "Tender chicken cuts slow-simmered in an intensely fragrant green herb and mint-coriander gravy.",
+    imagePlaceholder: "CHICKEN CHOPS",
+    image: "/images/dishes/chicken-chops.webp",
+    prepMode: "Handi Braised",
     optionsGroup1: {
-      title: 'Toss Style',
-      choices: ['Dry Crisp Toss', 'Semi-Gravy Masala'],
+      title: "Gravy Consistency",
+      choices: ["Thick Semi-Gravy", "Rich Curry Base"],
     },
     optionsGroup2: {
-      title: 'Add-Ons',
-      addOns: [{ name: 'Extra Roasted Garlic Flakes', extraPrice: 25 }],
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Mint Leaves Garnish", extraPrice: 10 }],
+    },
+  },
+
+  // ── Rice & Biryani ──────────────────────────────────────────────────
+  {
+    id: "dish-20",
+    name: "Chicken Biryani",
+    price: 170,
+    category: "Rice & Biryani",
+    badge: "Bestseller",
+    description:
+      "Fragrant Seeraga Samba short-grain rice cooked with tender chicken cuts, fresh mint, coriander, and native green masala, served hot in authentic leaf donne.",
+    imagePlaceholder: "CHICKEN BIRYANI",
+    image: "/images/dishes/chicken-biryani.webp",
+    prepMode: "Military Dum Handi",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Medium Spicy (Traditional)", "Extra Hot Guntur Chilli"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [
+        { name: "Extra Boiled Egg (1 Pc)", extraPrice: 20 },
+        { name: "Kushka Rice Portion", extraPrice: 90 },
+      ],
     },
   },
   {
-    id: 'item-6',
-    name: 'Elaneer Payasam (Tender Coconut)',
-    price: 110,
-    category: 'Desserts',
-    badge: 'Signature',
+    id: "dish-21",
+    name: "Biryani Rice",
+    price: 90,
+    category: "Rice & Biryani",
     description:
-      'Chilled silky dessert made from fresh tender coconut malai, coconut milk, and fragrant green cardamom.',
-    imagePlaceholder: 'ELANEER PAYASAM',
-    prepMode: 'Chilled Confection',
+      "Aromatic Seeraga Samba kushka rice cooked in rich meat stock and fragrant whole spices without meat pieces.",
+    imagePlaceholder: "BIRYANI RICE",
+    image: "/images/dishes/biryani-rice.webp",
+    prepMode: "Dum Deg",
     optionsGroup1: {
-      title: 'Serving Style',
-      choices: ['Chilled Fresh', 'With Crushed Cashews'],
+      title: "Accompaniment Style",
+      choices: ["With Raita & Salan", "Salan Only"],
     },
     optionsGroup2: {
-      title: 'Add-Ons',
-      addOns: [{ name: 'Extra Tender Coconut Malai', extraPrice: 40 }],
+      title: "Add-Ons",
+      addOns: [
+        { name: "Extra Salan Bowl", extraPrice: 25 },
+        { name: "Boiled Egg (1 Pc)", extraPrice: 20 },
+      ],
+    },
+  },
+  {
+    id: "dish-22",
+    name: "Mutton Biryani",
+    price: 280,
+    category: "Rice & Biryani",
+    badge: "Signature",
+    description:
+      "Tender country mutton slow-cooked with military hotel spices, fragrant jeera samba rice, and rich bone marrow gravy, served in traditional leaf donne.",
+    imagePlaceholder: "MUTTON BIRYANI",
+    image: "/images/dishes/mutton-biryani.webp",
+    prepMode: "Slow Dum Deg",
+    optionsGroup1: {
+      title: "Preparation Choice",
+      choices: ["Traditional Bone-In Cut", "Tender Boneless Cut"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [
+        { name: "Extra Pepper Gravy Bowl", extraPrice: 35 },
+        { name: "Boiled Egg (2 Pcs)", extraPrice: 35 },
+      ],
     },
   },
 ];

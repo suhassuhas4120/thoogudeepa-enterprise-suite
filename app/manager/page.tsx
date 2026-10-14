@@ -22,6 +22,7 @@ import { ScreenM13PettyExpenses } from '../../components/manager/ScreenM13PettyE
 import { ScreenM14AttendanceTips } from '../../components/manager/ScreenM14AttendanceTips';
 import { ScreenM15PrinterHealth } from '../../components/manager/ScreenM15PrinterHealth';
 import { ScreenM16DayCloseZReport } from '../../components/manager/ScreenM16DayCloseZReport';
+import { ScreenMAudit1000 } from '../../components/manager/ScreenMAudit1000';
 
 import {
   Briefcase,
@@ -83,6 +84,7 @@ export default function ManagerPortalPage() {
     { id: 14 as ManagerScreenId, name: '14. Attendance & Tips', comp: <ScreenM14AttendanceTips /> },
     { id: 15 as ManagerScreenId, name: '15. Printer Health', comp: <ScreenM15PrinterHealth /> },
     { id: 16 as ManagerScreenId, name: '16. Day Close Z-Report', comp: <ScreenM16DayCloseZReport /> },
+    { id: 17 as ManagerScreenId, name: '17. Resilience Deck (1,000)', comp: <ScreenMAudit1000 /> },
   ];
 
   const renderActiveScreen = () => {
@@ -91,7 +93,7 @@ export default function ManagerPortalPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#FAF8F5] flex flex-col font-sans">
+    <main className="manager-portal min-h-screen w-full overflow-x-hidden bg-[#FAF8F5] flex flex-col font-sans">
       {/* Top Header Console */}
       <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
@@ -147,9 +149,25 @@ export default function ManagerPortalPage() {
             </Link>
             <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
               <Briefcase className="h-3.5 w-3.5 fill-white" />
-              <span>MANAGER (16)</span>
+              <span>MANAGER (17)</span>
             </span>
           </div>
+
+          {/* Resilience Deck Quick Access */}
+          <button
+            onClick={() => {
+              setViewMode('single');
+              setCurrentScreen(17 as ManagerScreenId);
+            }}
+            className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-xs font-mono font-bold transition border shadow-xs ${
+              currentScreen === 17
+                ? 'bg-emerald-800 text-white border-emerald-900'
+                : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+            }`}
+          >
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
+            <span>RESILIENCE DECK (1,000)</span>
+          </button>
 
           {/* View Mode Switcher */}
           <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
@@ -173,14 +191,14 @@ export default function ManagerPortalPage() {
               }`}
             >
               <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 16 SCREENS</span>
+              <span>ALL 17 SCREENS</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* Screen Tabs Bar (1 to 16) */}
-      <nav className="w-full max-w-7xl mx-auto flex gap-1.5 overflow-x-auto px-6 py-2.5 scrollbar-none font-mono">
+      <nav className="w-full max-w-[1600px] mx-auto flex gap-1.5 overflow-x-auto px-6 xl:px-8 py-2.5 scrollbar-none font-mono">
         {screens.map((sc) => {
           const isActive = viewMode === 'single' && currentScreen === sc.id;
           return (
@@ -203,7 +221,7 @@ export default function ManagerPortalPage() {
       </nav>
 
       {/* Main Viewport */}
-      <div className="flex-1 py-4 px-4">
+      <div className="flex-1 w-full py-4 px-2 sm:px-4 xl:px-8">
         {viewMode === 'single' ? (
           <div className="flex justify-center pb-12">
             <AnimatePresence mode="wait">
@@ -220,7 +238,7 @@ export default function ManagerPortalPage() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="mx-auto w-full max-w-7xl px-2 space-y-12 pb-24">
+          <div className="mx-auto w-full max-w-[1600px] px-0 sm:px-2 space-y-12 pb-24">
             {screens.map((sc) => (
               <div
                 key={sc.id}

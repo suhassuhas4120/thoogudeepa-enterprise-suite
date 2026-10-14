@@ -6,19 +6,24 @@ import { useManagerStore } from '../../store/useManagerStore';
 import { FileText, Printer, Lock, AlertTriangle, CheckCircle2, IndianRupee } from 'lucide-react';
 
 export function ScreenM16DayCloseZReport() {
-  const { shiftStats } = useSharedBridge();
+  const { shiftStats, settledBills } = useSharedBridge();
   const { openingFloat, pettyExpenses, activeManager } = useManagerStore();
 
+  const realSettledList = Object.values(settledBills || {});
+  const realSettledSum = realSettledList.reduce((acc, b) => acc + (b.grandTotal || 0), 0);
+  const realCashSum = realSettledList.filter((b) => b.method === 'CASH').reduce((acc, b) => acc + (b.grandTotal || 0), 0);
+
   const totalPetty = pettyExpenses.reduce((acc, pe) => acc + pe.amount, 0);
-  const grossSales = Math.max(48250, shiftStats.totalRevenue);
+  const grossSales = Math.max(48250, shiftStats.totalRevenue + realSettledSum);
   const discountTotal = 1650;
   const taxable = grossSales - discountTotal;
   const cgst = Math.round(taxable * 0.025);
   const sgst = Math.round(taxable * 0.025);
   const netRevenue = taxable + cgst + sgst;
 
-  // Expected cash
-  const cashSales = Math.round(grossSales * 0.26);
+  // Expected cash (baseline estimated cash + actual settled cash - petty expenses)
+  const baselineCash = Math.round(48250 * 0.26);
+  const cashSales = baselineCash + realCashSum;
   const expectedCashInTill = openingFloat + cashSales - totalPetty;
 
   const [actualCashCounted, setActualCashCounted] = useState(String(expectedCashInTill));
@@ -39,9 +44,6 @@ export function ScreenM16DayCloseZReport() {
     <div className="w-full max-w-5xl mx-auto p-4 space-y-5 font-mono">
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-3">
         <div>
-          <span className="bg-[#9C3D1E] text-white text-xs font-bold px-2 py-0.5 rounded">
-            [DAY CLOSE NIGHT Z-REPORT]
-          </span>
           <h3 className="text-base font-black text-slate-900 mt-1">
             END-OF-DAY FINANCIAL AUDIT &amp; DRAWER RECONCILIATION
           </h3>

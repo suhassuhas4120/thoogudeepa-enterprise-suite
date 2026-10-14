@@ -110,3 +110,33 @@ export interface DbPing {
   status: 'PENDING' | 'RESOLVED';
   created_at: string;
 }
+
+// ── Shared Realtime Broadcast Channel ───────────────────────────────────────
+// Instantaneous (<50ms) peer-to-peer event push across all connected devices
+let syncBroadcastChannel: ReturnType<typeof supabase.channel> | null = null;
+
+export function getSyncBroadcastChannel() {
+  if (!syncBroadcastChannel) {
+    syncBroadcastChannel = supabase.channel('restaurant-sync-broadcast', {
+      config: { broadcast: { self: false } },
+    });
+    syncBroadcastChannel.subscribe();
+  }
+  return syncBroadcastChannel;
+}
+
+export function broadcastStateChange(reason: string, payload?: unknown) {
+  try {
+    const ch = getSyncBroadcastChannel();
+    if (ch) {
+      ch.send({
+        type: 'broadcast',
+        event: 'STATE_CHANGED',
+        payload: { reason, payload, timestamp: Date.now() },
+      });
+    }
+  } catch (err) {
+    console.warn('[Sync] Broadcast error:', err);
+  }
+}
+

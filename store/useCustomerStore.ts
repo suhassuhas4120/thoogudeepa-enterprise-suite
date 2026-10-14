@@ -9,7 +9,7 @@ import {
   WaiterPingType,
 } from '../types/customer';
 import { INITIAL_MENU_ITEMS } from '../data/menuItems';
-import { useSharedBridge } from './useSharedBridge';
+import { useSharedBridge, SettledBillSnapshot } from './useSharedBridge';
 
 interface CustomerStoreState {
   currentScreen: ScreenId;
@@ -17,13 +17,16 @@ interface CustomerStoreState {
   viewMode: 'single' | 'all';
   guestName: string;
   tableNumber: string;
+  seatNumber: number;
   venueName: string;
   selectedDetailItem: MenuItem;
   cart: CartItem[];
   orderStage: OrderStage;
   itemTracking: IndividualItemTracking[];
   payment: PaymentDetails;
-  waiterNotification: { active: boolean; type: string; message: string } | null;
+  waiterNotification: { active: boolean; type: string; message: string; attended?: boolean; attendedAt?: number } | null;
+  isSettled: boolean;
+  orderPlacedAt: number;
 
   // Actions
   setCurrentScreen: (screen: ScreenId) => void;
@@ -31,6 +34,7 @@ interface CustomerStoreState {
   setViewMode: (mode: 'single' | 'all') => void;
   setGuestName: (name: string) => void;
   setTableNumber: (table: string) => void;
+  setSeatNumber: (seat: number) => void;
   setSelectedDetailItem: (item: MenuItem) => void;
   addToCart: (
     item: MenuItem,
@@ -42,14 +46,18 @@ interface CustomerStoreState {
   removeCartItem: (cartItemId: string) => void;
   orderSeparately: (cartItemId: string) => void;
   placeAllOrders: () => void;
+  rollBackUnplacedOrders: () => void;
   setOrderStage: (stage: OrderStage) => void;
   setItemTracking: (items: IndividualItemTracking[]) => void;
   updateTip: (tip: number) => void;
   setSplitMode: (mode: 'NONE' | 'ITEMS' | 'PERSONS', count?: number) => void;
-  setPaymentMethod: (method: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH') => void;
+  setPaymentMethod: (method: 'UPI' | 'CARD' | 'NET_BANKING' | 'CASH' | 'RAZORPAY') => void;
   toggleRedeemPoints: () => void;
   confirmAndPay: () => void;
   pingWaiter: (type: WaiterPingType, customMsg?: string) => void;
+  setWaiterAttended: (pingType?: string, message?: string) => void;
+  handleBillSettledByWaiter: (snapshot: SettledBillSnapshot) => void;
+  syncWithActiveSession: (tableNumber: string, seatNumber: number) => void;
   dismissWaiterNotification: () => void;
   resetSession: () => void;
 }
@@ -95,6 +103,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   viewMode: 'single',
   guestName: '',
   tableNumber: 'T-01',
+  seatNumber: 1,
   venueName: 'Thoogudeepa donne biryani mane',
   selectedDetailItem: INITIAL_MENU_ITEMS[0],
   cart: [],
@@ -102,6 +111,8 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   itemTracking: [],
   payment: initialEmptyPayment,
   waiterNotification: null,
+  isSettled: false,
+  orderPlacedAt: 0,
 
   setCurrentScreen: (screen) =>
     set((state) => ({
@@ -118,6 +129,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   setViewMode: (mode) => set({ viewMode: mode }),
   setGuestName: (guestName) => set({ guestName }),
   setTableNumber: (tableNumber) => set({ tableNumber }),
+  setSeatNumber: (seatNumber) => set({ seatNumber }),
   setSelectedDetailItem: (selectedDetailItem) => set({ selectedDetailItem }),
 
   addToCart: (
@@ -164,6 +176,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           quantity,
           totalPrice: unitPrice * quantity,
           prepMode: item.prepMode,
+          seatNumber: state.seatNumber || 1,
         };
         newCart = [...state.cart, newCartItem];
       }
@@ -177,6 +190,62 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
   updateCartQuantity: (cartItemId, delta) => {
     set((state) => {
+      const targetItem = state.cart.find((ci) => ci.cartItemId === cartItemId);
+      if (!targetItem) return state;
+
+      // If item was already sent to kitchen
+      if (targetItem.isOrdered) {
+        if (delta > 0) {
+          // Add incremental quantity as an unplaced draft item
+          const unitPrice = targetItem.totalPrice / targetItem.quantity;
+          const unplacedIndex = state.cart.findIndex(
+            (ci) =>
+              !ci.isOrdered &&
+              ci.menuItem.id === targetItem.menuItem.id &&
+              ci.selectedOption === targetItem.selectedOption &&
+              JSON.stringify([...ci.selectedAddOns].sort()) ===
+                JSON.stringify([...targetItem.selectedAddOns].sort())
+          );
+
+          let newCart: CartItem[];
+          if (unplacedIndex > -1) {
+            newCart = state.cart.map((ci, idx) => {
+              if (idx === unplacedIndex) {
+                const newQty = ci.quantity + delta;
+                return {
+                  ...ci,
+                  quantity: newQty,
+                  totalPrice: newQty * unitPrice,
+                };
+              }
+              return ci;
+            });
+          } else {
+            const incrementalCartItem: CartItem = {
+              cartItemId: 'c-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+              menuItem: targetItem.menuItem,
+              selectedOption: targetItem.selectedOption,
+              selectedAddOns: targetItem.selectedAddOns,
+              quantity: delta,
+              totalPrice: unitPrice * delta,
+              prepMode: targetItem.prepMode,
+              seatNumber: state.seatNumber || 1,
+              isOrdered: false,
+            };
+            newCart = [...state.cart, incrementalCartItem];
+          }
+
+          return {
+            cart: newCart,
+            payment: calculatePaymentTotals(newCart, state.payment),
+          };
+        } else {
+          // Cannot reduce items that are already placed/cooking in kitchen
+          return state;
+        }
+      }
+
+      // Normal unplaced item quantity update
       const newCart = state.cart
         .map((ci) => {
           if (ci.cartItemId === cartItemId) {
@@ -234,37 +303,32 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         return { currentScreen: 5 };
       }
 
-      // Read seat from URL params
+      // Read seat from URL params or state
       const params = typeof window !== 'undefined'
         ? new URLSearchParams(window.location.search)
         : new URLSearchParams();
-      const seatNumber = parseInt(params.get('seat') || '1', 10);
-      const tableId = (params.get('table') || state.tableNumber || 'T-01').toUpperCase();
+      const seatNumber = (state.seatNumber && state.seatNumber > 0)
+        ? state.seatNumber
+        : (parseInt(params.get('seat') || '1', 10) || 1);
+      const rawTable = state.tableNumber || params.get('table') || 'T-01';
+      let tableId = rawTable.trim().toUpperCase();
+      const match = tableId.match(/^T-?(\d+)$/);
+      if (match) {
+        tableId = `T-${String(parseInt(match[1], 10)).padStart(2, '0')}`;
+      }
 
       // Build a stable ticket ID
       const ts = Date.now();
       const tblTag = tableId.replace('-', '');
       const ticketId = `KDS-${tblTag}-${ts}-001`;
 
-      // Send order to Supabase
-      import('../lib/db').then(({ placeOrderToSupabase }) => {
-        placeOrderToSupabase({
-          tableId,
-          seatNumber,
-          customerName: state.guestName || 'Guest',
-          cartItems: newlyAddedItems,
-          ticketId,
-        }).catch((err: any) => {
-          console.error('[placeAllOrders] Supabase error:', err);
-        });
-      });
-
-      // Also push to local bridge as fallback (same-device BroadcastChannel)
+      // Push order once through the shared bridge (optimistic update + /api/orders/create + broadcast)
       try {
         const bridge = useSharedBridge.getState();
+        bridge.clearSettledBill(tableId, seatNumber);
         bridge.customerPlacesOrder(
           tableId,
-          state.guestName || 'Guest',
+          state.guestName || `Guest (Chair ${seatNumber})`,
           seatNumber,
           newlyAddedItems.map((c) => ({
             item: c.menuItem,
@@ -273,8 +337,11 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
             quantity: c.quantity,
           }))
         );
-      } catch (_) { /* bridge optional */ }
+      } catch (err) {
+        console.error('[placeAllOrders] bridge order error:', err);
+      }
 
+      const nowTs = Date.now();
       const newTracking: IndividualItemTracking[] = newlyAddedItems.map((c) => ({
         id: 'track-' + c.cartItemId,
         name: `${c.menuItem.name} × ${c.quantity}`,
@@ -283,15 +350,24 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         stage: 'PREP' as OrderStage,
       }));
 
-      const updatedCart = state.cart.map((c) => ({ ...c, isOrdered: true }));
+      const updatedCart = state.cart.map((c) => ({
+        ...c,
+        isOrdered: true,
+        seatNumber: c.seatNumber || seatNumber,
+      }));
 
       return {
         cart: updatedCart,
         tableNumber: tableId,
+        seatNumber,
         itemTracking: [...state.itemTracking, ...newTracking],
         orderStage: 'PLACED',
         previousScreen: state.currentScreen,
         currentScreen: 5,
+        isSettled: false,
+        payment: initialEmptyPayment,
+        waiterNotification: null,
+        orderPlacedAt: nowTs,
       };
     });
   },
@@ -350,11 +426,13 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     set((state) => {
       // Record payment in bridge → updates waiter shift stats + table to BILLING
       const bridge = useSharedBridge.getState();
-      bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount);
+      bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount, state.seatNumber);
+      bridge.waiterClearsChairAfterPayment(state.tableNumber, state.seatNumber);
 
       return {
         previousScreen: state.currentScreen,
         currentScreen: 8, // Proceed to Confirmation Screen 8
+        isSettled: true,
         payment: {
           ...state.payment,
           transactionId: randomTxn,
@@ -364,18 +442,337 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   },
 
   pingWaiter: (type, customMsg = '') => {
-    const message = customMsg || `Request for ${type} sent to floor captain`;
     set((state) => {
-      // Push real ping to bridge → waiter sees it immediately
+      const seat = state.seatNumber || 1;
+      const guest = state.guestName || `Guest (Chair ${seat})`;
+      const defaultMsg =
+        type === 'PAYMENT'
+          ? `Customer requested bill settlement at Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'WATER'
+          ? `Drinking water requested for Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'TISSUE'
+          ? `Extra tissues requested for Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'CUTLERY'
+          ? `Cutlery / plates requested for Table ${state.tableNumber} (Chair ${seat})`
+          : type === 'TABLE CLEAN'
+          ? `Table cleaning requested for Table ${state.tableNumber}`
+          : `Floor assistance requested at Table ${state.tableNumber} (Chair ${seat})`;
+      const message = customMsg && customMsg.trim() ? customMsg.trim() : defaultMsg;
+
       const bridge = useSharedBridge.getState();
       bridge.customerPingsWaiter(
         state.tableNumber,
         type,
-        state.guestName || `Guest (Table ${state.tableNumber})`,
-        message
+        guest,
+        message,
+        seat
       );
       return {
         waiterNotification: { active: true, type, message },
+      };
+    });
+  },
+
+  setWaiterAttended: (pingType, message) => {
+    if (typeof window !== 'undefined') {
+      try {
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const ctx = new AudioCtx();
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          osc.frequency.exponentialRampToValueAtTime(659.25, ctx.currentTime + 0.15);
+          gain.gain.setValueAtTime(0.3, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + 0.4);
+        }
+      } catch {}
+    }
+
+    set({
+      waiterNotification: {
+        active: true,
+        attended: true,
+        type: pingType || 'CALL',
+        message: message || 'Floor Captain Suresh has attended to your request.',
+        attendedAt: Date.now(),
+      },
+    });
+
+    setTimeout(() => {
+      const cur = useCustomerStore.getState().waiterNotification;
+      if (cur?.attended) {
+        useCustomerStore.getState().dismissWaiterNotification();
+      }
+    }, 6000);
+  },
+
+  handleBillSettledByWaiter: (snapshot) => {
+    set((state) => {
+      // Transition immediately to Screen 8, skipping Screen 6 and 7
+      const convertedCart: CartItem[] = (snapshot.items || []).map((it) => ({
+        cartItemId: it.id || `settled-${Date.now()}-${Math.random()}`,
+        menuItem: {
+          id: it.id,
+          name: it.name,
+          price: it.price || 0,
+          category: 'Authentic Donne',
+          description: '',
+          imagePlaceholder: '',
+          prepMode: 'Military Dum Handi',
+          optionsGroup1: { title: '', choices: [] },
+          optionsGroup2: { title: '', addOns: [] },
+        },
+        selectedOption: it.options || '',
+        selectedAddOns: it.addOns || [],
+        quantity: it.quantity || 1,
+        totalPrice: it.totalPrice || (it.price || 0) * (it.quantity || 1),
+        prepMode: 'Military Dum Handi',
+        isOrdered: true,
+        seatNumber: it.seatNumber || state.seatNumber,
+      }));
+
+      const snapshotTip =
+        (snapshot as any).tipAmount !== undefined && (snapshot as any).tipAmount > 0
+          ? (snapshot as any).tipAmount
+          : (state.payment.tipAmount > 0
+              ? state.payment.tipAmount
+              : Math.max(0, snapshot.grandTotal - (snapshot.subtotal + snapshot.totalTax)));
+
+      const derivedMethod: PaymentDetails['paymentMethod'] =
+        snapshot.method === 'CASH'
+          ? 'CASH'
+          : snapshot.method === 'UPI' || snapshot.method === 'RAZORPAY' || snapshot.method === 'CARD' || snapshot.method === 'NET_BANKING'
+            ? (snapshot.method as any)
+            : (state.payment.paymentMethod || 'UPI');
+
+      const newPayment: PaymentDetails = {
+        ...state.payment,
+        subtotal: snapshot.subtotal,
+        tax: snapshot.totalTax,
+        tipAmount: snapshotTip,
+        discount: state.payment.discount || 0,
+        totalAmount: snapshot.grandTotal,
+        paymentMethod: derivedMethod,
+        transactionId: snapshot.invoiceNumber,
+        invoiceNumber: snapshot.invoiceNumber,
+        settledItems: snapshot.items,
+      };
+
+      return {
+        previousScreen: state.currentScreen,
+        currentScreen: 8, // Directly navigate to Screen 8!
+        cart: convertedCart.length > 0 ? convertedCart : state.cart,
+        payment: newPayment,
+        orderStage: 'SERVED',
+        waiterNotification: null,
+        isSettled: true,
+      };
+    });
+  },
+
+  syncWithActiveSession: (tableNumber: string, seatNumber: number) => {
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetTableNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetTableNum, 10) || 1).padStart(2, '0')}`;
+    const bridge = useSharedBridge.getState();
+    const currentTbl = bridge.tables.find((t) => cleanNum(t.number) === targetTableNum);
+
+    // Tickets strictly for THIS chair (exclude only settled/COMPLETED tickets)
+    const myTickets = bridge.kdsTickets.filter(
+      (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED'
+    );
+    const seatActiveItems = (currentTbl?.activeItems || []).filter(
+      (ai) => {
+        const itemSeat = ai.seatNumber !== undefined && ai.seatNumber !== null
+          ? Number(ai.seatNumber)
+          : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+          ? Number((ai as any).seat_number)
+          : 1;
+        return itemSeat === seatNumber;
+      }
+    );
+    const seatTickets = myTickets.filter((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return tkSeat === seatNumber || tk.items.some((i) => {
+        const iSeat = i.seatNumber !== undefined && i.seatNumber !== null
+          ? Number(i.seatNumber)
+          : (i as any).seat_number !== undefined && (i as any).seat_number !== null
+          ? Number((i as any).seat_number)
+          : tkSeat;
+        return iSeat === seatNumber;
+      });
+    });
+
+    const hasActiveOrders = Boolean(
+      (currentTbl && currentTbl.status !== 'VACANT' && ((currentTbl.currentBill || 0) > 0 || (currentTbl.activeItems || []).length > 0)) ||
+      seatActiveItems.length > 0 ||
+      seatTickets.length > 0
+    );
+
+    if (!hasActiveOrders) {
+      // Chair is vacant or already cleared/settled. Reset session cleanly for fresh scanning.
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.removeItem(`thoogudeepa_customer_session_${normTable}_s${seatNumber}`);
+          localStorage.removeItem('thoogudeepa_customer_session_v1');
+        } catch {}
+      }
+      set({
+        currentScreen: 1,
+        previousScreen: 1,
+        cart: [],
+        orderStage: 'PLACED',
+        itemTracking: [],
+        payment: initialEmptyPayment,
+        waiterNotification: null,
+        isSettled: false,
+        orderPlacedAt: 0,
+        tableNumber: normTable,
+        seatNumber,
+      });
+      return;
+    }
+
+    // Chair has active unpaid orders!
+    // Extract real dishes from KDS tickets or table activeItems strictly for THIS chair
+    const ticketItems = seatTickets.flatMap((tk) => {
+      const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+      return (tk.items || [])
+        .filter((it) => {
+          const itemSeat = it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+            ? Number((it as any).seat_number)
+            : tkSeat;
+          return itemSeat === seatNumber;
+        })
+        .map((it) => ({
+          ...it,
+          ticketId: tk.id,
+        }));
+    });
+
+    const activeList = ticketItems.length > 0 ? ticketItems : seatActiveItems;
+
+    if (activeList.length > 0) {
+      const restoredCart: CartItem[] = activeList.map((it: any, idx: number) => {
+        const foundMenu = INITIAL_MENU_ITEMS.find(
+          (m) => m.name.toLowerCase().trim() === (it.name || '').toLowerCase().trim()
+        ) || {
+          id: `item-${idx}`,
+          name: it.name,
+          price: it.price || 0,
+          category: 'Authentic Donne',
+          description: '',
+          imagePlaceholder: '',
+          prepMode: it.prepMode || 'Military Dum Handi',
+          optionsGroup1: { title: '', choices: [] },
+          optionsGroup2: { title: '', addOns: [] },
+        };
+
+        const unitPrice = it.price || foundMenu.price || 0;
+        const qty = it.quantity || 1;
+        return {
+          cartItemId: it.id || `active-${idx}-${Date.now()}`,
+          menuItem: foundMenu,
+          selectedOption: it.options || '',
+          selectedAddOns: it.addOns || [],
+          quantity: qty,
+          totalPrice: unitPrice * qty,
+          prepMode: it.prepMode || foundMenu.prepMode || 'Military Dum Handi',
+          isOrdered: true,
+          seatNumber: seatNumber,
+        };
+      });
+
+      const restoredTracking: IndividualItemTracking[] = activeList.map((it: any, idx: number) => {
+        const stg: OrderStage =
+          it.stage === 'SERVED' || it.status === 'Served'
+            ? 'SERVED'
+            : it.stage === 'READY' || it.stage === 'PLATED' || it.status === 'Ready'
+            ? 'PLATED'
+            : it.stage === 'PREP' || it.status === 'Cooking'
+            ? 'PREP'
+            : it.stage === 'RECEIVED' || it.status === 'Received'
+            ? 'RECEIVED'
+            : 'PLACED';
+
+        return {
+          id: it.id || `track-${idx}`,
+          name: `${it.name} × ${it.quantity || 1}`,
+          prepMode: it.prepMode || 'Military Dum Handi',
+          status:
+            stg === 'SERVED'
+              ? 'Delivered to Table'
+              : stg === 'PLATED'
+              ? 'Plated & Ready for Service'
+              : stg === 'PREP'
+              ? 'In Kitchen Preparation'
+              : stg === 'RECEIVED'
+              ? 'Order Received by Kitchen'
+              : 'Order Placed',
+          stage: stg,
+        };
+      });
+
+      const subtotal = restoredCart.reduce((s, c) => s + c.totalPrice, 0);
+      const tax = Math.round(subtotal * 0.05);
+      const totalAmount = subtotal + tax;
+
+      const allServed = restoredTracking.every((t) => t.stage === 'SERVED');
+      const orderStage: OrderStage = allServed ? 'SERVED' : 'PREP';
+
+      set((state) => {
+        const nextScreen = state.currentScreen === 8 ? 5 : (state.currentScreen <= 4 ? 5 : state.currentScreen);
+        return {
+          cart: restoredCart,
+          itemTracking: restoredTracking,
+          orderStage,
+          currentScreen: nextScreen,
+          tableNumber: normTable,
+          seatNumber,
+          isSettled: false,
+          payment: {
+            ...initialEmptyPayment,
+            subtotal,
+            tax,
+            totalAmount,
+          },
+        };
+      });
+    }
+  },
+
+  rollBackUnplacedOrders: () => {
+    set((state) => {
+      const bridge = useSharedBridge.getState();
+      const currentChair = state.seatNumber || 1;
+      const confirmedTickets = bridge.kdsTickets.filter(
+        (tk) => tk.tableNumber === state.tableNumber &&
+                (tk.seatNumber === currentChair || tk.items?.some((i) => i.seatNumber === currentChair))
+      );
+      const hasConfirmedOrders = confirmedTickets.length > 0;
+
+      const resetCart = state.cart.map((c) => {
+        const inConfirmed = confirmedTickets.some((tk) =>
+          tk.items?.some((it) => it.name === c.menuItem.name)
+        );
+        return {
+          ...c,
+          isOrdered: inConfirmed,
+        };
+      });
+
+      return {
+        cart: resetCart,
+        currentScreen: hasConfirmedOrders ? 5 : 4,
+        orderStage: 'PLACED' as OrderStage,
       };
     });
   },
@@ -385,6 +782,13 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
   },
 
   resetSession: () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const st = useCustomerStore.getState();
+        localStorage.removeItem('thoogudeepa_customer_session_v1');
+        localStorage.removeItem(`thoogudeepa_customer_session_${st.tableNumber}_s${st.seatNumber}`);
+      } catch {}
+    }
     set({
       currentScreen: 1,
       previousScreen: 1,
@@ -394,6 +798,60 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       itemTracking: [],
       payment: initialEmptyPayment,
       waiterNotification: null,
+      isSettled: false,
+      orderPlacedAt: 0,
     });
   },
 }));
+
+if (typeof window !== 'undefined') {
+  useCustomerStore.subscribe((state) => {
+    try {
+      // Only persist if there is an active unplaced/in-progress order for a known table+seat.
+      // Never write to the global _v1 key — that caused cross-seat contamination.
+      const hasTable = Boolean(state.tableNumber);
+      const hasSeat = state.seatNumber && state.seatNumber > 0;
+      const hasActiveCart = state.cart && state.cart.length > 0;
+      // Don't persist the settled confirmation screen (screen 8) — next QR scan must be fresh
+      const isConfirmationScreen = state.currentScreen === 8 || state.isSettled;
+
+      if (hasTable && hasSeat && hasActiveCart && !isConfirmationScreen) {
+        const payload = JSON.stringify({
+          cart: state.cart,
+          currentScreen: state.currentScreen,
+          tableNumber: state.tableNumber,
+          seatNumber: state.seatNumber,
+          guestName: state.guestName,
+          orderStage: state.orderStage,
+          itemTracking: state.itemTracking,
+          payment: state.payment,
+        });
+        localStorage.setItem(
+          `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`,
+          payload
+        );
+      } else if (isConfirmationScreen && hasTable && hasSeat) {
+        // Payment confirmed — wipe the scoped session so next scan starts fresh
+        localStorage.removeItem(
+          `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`
+        );
+        localStorage.removeItem('thoogudeepa_customer_session_v1');
+      }
+    } catch {}
+  });
+
+  window.addEventListener('waiterPingAttended', (event: any) => {
+    try {
+      const p = event.detail;
+      const curStore = useCustomerStore.getState();
+      const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const isMatch =
+        cleanNum(curStore.tableNumber) === cleanNum(p?.tableNumber) &&
+        (!p?.seatNumber || curStore.seatNumber === p.seatNumber);
+      if (isMatch) {
+        curStore.setWaiterAttended(p?.type, p?.message);
+      }
+    } catch {}
+  });
+}
+

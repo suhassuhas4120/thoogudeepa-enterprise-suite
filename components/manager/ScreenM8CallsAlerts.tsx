@@ -7,20 +7,10 @@ import { Bell, CheckCircle2, AlertCircle, Sparkles } from 'lucide-react';
 export function ScreenM8CallsAlerts() {
   const { pings, waiterResolvePing } = useSharedBridge();
 
-  const handleApology = (tableNum: string) => {
-    alert(`10% Apology Goodwill Discount added to Table ${tableNum} running bill!`);
-  };
-
   return (
     <div className="w-full max-w-6xl mx-auto p-4 space-y-5 font-mono">
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm flex justify-between items-center">
         <div>
-          <div className="flex items-center gap-2">
-            <span className="bg-rose-600 text-white text-xs font-bold px-2 py-0.5 rounded">
-              [CUSTOMER CALLS DESK]
-            </span>
-            <span className="text-xs font-bold text-slate-500">REAL-TIME SERVICE ALERTS</span>
-          </div>
           <h3 className="text-base font-black text-slate-900 mt-1">
             TABLE SERVICE CALLS &amp; ESCALATIONS
           </h3>
@@ -51,18 +41,11 @@ export function ScreenM8CallsAlerts() {
                   </div>
                   <div className="text-xs text-slate-700 mt-0.5">
                     REQUEST: <span className="font-black text-orange-600">{p.type}</span>
-                    {p.message && <span className="text-slate-500 ml-1">— "{p.message}"</span>}
                   </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => handleApology(p.tableNumber)}
-                  className="bg-amber-50 border border-amber-300 text-amber-900 py-1.5 px-3 rounded-lg text-xs font-bold hover:bg-amber-100 transition"
-                >
-                  APOLOGY 10% OFF
-                </button>
                 <button
                   onClick={() => waiterResolvePing(p.id)}
                   className="bg-[#9C3D1E] text-white py-1.5 px-4 rounded-lg text-xs font-bold hover:bg-emerald-600 transition flex items-center gap-1.5"

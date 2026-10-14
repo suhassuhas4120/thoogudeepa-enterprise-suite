@@ -117,6 +117,44 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // 6. Optional: Create authentic Razorpay order if API keys are configured
+    const razorpayKeyId = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET;
+    let razorpayOrderId: string | null = null;
+
+    if (
+      razorpayKeyId &&
+      razorpayKeySecret &&
+      !razorpayKeyId.includes('placeholder')
+    ) {
+      try {
+        const authHeader = 'Basic ' + Buffer.from(`${razorpayKeyId}:${razorpayKeySecret}`).toString('base64');
+        const rzRes = await fetch('https://api.razorpay.com/v1/orders', {
+          method: 'POST',
+          headers: {
+            Authorization: authHeader,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            amount: Math.round(amount * 100), // paise
+            currency: 'INR',
+            receipt: orderId.slice(0, 40),
+            notes: {
+              tableNumber,
+              seatNumber: String(seatNumber),
+            },
+          }),
+        });
+
+        if (rzRes.ok) {
+          const rzData = await rzRes.json();
+          razorpayOrderId = rzData.id;
+        }
+      } catch (rzErr) {
+        console.warn('[Payments] Razorpay order creation fallback:', rzErr);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       paymentId,
@@ -131,6 +169,8 @@ export async function POST(req: NextRequest) {
       qrDataUrl: qrDataUrl || qrImageUrl,
       qrImageUrl,
       appIntents,
+      razorpayOrderId,
+      razorpayKeyId: razorpayOrderId ? razorpayKeyId : null,
       status: 'PENDING',
     });
   } catch (err: any) {

@@ -282,7 +282,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search Biryanis, Kebabs..."
-              className="w-full rounded-2xl border pl-10 pr-9 py-2.5 text-xs font-semibold shadow-2xs focus:outline-none transition"
+              className="w-full rounded-2xl border pl-10 pr-9 py-2.5 text-xs font-semibold shadow-2xs placeholder:text-stone-400 focus:outline-none transition"
               style={{
                 backgroundColor: currentTheme.colors.bgSurface,
                 borderColor: currentTheme.colors.border,

@@ -48,15 +48,20 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
     return Array.from(presets).filter((v) => v >= bill).sort((a, b) => a - b).slice(0, 4);
   }, [bill]);
 
+  const effectiveCashTendered =
+    typeof cashTendered === 'number'
+      ? cashTendered
+      : (cashTendered === '' && bill > 0 ? bill : 0);
+
   const change =
-    method === 'CASH' && typeof cashTendered === 'number' && cashTendered >= bill
-      ? cashTendered - bill
+    method === 'CASH' && effectiveCashTendered >= bill
+      ? effectiveCashTendered - bill
       : 0;
 
   const isSettleDisabled =
     bill <= 0 ||
     (method === 'UPI' && !isUpiVerified) ||
-    (method === 'CASH' && (cashTendered === '' || Number(cashTendered) < bill));
+    (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
   const handleSettle = () => {
     if (isSettleDisabled) return;
@@ -113,7 +118,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
       cgst,
       sgst,
       grandTotal: bill,
-      cashTendered: method === 'CASH' && typeof cashTendered === 'number' ? cashTendered : undefined,
+      cashTendered: method === 'CASH' ? (typeof cashTendered === 'number' ? cashTendered : bill) : undefined,
       cashChange: method === 'CASH' ? change : undefined,
       items: snapshotItems,
       seatNumber: splitSeatNum,
@@ -306,12 +311,12 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                             type="button"
                             onClick={() => setCashTendered(preset)}
                             className={`flex-1 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
-                              cashTendered === preset
+                              cashTendered === preset || (cashTendered === '' && preset === bill)
                                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
                                 : 'bg-white border-stone-300 text-stone-800 hover:bg-stone-100'
                             }`}
                           >
-                            ₹{preset}
+                            {preset === bill ? `Exact (₹${preset.toFixed(0)})` : `₹${preset.toFixed(0)}`}
                           </button>
                         ))}
                       </div>
@@ -319,11 +324,15 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-stone-600">Tendered:</span>
                         <input
-                          type="number"
-                          placeholder={`Min ₹${bill}`}
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder={`₹${bill.toFixed(2)}`}
                           value={cashTendered}
-                          onChange={(e) => setCashTendered(e.target.value === '' ? '' : Number(e.target.value))}
-                          className="flex-1 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^\d.]/g, '');
+                            setCashTendered(raw === '' ? '' : Number(raw));
+                          }}
+                          className="flex-1 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 placeholder:text-stone-400 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
                     </div>

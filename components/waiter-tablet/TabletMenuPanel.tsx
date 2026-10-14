@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Minus, ChevronLeft, Flame, X, CheckCircle2, Armchair, CreditCard, Ban } from 'lucide-react';
+import { Search, Plus, Minus, ChevronLeft, Flame, X, CheckCircle2, Armchair, Ban } from 'lucide-react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useCustomerStore } from '../../store/useCustomerStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
@@ -188,17 +188,6 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
             <span className="font-mono text-[10px] font-black text-amber-800">Chair {seatNum}</span>
           </div>
         )}
-        {/* Settle button if provided */}
-        {onSwitchToPayment && (
-          <button
-            type="button"
-            onClick={onSwitchToPayment}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] hover:bg-purple-50 text-purple-700 border border-purple-200 rounded-xl font-mono text-[11px] font-black transition cursor-pointer"
-          >
-            <CreditCard className="h-3.5 w-3.5" />
-            <span>Settle</span>
-          </button>
-        )}
       </div>
 
       {/* Search + Category pills */}
@@ -210,7 +199,7 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
             placeholder="Search dishes…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-8 pr-8 py-2 bg-[#FAF8F5] border border-[#EAE5DF] focus:border-[#9C3D1E] rounded-xl text-[11px] font-mono focus:outline-none transition"
+            className="w-full pl-8 pr-8 py-2 bg-[#FAF8F5] border border-[#EAE5DF] focus:border-[#9C3D1E] rounded-xl text-[11px] font-mono font-bold text-stone-900 placeholder:text-stone-400 focus:outline-none transition"
           />
           {search && (
             <button type="button" onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400">

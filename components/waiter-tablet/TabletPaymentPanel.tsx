@@ -173,15 +173,20 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
       .slice(0, 4);
   }, [bill]);
 
+  const effectiveCashTendered =
+    typeof cashTendered === 'number'
+      ? cashTendered
+      : (cashTendered === '' && bill > 0 ? bill : 0);
+
   const change =
-    method === 'CASH' && typeof cashTendered === 'number' && cashTendered >= bill
-      ? cashTendered - bill
+    method === 'CASH' && effectiveCashTendered >= bill
+      ? effectiveCashTendered - bill
       : 0;
 
   const isSettleDisabled =
     bill <= 0 ||
     (method === 'UPI' && !isUpiVerified) ||
-    (method === 'CASH' && (cashTendered === '' || Number(cashTendered) < bill));
+    (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
   const handleSettle = () => {
     if (isSettleDisabled) return;
@@ -234,7 +239,7 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
       cgst: Number(cgst),
       sgst: Number(sgst),
       grandTotal: bill,
-      cashTendered: method === 'CASH' && typeof cashTendered === 'number' ? cashTendered : undefined,
+      cashTendered: method === 'CASH' ? (typeof cashTendered === 'number' ? cashTendered : bill) : undefined,
       cashChange: method === 'CASH' ? change : undefined,
       items: snapshotItems,
       seatNumber: splitSeatNum,
@@ -479,13 +484,15 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                     Cash Tendered from Customer (₹)
                   </label>
                   <input
-                    type="number"
+                    type="tel"
+                    inputMode="numeric"
                     value={cashTendered}
-                    onChange={(e) =>
-                      setCashTendered(e.target.value === '' ? '' : Number(e.target.value))
-                    }
-                    placeholder={`Enter amount (≥ ₹${bill})`}
-                    className="w-full px-4 py-3 bg-[#FAF8F5] border-2 border-stone-300 focus:border-[#9C3D1E] rounded-xl text-base font-black focus:outline-none"
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^\d.]/g, '');
+                      setCashTendered(raw === '' ? '' : Number(raw));
+                    }}
+                    placeholder={`₹${bill.toFixed(2)}`}
+                    className="w-full px-4 py-3 bg-[#FAF8F5] border-2 border-stone-300 focus:border-[#9C3D1E] rounded-xl text-base font-black text-stone-950 placeholder:text-stone-400 font-mono focus:outline-none transition"
                   />
                 </div>
 
@@ -497,20 +504,26 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                       type="button"
                       onClick={() => setCashTendered(preset)}
                       className={`px-3.5 py-2 rounded-xl border-2 text-xs font-black transition cursor-pointer ${
-                        cashTendered === preset
+                        cashTendered === preset || (cashTendered === '' && preset === bill)
                           ? 'border-[#9C3D1E] bg-[#9C3D1E] text-white shadow-xs'
                           : 'border-stone-300 bg-stone-100 text-stone-800 hover:bg-stone-200'
                       }`}
                     >
-                      ₹{preset}
+                      {preset === bill ? `Exact (₹${preset.toFixed(0)})` : `₹${preset.toFixed(0)}`}
                     </button>
                   ))}
                 </div>
 
-                {typeof cashTendered === 'number' && cashTendered >= bill && (
+                {typeof cashTendered === 'number' && cashTendered > bill && (
                   <div className="flex items-center justify-between p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl text-xs font-black text-emerald-950">
                     <span>Return Change:</span>
                     <span className="text-base text-emerald-800">₹{change.toFixed(2)}</span>
+                  </div>
+                )}
+                {typeof cashTendered === 'number' && cashTendered === bill && (
+                  <div className="flex items-center justify-between p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl text-xs font-black text-emerald-950">
+                    <span>Exact Amount Received:</span>
+                    <span className="text-base text-emerald-800">₹{bill.toFixed(2)}</span>
                   </div>
                 )}
                 {typeof cashTendered === 'number' && cashTendered < bill && (

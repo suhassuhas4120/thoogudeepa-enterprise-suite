@@ -671,10 +671,10 @@ export function useBridgeSync() {
 
           useSharedBridge.setState((state) => ({
             pings: [
-              ...state.pings,
               {
                 id: row.id,
                 tableNumber: row.table_number,
+                seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
                 type: row.type,
                 message: row.message ?? undefined,
                 timestamp: row.created_at
@@ -686,6 +686,7 @@ export function useBridgeSync() {
                 status: 'PENDING' as const,
                 guestName: row.guest_name || 'Guest',
               },
+              ...state.pings.filter((p) => p.id !== row.id),
             ],
           }));
         }

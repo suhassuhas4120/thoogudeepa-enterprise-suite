@@ -127,6 +127,18 @@ export function getSyncBroadcastChannel() {
 
 export function broadcastStateChange(reason: string, payload?: unknown) {
   try {
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      try {
+        const localBc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        localBc.postMessage({
+          type: 'BROADCAST_STATE_CHANGED',
+          reason,
+          payload,
+          timestamp: Date.now(),
+        });
+        localBc.close();
+      } catch {}
+    }
     const ch = getSyncBroadcastChannel();
     if (ch) {
       ch.send({

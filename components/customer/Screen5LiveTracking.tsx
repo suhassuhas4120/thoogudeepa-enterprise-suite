@@ -1201,41 +1201,74 @@ export const Screen5LiveTracking: React.FC = () => {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              <motion.button
-                disabled={isSummoned}
-                whileTap={!isSummoned ? { scale: 0.98 } : undefined}
-                onClick={() => {
-                  if (!isSummoned) setShowPayViaWaiterModal(true);
-                }}
-                className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
-                  isSummoned
-                    ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-80 cursor-not-allowed'
-                    : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
-                }`}
-              >
-                <CreditCard className="h-4 w-4 stroke-[2.2]" />
-                <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
-              </motion.button>
+            <div>
+              {isSummoned && (
+                <div className="flex items-center justify-between px-1 mb-2 text-[11px] font-medium text-amber-500">
+                  <span className="flex items-center gap-1.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                    <span>Captain summoned • Self-pay locked</span>
+                  </span>
+                  <button
+                    onClick={() => {
+                      cancelPaymentPing();
+                      setIsWaitingForCaptain(false);
+                      useCustomerStore.getState().dismissWaiterNotification();
+                    }}
+                    className="text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
+                  >
+                    Cancel &amp; Unlock
+                  </button>
+                </div>
+              )}
+              <div className="grid grid-cols-2 gap-2">
+                <motion.button
+                  disabled={isSummoned}
+                  whileTap={!isSummoned ? { scale: 0.98 } : undefined}
+                  onClick={() => {
+                    if (!isSummoned) setShowPayViaWaiterModal(true);
+                  }}
+                  className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
+                    isSummoned
+                      ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-90 cursor-not-allowed'
+                      : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
+                  }`}
+                >
+                  <CreditCard className="h-4 w-4 stroke-[2.2]" />
+                  <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
+                </motion.button>
 
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                onClick={() => {
-                  cancelPaymentPing();
-                  setIsWaitingForCaptain(false);
-                  useCustomerStore.getState().dismissWaiterNotification();
-                  setCurrentScreen(6);
-                }}
-                style={{
-                  backgroundColor: currentTheme.colors.buttonBg,
-                  color: currentTheme.colors.buttonFg,
-                  boxShadow: currentTheme.colors.buttonShadow,
-                }}
-                className="flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition hover:brightness-105 cursor-pointer shadow-md"
-              >
-                <span>Self Pay (QR/UPI)</span>
-                <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-              </motion.button>
+                <motion.button
+                  disabled={isSummoned}
+                  whileTap={!isSummoned ? { scale: 0.98 } : undefined}
+                  onClick={() => {
+                    if (!isSummoned) {
+                      cancelPaymentPing();
+                      setIsWaitingForCaptain(false);
+                      useCustomerStore.getState().dismissWaiterNotification();
+                      setCurrentScreen(6);
+                    }
+                  }}
+                  style={
+                    isSummoned
+                      ? {
+                          backgroundColor: '#292524',
+                          color: '#78716C',
+                          border: '1px solid #44403C',
+                        }
+                      : {
+                          backgroundColor: currentTheme.colors.buttonBg,
+                          color: currentTheme.colors.buttonFg,
+                          boxShadow: currentTheme.colors.buttonShadow,
+                        }
+                  }
+                  className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
+                    isSummoned ? 'cursor-not-allowed opacity-50' : 'hover:brightness-105 cursor-pointer shadow-md'
+                  }`}
+                >
+                  <span>{isSummoned ? 'Self-Pay Locked' : 'Self Pay (QR/UPI)'}</span>
+                  <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+                </motion.button>
+              </div>
             </div>
           )}
         </div>

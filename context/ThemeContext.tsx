@@ -20,7 +20,7 @@ export function CustomerThemeProvider({ children }: { children: React.ReactNode 
     if (typeof window !== 'undefined') {
       try {
         const saved = localStorage.getItem('thoogudeepa_customer_theme') as CustomerThemeId;
-        if (saved && (saved === 'terracotta-dum' || saved === 'obsidian-gold')) {
+        if (saved && (saved === 'terracotta-dum' || saved === 'obsidian-gold' || saved === 'royal-palace-gold')) {
           setCurrentThemeId(saved);
         } else {
           setCurrentThemeId('terracotta-dum');

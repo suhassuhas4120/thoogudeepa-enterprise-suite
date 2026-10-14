@@ -21,6 +21,8 @@ import { Screen10WaiterCall } from '../components/customer/Screen10WaiterCall';
 
 // Ultra Luxury Obsidian Gold Screens
 import { Screen1Welcome as Screen1WelcomeLuxury } from '../components/customer/luxury/Screen1Welcome';
+import { Screen1WelcomeRoyal } from '../components/customer/royal/Screen1WelcomeRoyal';
+import { Screen2MenuRoyal } from '../components/customer/royal/Screen2MenuRoyal';
 import { Screen2Menu as Screen2MenuLuxury } from '../components/customer/luxury/Screen2Menu';
 import { Screen3ItemDetail as Screen3ItemDetailLuxury } from '../components/customer/luxury/Screen3ItemDetail';
 import { Screen4Cart as Screen4CartLuxury } from '../components/customer/luxury/Screen4Cart';
@@ -98,7 +100,8 @@ function NetworkConnectivityPill() {
 }
 
 function CustomerJourneyContent() {
-  const { currentScreen, setTableNumber, setSeatNumber } = useCustomer();
+  const currentScreen = useCustomerStore((state) => state.currentScreen);
+  const { setTableNumber, setSeatNumber } = useCustomer();
   const { currentThemeId } = useCustomerTheme();
   const isLuxuryDark = currentThemeId === 'obsidian-gold';
 
@@ -309,7 +312,7 @@ function CustomerJourneyContent() {
         // Mask address bar: remove raw query params so URL cannot be tampered in browser
         if (typeof window !== 'undefined' && window.history?.replaceState) {
           window.history.replaceState(
-            { screen: useCustomerStore.getState().currentScreen || 1 },
+            { screen: useCustomerStore.getState().currentScreen || 1, depth: historyDepthRef.current || 1 },
             document.title,
             window.location.pathname || '/'
           );
@@ -601,13 +604,15 @@ function CustomerJourneyContent() {
           isPopNavigatingRef.current = false;
         }, 80);
       } else if (!targetScreen) {
+        // If diner is browsing on welcome or menu without orders, never reset their screen
+        if (currentScrn === 1 || currentScrn === 2) return;
+
         // Fallback backward mapping if browser popped to root
-        let fallbackScreen: ScreenId = 1;
+        let fallbackScreen: ScreenId = 2;
         if (currentScrn === 3 || currentScrn === 4) fallbackScreen = 2; // details / cart -> menu
         else if (currentScrn === 7) fallbackScreen = 6; // gateway -> breakdown
         else if (currentScrn === 6) fallbackScreen = 5; // breakdown -> live tracking
         else if (currentScrn === 10) fallbackScreen = hasPlacedOrderRef.current ? 5 : 2; // waiter call
-        else if (currentScrn === 2 && hasPlacedOrderRef.current) fallbackScreen = 5; // menu -> tracking
         else if (currentScrn === 5 || currentScrn === 8) fallbackScreen = currentScrn; // stay on active tracking or paid invoice
 
         isPopNavigatingRef.current = true;
@@ -758,6 +763,11 @@ function CustomerJourneyContent() {
           return;
         }
 
+        // Digital Receipt Immunity: Never wipe out customer if they are viewing Screen 8 or 9
+        if ((curStore.currentScreen as number) === 8 || (curStore.currentScreen as number) === 9) {
+          return;
+        }
+
         try {
           localStorage.removeItem(`thoogudeepa_customer_session_${tableId}_s${seatId}`);
           localStorage.removeItem('thoogudeepa_customer_session_v1');
@@ -769,6 +779,11 @@ function CustomerJourneyContent() {
 
       // ── TABLE VACATED EVENT ──
       if (reason === 'tableVacated') {
+        // Digital Receipt Immunity: Customer viewing their receipt is never disrupted by table vacate
+        if ((curStore.currentScreen as number) === 8 || (curStore.currentScreen as number) === 9) {
+          return;
+        }
+
         // Multi-seat protection: If this customer holds ordered dishes in their cart,
         // do not reset unless the bridge table status is truly VACANT and no active items remain
         const hasActiveOrderedItems = curStore.cart.some((ci) => ci && ci.isOrdered);
@@ -804,8 +819,8 @@ function CustomerJourneyContent() {
       const tableId = curStore.tableNumber || tableRef.current;
       const seatId = curStore.seatNumber || seatRef.current;
 
-      // Only relevant for post-order screens; never interrupt browsing or confirmation
-      const postOrderScreens = [5, 6, 7, 9, 10];
+      // Only relevant for pre-settlement post-order screens; Screen 8 & 9 have Digital Receipt Immunity!
+      const postOrderScreens = [5, 6, 7, 10];
       if (!postOrderScreens.includes(curStore.currentScreen)) return;
 
       try {
@@ -831,6 +846,42 @@ function CustomerJourneyContent() {
       clearInterval(vacateCheckInterval);
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Root-level watcher for settled bills: ensures customer on Screen 2, 3, 4, 5, 6, 7, 10
+  // is instantly transitioned to Screen 8 Confirmation if waiter settles their bill at the table
+  React.useEffect(() => {
+    const checkSettled = () => {
+      const curStore = useCustomerStore.getState();
+      const preScreens = [2, 3, 4, 5, 6, 7, 10];
+      if (!preScreens.includes(curStore.currentScreen)) return;
+      if (!hasPlacedOrderRef.current && !curStore.cart.some((ci) => ci && ci.isOrdered)) return;
+
+      const tableId = curStore.tableNumber || tableRef.current;
+      const seatId = curStore.seatNumber || seatRef.current;
+      const cleanT = cleanTableNum(tableId);
+      const normTbl = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+      const chairKey = `${normTbl}-CHAIR-${seatId}`;
+
+      const bridge = useSharedBridge.getState();
+      const candidate = bridge.settledBills?.[chairKey] || bridge.settledBills?.[normTbl];
+      if (candidate && candidate.timestamp) {
+        const now = Date.now();
+        const isRecent = Math.abs(now - candidate.timestamp) < 1800000;
+        const orderAt = curStore.orderPlacedAt || 0;
+        const isAfterOrder = candidate.timestamp > orderAt + 500;
+        if (isRecent && isAfterOrder) {
+          curStore.handleBillSettledByWaiter(candidate);
+        }
+      }
+    };
+
+    const unsub = useSharedBridge.subscribe(checkSettled);
+    const settlePoll = setInterval(checkSettled, 1500);
+    return () => {
+      unsub();
+      clearInterval(settlePoll);
+    };
+  }, []);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     // Left-edge swipe back gesture (35px left boundary)
@@ -862,9 +913,27 @@ function CustomerJourneyContent() {
     window.addEventListener('pointerup', onUp);
   };
 
+  const isRoyalPalace = currentThemeId === 'royal-palace-gold';
+
   // Memoised screen element — only recomputes when screen or theme actually changes.
   // Prevents expensive child tree teardown on unrelated parent re-renders.
   const activeScreen = React.useMemo(() => {
+    if (isRoyalPalace) {
+      switch (currentScreen) {
+        case 1: return <Screen1WelcomeRoyal />;
+        case 2: return <Screen2MenuLuxury />;
+        case 3: return <Screen3ItemDetailLuxury />;
+        case 4: return <Screen4CartLuxury />;
+        case 5: return <Screen5LiveTrackingLuxury />;
+        case 6: return <Screen6PaymentBreakdownLuxury />;
+        case 7: return <Screen7PaymentGatewayLuxury />;
+        case 8: return <Screen8ConfirmationLuxury />;
+        case 9: return <Screen9DigitalBillLuxury />;
+        case 10: return <Screen10WaiterCallLuxury />;
+        default: return <Screen1WelcomeRoyal />;
+      }
+    }
+
     if (isLuxuryDark) {
       switch (currentScreen) {
         case 1: return <Screen1WelcomeLuxury />;
@@ -894,10 +963,10 @@ function CustomerJourneyContent() {
       default: return <Screen1Welcome />;
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentScreen, isLuxuryDark]);
+  }, [currentScreen, isLuxuryDark, isRoyalPalace]);
 
   // Composite key: animate transition when EITHER screen OR theme changes.
-  const motionKey = `${currentScreen}-${isLuxuryDark ? 'lux' : 'cls'}`;
+  const motionKey = `${currentScreen}-${isRoyalPalace ? 'ryl' : isLuxuryDark ? 'lux' : 'cls'}`;
 
   return (
     <main
@@ -906,18 +975,21 @@ function CustomerJourneyContent() {
       style={{ height: '100dvh', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}
     >
       <NetworkConnectivityPill />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={motionKey}
-          initial={{ opacity: 0, x: 12 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -12 }}
-          transition={{ duration: 0.18, ease: 'easeOut' }}
-          style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
-        >
-          {activeScreen}
-        </motion.div>
-      </AnimatePresence>
+      <div
+        key={motionKey}
+        className="gpu-accelerated"
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: 0,
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+        }}
+      >
+        {activeScreen}
+      </div>
 
       {/* ── Chair Device Lock Conflict Modal ── */}
       <AnimatePresence>

@@ -748,14 +748,30 @@ export function ScreenM6Settlement({
               <span>Send Bill on WhatsApp</span>
             </button>
 
-            <button
-              type="button"
-              onClick={handleFinish}
-              className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-2xl text-xs font-black flex items-center justify-center gap-2 shadow-sm transition cursor-pointer active:scale-95"
-            >
-              <span>Return to Floor Grid</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (splitSeatNumber !== null) {
+                    waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
+                  }
+                  onBack();
+                }}
+                className="py-3.5 bg-stone-100 hover:bg-stone-200 text-stone-800 rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 border border-stone-300 shadow-sm transition cursor-pointer active:scale-95"
+              >
+                <Armchair className="h-4 w-4 text-stone-600" />
+                <span>Table Cockpit</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFinish}
+                className="py-3.5 bg-[#9C3D1E] hover:bg-[#853216] text-white rounded-2xl text-xs font-black flex items-center justify-center gap-1.5 shadow-sm transition cursor-pointer active:scale-95"
+              >
+                <span>Floor Grid</span>
+                <ArrowRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
         </div>
 

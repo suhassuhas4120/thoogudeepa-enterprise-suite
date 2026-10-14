@@ -628,10 +628,13 @@ export const Screen5LiveTracking: React.FC = () => {
 
       {/* Body */}
       <div
-        className="flex-1 overflow-y-auto p-4 pb-36 space-y-4 transition-colors duration-300 relative select-none"
+        className="flex-1 overflow-y-auto p-4 pb-36 space-y-4 transition-colors duration-200 relative select-none gpu-accelerated"
         style={{
           background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
           color: '#FAF7F2',
+          contain: 'content',
+          willChange: 'scroll-position',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {/* Floor Captain Attended Notification Banner */}

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { useCustomer } from "../../context/CustomerContext";
+import { useCustomer, useCustomerStore } from "../../context/CustomerContext";
 import { useCustomerTheme } from "../../context/ThemeContext";
 import { useSharedBridge } from "../../store/useSharedBridge";
 import { ScreenHousing } from "../ui/ScreenHousing";
@@ -101,17 +101,25 @@ export const Screen1Welcome: React.FC = () => {
           }),
         );
       } catch {}
-      window.history.replaceState({}, "", window.location.pathname || "/");
+      window.history.replaceState({ screen: 1, depth: 1 }, "", window.location.pathname || "/");
     }
     syncWithActiveSession(activeTable.number, newSeat);
   };
 
   // Connection Handlers: advance to Authentic Menu
   const handleConnectWifi = () => {
+    if (guestName?.trim()) {
+      setGuestName(guestName.trim());
+    }
+    useCustomerStore.setState({ currentScreen: 2, previousScreen: 1 });
     setCurrentScreen(2);
   };
 
   const handleContinueMobileData = () => {
+    if (guestName?.trim()) {
+      setGuestName(guestName.trim());
+    }
+    useCustomerStore.setState({ currentScreen: 2, previousScreen: 1 });
     setCurrentScreen(2);
   };
 
@@ -389,12 +397,14 @@ export const Screen1Welcome: React.FC = () => {
           transition={{ delay: 0.2 }}
           className="space-y-2.5 pt-1"
         >
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            whileHover={{ y: -1 }}
+          <button
             type="button"
             onClick={handleConnectWifi}
-            className="flex w-full items-center justify-between rounded-2xl p-4 shadow-md transition-all text-left group"
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              handleConnectWifi();
+            }}
+            className="flex w-full items-center justify-between rounded-2xl p-4 shadow-md transition-all text-left group active:scale-[0.98] cursor-pointer touch-manipulation select-none"
             style={{
               backgroundColor: currentTheme.colors.buttonBg,
               color: currentTheme.colors.buttonFg,
@@ -409,20 +419,19 @@ export const Screen1Welcome: React.FC = () => {
                 <div className="text-xs font-black tracking-wide">
                   Connect With Free Restaurant Wi-Fi
                 </div>
-                {/* <div className="text-[10px] font-medium opacity-90 mt-0.5">
-                  High-Speed Dine-In Network • Instant Menu Access
-                </div> */}
               </div>
             </div>
             <ArrowRight className="h-4 w-4 group-hover:translate-x-1 transition shrink-0" />
-          </motion.button>
+          </button>
 
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            whileHover={{ y: -1 }}
+          <button
             type="button"
             onClick={handleContinueMobileData}
-            className="flex w-full items-center justify-between rounded-2xl border p-3.5 shadow-2xs transition-all text-left group"
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              handleContinueMobileData();
+            }}
+            className="flex w-full items-center justify-between rounded-2xl border p-3.5 shadow-2xs transition-all text-left group active:scale-[0.98] cursor-pointer touch-manipulation select-none"
             style={{
               backgroundColor: currentTheme.colors.bgSurface,
               borderColor: currentTheme.colors.border,
@@ -443,19 +452,13 @@ export const Screen1Welcome: React.FC = () => {
                 <div className="text-xs font-bold">
                   Continue With Mobile Data
                 </div>
-                {/* <div
-                  className="text-[10px]"
-                  style={{ color: currentTheme.colors.textMuted }}
-                >
-                  Browse using 4G / 5G cellular connection
-                </div> */}
               </div>
             </div>
             <ArrowRight
               className="h-4 w-4 group-hover:translate-x-0.5 transition shrink-0"
               style={{ color: currentTheme.colors.textMuted }}
             />
-          </motion.button>
+          </button>
         </motion.div>
 
         {/* Footer: Properly Enclosed Badge Container for "Powered by Nelja" */}

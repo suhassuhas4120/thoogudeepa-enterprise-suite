@@ -77,16 +77,9 @@ export function ScreenM1Login() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-6 p-4">
+    <div className="w-full max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-12 gap-5 p-1">
       {/* Left Control Column */}
       <div className="md:col-span-5 flex flex-col gap-4">
-        {/* Terminal Header — [AUTH TERMINAL 01] removed */}
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm">
-          <h2 className="text-base font-black text-slate-900 font-mono">
-            THOOGUDEEPA DONNE BIRYANI MANE
-          </h2>
-        </div>
-
         {/* Shift Selection */}
         <div className="bg-[#FAF8F5] border border-slate-300 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
@@ -168,29 +161,8 @@ export function ScreenM1Login() {
               <div className="text-2xl font-black font-mono text-slate-900 mt-1">
                 ₹ {localFloat.toLocaleString('en-IN')}.00
               </div>
-              {/* "Counted in Till Safe..." subtext removed */}
             </>
           )}
-        </div>
-
-        {/* Hardware Status Preview */}
-        <div className="bg-[#9C3D1E] text-white rounded-xl p-4 text-xs font-mono space-y-1.5">
-          <div className="text-slate-400 font-bold mb-2 flex items-center gap-1.5">
-            <Printer className="h-3.5 w-3.5 text-emerald-400" />
-            <span>PERIPHERALS READY:</span>
-          </div>
-          <div className="flex justify-between text-slate-300">
-            <span>Thermal Bill Printer (80mm)</span>
-            <span className="text-emerald-400 font-bold">[ONLINE]</span>
-          </div>
-          <div className="flex justify-between text-slate-300">
-            <span>Dum Kitchen KDS Display</span>
-            <span className="text-emerald-400 font-bold">[ONLINE]</span>
-          </div>
-          <div className="flex justify-between text-slate-300">
-            <span>Automatic Cash Drawer Kick</span>
-            <span className="text-emerald-400 font-bold">[LOCKED]</span>
-          </div>
         </div>
       </div>
 
@@ -243,14 +215,14 @@ export function ScreenM1Login() {
           </div>
 
           {/* PIN Indicators */}
-          <div className="my-6 text-center">
-            <div className="flex justify-center gap-4 mb-2">
+          <div className="my-3 text-center">
+            <div className="flex justify-center gap-3 mb-1">
               {[0, 1, 2, 3].map((idx) => {
                 const isFilled = pinInput.length > idx;
                 return (
                   <div
                     key={idx}
-                    className={`w-5 h-5 rounded-full border border-[#EAE5DF] transition-all ${
+                    className={`w-4 h-4 rounded-full border border-[#EAE5DF] transition-all ${
                       isFilled ? 'bg-[#9C3D1E] scale-110' : 'bg-[#FAF8F5]'
                     }`}
                   />
@@ -258,38 +230,38 @@ export function ScreenM1Login() {
               })}
             </div>
             {authError && (
-              <div className="font-mono text-xs font-bold text-rose-600">
+              <div className="font-mono text-xs font-bold text-rose-600 mt-1">
                 INVALID PIN — PLEASE TRY AGAIN
               </div>
             )}
           </div>
 
           {/* Numeric Keypad */}
-          <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto">
+          <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
             {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
               <button
                 key={digit}
                 onClick={() => handlePress(digit)}
-                className="h-12 bg-white border border-[#EAE5DF] rounded-lg font-mono text-lg font-black text-slate-900 shadow-xs hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none active:bg-[#FAF8F5] transition"
+                className="h-10 bg-white border border-[#EAE5DF] rounded-lg font-mono text-base font-black text-slate-900 shadow-xs hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none active:bg-[#FAF8F5] transition"
               >
                 {digit}
               </button>
             ))}
             <button
               onClick={clearPin}
-              className="h-12 bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg font-mono text-xs font-black text-rose-700 shadow-xs hover:bg-rose-50 transition"
+              className="h-10 bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg font-mono text-xs font-black text-rose-700 shadow-xs hover:bg-rose-50 transition"
             >
               CLR
             </button>
             <button
               onClick={() => handlePress('0')}
-              className="h-12 bg-white border border-[#EAE5DF] rounded-lg font-mono text-lg font-black text-slate-900 shadow-xs hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none active:bg-[#FAF8F5] transition"
+              className="h-10 bg-white border border-[#EAE5DF] rounded-lg font-mono text-base font-black text-slate-900 shadow-xs hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none active:bg-[#FAF8F5] transition"
             >
               0
             </button>
             <button
               onClick={deletePinDigit}
-              className="h-12 bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg font-mono text-xs font-black text-slate-700 shadow-xs hover:bg-stone-200 transition"
+              className="h-10 bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg font-mono text-xs font-black text-slate-700 shadow-xs hover:bg-stone-200 transition"
             >
               DEL
             </button>
@@ -297,10 +269,10 @@ export function ScreenM1Login() {
         </div>
 
         {/* Action Button */}
-        <div className="mt-6 pt-4 border-t border-slate-200 flex gap-3">
+        <div className="mt-4 pt-3 border-t border-slate-200 flex gap-3">
           <button
             onClick={() => setCurrentScreen(2)}
-            className="flex-1 bg-[#9C3D1E] text-white py-3 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs hover:bg-orange-600 transition"
+            className="flex-1 bg-[#9C3D1E] text-white py-2.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs hover:bg-orange-600 transition"
           >
             <Unlock className="h-4 w-4" />
             <span>VERIFY & UNLOCK DESK</span>

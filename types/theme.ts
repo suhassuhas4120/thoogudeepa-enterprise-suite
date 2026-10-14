@@ -1,4 +1,4 @@
-export type CustomerThemeId = 'terracotta-dum' | 'obsidian-gold';
+export type CustomerThemeId = 'terracotta-dum' | 'obsidian-gold' | 'royal-palace-gold';
 
 export interface CustomerThemeConfig {
   id: CustomerThemeId;
@@ -164,6 +164,60 @@ export const CUSTOMER_THEMES: CustomerThemeConfig[] = [
       phoneBezel: '#0C0A09',
       statusBarBg: '#0F0E0C',
       statusBarFg: '#FAF7F2',
+      isDark: true,
+    },
+  },
+
+  // ── 3. ROYAL PALACE GOLD (Grand Palace Ultra Luxury) ─
+  {
+    id: 'royal-palace-gold',
+    name: 'Royal Palace Gold',
+    archetype: 'Royal Palace Hospitality',
+    subtitle: 'Deep Obsidian • Liquid Gold • Candlelight',
+    badge: 'ROYAL PALACE',
+    dotColor1: '#F3D38B',
+    dotColor2: '#080502',
+    colors: {
+      bgApp: '#080502',
+      bgSurface: '#120B04',
+      bgElevated: '#1D1207',
+      border: 'rgba(243, 211, 139, 0.35)',
+      borderLight: 'rgba(243, 211, 139, 0.20)',
+
+      buttonBg: 'linear-gradient(110deg, #D89A37 0%, #FFE7A0 24%, #E8B957 50%, #FFDC84 76%, #B77922 100%)',
+      buttonHover: '#D89A37',
+      buttonFg: '#241506',
+      buttonShadow: '0 9px 28px rgba(0,0,0,0.60), 0 0 22px rgba(255,192,76,0.40)',
+      primary: '#F3D38B',
+      primaryHover: '#D89A37',
+      primaryFg: '#241506',
+      primaryBorder: '#FFE6A0',
+      primaryShadow: '0 9px 28px rgba(0,0,0,0.60), 0 0 22px rgba(255,192,76,0.40)',
+      buttonText: '#241506',
+
+      pillActiveBg: 'rgba(243, 211, 139, 0.22)',
+      pillActiveFg: '#FFF0C5',
+      pillActiveBorder: '#F3D38B',
+      pillInactiveBg: 'rgba(255, 255, 255, 0.04)',
+      pillInactiveFg: '#E2C997',
+      pillInactiveBorder: 'rgba(243, 211, 139, 0.15)',
+      pillBg: 'rgba(243, 211, 139, 0.18)',
+
+      secondaryBg: 'rgba(243, 211, 139, 0.14)',
+      secondaryFg: '#FFF0C5',
+      accent: '#F3D38B',
+      accentFg: '#080502',
+
+      textPrimary: '#FFF8E9',
+      textSecondary: '#F8DFAB',
+      textMuted: '#B99D6B',
+
+      headerBg: 'rgba(8, 5, 2, 0.92)',
+      headerFg: '#FFF8E9',
+      bottomBg: 'rgba(8, 5, 2, 0.95)',
+      phoneBezel: '#080502',
+      statusBarBg: '#080502',
+      statusBarFg: '#FFF8E9',
       isDark: true,
     },
   },

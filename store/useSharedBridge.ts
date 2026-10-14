@@ -5,6 +5,7 @@ import { OrderStage } from '../types/customer';
 import { broadcastStateChange, supabase } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
 import { useManagerStore } from './useManagerStore';
+import { INITIAL_PAID_ORDERS, INITIAL_PLACED_ORDERS } from '../data/seedOrdersHistory';
 
 
 export interface SharedKDSItem {
@@ -206,6 +207,7 @@ interface SharedBridgeState {
   inventory86: SharedMenuItem86[];
   shiftStats: SharedShiftStats;
   settledBills: Record<string, SettledBillSnapshot>;
+  paidBillsHistory: SettledBillSnapshot[];
   activeSettlementSessions: Record<string, ActiveSettlementSession>;
 
   // NEW kitchen notification queue — never shown to customer
@@ -366,7 +368,7 @@ function bridgePost(
 
 export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   tables: freshTables,
-  kdsTickets: [],
+  kdsTickets: INITIAL_PLACED_ORDERS,
   pings: [],
   inventory86: freshInventory86,
   shiftStats: {
@@ -376,6 +378,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     avgTurnaroundMinutes: 38,
   },
   settledBills: {},
+  paidBillsHistory: INITIAL_PAID_ORDERS,
   activeSettlementSessions: {},
   kitchenNotifications: [],
 
@@ -639,6 +642,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return {
         settledBills: nextBills,
+        paidBillsHistory: [timestampedSnapshot, ...(state.paidBillsHistory || INITIAL_PAID_ORDERS)].slice(0, 50),
         activeSettlementSessions: nextSessions,
         pings: cleanedPings,
       };
@@ -743,7 +747,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   kitchenBumpItemStage: (ticketId, itemId) => {
-    const stageOrder: OrderStage[] = ['PLACED', 'PREP', 'PLATED', 'SERVED'];
+    const stageOrder: OrderStage[] = ['PLACED', 'RECEIVED', 'PREP', 'PLATED', 'SERVED'];
 
     // Snapshot for rollback
     const prevTickets = get().kdsTickets;
@@ -760,11 +764,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         });
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED');
+        const anyActive = newItems.some((i) => i.stage === 'PREP' || i.stage === 'PLATED' || i.stage === 'RECEIVED');
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -789,6 +793,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                       ? 'Ready'
                       : matchedTicketItem.stage === 'PREP'
                       ? 'Cooking'
+                      : matchedTicketItem.stage === 'RECEIVED'
+                      ? 'Received'
                       : 'Placed',
                 };
               }),
@@ -798,6 +804,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
+
+    broadcastStateChange('KDS_TICKET_UPDATED', { ticketId, itemId });
 
     // Persist to Supabase
     bridgePost(
@@ -828,7 +836,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -865,6 +873,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       return { kdsTickets: newTickets, tables: updatedTables };
     });
 
+    broadcastStateChange('KDS_TICKET_UPDATED', { ticketId, itemId, stage });
+
     // Persist to Supabase
     bridgePost(
       '/api/kds/bump-item',
@@ -899,7 +909,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -1701,6 +1711,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kdsTickets: state.kdsTickets.filter(
           (tk) => !groupNums.has(tk.tableNumber) && cleanNum(tk.tableNumber) !== targetNum
         ),
+        // Auto-vanish ALL table notifications and pings on vacate
+        pings: state.pings.filter(
+          (p) => !groupNums.has(p.tableNumber) && cleanNum(p.tableNumber) !== targetNum
+        ),
         activeSettlementSessions: nextSessions,
         settledBills: nextBills,
       };
@@ -1718,7 +1732,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       supabase
         .from('pings')
         .delete()
-        .or(`id.ilike.SETTLE-SESSION-${normTable}%,id.ilike.SETTLED-BILL-${normTable}%`)
+        .or(`table_number.eq.${normTable},id.ilike.SETTLE-SESSION-${normTable}%`)
         .then(() => {}, () => {});
     }
 
@@ -1823,7 +1837,20 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         delete nextSessions[normTable];
       }
 
-      return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions, settledBills: nextBills };
+      // Auto-vanish ALL pings and notifications for this vacated chair!
+      const remainingPings = state.pings.filter((p) => {
+        const isMatchTable = cleanNum(p.tableNumber) === targetNum;
+        const isMatchSeat = p.seatNumber === seatNumber;
+        return !(isMatchTable && isMatchSeat);
+      });
+
+      return {
+        kdsTickets: newTickets,
+        tables: newTables,
+        pings: remainingPings,
+        activeSettlementSessions: nextSessions,
+        settledBills: nextBills,
+      };
     });
 
     broadcastStateChange('chairCleared', {
@@ -1831,9 +1858,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       seatNumber,
     });
 
-    // Clear server settlement session & settled bills for this chair
+    // Clear server active settlement session for this chair
     bridgePost('/api/settlement/session', {
-      action: 'CLEAR_BILL',
+      action: 'CLEAR_SESSION',
       tableNumber,
       seatNumber,
     });
@@ -1842,7 +1869,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       supabase
         .from('pings')
         .delete()
-        .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber}`)
+        .eq('table_number', normTable)
+        .eq('seat_number', seatNumber)
         .then(() => {}, () => {});
     }
 
@@ -1902,6 +1930,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
+
+    broadcastStateChange('KDS_TICKET_UPDATED', { ticketId, itemId, stage: 'SERVED' });
 
     // Persist to Supabase
     bridgePost(
@@ -2336,6 +2366,39 @@ if (typeof window !== 'undefined') {
               },
             })
           );
+        }
+      }
+      if (event.data?.type === 'BROADCAST_STATE_CHANGED') {
+        const reason = event.data.reason;
+        const payload = event.data.payload;
+        if (reason === 'waiterPingCreated' && payload) {
+          const newPing = payload as SharedPing;
+          if (newPing && newPing.tableNumber) {
+            useSharedBridge.setState((state) => {
+              if (state.pings.some((p) => p.id === newPing.id)) return state;
+              return { pings: [newPing, ...state.pings] };
+            });
+          }
+        }
+        if (reason === 'waiterPingResolved' && payload?.pingId) {
+          useSharedBridge.setState((state) => ({
+            pings: state.pings.filter((p) => p.id !== payload.pingId),
+          }));
+        }
+        if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
+          const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const targetTbl = cleanNum(payload.tableNumber);
+          const targetSeat = payload.seatNumber;
+          useSharedBridge.setState((state) => ({
+            pings: state.pings.filter(
+              (p) =>
+                !(
+                  cleanNum(p.tableNumber) === targetTbl &&
+                  (p.type === 'PAYMENT' || p.type === 'BILL') &&
+                  (!targetSeat || p.seatNumber === targetSeat)
+                )
+            ),
+          }));
         }
       }
       if (event.data?.type === 'SYNC_STATE' && event.data.payload) {

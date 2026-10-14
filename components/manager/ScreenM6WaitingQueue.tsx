@@ -88,7 +88,7 @@ export function ScreenM6WaitingQueue() {
                         updateQueueStatus(tk.id, 'PAGED');
                         alert(`SMS Ping sent to ${tk.phone}: 'Your table at Thoogudeepa Biryani is ready!'`);
                       }}
-                      className="bg-[#FAF8F5] border border-slate-300 px-2 py-1 rounded text-[11px] font-bold hover:bg-stone-200 transition"
+                      className="bg-[#FAF8F5] border border-slate-300 px-2 py-1 rounded text-[11px] font-bold text-slate-800 hover:bg-stone-200 transition"
                     >
                       PAGE SMS
                     </button>
@@ -122,7 +122,7 @@ export function ScreenM6WaitingQueue() {
                 onChange={(e) => setGuestName(e.target.value)}
                 placeholder="e.g. Ramesh Gowda"
                 required
-                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none"
+                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs font-bold text-slate-900 focus:outline-none"
               />
             </div>
             <div>
@@ -132,7 +132,7 @@ export function ScreenM6WaitingQueue() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 98450 12345"
-                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none"
+                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs font-bold text-slate-900 focus:outline-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -144,7 +144,7 @@ export function ScreenM6WaitingQueue() {
                   onChange={(e) => setPax(e.target.value)}
                   min="1"
                   max="20"
-                  className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none"
+                  className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs font-bold text-slate-900 focus:outline-none"
                 />
               </div>
               <div>

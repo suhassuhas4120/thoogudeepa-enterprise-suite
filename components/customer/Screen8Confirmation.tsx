@@ -58,6 +58,14 @@ export const Screen8Confirmation: React.FC = () => {
           localStorage.removeItem(`thoogudeepa_customer_session_${effectiveTable}_s${seatNumber}`);
         }
       } catch {}
+
+      // Forward-only browser history lock: prevents back button from dropping diner into cart/tracking
+      window.history.pushState(null, '', window.location.href);
+      const onPopState = () => {
+        window.history.pushState(null, '', window.location.href);
+      };
+      window.addEventListener('popstate', onPopState);
+      return () => window.removeEventListener('popstate', onPopState);
     }
   }, [effectiveTable, seatNumber]);
 
@@ -288,7 +296,17 @@ export const Screen8Confirmation: React.FC = () => {
             }}
           >
             <span style={{ color: currentTheme.colors.textPrimary }}>
-              {payment.paymentMethod === 'CASH' ? 'Cash Payment' : 'UPI Payment'}
+              {(payment.paymentMethod as string) === 'CASH'
+                ? 'Cash Payment'
+                : (payment.paymentMethod as string) === 'UPI_PHONEPE'
+                ? 'PhonePe UPI'
+                : (payment.paymentMethod as string) === 'UPI_GPAY'
+                ? 'Google Pay UPI'
+                : (payment.paymentMethod as string) === 'UPI_PAYTM'
+                ? 'Paytm UPI'
+                : (payment.paymentMethod as string) === 'UPI_QR'
+                ? 'UPI QR Scan'
+                : 'UPI Payment'}
             </span>
             <span style={{ color: currentTheme.colors.textMuted }}>•</span>
             <span>Ref: {bankUtr}</span>
@@ -511,6 +529,17 @@ export const Screen8Confirmation: React.FC = () => {
                   onClick={() => {
                     setRating(star);
                     setFeedbackSubmitted(true);
+                    try {
+                      useSharedBridge.getState().customerPingsWaiter(
+                        effectiveTable,
+                        'FEEDBACK',
+                        guestName || `Guest (Table ${effectiveTable})`,
+                        `⭐ ${star}/5 Stars dining rating received`,
+                        seatNumber || 1
+                      );
+                    } catch (e) {
+                      console.error(e);
+                    }
                   }}
                   className="p-1 hover:scale-110 active:scale-95 transition"
                   aria-label={`Rate ${star} of 5 stars`}

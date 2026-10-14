@@ -167,8 +167,8 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
         !term ||
         hasAliasMatch ||
         lowerName.includes(term) ||
-        item.description.toLowerCase().includes(term) ||
-        item.category.toLowerCase().includes(term) ||
+        (item.description && item.description.toLowerCase().includes(term)) ||
+        (item.category && item.category.toLowerCase().includes(term)) ||
         (item.prepMode && item.prepMode.toLowerCase().includes(term));
 
       const matchesCategory =

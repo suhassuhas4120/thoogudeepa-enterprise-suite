@@ -80,10 +80,13 @@ export const Screen4Cart: React.FC = () => {
       />
 
       <div
-        className="flex-1 overflow-y-auto p-5 space-y-4 pb-8 transition-colors duration-300 relative select-none"
+        className="flex-1 overflow-y-auto p-5 space-y-4 pb-8 transition-colors duration-200 relative select-none gpu-accelerated"
         style={{
           background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
           color: '#FAF7F2',
+          contain: 'content',
+          willChange: 'scroll-position',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {/* Notice Banner */}
@@ -178,8 +181,8 @@ export const Screen4Cart: React.FC = () => {
                     layout
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="rounded-[28px] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] space-y-3.5 transition-all border border-amber-500/20 bg-gradient-to-b from-stone-900/80 to-black/90 backdrop-blur-md"
+                    className="rounded-[28px] p-5 shadow-[0_12px_28px_rgba(0,0,0,0.5)] space-y-3.5 transition-all border border-amber-500/20 bg-gradient-to-b from-[#1C1814] to-[#0E0C0A]"
+                    style={{ contain: 'paint layout', transform: 'translateZ(0)' }}
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">

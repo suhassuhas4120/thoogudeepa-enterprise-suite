@@ -21,6 +21,7 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 body {
@@ -31,6 +32,41 @@ body {
   margin: 0;
   padding: 0;
   -webkit-font-smoothing: antialiased;
+  -webkit-touch-callout: none;
+  overscroll-behavior-y: none;
+}
+
+/* Fix input, textarea, and select text colors globally */
+input,
+textarea,
+select {
+  color: #0F172A !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #94A3B8 !important;
+}
+
+/* Ensure manager portal views and light backgrounds default to dark high-contrast text */
+.manager-portal {
+  color: #0F172A;
+}
+
+.manager-portal button:not([class*="text-"]):not([class*="bg-[#9C3D1E]"]):not([class*="bg-stone-900"]):not([class*="bg-slate-900"]) {
+  color: #0F172A;
+}
+
+.manager-portal span:not([class*="text-"]):not([class*="bg-[#9C3D1E]"]) {
+  color: inherit;
+}
+
+/* GPU Hardware Layer Promotion for Silky Transitions */
+.gpu-accelerated {
+  transform: translateZ(0);
+  backface-visibility: hidden;
+  perspective: 1000px;
+  will-change: transform, opacity;
 }
 
 /* Custom Scrollbars */

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo } from 'react';
 import Image from 'next/image';
-import { useCustomer } from '../../../context/CustomerContext';
+import { useCustomer, useCustomerStore } from '../../../context/CustomerContext';
 import { useCustomerTheme } from '../../../context/ThemeContext';
 import { useSharedBridge } from '../../../store/useSharedBridge';
 import { motion } from 'framer-motion';
@@ -51,6 +51,10 @@ export const Screen1Welcome: React.FC = () => {
   }, [seatNumber]);
 
   const handleEnterSanctuary = () => {
+    if (guestName?.trim()) {
+      setGuestName(guestName.trim());
+    }
+    useCustomerStore.getState().setCurrentScreen(2);
     setCurrentScreen(2);
   };
 
@@ -185,12 +189,14 @@ export const Screen1Welcome: React.FC = () => {
           </div>
 
           {/* Majestic Embossed Amber-Gold Button */}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            whileHover={{ y: -1 }}
+          <button
             type="button"
             onClick={handleEnterSanctuary}
-            className="relative w-full rounded-[32px] py-3.5 px-6 text-center shadow-[0_12px_32px_rgba(180,83,9,0.45)] border transition-all cursor-pointer overflow-hidden active:brightness-95"
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              handleEnterSanctuary();
+            }}
+            className="relative w-full rounded-[32px] py-3.5 px-6 text-center shadow-[0_12px_32px_rgba(180,83,9,0.45)] border transition-all cursor-pointer overflow-hidden active:brightness-95 active:scale-[0.98] touch-manipulation select-none"
             style={{
               background: 'linear-gradient(180deg, #FAD078 0%, #D48C28 45%, #9E5B10 100%)',
               borderColor: 'rgba(253, 230, 138, 0.7)',
@@ -205,7 +211,7 @@ export const Screen1Welcome: React.FC = () => {
             >
               Enter Dining Sanctuary
             </span>
-          </motion.button>
+          </button>
         </motion.div>
 
       </div>

@@ -6,9 +6,12 @@ import { ScreenHousing } from '../../ui/ScreenHousing';
 import { StickyBottomBar } from '../../ui/StickyBottomBar';
 import { Star, Heart, CheckCircle2, MessageSquare, UtensilsCrossed, ArrowLeft, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSharedBridge } from '../../../store/useSharedBridge';
+import { useCustomerStore } from '../../../store/useCustomerStore';
 
 export const Screen12Feedback: React.FC = () => {
   const { navigateTo, tableNumber } = useCustomer();
+  const { guestName, seatNumber } = useCustomerStore();
   const [tasteRating, setTasteRating] = useState(5);
   const [speedRating, setSpeedRating] = useState(5);
   const [serviceRating, setServiceRating] = useState(5);
@@ -170,7 +173,22 @@ export const Screen12Feedback: React.FC = () => {
           </button>
           {!submitted ? (
             <button
-              onClick={() => setSubmitted(true)}
+              onClick={() => {
+                setSubmitted(true);
+                try {
+                  const stars = Math.round((tasteRating + speedRating + serviceRating) / 3);
+                  const note = reviewNote.trim() ? reviewNote.trim() : (selectedChips.length > 0 ? selectedChips.join(', ') : 'Excellent Donne Biryani!');
+                  useSharedBridge.getState().customerPingsWaiter(
+                    tableNumber,
+                    'FEEDBACK',
+                    guestName || `Guest (Table ${tableNumber})`,
+                    `⭐ ${stars}/5 Stars: ${note}`,
+                    seatNumber || 1
+                  );
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
               className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 hover:bg-emerald-700"
             >
               <Send className="h-3.5 w-3.5" />

@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, session: cleanSession });
     }
 
-    if (action === 'CLEAR') {
+    if (action === 'CLEAR' || action === 'CLEAR_SESSION') {
       const tableNumber = body.tableNumber;
       const seatNumber = body.seatNumber;
       if (!tableNumber) {

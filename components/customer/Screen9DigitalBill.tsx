@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -23,6 +23,17 @@ export const Screen9DigitalBill: React.FC = () => {
 
   const [downloadMsg, setDownloadMsg] = useState(false);
   const [shareMsg, setShareMsg] = useState(false);
+
+  // Forward-only browser history lock: keeps customer safely on their invoice
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    window.history.pushState(null, '', window.location.href);
+    const onPopState = () => {
+      window.history.pushState(null, '', window.location.href);
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // Active items: prioritize settledItems from waiter or self payment, then cart
   const activeItems = useMemo(() => {
@@ -200,7 +211,19 @@ export const Screen9DigitalBill: React.FC = () => {
           <div className="flex items-center justify-between rounded-xl bg-emerald-50 border border-emerald-200 p-2.5 text-[11px] text-emerald-800 font-bold">
             <div className="flex items-center gap-1.5">
               <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              <span>Paid via {payment.paymentMethod || 'UPI'}</span>
+              <span>
+                Paid via {(payment.paymentMethod as string) === 'CASH'
+                  ? 'Cash (Paid to Captain)'
+                  : (payment.paymentMethod as string) === 'UPI_PHONEPE'
+                  ? 'PhonePe UPI'
+                  : (payment.paymentMethod as string) === 'UPI_GPAY'
+                  ? 'Google Pay UPI'
+                  : (payment.paymentMethod as string) === 'UPI_PAYTM'
+                  ? 'Paytm UPI'
+                  : (payment.paymentMethod as string) === 'UPI_QR'
+                  ? 'UPI QR Scan'
+                  : 'UPI Online'}
+              </span>
             </div>
             <span className="font-mono text-[10px] text-emerald-700">STATUS: SETTLED</span>
           </div>

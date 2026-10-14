@@ -500,6 +500,17 @@ export const Screen8Confirmation: React.FC = () => {
                   onClick={() => {
                     setRating(star);
                     setFeedbackSubmitted(true);
+                    try {
+                      useSharedBridge.getState().customerPingsWaiter(
+                        effectiveTable,
+                        'FEEDBACK',
+                        guestName || `Guest (Table ${effectiveTable})`,
+                        `⭐ ${star}/5 Stars dining rating received`,
+                        seatNumber || 1
+                      );
+                    } catch (e) {
+                      console.error(e);
+                    }
                   }}
                   className="p-1 hover:scale-110 active:scale-95 transition"
                   aria-label={`Rate ${star} of 5 stars`}

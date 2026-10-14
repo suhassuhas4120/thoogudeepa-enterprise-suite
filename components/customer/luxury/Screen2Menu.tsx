@@ -245,10 +245,13 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
       />
 
       <div
-        className="flex-1 overflow-y-auto flex flex-col transition-colors duration-300 relative select-none"
+        className="flex-1 overflow-y-auto flex flex-col transition-colors duration-200 relative select-none gpu-accelerated"
         style={{
           background: 'radial-gradient(ellipse at top, #1E1914 0%, #110F0D 60%, #0A0908 100%)',
           color: '#FAF7F2',
+          contain: 'content',
+          willChange: 'scroll-position',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {/* Minimal Elegant Gold Search Pill */}
@@ -430,15 +433,18 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                 .reduce((sum, ci) => sum + ci.quantity, 0);
 
               return (
-                <motion.div
+                <div
                   key={item.id}
-                  whileHover={{ y: is86 ? 0 : -3 }}
                   onClick={() => handleOpenDetail(item)}
-                  className={`group relative flex flex-col justify-between rounded-[28px] p-2.5 transition-all border ${
+                  className={`group relative flex flex-col justify-between rounded-[28px] p-2.5 transition-transform duration-200 ease-out border active:scale-[0.98] ${
                     is86
-                      ? 'opacity-50 cursor-not-allowed border-white/5 bg-white/5'
-                      : 'cursor-pointer border-amber-500/20 bg-gradient-to-b from-stone-900/90 to-black/90 shadow-[0_12px_30px_rgba(0,0,0,0.6)] hover:border-amber-400/40 backdrop-blur-md'
+                      ? 'opacity-50 cursor-not-allowed border-white/5 bg-[#141210]'
+                      : 'cursor-pointer border-amber-500/20 bg-gradient-to-b from-[#1C1814] to-[#0E0C0A] shadow-[0_12px_24px_rgba(0,0,0,0.6)] hover:border-amber-400/40'
                   }`}
+                  style={{
+                    contain: 'paint layout',
+                    transform: 'translateZ(0)',
+                  }}
                 >
                   {/* Photo / Illustration Container */}
                   <div className="relative flex h-32 w-full items-center justify-center overflow-hidden rounded-[22px] bg-stone-950">
@@ -540,7 +546,7 @@ export const Screen2Menu: React.FC<Screen2MenuProps> = ({
                       </button>
                     )}
                   </div>
-                </motion.div>
+                </div>
               );
             })}
           </div>

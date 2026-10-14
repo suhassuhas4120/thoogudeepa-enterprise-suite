@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Minus, ChevronLeft, Flame, X, CheckCircle2, Armchair, Ban } from 'lucide-react';
+import { Search, Plus, Minus, ChevronLeft, Flame, X, CheckCircle2, Armchair, Ban, Check } from 'lucide-react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useCustomerStore } from '../../store/useCustomerStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
@@ -191,10 +191,17 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
       return s + (found?.extraPrice || 0);
     }, 0);
     setCart((prev) => {
-      const existing = prev.find((c) => c.itemId === customizingId && c.option === pendingOption);
+      const sameAddOns = (a1: string[], a2: string[]) =>
+        a1.length === a2.length && a1.every((x) => a2.includes(x));
+      const existing = prev.find(
+        (c) =>
+          c.itemId === customizingId &&
+          c.option === pendingOption &&
+          sameAddOns(c.addOns, pendingAddOns)
+      );
       if (existing) {
         return prev.map((c) =>
-          c.itemId === customizingId && c.option === pendingOption
+          c === existing
             ? { ...c, quantity: c.quantity + 1, price: item.price + addOnExtra }
             : c
         );
@@ -219,8 +226,8 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
     );
   };
 
-  const removeFromCart = (itemId: string) => {
-    setCart((prev) => prev.filter((c) => c.itemId !== itemId));
+  const removeFromCart = (index: number) => {
+    setCart((prev) => prev.filter((_, idx) => idx !== index));
   };
 
   const fireKOT = () => {
@@ -430,93 +437,174 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
       {/* Customization sheet */}
       <AnimatePresence>
         {customItem && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-            className="absolute inset-x-0 bottom-0 bg-white border-t-2 border-[#9C3D1E] rounded-t-3xl shadow-2xl z-30 p-5 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-black text-stone-900">{customItem.name}</p>
-                <p className="font-mono text-[10px] text-stone-400">₹{customItem.price}</p>
-              </div>
-              <button type="button" onClick={() => setCustomizingId(null)}
-                className="p-1.5 hover:bg-stone-100 rounded-xl cursor-pointer">
-                <X className="h-4 w-4 text-stone-400" />
-              </button>
-            </div>
+          <>
+            {/* Backdrop for focus & dismiss */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCustomizingId(null)}
+              className="absolute inset-0 bg-stone-950/40 z-20 backdrop-blur-[2px]"
+            />
 
-            {/* Option group 1 */}
-            {customItem.optionsGroup1 && (
-              <div className="space-y-2">
-                <p className="font-mono text-[10px] font-black uppercase tracking-wider text-stone-500">
-                  {customItem.optionsGroup1.title}
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {customItem.optionsGroup1.choices.map((ch) => (
-                    <button
-                      key={ch}
-                      type="button"
-                      onClick={() => setPendingOption(ch)}
-                      className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-left text-[11px] font-bold transition cursor-pointer ${
-                        pendingOption === ch
-                          ? 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E]'
-                          : 'border-[#EAE5DF] bg-[#FAF8F5] text-stone-700 hover:border-stone-300'
-                      }`}
-                    >
-                      <span className={`h-3.5 w-3.5 rounded-full border-2 flex items-center justify-center ${
-                        pendingOption === ch ? 'border-[#9C3D1E]' : 'border-stone-300'
-                      }`}>
-                        {pendingOption === ch && <span className="h-1.5 w-1.5 rounded-full bg-[#9C3D1E]" />}
-                      </span>
-                      {ch}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Add-ons */}
-            {customItem.optionsGroup2?.addOns && (
-              <div className="space-y-2">
-                <p className="font-mono text-[10px] font-black uppercase tracking-wider text-stone-500">
-                  Add-Ons (optional)
-                </p>
-                <div className="flex flex-col gap-1.5">
-                  {customItem.optionsGroup2.addOns.map((ao) => {
-                    const selected = pendingAddOns.includes(ao.name);
-                    return (
-                      <button
-                        key={ao.name}
-                        type="button"
-                        onClick={() => setPendingAddOns((prev) =>
-                          selected ? prev.filter((a) => a !== ao.name) : [...prev, ao.name]
-                        )}
-                        className={`flex items-center justify-between px-3 py-2 rounded-xl border text-[11px] font-bold transition cursor-pointer ${
-                          selected
-                            ? 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E]'
-                            : 'border-[#EAE5DF] bg-[#FAF8F5] text-stone-700 hover:border-stone-300'
-                        }`}
-                      >
-                        <span>{ao.name}</span>
-                        <span>+₹{ao.extraPrice}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={confirmAdd}
-              className="w-full py-3 bg-[#9C3D1E] hover:bg-[#7d3018] text-white rounded-2xl font-mono font-black text-sm transition cursor-pointer"
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+              className="absolute inset-x-0 bottom-0 max-h-[85%] flex flex-col bg-white border-t-2 border-[#9C3D1E] rounded-t-3xl shadow-2xl z-30 p-5 space-y-4"
             >
-              Add to Order
-            </button>
-          </motion.div>
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-[#EAE5DF] shrink-0">
+                <div className="min-w-0 pr-3">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-black text-stone-950 tracking-tight truncate">
+                      {customItem.name}
+                    </h3>
+                    {customItem.badge && (
+                      <span className={`px-2 py-0.5 text-[8px] font-black font-mono rounded-full shrink-0 ${BADGE_COLOR[customItem.badge] || 'bg-stone-500 text-white'}`}>
+                        {customItem.badge}
+                      </span>
+                    )}
+                  </div>
+                  <p className="font-mono text-sm font-black text-[#9C3D1E] mt-0.5">
+                    ₹{customItem.price}
+                    <span className="text-stone-400 text-xs font-normal ml-2">Base Price</span>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCustomizingId(null)}
+                  className="h-8 w-8 rounded-full bg-stone-100 hover:bg-stone-200 flex items-center justify-center text-stone-500 hover:text-stone-900 transition cursor-pointer shrink-0"
+                  title="Close"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              {/* Scrollable Content (Options & Add-ons) */}
+              <div className="flex-1 overflow-y-auto space-y-4 pr-1 py-1 no-scrollbar">
+                {/* Option group 1: Spice Level / Choices */}
+                {customItem.optionsGroup1 && customItem.optionsGroup1.choices?.length > 0 && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <p className="font-mono text-xs font-black uppercase tracking-wider text-stone-700">
+                        {customItem.optionsGroup1.title}
+                      </p>
+                      <span className="text-[10px] font-bold text-stone-500 bg-stone-100 border border-stone-200 px-2.5 py-0.5 rounded-full font-mono">
+                        Select 1
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {customItem.optionsGroup1.choices.map((ch) => {
+                        const isChecked = pendingOption === ch;
+                        return (
+                          <button
+                            key={ch}
+                            type="button"
+                            onClick={() => setPendingOption(isChecked ? '' : ch)}
+                            className={`flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              isChecked
+                                ? 'border-[#9C3D1E] bg-[#FFF8F5] shadow-2xs'
+                                : 'border-[#EAE5DF] bg-[#FAF8F5] hover:border-stone-300'
+                            }`}
+                          >
+                            <span className={`text-sm font-extrabold ${isChecked ? 'text-[#9C3D1E]' : 'text-stone-900'}`}>
+                              {ch}
+                            </span>
+                            <div
+                              className={`h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+                                isChecked
+                                  ? 'border-[#9C3D1E] bg-[#9C3D1E]'
+                                  : 'border-stone-300 bg-white'
+                              }`}
+                            >
+                              {isChecked && (
+                                <Check className="h-3.5 w-3.5 stroke-[3] text-white" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Option group 2: Add-Ons */}
+                {customItem.optionsGroup2?.addOns && customItem.optionsGroup2.addOns.length > 0 && (
+                  <div className="space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <p className="font-mono text-xs font-black uppercase tracking-wider text-stone-700">
+                        {customItem.optionsGroup2.title || 'Add-Ons'}
+                      </p>
+                      <span className="text-[10px] font-bold text-stone-500 bg-stone-100 border border-stone-200 px-2.5 py-0.5 rounded-full font-mono">
+                        Optional
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      {customItem.optionsGroup2.addOns.map((ao) => {
+                        const isSelected = pendingAddOns.includes(ao.name);
+                        return (
+                          <button
+                            key={ao.name}
+                            type="button"
+                            onClick={() =>
+                              setPendingAddOns((prev) =>
+                                isSelected ? prev.filter((a) => a !== ao.name) : [...prev, ao.name]
+                              )
+                            }
+                            className={`flex items-center justify-between px-4 py-3 rounded-xl border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'border-[#9C3D1E] bg-[#FFF8F5] shadow-2xs'
+                                : 'border-[#EAE5DF] bg-[#FAF8F5] hover:border-stone-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                              <span className={`text-sm font-extrabold truncate ${isSelected ? 'text-[#9C3D1E]' : 'text-stone-900'}`}>
+                                {ao.name}
+                              </span>
+                              <span className="text-xs font-mono font-black text-[#9C3D1E] bg-[#9C3D1E]/10 px-2 py-0.5 rounded-md shrink-0">
+                                +₹{ao.extraPrice}
+                              </span>
+                            </div>
+                            <div
+                              className={`h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all ${
+                                isSelected
+                                  ? 'border-[#9C3D1E] bg-[#9C3D1E]'
+                                  : 'border-stone-300 bg-white'
+                              }`}
+                            >
+                              {isSelected && (
+                                <Check className="h-3.5 w-3.5 stroke-[3] text-white" />
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Footer */}
+              <div className="pt-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={confirmAdd}
+                  className="w-full py-3.5 bg-[#9C3D1E] hover:bg-[#7d3018] active:scale-[0.99] text-white rounded-2xl font-mono font-black text-sm transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md"
+                >
+                  <span>Add to Order</span>
+                  <span className="text-orange-200">·</span>
+                  <span className="font-mono">
+                    ₹{customItem.price + pendingAddOns.reduce((s, ao) => {
+                      const found = customItem.optionsGroup2?.addOns?.find((a) => a.name === ao);
+                      return s + (found?.extraPrice || 0);
+                    }, 0)}
+                  </span>
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 
@@ -527,13 +615,20 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
           className="shrink-0 px-4 py-3 bg-white border-t border-[#EAE5DF]"
         >
           {/* Cart preview */}
-          <div className="mb-2 space-y-1 max-h-[80px] overflow-y-auto">
-            {cart.map((c) => (
-              <div key={c.itemId} className="flex items-center justify-between text-xs font-mono">
-                <span className="text-stone-900 font-bold antialiased">{c.name} ×{c.quantity}</span>
-                <div className="flex items-center gap-2">
-                  <span className="text-stone-500">₹{c.price * c.quantity}</span>
-                  <button type="button" onClick={() => removeFromCart(c.itemId)} className="text-stone-300 hover:text-rose-500 transition cursor-pointer">
+          <div className="mb-2 space-y-1.5 max-h-[85px] overflow-y-auto">
+            {cart.map((c, idx) => (
+              <div key={`${c.itemId}-${idx}`} className="flex items-center justify-between text-xs font-mono">
+                <div className="flex flex-col min-w-0 pr-2">
+                  <span className="text-stone-900 font-bold antialiased truncate">{c.name} ×{c.quantity}</span>
+                  {(c.option || c.addOns.length > 0) && (
+                    <span className="text-[10px] text-stone-500 truncate">
+                      {[c.option, ...c.addOns].filter(Boolean).join(', ')}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-stone-700 font-bold">₹{c.price * c.quantity}</span>
+                  <button type="button" onClick={() => removeFromCart(idx)} className="text-stone-300 hover:text-rose-500 transition cursor-pointer p-0.5">
                     <X className="h-3 w-3" />
                   </button>
                 </div>

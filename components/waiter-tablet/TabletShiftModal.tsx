@@ -318,22 +318,59 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
               </div>
 
               {/* 3. Restaurant-Wide Floor Scope (34 Tables) & Kitchen Speed */}
-              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-4.5 space-y-3 shadow-2xs">
-                <div className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <Users className="h-4 w-4 text-[#9C3D1E]" />
-                    <span className="font-bold text-stone-900">Entire Floor Context:</span>
-                    <span className="text-stone-600">
-                      {totalTables} Tables Total · {totalOccupied} Occupied · {totalBilling} Billing · {totalVacant} Vacant
+              <div className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-2xl p-5 shadow-2xs space-y-3.5">
+                {/* Header Row */}
+                <div className="flex items-center justify-between pb-3 border-b border-[#EAE5DF]">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="h-8 w-8 rounded-xl bg-[#9C3D1E]/10 text-[#9C3D1E] flex items-center justify-center shrink-0">
+                      <Users className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-stone-900 uppercase tracking-wider block">
+                        Entire Restaurant Floor Scope
+                      </span>
+                      <p className="text-[11px] text-stone-500">
+                        All 34 tables across 5 dining zones
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-xs font-extrabold text-[#9C3D1E] block">
+                      ₹{totalActiveBill.toLocaleString()}
+                    </span>
+                    <span className="text-[10px] text-stone-500">
+                      Active floor bill
                     </span>
                   </div>
-                  <span className="font-bold text-[#9C3D1E]">
-                    ₹{totalActiveBill.toLocaleString()} active on floor
-                  </span>
                 </div>
 
+                {/* 3 Balanced Summary Pills: Total Occupied, Total Billing, Total Vacant */}
+                <div className="grid grid-cols-3 gap-2.5">
+                  <div className="bg-white p-2.5 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
+                    <span className="text-[11px] text-stone-500 font-medium">Occupied</span>
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                      {totalOccupied} Tables
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
+                    <span className="text-[11px] text-stone-500 font-medium">Billing</span>
+                    <span className="text-xs font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded border border-purple-200">
+                      {totalBilling} Tables
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-[#EAE5DF] flex items-center justify-between">
+                    <span className="text-[11px] text-stone-500 font-medium">Vacant</span>
+                    <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      {totalVacant} Tables
+                    </span>
+                  </div>
+                </div>
+
+                {/* Kitchen Pass & Staff Tips Sub-bar */}
                 <div className="pt-3 border-t border-[#EAE5DF] flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <div
                       className={`h-9 w-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
                         readyTickets.length > 0
@@ -343,26 +380,26 @@ export function TabletShiftModal({ open, onClose, captainName, sectionName }: Pr
                     >
                       {readyTickets.length}
                     </div>
-                    <div>
-                      <div className="flex items-center gap-1.5">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-stone-900">Kitchen Pass</span>
                         <span
-                          className={`px-1.5 py-0.2 rounded-full text-[9.5px] font-bold border ${
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
                             readyTickets.length > 0
-                              ? 'bg-amber-50 text-amber-800 border-amber-200'
+                              ? 'bg-amber-100 text-amber-900 border-amber-200'
                               : 'bg-emerald-50 text-emerald-800 border-emerald-200'
                           }`}
                         >
-                          {readyTickets.length > 0 ? `${readyTickets.length} Ready` : 'Clear'}
+                          {readyTickets.length > 0 ? `${readyTickets.length} Dishes Ready` : 'Pass Clear'}
                         </span>
                       </div>
-                      <p className="text-[11px] text-stone-500">
-                        Avg turnaround: {shiftStats?.avgTurnaroundMinutes || 38} mins per table
+                      <p className="text-[11px] text-stone-500 mt-0.5 truncate">
+                        Avg table turnaround: {shiftStats?.avgTurnaroundMinutes || 38} mins
                       </p>
                     </div>
                   </div>
 
-                  <div className="text-right pl-4 border-l border-[#EAE5DF]">
+                  <div className="text-right pl-4 border-l border-[#EAE5DF] shrink-0">
                     <span className="text-[10px] text-stone-400 font-semibold uppercase tracking-wider block">
                       Staff Tips
                     </span>

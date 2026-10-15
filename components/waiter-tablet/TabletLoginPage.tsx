@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Utensils,
   ChevronRight,
@@ -12,8 +12,8 @@ import {
   Layers,
   Sparkles,
   ShieldCheck,
-  RotateCcw
-} from 'lucide-react';
+  RotateCcw,
+} from "lucide-react";
 
 interface Props {
   onLogin: (captainName: string, section?: string) => void;
@@ -21,59 +21,59 @@ interface Props {
 
 // Ready Steward Names starting with Section A Shiva, then Manja, Suhas, Nayana
 const QUICK_STEWARDS = [
-  { name: 'Shiva', sec: 'Section A' },
-  { name: 'Manja', sec: 'Section B' },
-  { name: 'Suhas', sec: 'Section C' },
-  { name: 'Nayana', sec: 'Section D' },
+  { name: "Shiva", sec: "Section A" },
+  { name: "Manja", sec: "Section B" },
+  { name: "Suhas", sec: "Section C" },
+  { name: "Nayana", sec: "Section D" },
 ];
 
 const PIN_STEWARD_MAP: Record<string, { name: string; sec: string }> = {
-  '1111': { name: 'Shiva', sec: 'Section A' },
-  '2222': { name: 'Manja', sec: 'Section B' },
-  '3333': { name: 'Suhas', sec: 'Section C' },
-  '4444': { name: 'Nayana', sec: 'Section D' },
+  "1111": { name: "Shiva", sec: "Section A" },
+  "2222": { name: "Manja", sec: "Section B" },
+  "3333": { name: "Suhas", sec: "Section C" },
+  "4444": { name: "Nayana", sec: "Section D" },
 };
 
 const SECTIONS = [
-  { id: 'ALL', label: 'ALL SECTIONS' },
-  { id: 'Section A', label: 'Section A' },
-  { id: 'Section B', label: 'Section B' },
-  { id: 'Section C', label: 'Section C' },
-  { id: 'Section D', label: 'Section D' },
+  { id: "ALL", label: "ALL SECTIONS" },
+  { id: "Section A", label: "Section A" },
+  { id: "Section B", label: "Section B" },
+  { id: "Section C", label: "Section C" },
+  { id: "Section D", label: "Section D" },
 ];
 
 export function TabletLoginPage({ onLogin }: Props) {
-  const [waiterName, setWaiterName] = useState<string>('');
-  const [selectedSection, setSelectedSection] = useState<string>('ALL');
-  const [pin, setPin] = useState<string>('');
-  const [error, setError] = useState<string>('');
+  const [waiterName, setWaiterName] = useState<string>("");
+  const [selectedSection, setSelectedSection] = useState<string>("ALL");
+  const [pin, setPin] = useState<string>("");
+  const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleSelectQuickSteward = (steward: typeof QUICK_STEWARDS[0]) => {
+  const handleSelectQuickSteward = (steward: (typeof QUICK_STEWARDS)[0]) => {
     // Autofill the name input section and assign corresponding section
     setWaiterName(steward.name);
     setSelectedSection(steward.sec);
-    setError('');
+    setError("");
   };
 
   const handleDigit = (d: string) => {
     if (pin.length >= 4 || success) return;
     const nextPin = pin + d;
     setPin(nextPin);
-    setError('');
+    setError("");
   };
 
   const handleDelete = () => {
     if (success) return;
     setPin((p) => p.slice(0, -1));
-    setError('');
+    setError("");
   };
 
   const handleClear = () => {
     if (success) return;
-    setPin('');
-    setError('');
+    setPin("");
+    setError("");
   };
 
   const executeLogin = (finalPin: string) => {
@@ -84,9 +84,9 @@ export function TabletLoginPage({ onLogin }: Props) {
     if (finalPin in PIN_STEWARD_MAP) {
       const mapped = PIN_STEWARD_MAP[finalPin];
       if (!effectiveName) effectiveName = mapped.name;
-      if (effectiveSec === 'ALL') effectiveSec = mapped.sec;
+      if (effectiveSec === "ALL") effectiveSec = mapped.sec;
       setSuccess(true);
-      setError('');
+      setError("");
       setTimeout(() => {
         onLogin(effectiveName, effectiveSec);
       }, 700);
@@ -94,24 +94,24 @@ export function TabletLoginPage({ onLogin }: Props) {
     }
 
     if (!effectiveName) {
-      setError('Please enter or select a name.');
+      setError("Please enter or select a name.");
       inputRef.current?.focus();
       return;
     }
 
     const trimmed = effectiveName;
     // Universal PIN 1234
-    if (finalPin === '1234') {
+    if (finalPin === "1234") {
       setSuccess(true);
-      setError('');
+      setError("");
       setTimeout(() => {
         onLogin(trimmed, selectedSection);
       }, 700);
     } else {
-      setError('Invalid PIN code. Use default 1234');
+      setError("Invalid PIN code. Use default 1234");
       setTimeout(() => {
-        setPin('');
-        setError('');
+        setPin("");
+        setError("");
       }, 1200);
     }
   };
@@ -125,9 +125,9 @@ export function TabletLoginPage({ onLogin }: Props) {
   }, [pin]);
 
   const numpadDigits = [
-    ['1', '2', '3'],
-    ['4', '5', '6'],
-    ['7', '8', '9'],
+    ["1", "2", "3"],
+    ["4", "5", "6"],
+    ["7", "8", "9"],
   ];
 
   return (
@@ -139,9 +139,9 @@ export function TabletLoginPage({ onLogin }: Props) {
           className="absolute inset-0 opacity-10 pointer-events-none"
           style={{
             backgroundImage:
-              'radial-gradient(#FFF 1px, transparent 1px), radial-gradient(#FFF 1px, #1C1917 1px)',
-            backgroundSize: '24px 24px',
-            backgroundPosition: '0 0, 12px 12px',
+              "radial-gradient(#FFF 1px, transparent 1px), radial-gradient(#FFF 1px, #1C1917 1px)",
+            backgroundSize: "24px 24px",
+            backgroundPosition: "0 0, 12px 12px",
           }}
         />
 
@@ -153,15 +153,19 @@ export function TabletLoginPage({ onLogin }: Props) {
               Live Terminal
             </span>
           </div>
-          <span className="font-mono text-[11px] font-bold text-stone-400 border border-stone-800 bg-stone-900/80 px-2.5 py-1 rounded-xl">
+          {/* <span className="font-mono text-[11px] font-bold text-stone-400 border border-stone-800 bg-stone-900/80 px-2.5 py-1 rounded-xl">
             Console v2.4
-          </span>
+          </span> */}
         </div>
 
         {/* Center Hotel Identity */}
         <div className="relative z-10 space-y-4 my-auto">
-          <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-[#9C3D1E] to-[#7B2E15] flex items-center justify-center shadow-2xl border-2 border-[#D28835]/50">
-            <Utensils className="h-10 w-10 text-amber-200 stroke-[2.2]" />
+          <div className="relative">
+            <img
+              src="/assets/thoogudeepa-logo.png"
+              alt="Thoogudeepa Donne Biryani Mane"
+              className="h-20 w-20 rounded-full object-cover shadow-2xl border-2 border-[#D28835]/50"
+            />
           </div>
 
           <div>
@@ -169,25 +173,30 @@ export function TabletLoginPage({ onLogin }: Props) {
               Floor Captain Console
             </p>
             <h1 className="text-3xl font-black text-white tracking-tight mt-1 leading-tight">
-              Thoogudeepa<br />Donne Biryani Mane
+              Thoogudeepa
+              <br />
+              Donne Biryani Mane
             </h1>
             <p className="text-stone-400 text-xs font-mono mt-2 leading-relaxed">
-              High-throughput table management, KDS ordering &amp; instant cashier terminal.
+              High-throughput table management, KDS ordering &amp; instant
+              cashier terminal.
             </p>
           </div>
 
           {/* Quick Metrics Bar */}
           <div className="grid grid-cols-3 gap-2.5 pt-4">
             {[
-              { label: 'Tables', val: '32' },
-              { label: 'Sections', val: '4' },
-              { label: 'Capacity', val: '138' },
+              { label: "Tables", val: "32" },
+              { label: "Sections", val: "4" },
+              { label: "Capacity", val: "138" },
             ].map((m) => (
               <div
                 key={m.label}
                 className="bg-stone-900/90 border border-stone-800 rounded-2xl p-3 text-center"
               >
-                <p className="text-xl font-black text-amber-400 font-mono">{m.val}</p>
+                <p className="text-xl font-black text-amber-400 font-mono">
+                  {m.val}
+                </p>
                 <p className="text-[10px] font-mono font-bold text-stone-400 uppercase tracking-wider mt-0.5">
                   {m.label}
                 </p>
@@ -202,7 +211,7 @@ export function TabletLoginPage({ onLogin }: Props) {
             <ShieldCheck className="h-4 w-4 text-emerald-400" />
             <span>Authorized Captain Access</span>
           </div>
-          <span className="font-bold text-stone-400">POS Console</span>
+          {/* <span className="font-bold text-stone-400">POS Console</span> */}
         </div>
       </div>
 
@@ -224,7 +233,8 @@ export function TabletLoginPage({ onLogin }: Props) {
             {/* Quick Name Pills (Shiva, Manja, Suhas, Nayana) */}
             <div className="grid grid-cols-4 gap-2">
               {QUICK_STEWARDS.map((st) => {
-                const isSelected = waiterName.toLowerCase() === st.name.toLowerCase();
+                const isSelected =
+                  waiterName.toLowerCase() === st.name.toLowerCase();
                 return (
                   <button
                     key={st.name}
@@ -232,8 +242,8 @@ export function TabletLoginPage({ onLogin }: Props) {
                     onClick={() => handleSelectQuickSteward(st)}
                     className={`py-2 px-2.5 rounded-xl font-mono text-xs font-bold border-2 transition cursor-pointer text-center truncate ${
                       isSelected
-                        ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                        : 'bg-white text-stone-700 border-stone-300 hover:border-stone-400 hover:bg-stone-50'
+                        ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs"
+                        : "bg-white text-stone-700 border-stone-300 hover:border-stone-400 hover:bg-stone-50"
                     }`}
                   >
                     <span>{st.name}</span>
@@ -250,7 +260,7 @@ export function TabletLoginPage({ onLogin }: Props) {
                 value={waiterName}
                 onChange={(e) => {
                   setWaiterName(e.target.value);
-                  if (error) setError('');
+                  if (error) setError("");
                 }}
                 placeholder="Enter name"
                 className="w-full px-4 py-3 bg-white border-2 border-stone-300 focus:border-[#9C3D1E] rounded-2xl text-sm font-mono font-black text-stone-900 placeholder:text-stone-400 focus:outline-none shadow-xs transition"
@@ -269,15 +279,15 @@ export function TabletLoginPage({ onLogin }: Props) {
               {/* Row 1: ALL Sections */}
               <button
                 type="button"
-                onClick={() => setSelectedSection('ALL')}
+                onClick={() => setSelectedSection("ALL")}
                 className={`w-full py-2.5 px-4 rounded-xl border-2 font-mono text-xs font-black transition cursor-pointer flex items-center justify-between ${
-                  selectedSection === 'ALL'
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                    : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                  selectedSection === "ALL"
+                    ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs"
+                    : "bg-white text-stone-700 border-stone-300 hover:bg-stone-50"
                 }`}
               >
                 <span>ALL SECTIONS</span>
-                {selectedSection === 'ALL' && (
+                {selectedSection === "ALL" && (
                   <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full font-bold">
                     Active
                   </span>
@@ -286,7 +296,7 @@ export function TabletLoginPage({ onLogin }: Props) {
 
               {/* Rows 2 & 3: Section A, B, C, D */}
               <div className="grid grid-cols-2 gap-2">
-                {SECTIONS.filter((s) => s.id !== 'ALL').map((sec) => {
+                {SECTIONS.filter((s) => s.id !== "ALL").map((sec) => {
                   const isSecSelected = selectedSection === sec.id;
                   return (
                     <button
@@ -295,12 +305,14 @@ export function TabletLoginPage({ onLogin }: Props) {
                       onClick={() => setSelectedSection(sec.id)}
                       className={`py-2 px-3 rounded-xl border-2 font-mono text-xs font-bold transition cursor-pointer flex items-center justify-between ${
                         isSecSelected
-                          ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
-                          : 'bg-white text-stone-700 border-stone-300 hover:bg-stone-50'
+                          ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs"
+                          : "bg-white text-stone-700 border-stone-300 hover:bg-stone-50"
                       }`}
                     >
                       <span className="truncate">{sec.label}</span>
-                      {isSecSelected && <CheckCircle2 className="h-3.5 w-3.5 text-white shrink-0 ml-1" />}
+                      {isSecSelected && (
+                        <CheckCircle2 className="h-3.5 w-3.5 text-white shrink-0 ml-1" />
+                      )}
                     </button>
                   );
                 })}
@@ -327,21 +339,19 @@ export function TabletLoginPage({ onLogin }: Props) {
                   <motion.div
                     key={idx}
                     animate={
-                      pin.length === idx + 1
-                        ? { scale: [1, 1.15, 1] }
-                        : {}
+                      pin.length === idx + 1 ? { scale: [1, 1.15, 1] } : {}
                     }
                     className={`h-12 w-14 rounded-2xl border-2 flex items-center justify-center font-mono font-black text-xl transition ${
                       filled
                         ? success
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700'
+                          ? "border-emerald-500 bg-emerald-50 text-emerald-700"
                           : error
-                          ? 'border-rose-500 bg-rose-50 text-rose-700'
-                          : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E]'
-                        : 'border-stone-300 bg-white text-stone-400'
+                            ? "border-rose-500 bg-rose-50 text-rose-700"
+                            : "border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E]"
+                        : "border-stone-300 bg-white text-stone-400"
                     }`}
                   >
-                    {filled ? '●' : ''}
+                    {filled ? "●" : ""}
                   </motion.div>
                 );
               })}
@@ -359,7 +369,7 @@ export function TabletLoginPage({ onLogin }: Props) {
                   >
                     {d}
                   </button>
-                ))
+                )),
               )}
 
               {/* Bottom Row: Clear, 0, Backspace */}
@@ -373,7 +383,7 @@ export function TabletLoginPage({ onLogin }: Props) {
 
               <button
                 type="button"
-                onClick={() => handleDigit('0')}
+                onClick={() => handleDigit("0")}
                 className="h-12 rounded-2xl bg-white border-2 border-stone-300 hover:border-stone-400 active:bg-stone-100 font-mono font-black text-lg text-stone-900 transition cursor-pointer shadow-2xs active:scale-95 flex items-center justify-center"
               >
                 0
@@ -394,12 +404,12 @@ export function TabletLoginPage({ onLogin }: Props) {
         <div className="max-w-xl mx-auto w-full pt-4">
           <button
             type="button"
-            onClick={() => executeLogin(pin || '1234')}
+            onClick={() => executeLogin(pin || "1234")}
             disabled={success}
             className={`w-full py-4 rounded-2xl font-mono font-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md ${
               success
-                ? 'bg-emerald-600 text-white'
-                : 'bg-[#9C3D1E] hover:bg-[#7d3018] text-white active:scale-98'
+                ? "bg-emerald-600 text-white"
+                : "bg-[#9C3D1E] hover:bg-[#7d3018] text-white active:scale-98"
             }`}
           >
             {success ? (

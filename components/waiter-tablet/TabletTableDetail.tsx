@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState } from "react";
+import { motion } from "framer-motion";
 import {
   ChevronLeft,
   Users,
@@ -17,16 +17,16 @@ import {
   Split,
   Sparkles,
   CheckCircle2,
-  X
-} from 'lucide-react';
-import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
-import { useCustomer } from '../../context/CustomerContext';
-import { formatSectionName } from './TabletFloorMap';
+  X,
+} from "lucide-react";
+import { useSharedBridge, SharedTable } from "../../store/useSharedBridge";
+import { useCustomer } from "../../context/CustomerContext";
+import { formatSectionName } from "./TabletFloorMap";
 
 interface Props {
   tableNum: string;
-  selectedChair: 'ALL' | number | string;
-  onSelectChair: (c: 'ALL' | number | string) => void;
+  selectedChair: "ALL" | number | string;
+  onSelectChair: (c: "ALL" | number | string) => void;
   onBackToFloor: () => void;
   onAddDishes: (chairNum?: number) => void;
   onSettle: () => void;
@@ -35,38 +35,44 @@ interface Props {
   onMerge: () => void;
   onVacate: () => void;
   /** Which right panel is currently active — hides the redundant action button */
-  activePanelTab?: 'menu' | 'payment';
+  activePanelTab?: "menu" | "payment";
 }
 
-function statusBadge(status: SharedTable['status']) {
+function statusBadge(status: SharedTable["status"]) {
   switch (status) {
-    case 'OCCUPIED':
-      return 'text-white bg-amber-600 border-amber-700 shadow-2xs';
-    case 'BILLING':
-      return 'text-white bg-purple-700 border-purple-800 shadow-2xs';
-    case 'CLEANING':
-      return 'text-stone-900 bg-stone-300 border-stone-400 shadow-2xs';
+    case "OCCUPIED":
+      return "text-white bg-amber-600 border-amber-700 shadow-2xs";
+    case "BILLING":
+      return "text-white bg-purple-700 border-purple-800 shadow-2xs";
+    case "CLEANING":
+      return "text-stone-900 bg-stone-300 border-stone-400 shadow-2xs";
     default:
-      return 'text-white bg-emerald-600 border-emerald-700 shadow-2xs';
+      return "text-white bg-emerald-600 border-emerald-700 shadow-2xs";
   }
 }
 
-function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) {
-  if (stage === 'Received' || stage === 'RECEIVED') {
+function StagePill({
+  stage,
+  onServe,
+}: {
+  stage: string;
+  onServe?: () => void;
+}) {
+  if (stage === "Received" || stage === "RECEIVED") {
     return (
       <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
         Received
       </span>
     );
   }
-  if (stage === 'Cooking' || stage === 'PREP' || stage === 'Preparing') {
+  if (stage === "Cooking" || stage === "PREP" || stage === "Preparing") {
     return (
       <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
         Preparing
       </span>
     );
   }
-  if (stage === 'Ready' || stage === 'PLATED') {
+  if (stage === "Ready" || stage === "PLATED") {
     return (
       <motion.button
         type="button"
@@ -82,7 +88,7 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
       </motion.button>
     );
   }
-  if (stage === 'Served' || stage === 'SERVED') {
+  if (stage === "Served" || stage === "SERVED") {
     return (
       <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
         <span>Served</span>
@@ -97,8 +103,8 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
 }
 
 function getElapsed(seatedTime: string): number {
-  if (!seatedTime || seatedTime === '--') return 0;
-  const parts = seatedTime.split(':');
+  if (!seatedTime || seatedTime === "--") return 0;
+  const parts = seatedTime.split(":");
   if (parts.length < 2) return 0;
   const now = new Date();
   const seated = new Date();
@@ -109,9 +115,9 @@ function getElapsed(seatedTime: string): number {
 }
 
 function elapsedColor(mins: number) {
-  if (mins < 35) return 'text-emerald-900 bg-emerald-100 border-emerald-300';
-  if (mins < 55) return 'text-amber-900 bg-amber-100 border-amber-300';
-  return 'text-rose-900 bg-rose-100 border-rose-300 animate-pulse font-black';
+  if (mins < 35) return "text-emerald-900 bg-emerald-100 border-emerald-300";
+  if (mins < 55) return "text-amber-900 bg-amber-100 border-amber-300";
+  return "text-rose-900 bg-rose-100 border-rose-300 animate-pulse font-black";
 }
 
 export function TabletTableDetail({
@@ -139,11 +145,15 @@ export function TabletTableDetail({
   const { cart, addToCart } = useCustomer();
 
   // ── Drag & Drop & Chair Merging State ──
-  const [dragOverTarget, setDragOverTarget] = useState<'ALL' | number | string | null>(null);
-  const [dragType, setDragType] = useState<'dish' | 'chair' | null>(null);
+  const [dragOverTarget, setDragOverTarget] = useState<
+    "ALL" | number | string | null
+  >(null);
+  const [dragType, setDragType] = useState<"dish" | "chair" | null>(null);
   const [isPanelDragOver, setIsPanelDragOver] = useState(false);
   const [mergeChairMode, setMergeChairMode] = useState(false);
-  const [chairsSelectedForMerge, setChairsSelectedForMerge] = useState<number[]>([]);
+  const [chairsSelectedForMerge, setChairsSelectedForMerge] = useState<
+    number[]
+  >([]);
 
   const table = tables.find((t) => t.number === tableNum);
   if (!table) {
@@ -155,20 +165,21 @@ export function TabletTableDetail({
     );
   }
 
-  const isVacant = table.status === 'VACANT';
+  const isVacant = table.status === "VACANT";
   const elapsed = getElapsed(table.seatedTime);
   const groupPeers =
-    table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
+    table.mergeGroupPeers ||
+    (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
   const totalCapacity = groupPeers.reduce(
     (s, p) => s + (tables.find((t) => t.number === p)?.capacity || 2),
-    0
+    0,
   );
   const tickets = isVacant
     ? []
     : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
 
   const allItems = tickets.flatMap((tk) =>
-    tk.items.map((item) => ({ ...item, tableNum: tk.tableNumber }))
+    tk.items.map((item) => ({ ...item, tableNum: tk.tableNumber })),
   );
 
   const allFiredItems = allItems;
@@ -177,7 +188,7 @@ export function TabletTableDetail({
     !isVacant &&
     hasFiredItems &&
     allFiredItems.every(
-      (it) => it.stage === 'SERVED' || (it.stage as string) === 'Served'
+      (it) => it.stage === "SERVED" || (it.stage as string) === "Served",
     );
 
   const mergedSeatGroups = table.mergedSeatGroups || {};
@@ -186,56 +197,74 @@ export function TabletTableDetail({
   // Chairs available
   const chairs = Array.from(
     { length: Math.max(totalCapacity, table.guestCount || 1) },
-    (_, i) => i + 1
+    (_, i) => i + 1,
   );
 
   // Scoped draft items from live cart for this table
   const allTableDraftItems = cart.filter(
-    (c) => !c.tableNumber || groupPeers.includes(c.tableNumber)
+    (c) => !c.tableNumber || groupPeers.includes(c.tableNumber),
   );
-  const allTableDraftSubtotal = allTableDraftItems.reduce((s, it) => s + it.totalPrice, 0);
+  const allTableDraftSubtotal = allTableDraftItems.reduce(
+    (s, it) => s + it.totalPrice,
+    0,
+  );
 
   // Table total bill
-  const firedSubtotal = allItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
-  const totalTableBill = Math.max(table.currentBill || 0, firedSubtotal) + allTableDraftSubtotal;
+  const firedSubtotal = allItems.reduce(
+    (s, it) => s + (it.price || 0) * it.quantity,
+    0,
+  );
+  const totalTableBill =
+    Math.max(table.currentBill || 0, firedSubtotal) + allTableDraftSubtotal;
 
   // Selected chair's target seats
   const targetSeats: number[] =
-    selectedChair === 'ALL'
+    selectedChair === "ALL"
       ? []
-      : typeof selectedChair === 'number'
-      ? [selectedChair]
-      : typeof selectedChair === 'string' && mergedSeatGroups[selectedChair]
-      ? mergedSeatGroups[selectedChair]
-      : [];
+      : typeof selectedChair === "number"
+        ? [selectedChair]
+        : typeof selectedChair === "string" && mergedSeatGroups[selectedChair]
+          ? mergedSeatGroups[selectedChair]
+          : [];
 
   const displayItems =
-    selectedChair === 'ALL'
+    selectedChair === "ALL"
       ? allItems
-      : allItems.filter((it) => it.seatNumber && targetSeats.includes(it.seatNumber));
+      : allItems.filter(
+          (it) => it.seatNumber && targetSeats.includes(it.seatNumber),
+        );
 
   const draftItems =
-    selectedChair === 'ALL'
+    selectedChair === "ALL"
       ? allTableDraftItems
-      : allTableDraftItems.filter((c) => c.seatNumber && targetSeats.includes(c.seatNumber));
+      : allTableDraftItems.filter(
+          (c) => c.seatNumber && targetSeats.includes(c.seatNumber),
+        );
   const draftSubtotal = draftItems.reduce((s, it) => s + it.totalPrice, 0);
 
   // Target chair bill
   let targetChairBill = 0;
-  let chairLabel = 'Total Bill Due';
-  if (selectedChair === 'ALL') {
+  let chairLabel = "Total Bill Due";
+  if (selectedChair === "ALL") {
     targetChairBill = totalTableBill;
-    chairLabel = 'Total Bill Due';
+    chairLabel = "Total Bill Due";
   } else {
     chairLabel =
-      typeof selectedChair === 'number'
+      typeof selectedChair === "number"
         ? `Chair ${selectedChair} Bill`
         : `${selectedChair} Bill`;
-    const chairFiredSub = displayItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+    const chairFiredSub = displayItems.reduce(
+      (s, it) => s + (it.price || 0) * it.quantity,
+      0,
+    );
     const chairTotal = chairFiredSub + draftSubtotal;
     if (chairTotal > 0) {
       targetChairBill = chairTotal;
-    } else if (totalTableBill > 0 && allItems.length === 0 && allTableDraftSubtotal === 0) {
+    } else if (
+      totalTableBill > 0 &&
+      allItems.length === 0 &&
+      allTableDraftSubtotal === 0
+    ) {
       const guestCount = Math.max(1, table.guestCount || totalCapacity);
       targetChairBill = Math.round(totalTableBill / guestCount);
     } else {
@@ -244,16 +273,18 @@ export function TabletTableDetail({
   }
 
   // Food serving validation for settlement
-  const relevantItems = selectedChair === 'ALL' ? allItems : displayItems;
-  const relevantDrafts = selectedChair === 'ALL' ? allTableDraftItems : draftItems;
-  const billToSettle = selectedChair === 'ALL' ? totalTableBill : targetChairBill;
+  const relevantItems = selectedChair === "ALL" ? allItems : displayItems;
+  const relevantDrafts =
+    selectedChair === "ALL" ? allTableDraftItems : draftItems;
+  const billToSettle =
+    selectedChair === "ALL" ? totalTableBill : targetChairBill;
 
   // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
   const hasItemsToSettle = relevantItems.length > 0;
   const areAllRelevantItemsServed =
     hasItemsToSettle &&
     relevantItems.every(
-      (it) => it.stage === 'SERVED' || (it.stage as string) === 'Served'
+      (it) => it.stage === "SERVED" || (it.stage as string) === "Served",
     );
 
   // Settle is enabled ONLY AFTER all items have been served, with no pending drafts, and bill > 0
@@ -266,7 +297,7 @@ export function TabletTableDetail({
   const handleConfirmMergeSelectedChairs = () => {
     if (chairsSelectedForMerge.length < 2) return;
     const sorted = [...chairsSelectedForMerge].sort((a, b) => a - b);
-    const groupKey = `Chairs ${sorted.join(' & ')}`;
+    const groupKey = `Chairs ${sorted.join(" & ")}`;
     waiterMergeSeatGroup(tableNum, groupKey, sorted);
     setMergeChairMode(false);
     setChairsSelectedForMerge([]);
@@ -278,7 +309,7 @@ export function TabletTableDetail({
       onDragOver={(e) => {
         e.preventDefault();
         if ((window as any).__draggedMenuItem) {
-          if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
           if (!isPanelDragOver) setIsPanelDragOver(true);
         }
       }}
@@ -293,14 +324,14 @@ export function TabletTableDetail({
         if (item) {
           (window as any).__draggedMenuItem = null;
           const targetSeat =
-            typeof selectedChair === 'number'
+            typeof selectedChair === "number"
               ? selectedChair
               : targetSeats.length > 0
-              ? targetSeats[0]
-              : undefined;
+                ? targetSeats[0]
+                : undefined;
           addToCart(item, undefined, undefined, 1);
           if (isVacant) {
-            waiterSeatsGuests(tableNum, 1, 'Floor Captain');
+            waiterSeatsGuests(tableNum, 1, "Floor Captain");
           }
         }
       }}
@@ -318,7 +349,10 @@ export function TabletTableDetail({
                 Drop anywhere to add dish
               </p>
               <p className="text-base font-black text-stone-900 mt-0.5">
-                Adding to {selectedChair === 'ALL' ? `Table ${tableNum} (General)` : `${chairLabel}`}
+                Adding to{" "}
+                {selectedChair === "ALL"
+                  ? `Table ${tableNum} (General)`
+                  : `${chairLabel}`}
               </p>
             </div>
           </div>
@@ -346,7 +380,7 @@ export function TabletTableDetail({
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <h2 className="text-3xl font-black text-stone-950 tracking-tight font-mono">
-                  {groupPeers.length > 1 ? groupPeers.join(' + ') : tableNum}
+                  {groupPeers.length > 1 ? groupPeers.join(" + ") : tableNum}
                 </h2>
                 {allFoodServed ? (
                   <span className="px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300 shadow-2xs">
@@ -355,7 +389,7 @@ export function TabletTableDetail({
                 ) : (
                   <span
                     className={`px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider ${statusBadge(
-                      table.status
+                      table.status,
                     )}`}
                   >
                     {table.status}
@@ -369,7 +403,8 @@ export function TabletTableDetail({
                 )}
               </div>
               <p className="font-mono text-xs text-stone-700 mt-1 font-bold">
-                {formatSectionName(table.section, table.number)} · Maximum Capacity: {totalCapacity} Seats
+                {formatSectionName(table.section, table.number)} · Maximum
+                Capacity: {totalCapacity} Seats
               </p>
             </div>
           </div>
@@ -383,7 +418,7 @@ export function TabletTableDetail({
               {elapsed > 0 && (
                 <div
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-black ${elapsedColor(
-                    elapsed
+                    elapsed,
                   )}`}
                 >
                   <Clock className="h-4 w-4" />
@@ -418,12 +453,12 @@ export function TabletTableDetail({
             }}
             className={`font-mono text-[11px] font-black px-3 py-1 rounded-xl border transition flex items-center gap-1.5 cursor-pointer shadow-2xs ${
               mergeChairMode
-                ? 'bg-purple-700 text-white border-purple-800'
-                : 'bg-purple-50 text-purple-900 border-purple-300 hover:bg-purple-100'
+                ? "bg-purple-700 text-white border-purple-800"
+                : "bg-purple-50 text-purple-900 border-purple-300 hover:bg-purple-100"
             }`}
           >
             <Link2 className="h-3 w-3" />
-            <span>{mergeChairMode ? 'Cancel Merge' : 'Merge Chairs'}</span>
+            <span>{mergeChairMode ? "Cancel Merge" : "Merge Chairs"}</span>
           </button>
         </div>
 
@@ -432,8 +467,8 @@ export function TabletTableDetail({
           <div className="mb-2.5 p-2.5 bg-purple-50 border-2 border-purple-300 rounded-2xl flex items-center justify-between font-mono text-xs">
             <span className="text-purple-950 font-bold">
               {chairsSelectedForMerge.length === 0
-                ? 'Tap 2 or more chairs to combine their checks:'
-                : `Selected Chairs: ${chairsSelectedForMerge.join(', ')}`}
+                ? "Tap 2 or more chairs to combine their checks:"
+                : `Selected Chairs: ${chairsSelectedForMerge.join(", ")}`}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -460,15 +495,15 @@ export function TabletTableDetail({
           {/* ALL Seats Button — supports dropping menu dish */}
           <button
             type="button"
-            onClick={() => onSelectChair('ALL')}
+            onClick={() => onSelectChair("ALL")}
             onDragOver={(e) => {
               e.preventDefault();
               e.stopPropagation();
               if ((window as any).__draggedMenuItem) {
-                if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
-                if (dragOverTarget !== 'ALL') {
-                  setDragOverTarget('ALL');
-                  setDragType('dish');
+                if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+                if (dragOverTarget !== "ALL") {
+                  setDragOverTarget("ALL");
+                  setDragType("dish");
                 }
               }
             }}
@@ -487,22 +522,22 @@ export function TabletTableDetail({
                 (window as any).__draggedMenuItem = null;
                 addToCart(draggedItem, undefined, undefined, 1);
                 if (isVacant) {
-                  waiterSeatsGuests(tableNum, 1, 'Floor Captain');
+                  waiterSeatsGuests(tableNum, 1, "Floor Captain");
                 }
-                onSelectChair('ALL');
+                onSelectChair("ALL");
               }
             }}
             className={`flex flex-col items-center justify-center gap-1 px-4 py-3 min-w-[80px] rounded-2xl border-2 font-mono font-black transition cursor-pointer whitespace-nowrap shrink-0 ${
-              dragOverTarget === 'ALL'
-                ? 'border-emerald-500 bg-emerald-100 text-emerald-900 ring-4 ring-emerald-300 scale-105 shadow-md'
-                : selectedChair === 'ALL'
-                ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-sm'
-                : 'bg-stone-50 text-stone-800 border-stone-300 hover:bg-stone-100'
+              dragOverTarget === "ALL"
+                ? "border-emerald-500 bg-emerald-100 text-emerald-900 ring-4 ring-emerald-300 scale-105 shadow-md"
+                : selectedChair === "ALL"
+                  ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-sm"
+                  : "bg-stone-50 text-stone-800 border-stone-300 hover:bg-stone-100"
             }`}
           >
             <Users className="h-6 w-6 stroke-[2.4]" />
             <span className="text-xs">
-              {dragOverTarget === 'ALL' ? '+ Drop Dish' : 'All Seats'}
+              {dragOverTarget === "ALL" ? "+ Drop Dish" : "All Seats"}
             </span>
           </button>
 
@@ -510,14 +545,16 @@ export function TabletTableDetail({
           {Object.entries(mergedSeatGroups).map(([groupKey, seats]) => {
             const isSelected = selectedChair === groupKey;
             const groupFired = allItems.filter(
-              (it) => it.seatNumber && seats.includes(it.seatNumber)
+              (it) => it.seatNumber && seats.includes(it.seatNumber),
             );
             const groupDraft = allTableDraftItems.filter(
-              (c) => c.seatNumber && seats.includes(c.seatNumber)
+              (c) => c.seatNumber && seats.includes(c.seatNumber),
             );
             const groupSubtotal =
-              groupFired.reduce((s, it) => s + (it.price || 0) * it.quantity, 0) +
-              groupDraft.reduce((s, it) => s + it.totalPrice, 0);
+              groupFired.reduce(
+                (s, it) => s + (it.price || 0) * it.quantity,
+                0,
+              ) + groupDraft.reduce((s, it) => s + it.totalPrice, 0);
 
             return (
               <div key={groupKey} className="relative shrink-0">
@@ -526,8 +563,8 @@ export function TabletTableDetail({
                   onClick={() => onSelectChair(groupKey)}
                   className={`flex flex-col items-start justify-between px-3.5 py-2.5 min-w-[105px] h-[82px] rounded-2xl border-2 font-mono font-black transition cursor-pointer ${
                     isSelected
-                      ? 'bg-purple-700 text-white border-purple-700 shadow-md ring-2 ring-purple-300'
-                      : 'bg-purple-50 text-purple-950 border-purple-300 hover:bg-purple-100'
+                      ? "bg-purple-700 text-white border-purple-700 shadow-md ring-2 ring-purple-300"
+                      : "bg-purple-50 text-purple-950 border-purple-300 hover:bg-purple-100"
                   }`}
                 >
                   <div className="flex items-center justify-between w-full">
@@ -535,14 +572,18 @@ export function TabletTableDetail({
                       <Link2 className="h-3.5 w-3.5" />
                       <span>Group</span>
                     </span>
-                    <span className={`text-[10px] ${isSelected ? 'opacity-90' : 'text-purple-800'}`}>
+                    <span
+                      className={`text-[10px] ${isSelected ? "opacity-90" : "text-purple-800"}`}
+                    >
                       ₹{groupSubtotal}
                     </span>
                   </div>
 
                   <span
                     className={`text-[9.5px] px-2 py-0.5 rounded-md font-bold uppercase truncate max-w-[95px] ${
-                      isSelected ? 'bg-white/20 text-white' : 'bg-purple-200 text-purple-900'
+                      isSelected
+                        ? "bg-white/20 text-white"
+                        : "bg-purple-200 text-purple-900"
                     }`}
                   >
                     {groupKey}
@@ -555,7 +596,7 @@ export function TabletTableDetail({
                   onClick={(e) => {
                     e.stopPropagation();
                     waiterUnmergeSeatGroup(tableNum, groupKey);
-                    onSelectChair('ALL');
+                    onSelectChair("ALL");
                   }}
                   title="Unmerge Chairs"
                   className="absolute -top-2 -right-2 h-6 w-6 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-full flex items-center justify-center border-2 border-white shadow-md z-20 cursor-pointer transition-transform"
@@ -571,9 +612,11 @@ export function TabletTableDetail({
             if (groupSeats.includes(ch)) return null;
 
             const hasItems = allItems.some((it) => it.seatNumber === ch);
-            const hasDraft = allTableDraftItems.some((c) => c.seatNumber === ch);
+            const hasDraft = allTableDraftItems.some(
+              (c) => c.seatNumber === ch,
+            );
             const hasReady = allItems.some(
-              (it) => it.seatNumber === ch && it.stage === 'PLATED'
+              (it) => it.seatNumber === ch && it.stage === "PLATED",
             );
             const isSelected = selectedChair === ch;
             const isDragTarget = dragOverTarget === ch;
@@ -588,8 +631,8 @@ export function TabletTableDetail({
                   (window as any).__draggedChair = ch;
                   (window as any).__draggedChairTable = tableNum;
                   try {
-                    e.dataTransfer?.setData('text/plain', String(ch));
-                    if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer?.setData("text/plain", String(ch));
+                    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
                   } catch {}
                 }}
                 onDragEnd={() => {
@@ -604,16 +647,16 @@ export function TabletTableDetail({
                   const draggedCh = (window as any).__draggedChair;
                   const draggedItem = (window as any).__draggedMenuItem;
                   if (draggedCh && draggedCh !== ch) {
-                    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
                     if (dragOverTarget !== ch) {
                       setDragOverTarget(ch);
-                      setDragType('chair');
+                      setDragType("chair");
                     }
                   } else if (draggedItem) {
-                    if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy';
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
                     if (dragOverTarget !== ch) {
                       setDragOverTarget(ch);
-                      setDragType('dish');
+                      setDragType("dish");
                     }
                   }
                 }}
@@ -634,8 +677,11 @@ export function TabletTableDetail({
                   if (fromChair && fromChair !== ch) {
                     (window as any).__draggedChair = null;
                     (window as any).__draggedChairTable = null;
-                    const sorted = [Math.min(fromChair, ch), Math.max(fromChair, ch)];
-                    const groupKey = `Chairs ${sorted.join(' & ')}`;
+                    const sorted = [
+                      Math.min(fromChair, ch),
+                      Math.max(fromChair, ch),
+                    ];
+                    const groupKey = `Chairs ${sorted.join(" & ")}`;
                     waiterMergeSeatGroup(tableNum, groupKey, sorted);
                     onSelectChair(groupKey);
                     return;
@@ -645,7 +691,7 @@ export function TabletTableDetail({
                     (window as any).__draggedMenuItem = null;
                     addToCart(draggedItem, undefined, undefined, 1);
                     if (isVacant) {
-                      waiterSeatsGuests(tableNum, 1, 'Floor Captain');
+                      waiterSeatsGuests(tableNum, 1, "Floor Captain");
                     }
                     onSelectChair(ch);
                   }
@@ -653,42 +699,44 @@ export function TabletTableDetail({
                 onClick={() => {
                   if (mergeChairMode) {
                     setChairsSelectedForMerge((prev) =>
-                      prev.includes(ch) ? prev.filter((c) => c !== ch) : [...prev, ch]
+                      prev.includes(ch)
+                        ? prev.filter((c) => c !== ch)
+                        : [...prev, ch],
                     );
                     return;
                   }
                   if (isSelected) {
-                    onSelectChair('ALL');
+                    onSelectChair("ALL");
                   } else {
                     onSelectChair(ch);
                     if (isVacant) {
-                      waiterSeatsGuests(tableNum, 1, 'Floor Captain');
+                      waiterSeatsGuests(tableNum, 1, "Floor Captain");
                     }
                   }
                 }}
                 className={`relative flex flex-col items-center justify-center gap-1 px-4 py-3 min-w-[80px] rounded-2xl border-2 font-mono font-black transition cursor-pointer whitespace-nowrap shrink-0 ${
                   isMarkedForMerge
-                    ? 'border-purple-600 bg-purple-100 text-purple-950 ring-4 ring-purple-300 scale-105 shadow-md'
-                    : isDragTarget && dragType === 'chair'
-                    ? 'border-purple-600 bg-purple-100 text-purple-950 ring-4 ring-purple-300 scale-105 shadow-md'
-                    : isDragTarget && dragType === 'dish'
-                    ? 'border-amber-500 bg-amber-100 text-amber-950 ring-4 ring-amber-300 scale-105 shadow-md'
-                    : isSelected
-                    ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
-                    : hasItems || hasDraft
-                    ? 'bg-amber-50 text-amber-950 border-amber-400'
-                    : 'bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100'
+                    ? "border-purple-600 bg-purple-100 text-purple-950 ring-4 ring-purple-300 scale-105 shadow-md"
+                    : isDragTarget && dragType === "chair"
+                      ? "border-purple-600 bg-purple-100 text-purple-950 ring-4 ring-purple-300 scale-105 shadow-md"
+                      : isDragTarget && dragType === "dish"
+                        ? "border-amber-500 bg-amber-100 text-amber-950 ring-4 ring-amber-300 scale-105 shadow-md"
+                        : isSelected
+                          ? "bg-amber-600 text-white border-amber-600 shadow-sm"
+                          : hasItems || hasDraft
+                            ? "bg-amber-50 text-amber-950 border-amber-400"
+                            : "bg-stone-50 text-stone-700 border-stone-300 hover:bg-stone-100"
                 }`}
               >
                 <Armchair className="h-6 w-6 stroke-[2.4]" />
                 <span className="text-xs">
                   {isMarkedForMerge
                     ? `✓ Chair ${ch}`
-                    : isDragTarget && dragType === 'chair'
-                    ? `Merge Into ${ch}`
-                    : isDragTarget && dragType === 'dish'
-                    ? `+ Add to ${ch}`
-                    : `Chair ${ch}`}
+                    : isDragTarget && dragType === "chair"
+                      ? `Merge Into ${ch}`
+                      : isDragTarget && dragType === "dish"
+                        ? `+ Add to ${ch}`
+                        : `Chair ${ch}`}
                 </span>
                 {/* Food Ready Dot */}
                 {hasReady && (
@@ -725,19 +773,22 @@ export function TabletTableDetail({
                 Table {tableNum} is Vacant
               </h3>
               <p className="font-mono text-xs text-stone-600 mt-1 font-bold">
-                Capacity: {table.capacity} Guests · {formatSectionName(table.section, table.number)}
+                Capacity: {table.capacity} Guests ·{" "}
+                {formatSectionName(table.section, table.number)}
               </p>
               <p className="text-xs text-stone-500 mt-2 max-w-xs leading-relaxed">
-                {selectedChair !== 'ALL'
+                {selectedChair !== "ALL"
                   ? `Chair ${selectedChair} selected. Tap below to seat 1 guest and start punching items from the right panel.`
-                  : 'Seat arriving customers to start service, then use the customer menu on the right panel to punch in food.'}
+                  : "Seat arriving customers to start service, then use the customer menu on the right panel to punch in food."}
               </p>
             </div>
             <button
               type="button"
               onClick={() => {
-                if (selectedChair !== 'ALL') {
-                  useSharedBridge.getState().waiterSeatsGuests(tableNum, 1, 'Floor Captain');
+                if (selectedChair !== "ALL") {
+                  useSharedBridge
+                    .getState()
+                    .waiterSeatsGuests(tableNum, 1, "Floor Captain");
                 } else {
                   onSeatGuests();
                 }
@@ -746,7 +797,9 @@ export function TabletTableDetail({
             >
               <Users className="h-5 w-5 stroke-[2.4]" />
               <span>
-                {selectedChair === 'ALL' ? 'Seat Table Guests' : `Seat Chair ${selectedChair} (1 Guest)`}
+                {selectedChair === "ALL"
+                  ? "Seat Table Guests"
+                  : `Seat Chair ${selectedChair} (1 Guest)`}
               </span>
             </button>
           </motion.div>
@@ -759,7 +812,10 @@ export function TabletTableDetail({
               <div className="flex items-center gap-2">
                 <ShoppingBag className="h-4 w-4 text-amber-700 stroke-[2.4]" />
                 <span className="font-mono text-xs font-black text-amber-950 uppercase tracking-wider">
-                  🛒 Unfired Draft Order · {selectedChair === 'ALL' ? 'All Table' : `Chair ${selectedChair}`}
+                  🛒 Unfired Draft Order ·{" "}
+                  {selectedChair === "ALL"
+                    ? "All Table"
+                    : `Chair ${selectedChair}`}
                 </span>
               </div>
               <span className="px-2.5 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-amber-900 bg-amber-200 border-amber-300 animate-pulse">
@@ -786,7 +842,9 @@ export function TabletTableDetail({
                   {ci.selectedOption && (
                     <p className="text-[10px] text-stone-600 font-mono mt-0.5 font-medium">
                       {ci.selectedOption}
-                      {ci.selectedAddOns && ci.selectedAddOns.length > 0 && ` + ${ci.selectedAddOns.join(', ')}`}
+                      {ci.selectedAddOns &&
+                        ci.selectedAddOns.length > 0 &&
+                        ` + ${ci.selectedAddOns.join(", ")}`}
                     </p>
                   )}
                 </div>
@@ -806,7 +864,8 @@ export function TabletTableDetail({
 
             <div className="pt-2 border-t border-amber-200 flex items-center justify-between font-mono text-xs">
               <span className="text-amber-900 font-bold text-[11px]">
-                👉 Tap &quot;Fire KOT to Kitchen&quot; on the right panel to send to chef
+                👉 Tap &quot;Fire KOT to Kitchen&quot; on the right panel to
+                send to chef
               </span>
               <span className="font-black text-[#9C3D1E]">
                 Draft Subtotal: ₹{draftSubtotal}
@@ -820,42 +879,60 @@ export function TabletTableDetail({
           <div className="flex flex-col items-center justify-center h-36 text-stone-500 font-mono text-xs text-center gap-2">
             <ShoppingBag className="h-8 w-8 opacity-40 stroke-[2.2]" />
             <p className="font-bold text-stone-700">
-              No dishes ordered yet for {selectedChair === 'ALL' ? 'this table' : `Chair ${selectedChair}`}
+              No dishes ordered yet for{" "}
+              {selectedChair === "ALL"
+                ? "this table"
+                : `Chair ${selectedChair}`}
             </p>
             <p className="text-xs text-stone-400">
-              Tap &quot;Add Dishes&quot; below or pick dishes on the right to start ordering
+              Tap &quot;Add Dishes&quot; below or pick dishes on the right to
+              start ordering
             </p>
           </div>
         )}
 
-        {!isVacant && displayItems.length > 0 && (
+        {!isVacant &&
+          displayItems.length > 0 &&
           tickets.map((tk, tkIdx) => {
             const tkItems = tk.items.filter((it) => {
-              if (selectedChair === 'ALL') return true;
-              if (typeof selectedChair === 'number') return it.seatNumber === selectedChair;
-              if (targetSeats.length > 0) return it.seatNumber && targetSeats.includes(it.seatNumber);
+              if (selectedChair === "ALL") return true;
+              if (typeof selectedChair === "number")
+                return it.seatNumber === selectedChair;
+              if (targetSeats.length > 0)
+                return it.seatNumber && targetSeats.includes(it.seatNumber);
               return false;
             });
             if (tkItems.length === 0) return null;
 
-            const isAllServed = tk.items.length > 0 && tk.items.every((i) => i.stage === 'SERVED' || (i.stage as string) === 'Served');
+            const isAllServed =
+              tk.items.length > 0 &&
+              tk.items.every(
+                (i) => i.stage === "SERVED" || (i.stage as string) === "Served",
+              );
 
             return (
               <div
                 key={tk.id ? `${tk.id}-${tkIdx}` : `kot-${tkIdx}`}
                 className={`space-y-2 p-3.5 rounded-2xl border-2 transition ${
-                  isAllServed ? 'bg-stone-50/70 border-stone-200' : 'bg-white border-stone-200'
+                  isAllServed
+                    ? "bg-stone-50/70 border-stone-200"
+                    : "bg-white border-stone-200"
                 }`}
               >
                 {/* KOT Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-stone-200">
                   <div className="flex items-center gap-2">
-                    <Flame className={`h-4 w-4 stroke-[2.4] ${isAllServed ? 'text-stone-400' : 'text-orange-600'}`} />
+                    <Flame
+                      className={`h-4 w-4 stroke-[2.4] ${isAllServed ? "text-stone-400" : "text-orange-600"}`}
+                    />
                     <span className="font-mono text-xs font-black text-stone-900 uppercase tracking-wider">
-                      KOT #{tk.id ? tk.id.slice(-4) : String(tkIdx + 1)} · {tk.timestamp}
+                      KOT #{tk.id ? tk.id.slice(-4) : String(tkIdx + 1)} ·{" "}
+                      {tk.timestamp}
                     </span>
                   </div>
-                  {(isAllServed || tk.status === 'COMPLETED' || tk.status === 'SERVED') && (
+                  {(isAllServed ||
+                    tk.status === "COMPLETED" ||
+                    tk.status === "SERVED") && (
                     <span className="px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300">
                       SERVED
                     </span>
@@ -863,19 +940,23 @@ export function TabletTableDetail({
                 </div>
 
                 {tkItems.map((item) => {
-                  const isServed = item.stage === 'SERVED' || (item.stage as string) === 'Served';
+                  const isServed =
+                    item.stage === "SERVED" ||
+                    (item.stage as string) === "Served";
                   return (
                     <div
                       key={item.id}
                       className={`flex items-center justify-between py-2 border-b border-stone-100 last:border-0 transition ${
-                        isServed ? 'opacity-60' : ''
+                        isServed ? "opacity-60" : ""
                       }`}
                     >
                       <div className="min-w-0 flex-1 pr-2">
                         <div className="flex items-center gap-2">
                           <p
                             className={`text-[14px] font-black leading-tight antialiased ${
-                              isServed ? 'line-through text-stone-400' : 'text-stone-950'
+                              isServed
+                                ? "line-through text-stone-400"
+                                : "text-stone-950"
                             }`}
                           >
                             {item.name}
@@ -884,8 +965,8 @@ export function TabletTableDetail({
                             <span
                               className={`text-[9.5px] font-black font-mono px-1.5 py-0.5 rounded border ${
                                 isServed
-                                  ? 'bg-stone-100 text-stone-400 border-stone-200'
-                                  : 'bg-amber-100 text-amber-900 border-amber-200'
+                                  ? "bg-stone-100 text-stone-400 border-stone-200"
+                                  : "bg-amber-100 text-amber-900 border-amber-200"
                               }`}
                             >
                               Chair {item.seatNumber}
@@ -895,7 +976,7 @@ export function TabletTableDetail({
                         {item.options && (
                           <p
                             className={`text-[10px] font-mono mt-0.5 ${
-                              isServed ? 'text-stone-400' : 'text-stone-500'
+                              isServed ? "text-stone-400" : "text-stone-500"
                             }`}
                           >
                             {item.options}
@@ -906,8 +987,8 @@ export function TabletTableDetail({
                         <span
                           className={`text-xs font-black px-2 py-1 rounded-lg ${
                             isServed
-                              ? 'text-stone-400 bg-stone-100 border border-stone-200'
-                              : 'text-stone-700 bg-stone-100'
+                              ? "text-stone-400 bg-stone-100 border border-stone-200"
+                              : "text-stone-700 bg-stone-100"
                           }`}
                         >
                           ×{item.quantity}
@@ -915,7 +996,9 @@ export function TabletTableDetail({
                         {item.price !== undefined && (
                           <span
                             className={`text-xs font-black ${
-                              isServed ? 'line-through text-stone-400' : 'text-[#9C3D1E]'
+                              isServed
+                                ? "line-through text-stone-400"
+                                : "text-[#9C3D1E]"
                             }`}
                           >
                             ₹{item.price * item.quantity}
@@ -923,7 +1006,9 @@ export function TabletTableDetail({
                         )}
                         <StagePill
                           stage={item.stage}
-                          onServe={() => waiterMarkKitchenItemServed(tk.id, item.id)}
+                          onServe={() =>
+                            waiterMarkKitchenItemServed(tk.id, item.id)
+                          }
                         />
                       </div>
                     </div>
@@ -931,8 +1016,7 @@ export function TabletTableDetail({
                 })}
               </div>
             );
-          })
-        )}
+          })}
       </div>
 
       {/* ── High-Contrast Bottom Action Bar for Occupied Tables (Matching Waiter Mobile) ── */}
@@ -965,7 +1049,13 @@ export function TabletTableDetail({
           <div className="grid grid-cols-2 gap-2.5 font-mono text-xs font-black">
             <button
               type="button"
-              onClick={() => onAddDishes(typeof selectedChair === 'number' ? selectedChair : targetSeats[0])}
+              onClick={() =>
+                onAddDishes(
+                  typeof selectedChair === "number"
+                    ? selectedChair
+                    : targetSeats[0],
+                )
+              }
               className="min-h-[46px] rounded-xl bg-[#9C3D1E] hover:bg-[#853318] text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs cursor-pointer active:scale-98 border-0"
             >
               <Plus className="h-4 w-4 stroke-[3]" />
@@ -980,22 +1070,24 @@ export function TabletTableDetail({
               disabled={!canSettle}
               title={
                 !areAllRelevantItemsServed && hasItemsToSettle
-                  ? 'All ordered dishes must be served before settling the bill'
+                  ? "All ordered dishes must be served before settling the bill"
                   : undefined
               }
               className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
                 !canSettle
-                  ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs'
+                  ? "bg-stone-200 text-stone-400 cursor-not-allowed shadow-none"
+                  : "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs"
               }`}
             >
               <CreditCard className="h-4 w-4 stroke-[2.4]" />
-              <span>Settle {selectedChair === 'ALL' ? 'Bill' : chairLabel}</span>
+              <span>
+                Settle {selectedChair === "ALL" ? "Bill" : chairLabel}
+              </span>
             </button>
           </div>
 
           {/* Secondary Action Buttons */}
-          <div className="grid grid-cols-3 gap-2 font-mono text-xs">
+          {/* <div className="grid grid-cols-3 gap-2 font-mono text-xs">
             <button
               type="button"
               onClick={onSplit}
@@ -1021,7 +1113,7 @@ export function TabletTableDetail({
               <UserX className="h-3.5 w-3.5" />
               <span>Vacate</span>
             </button>
-          </div>
+          </div> */}
         </div>
       )}
     </div>

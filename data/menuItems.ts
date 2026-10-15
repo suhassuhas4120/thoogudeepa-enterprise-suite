@@ -451,4 +451,188 @@ export const INITIAL_MENU_ITEMS: MenuItem[] = [
       ],
     },
   },
+  {
+    id: "dish-23",
+    name: "Special Chicken Donne Biryani",
+    price: 290,
+    category: "Rice & Biryani",
+    badge: "Bestseller",
+    description:
+      "Signature Donne Biryani loaded with extra succulent chicken cuts, cooked in fragrant Seeraga Samba rice with pure ghee and fresh mint.",
+    imagePlaceholder: "SPECIAL CHICKEN BIRYANI",
+    image: "/images/dishes/chicken-biryani.webp",
+    prepMode: "Military Dum Handi",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Medium Spicy (Traditional)", "Extra Hot Guntur Chilli"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [
+        { name: "Extra Boiled Egg (1 Pc)", extraPrice: 20 },
+        { name: "Kushka Rice Portion", extraPrice: 90 },
+      ],
+    },
+  },
+  {
+    id: "dish-24",
+    name: "Egg Biryani",
+    price: 160,
+    category: "Rice & Biryani",
+    badge: "Popular",
+    description:
+      "Fragrant Donne Biryani rice cooked in spiced meat stock, served with two golden fried boiled eggs and raita.",
+    imagePlaceholder: "EGG BIRYANI",
+    image: "/images/dishes/biryani-rice.webp",
+    prepMode: "Military Dum Handi",
+    optionsGroup1: {
+      title: "Preparation",
+      choices: ["Standard Spiced", "Mild Spiced"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Boiled Egg (1 Pc)", extraPrice: 20 }],
+    },
+  },
+  {
+    id: "dish-25",
+    name: "Guntur Chicken Wings",
+    price: 260,
+    category: "Starters",
+    badge: "Popular",
+    description:
+      "Fiery chicken wings pan-roasted with crushed Guntur red chillies, curry leaves, and country garlic.",
+    imagePlaceholder: "GUNTUR CHICKEN WINGS",
+    image: "/images/dishes/chicken-fry.webp",
+    prepMode: "Tandoori Roast",
+    optionsGroup1: {
+      title: "Spice Level",
+      choices: ["Fiery Guntur Hot", "Medium Hot"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Lemon Wedge Platter", extraPrice: 10 }],
+    },
+  },
+  {
+    id: "dish-26",
+    name: "Mutton Liver Fry",
+    price: 240,
+    category: "Starters",
+    badge: "Chef Special",
+    description:
+      "Fresh tender mutton liver pan-sauteed with freshly cracked pepper, caramelized shallots, and herbs.",
+    imagePlaceholder: "MUTTON LIVER FRY",
+    image: "/images/dishes/mutton-liver.webp",
+    prepMode: "Pan Saute",
+    optionsGroup1: {
+      title: "Preparation",
+      choices: ["Pepper Dry Toss", "Semi Gravy Roast"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Onion & Lime", extraPrice: 15 }],
+    },
+  },
+
+  // ── Sides & Desserts ────────────────────────────────────────────────
+  {
+    id: "dish-27",
+    name: "Malabar Parotta (2pcs)",
+    price: 50,
+    category: "Sides & Desserts",
+    description:
+      "Crisp, flaky layered parottas served fresh and hot, perfect pairing with rich gravies and fry dishes.",
+    imagePlaceholder: "MALABAR PAROTTA",
+    image: "/images/dishes/dosa-2pcs.webp",
+    prepMode: "Tawa Roasted",
+    optionsGroup1: {
+      title: "Preparation",
+      choices: ["Crispy Flaky", "Soft Layered"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Parotta (1 Pc)", extraPrice: 25 }],
+    },
+  },
+  {
+    id: "dish-28",
+    name: "Donne Gulab Jamun (2 Pcs)",
+    price: 60,
+    category: "Sides & Desserts",
+    badge: "Popular",
+    description:
+      "Warm, melt-in-mouth khoya gulab jamuns soaked in aromatic green cardamom and saffron syrup.",
+    imagePlaceholder: "GULAB JAMUN",
+    image: "/images/dishes/gulab-jamun.webp",
+    prepMode: "Hot Sugar Syrup",
+    optionsGroup1: {
+      title: "Serving Style",
+      choices: ["Warm with Syrup", "With Ice Cream"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Scoop Vanilla Ice Cream", extraPrice: 35 }],
+    },
+  },
+
+  // ── Beverages ───────────────────────────────────────────────────────
+  {
+    id: "dish-29",
+    name: "Special Filter Coffee",
+    price: 40,
+    category: "Beverages",
+    badge: "Popular",
+    description:
+      "Traditional South Indian filter coffee brewed with rich freshly pressed chicory decoction and hot frothy milk.",
+    imagePlaceholder: "FILTER COFFEE",
+    image: "/images/dishes/coffee.webp",
+    prepMode: "Brass Decoction",
+    optionsGroup1: {
+      title: "Sweetness",
+      choices: ["Regular Sweet", "Less Sweet", "No Sugar"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Extra Strong Decoction", extraPrice: 10 }],
+    },
+  },
+  {
+    id: "dish-30",
+    name: "Fresh Lime Soda",
+    price: 45,
+    category: "Beverages",
+    description:
+      "Freshly squeezed lemon juice topped with sparkling chilled soda.",
+    imagePlaceholder: "LIME SODA",
+    image: "/images/dishes/soda.webp",
+    prepMode: "Chilled Spritz",
+    optionsGroup1: {
+      title: "Preparation",
+      choices: ["Sweet", "Salted", "Mixed Sweet & Salt"],
+    },
+    optionsGroup2: {
+      title: "Add-Ons",
+      addOns: [{ name: "Mint Leaves Spritz", extraPrice: 10 }],
+    },
+  },
+  {
+    id: "dish-31",
+    name: "Mineral Water",
+    price: 25,
+    category: "Beverages",
+    description:
+      "1 Litre sealed packaged natural drinking water bottle.",
+    imagePlaceholder: "MINERAL WATER",
+    image: "/images/dishes/water.webp",
+    prepMode: "Chilled Bottle",
+    optionsGroup1: {
+      title: "Temperature",
+      choices: ["Chilled", "Room Temperature"],
+    },
+    optionsGroup2: {
+      title: "Serving",
+      addOns: [{ name: "Extra Paper Glasses", extraPrice: 0 }],
+    },
+  },
 ];

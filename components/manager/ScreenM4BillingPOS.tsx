@@ -56,18 +56,33 @@ export function ScreenM4BillingPOS() {
   const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
   const targetNum = cleanNum(selectedTableNumber);
 
+  const getSectionName = (rawSection?: string, tableNum?: string): string => {
+    const s = (rawSection || '').toLowerCase();
+    const num = parseInt(cleanNum(tableNum || ''), 10) || 1;
+    if (s.includes('section a') || s.includes('sec_a') || s.includes('express') || s.includes('couple') || num <= 8) {
+      return 'Section A';
+    }
+    if (s.includes('section b') || s.includes('sec_b') || s.includes('main dining') || num <= 16) {
+      return 'Section B';
+    }
+    if (s.includes('section c') || s.includes('sec_c') || s.includes('family') || num <= 24) {
+      return 'Section C';
+    }
+    return 'Section D';
+  };
+
   const selectedTable =
     tables.find((t) => cleanNum(t.number) === targetNum) ||
     tables[0] || {
       id: 'tbl-01',
       number: selectedTableNumber || 'T-01',
-      section: 'Main Dining Hall',
+      section: 'Section A',
       capacity: 4,
       status: 'VACANT' as const,
       guestCount: 0,
       seatedTime: '--',
       currentBill: 0,
-      serverName: 'Floor Captain',
+      serverName: 'Captain Ramesh',
       kotCount: 0,
     };
 
@@ -169,11 +184,74 @@ export function ScreenM4BillingPOS() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [showMenuCatalog, setShowMenuCatalog] = useState(true);
 
-  const categories = ['ALL', 'Donne Biryani', 'Starters & Kebabs', 'Sides & Desserts', 'Beverages'];
+  const categories = [
+    'ALL',
+    'Donne Biryani',
+    'Starters & Kebabs',
+    'Sunday Specials',
+    'Sides & Desserts',
+    'Beverages',
+  ];
 
   const filteredMenuItems = INITIAL_MENU_ITEMS.filter((item) => {
-    const matchesSearch = item.name.toLowerCase().includes(menuSearch.toLowerCase());
-    const matchesCat = selectedCategory === 'ALL' || item.category === selectedCategory;
+    const term = menuSearch.trim().toLowerCase();
+    const matchesSearch =
+      !term ||
+      item.name.toLowerCase().includes(term) ||
+      item.category.toLowerCase().includes(term) ||
+      (item.description && item.description.toLowerCase().includes(term)) ||
+      (item.prepMode && item.prepMode.toLowerCase().includes(term));
+
+    const matchesCat = (() => {
+      if (selectedCategory === 'ALL') return true;
+      const catLower = selectedCategory.toLowerCase();
+      const itemCat = (item.category || '').toLowerCase();
+      const itemName = item.name.toLowerCase();
+
+      if (catLower.includes('biryani')) {
+        return itemCat.includes('biryani') || itemCat.includes('rice') || itemName.includes('biryani');
+      }
+      if (catLower.includes('starter') || catLower.includes('kebab')) {
+        return (
+          itemCat.includes('starter') ||
+          itemName.includes('kabab') ||
+          itemName.includes('fry') ||
+          itemName.includes('dry') ||
+          itemName.includes('wings') ||
+          itemName.includes('chops') ||
+          itemName.includes('ball') ||
+          itemName.includes('leg piece')
+        );
+      }
+      if (catLower.includes('sunday')) {
+        return (
+          itemCat.includes('sunday') ||
+          item.badge === 'Chef Special' ||
+          itemName.includes('soup') ||
+          itemName.includes('idli') ||
+          itemName.includes('dosa') ||
+          itemName.includes('gojju')
+        );
+      }
+      if (catLower.includes('dessert') || catLower.includes('side')) {
+        return (
+          itemCat.includes('dessert') ||
+          itemCat.includes('side') ||
+          itemName.includes('jamun') ||
+          itemName.includes('parotta')
+        );
+      }
+      if (catLower.includes('beverage')) {
+        return (
+          itemCat.includes('beverage') ||
+          itemName.includes('coffee') ||
+          itemName.includes('water') ||
+          itemName.includes('soda')
+        );
+      }
+      return itemCat === catLower;
+    })();
+
     return matchesSearch && matchesCat;
   });
 
@@ -311,7 +389,7 @@ export function ScreenM4BillingPOS() {
       seatNumber: typeof currentSeat === 'number' ? currentSeat : undefined,
       captainName: selectedTable?.serverName || 'Manager Host',
       tableName: selectedTable?.number || 'T-01',
-      section: selectedTable?.section || 'Main Dining Hall',
+      section: getSectionName(selectedTable?.section, selectedTable?.number),
       guestCount: selectedTable?.guestCount || 2,
       formattedDate: now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       formattedTime: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
@@ -368,11 +446,11 @@ export function ScreenM4BillingPOS() {
             <Utensils className="h-4 w-4" />
           </div>
           <div>
-            <span className="font-mono text-xs font-black text-slate-900 uppercase">
+            <span className="font-mono text-xs sm:text-sm font-black text-slate-900 uppercase">
               Billing &amp; POS Desk
             </span>
-            <span className="text-[11px] font-mono text-slate-500 block">
-              Table {selectedTable.number} • {selectedTable.section}
+            <span className="text-xs font-mono font-bold text-slate-600 block mt-0.5">
+              Table {selectedTable.number} • {getSectionName(selectedTable.section, selectedTable.number)}
             </span>
           </div>
         </div>
@@ -419,15 +497,15 @@ export function ScreenM4BillingPOS() {
               </div>
 
               {/* Category Pills */}
-              <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              <div className="flex gap-2 overflow-x-auto pb-1.5 scrollbar-none">
                 {categories.map((cat) => (
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`px-2.5 py-1 rounded-md text-[10.5px] font-mono font-bold whitespace-nowrap transition ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-mono font-bold whitespace-nowrap transition cursor-pointer ${
                       selectedCategory === cat
-                        ? 'bg-[#9C3D1E] text-white'
-                        : 'bg-[#FAF8F5] text-slate-600 hover:bg-stone-200 border border-slate-200'
+                        ? 'bg-[#9C3D1E] text-white shadow-xs'
+                        : 'bg-[#FAF8F5] text-slate-700 hover:bg-stone-200 border border-slate-300'
                     }`}
                   >
                     {cat}
@@ -442,23 +520,32 @@ export function ScreenM4BillingPOS() {
                 <button
                   key={menuItem.id}
                   onClick={() => handleAddDirectItem(menuItem)}
-                  className="w-full text-left p-2.5 rounded-lg border border-slate-200 hover:border-orange-500 hover:bg-orange-50/40 bg-white transition flex items-center justify-between group shadow-2xs"
+                  className="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-orange-500 hover:bg-orange-50/50 bg-white transition flex items-center justify-between group shadow-2xs hover:shadow-xs cursor-pointer"
                 >
-                  <div className="pr-2">
-                    <div className="font-mono text-xs font-bold text-slate-900 group-hover:text-orange-950">
-                      {menuItem.name}
+                  <div className="pr-3 flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-sm font-black text-slate-900 group-hover:text-[#9C3D1E] transition">
+                        {menuItem.name}
+                      </span>
+                      {menuItem.badge && (
+                        <span className="text-[10px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-orange-100 text-[#9C3D1E] border border-orange-200">
+                          {menuItem.badge}
+                        </span>
+                      )}
                     </div>
-                    <div className="font-mono text-[10.5px] text-slate-500">
-                      {menuItem.category} • {menuItem.prepMode}
+                    <div className="font-mono text-xs text-slate-500 mt-1 flex items-center gap-1.5">
+                      <span className="font-bold text-slate-600">{menuItem.category}</span>
+                      <span>•</span>
+                      <span className="text-slate-500 font-medium">{menuItem.prepMode}</span>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="font-mono text-xs font-black text-slate-900">
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-mono text-sm font-black text-slate-900 group-hover:text-[#9C3D1E]">
                       ₹{menuItem.price}
                     </span>
-                    <span className="h-6 w-6 rounded-md bg-[#9C3D1E] group-hover:bg-orange-700 text-white flex items-center justify-center transition">
-                      <PlusCircle className="h-3.5 w-3.5" />
+                    <span className="h-8 w-8 rounded-lg bg-[#9C3D1E] group-hover:bg-orange-700 text-white flex items-center justify-center transition shadow-2xs">
+                      <PlusCircle className="h-4 w-4" />
                     </span>
                   </div>
                 </button>
@@ -477,31 +564,28 @@ export function ScreenM4BillingPOS() {
             {/* Header & Table Selector */}
             <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2 shrink-0">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-orange-100 text-[#9C3D1E] flex items-center justify-center shrink-0">
-                  <Utensils className="h-4 w-4 text-[#9C3D1E]" />
+                <div className="w-9 h-9 rounded-lg bg-orange-100 text-[#9C3D1E] flex items-center justify-center shrink-0">
+                  <Utensils className="h-4.5 w-4.5 text-[#9C3D1E]" />
                 </div>
                 <div>
                   <h3 className="text-sm sm:text-base font-black font-mono text-slate-900">
                     Tax Invoice &amp; Kitchen KOT Desk
                   </h3>
-                  <span className="text-[11px] font-mono text-slate-500">
+                  <span className="text-xs font-mono font-bold text-slate-600">
                     KOTs: {selectedTable.kotCount} • Total: ₹{selectedTable.currentBill}
                   </span>
                 </div>
               </div>
 
-              {/* Table Selector */}
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-xs font-black text-slate-700 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
-                  TABLE:
-                </span>
+              {/* Table Selector Dropdown */}
+              <div className="flex items-center">
                 <select
                   value={selectedTable.number}
                   onChange={(e) => {
                     setSelectedTableNumber(e.target.value);
                     setSelectedSeatNumber('ALL');
                   }}
-                  className="bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg px-2.5 py-1 font-mono text-xs font-black text-slate-900 focus:outline-none cursor-pointer"
+                  className="bg-[#FAF8F5] border border-slate-300 hover:border-slate-400 rounded-lg px-3 py-1.5 font-mono text-xs font-black text-slate-900 focus:outline-none focus:border-orange-500 cursor-pointer shadow-2xs"
                 >
                   {tables.map((t) => (
                     <option key={t.id} value={t.number}>
@@ -547,7 +631,7 @@ export function ScreenM4BillingPOS() {
                     <span>Chair {chairNum}</span>
                     {count > 0 && (
                       <span
-                        className={`text-[10px] px-1.5 py-0.2 rounded font-black ${
+                        className={`text-xs px-1.5 py-0.5 rounded font-black ${
                           isSelected ? 'bg-white/20 text-white' : 'bg-amber-200 text-amber-950'
                         }`}
                       >
@@ -611,73 +695,73 @@ export function ScreenM4BillingPOS() {
                       return (
                         <tr
                           key={it.id}
-                          className={`hover:bg-[#FAF8F5] ${
+                          className={`hover:bg-[#FAF8F5] transition ${
                             !it.isExistingKOT ? 'bg-purple-50/50' : ''
                           }`}
                         >
-                          <td className="py-2 font-bold text-slate-800">
+                          <td className="py-2.5 font-bold text-slate-800">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span>{it.name}</span>
+                              <span className="text-xs sm:text-sm font-bold text-slate-900">{it.name}</span>
                               {it.seatNumber && (
-                                <span className="text-[9px] font-black px-1 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-amber-100 text-amber-950 border border-amber-300">
                                   Chair {it.seatNumber}
                                 </span>
                               )}
                             </div>
                             {it.options && (
-                              <span className="text-[10px] text-slate-400 block truncate">
+                              <span className="text-xs text-slate-500 font-medium block truncate mt-0.5">
                                 Option: {it.options}
                               </span>
                             )}
                           </td>
-                          <td className="py-2 text-center">
-                            <span className={`text-[9.5px] px-1.5 py-0.5 rounded border ${badge.cls}`}>
+                          <td className="py-2.5 text-center">
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded border ${badge.cls}`}>
                               {badge.text}
                             </span>
                           </td>
-                          <td className="py-2 text-center">
+                          <td className="py-2.5 text-center">
                             {!it.isExistingKOT ? (
                               /* Stepper for extra items */
                               <div className="inline-flex items-center border border-slate-300 rounded-lg bg-white overflow-hidden shadow-2xs">
                                 <button
                                   onClick={() => updateExtraQty(it.id, -1)}
-                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-xs transition"
+                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-xs transition cursor-pointer"
                                   title="Decrease quantity"
                                 >
                                   -
                                 </button>
-                                <span className="px-3 font-black text-slate-900 text-xs min-w-[28px] text-center">
+                                <span className="px-3 font-black text-slate-900 text-xs sm:text-sm min-w-[28px] text-center">
                                   {it.qty}
                                 </span>
                                 <button
                                   onClick={() => updateExtraQty(it.id, 1)}
-                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-xs transition"
+                                  className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-900 font-black text-xs transition cursor-pointer"
                                   title="Increase quantity"
                                 >
                                   +
                                 </button>
                               </div>
                             ) : (
-                              <span className="font-black text-slate-900 px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-xs">
+                              <span className="font-black text-slate-900 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200 text-xs sm:text-sm">
                                 {it.qty}x
                               </span>
                             )}
                           </td>
-                          <td className="py-2 text-right font-bold text-slate-700">₹ {it.price}</td>
-                          <td className="py-2 text-right font-black text-slate-900">
+                          <td className="py-2.5 text-right font-bold text-slate-700 text-xs sm:text-sm">₹ {it.price}</td>
+                          <td className="py-2.5 text-right font-black text-slate-900 text-xs sm:text-sm">
                             ₹ {(it.price * it.qty).toLocaleString('en-IN')}
                           </td>
-                          <td className="py-2 text-center">
+                          <td className="py-2.5 text-center">
                             {!it.isExistingKOT ? (
                               <button
                                 onClick={() => removeExtraItem(it.id)}
-                                className="text-rose-500 hover:text-rose-700 p-1 rounded transition"
+                                className="text-rose-500 hover:text-rose-700 p-1.5 rounded transition cursor-pointer"
                                 title="Remove extra item"
                               >
-                                <Trash2 className="h-3.5 w-3.5 mx-auto" />
+                                <Trash2 className="h-4 w-4 mx-auto" />
                               </button>
                             ) : (
-                              <span className="text-[10px] text-slate-400 font-bold">
+                              <span className="text-xs text-slate-400 font-bold">
                                 Fired
                               </span>
                             )}
@@ -724,10 +808,10 @@ export function ScreenM4BillingPOS() {
             </div>
 
             {/* Totals Breakdown */}
-            <div className="mt-2 pt-2 border-t-2 border-dashed border-slate-300 font-mono text-xs space-y-0.5 shrink-0">
-              <div className="flex justify-between text-slate-600">
-                <span>Subtotal:</span>
-                <span className="font-bold">₹ {subtotal.toFixed(2)}</span>
+            <div className="mt-2.5 pt-2.5 border-t-2 border-dashed border-slate-300 font-mono text-xs space-y-1 shrink-0">
+              <div className="flex justify-between text-slate-700">
+                <span className="font-bold">Subtotal:</span>
+                <span className="font-black text-sm">₹ {subtotal.toFixed(2)}</span>
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-700 font-bold">
@@ -737,15 +821,15 @@ export function ScreenM4BillingPOS() {
               )}
               <div className="flex justify-between text-slate-600">
                 <span>CGST (2.5%):</span>
-                <span>₹ {cgst.toFixed(2)}</span>
+                <span className="font-bold">₹ {cgst.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-slate-600">
                 <span>SGST (2.5%):</span>
-                <span>₹ {sgst.toFixed(2)}</span>
+                <span className="font-bold">₹ {sgst.toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm sm:text-base font-black text-slate-900 pt-1 border-t border-[#EAE5DF]">
+              <div className="flex justify-between text-base sm:text-lg font-black text-slate-900 pt-2 border-t border-[#EAE5DF]">
                 <span>Grand Total:</span>
-                <span>₹ {grandTotal.toLocaleString('en-IN')}.00</span>
+                <span className="text-[#9C3D1E]">₹ {grandTotal.toLocaleString('en-IN')}.00</span>
               </div>
             </div>
           </div>
@@ -760,7 +844,7 @@ export function ScreenM4BillingPOS() {
           <div>
             <h3 className="text-sm font-black font-mono text-slate-900 pb-3 border-b border-slate-200 uppercase flex items-center justify-between">
               <span>Payment &amp; Settlement</span>
-              <span className="text-[10px] text-slate-400 font-normal">
+              <span className="text-xs font-bold text-slate-500">
                 {currentSeat === 'ALL' ? 'Table Settlement' : `Chair ${currentSeat}`}
               </span>
             </h3>
@@ -769,68 +853,68 @@ export function ScreenM4BillingPOS() {
             <div className="grid grid-cols-2 gap-2 mt-4">
               <button
                 onClick={() => setPaymentMethod('UPI')}
-                className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer ${
+                className={`p-3 rounded-xl border-2 font-mono text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                   paymentMethod === 'UPI'
                     ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
                 }`}
               >
-                <QrCode className="h-4 w-4" />
-                <span className="text-[11px] font-black">UPI / QR</span>
+                <QrCode className="h-4.5 w-4.5" />
+                <span className="text-xs font-black">UPI / QR</span>
               </button>
               <button
                 onClick={() => setPaymentMethod('CASH')}
-                className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer ${
+                className={`p-3 rounded-xl border-2 font-mono text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                   paymentMethod === 'CASH'
                     ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
                 }`}
               >
-                <Banknote className="h-4 w-4" />
-                <span className="text-[11px] font-black">Cash</span>
+                <Banknote className="h-4.5 w-4.5" />
+                <span className="text-xs font-black">Cash</span>
               </button>
               <button
                 onClick={() => setPaymentMethod('CARD')}
-                className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer ${
+                className={`p-3 rounded-xl border-2 font-mono text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                   paymentMethod === 'CARD'
                     ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
                 }`}
               >
-                <CreditCard className="h-4 w-4" />
-                <span className="text-[11px] font-black">Card</span>
+                <CreditCard className="h-4.5 w-4.5" />
+                <span className="text-xs font-black">Card</span>
               </button>
               <button
                 onClick={() => setPaymentMethod('AGGREGATOR')}
-                className={`p-2.5 rounded-lg border-2 font-mono text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer ${
+                className={`p-3 rounded-xl border-2 font-mono text-xs font-bold flex flex-col items-center gap-1.5 transition cursor-pointer ${
                   paymentMethod === 'AGGREGATOR'
                     ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-[#FAF8F5]'
                 }`}
               >
-                <Smartphone className="h-4 w-4" />
-                <span className="text-[11px] font-black">Aggregator</span>
+                <Smartphone className="h-4.5 w-4.5" />
+                <span className="text-xs font-black">Aggregator</span>
               </button>
             </div>
 
             {/* Cash Tendered Box */}
             {paymentMethod === 'CASH' && (
-              <div className="mt-4 p-3 bg-[#FAF8F5] rounded-xl border border-slate-300 font-mono text-xs">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-bold text-slate-700">Cash Tendered:</span>
+              <div className="mt-4 p-3.5 bg-[#FAF8F5] rounded-xl border border-slate-300 font-mono text-xs">
+                <div className="flex justify-between items-center mb-2.5">
+                  <span className="font-bold text-slate-800 text-xs">Cash Tendered:</span>
                   <div className="flex items-center gap-1">
-                    <span className="text-slate-500 font-bold">₹</span>
+                    <span className="text-slate-600 font-bold text-sm">₹</span>
                     <input
                       type="number"
                       value={cashTendered}
                       onChange={(e) => setCashTendered(e.target.value)}
-                      className="w-24 text-right bg-white border border-[#EAE5DF] rounded p-1 font-mono font-black text-slate-900 focus:outline-none focus:border-orange-500"
+                      className="w-28 text-right bg-white border border-[#EAE5DF] rounded-lg p-1.5 font-mono text-sm font-black text-slate-900 focus:outline-none focus:border-orange-500 shadow-2xs"
                     />
                   </div>
                 </div>
                 <div className="flex justify-between text-slate-900 font-black text-sm pt-2 border-t border-slate-200">
                   <span>Change Due:</span>
-                  <span className="text-emerald-700">₹ {changeDue.toLocaleString('en-IN')}.00</span>
+                  <span className="text-emerald-700 text-base">₹ {changeDue.toLocaleString('en-IN')}.00</span>
                 </div>
               </div>
             )}

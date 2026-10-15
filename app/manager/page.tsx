@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useManagerStore } from '../../store/useManagerStore';
 import { ManagerScreenId } from '../../types/manager';
 
@@ -14,25 +14,141 @@ import { ScreenM10Menu86Stock } from '../../components/manager/ScreenM10Menu86St
 import { ScreenM11SalesReport } from '../../components/manager/ScreenM11SalesReport';
 import { ScreenM13PettyExpenses } from '../../components/manager/ScreenM13PettyExpenses';
 
-import { motion, AnimatePresence } from 'framer-motion';
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  resetKey: number | string;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ManagerScreenErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Manager Screen error caught:', error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: undefined });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full max-w-md mx-auto my-12 p-6 bg-white border border-rose-300 rounded-xl shadow-sm text-center font-mono">
+          <div className="text-rose-600 text-sm font-bold mb-2">⚠️ Screen Display Notice</div>
+          <p className="text-xs text-slate-600 mb-4">
+            {this.state.error?.message || 'An unexpected rendering issue occurred on this screen.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false, error: undefined })}
+            className="px-4 py-2 bg-[#9C3D1E] text-white text-xs font-bold rounded-lg hover:bg-orange-700 transition"
+          >
+            Retry Screen
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const TAB_ITEMS: { id: ManagerScreenId; name: string }[] = [
+  { id: 1, name: '01. Login & Float' },
+  { id: 2, name: '02. Live Overview' },
+  { id: 3, name: '03. Billing & POS' },
+  { id: 4, name: '04. Kitchen & Notifications' },
+  { id: 5, name: '05. Waiter Cash & Tips' },
+  { id: 6, name: '06. Menu Stocks & Offers' },
+  { id: 7, name: '07. Sales Report' },
+  { id: 8, name: '08. Petty Expenses & Cash Counter' },
+];
 
 export default function ManagerPortalPage() {
-  const { currentScreen, setCurrentScreen } = useManagerStore();
+  const currentScreen = useManagerStore((s) => s.currentScreen);
+  const setCurrentScreen = useManagerStore((s) => s.setCurrentScreen);
 
-  const screens = [
-    { id: 1 as ManagerScreenId, name: '01. Login & Float', comp: <ScreenM1Login /> },
-    { id: 2 as ManagerScreenId, name: '02. Live Overview', comp: <ScreenM2LiveOverview /> },
-    { id: 3 as ManagerScreenId, name: '03. Billing & POS', comp: <ScreenM4BillingPOS /> },
-    { id: 4 as ManagerScreenId, name: '04. Kitchen & Notifications', comp: <ScreenM5KitchenSpeed /> },
-    { id: 5 as ManagerScreenId, name: '05. Waiter Cash & Tips', comp: <ScreenM9WaiterCash /> },
-    { id: 6 as ManagerScreenId, name: '06. Menu Stocks & Offers', comp: <ScreenM10Menu86Stock /> },
-    { id: 7 as ManagerScreenId, name: '07. Sales Report', comp: <ScreenM11SalesReport /> },
-    { id: 8 as ManagerScreenId, name: '08. Petty Expenses & Cash Counter', comp: <ScreenM13PettyExpenses /> },
-  ];
+  // Local state ensures 100% synchronous reactivity in client rendering
+  const [activeTab, setActiveTab] = useState<ManagerScreenId>(currentScreen || 1);
 
-  const renderActiveScreen = () => {
-    const s = screens.find((item) => item.id === currentScreen);
-    return s ? s.comp : <ScreenM1Login />;
+  // Read URL query parameter (?screen=N or ?tab=N) on initial mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const screenParam = params.get('screen') || params.get('tab');
+        if (screenParam) {
+          const parsed = parseInt(screenParam, 10);
+          if (parsed >= 1 && parsed <= 8) {
+            setActiveTab(parsed as ManagerScreenId);
+            setCurrentScreen(parsed as ManagerScreenId);
+            return;
+          }
+        }
+      } catch {
+        // ignore in SSR / non-browser environments
+      }
+    }
+    if (currentScreen >= 1 && currentScreen <= 8) {
+      setActiveTab(currentScreen);
+    }
+  }, []);
+
+  // Sync activeTab whenever store currentScreen changes from sub-components
+  useEffect(() => {
+    if (currentScreen && currentScreen !== activeTab) {
+      setActiveTab(currentScreen);
+    }
+  }, [currentScreen]);
+
+  const handleTabClick = (id: ManagerScreenId) => {
+    setActiveTab(id);
+    setCurrentScreen(id);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('screen', id.toString());
+        window.history.replaceState(null, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const renderActiveScreen = (screenId: ManagerScreenId) => {
+    switch (screenId) {
+      case 1:
+        return <ScreenM1Login />;
+      case 2:
+        return <ScreenM2LiveOverview />;
+      case 3:
+        return <ScreenM4BillingPOS />;
+      case 4:
+        return <ScreenM5KitchenSpeed />;
+      case 5:
+        return <ScreenM9WaiterCash />;
+      case 6:
+        return <ScreenM10Menu86Stock />;
+      case 7:
+        return <ScreenM11SalesReport />;
+      case 8:
+        return <ScreenM13PettyExpenses />;
+      default:
+        return <ScreenM1Login />;
+    }
   };
 
   return (
@@ -41,14 +157,21 @@ export default function ManagerPortalPage() {
       <div className="h-full w-full max-h-full bg-white text-slate-900 border-2 border-[#9C3D1E] rounded-2xl shadow-sm flex flex-col overflow-hidden">
         
         {/* ── SCREEN NAVIGATION TABS (Top of Frame matching sketch) ── */}
-        <nav className="shrink-0 w-full border-b border-[#EAE5DF] bg-[#FAF8F5] px-3 sm:px-4 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none font-mono text-slate-900">
-          {screens.map((sc) => {
-            const isActive = currentScreen === sc.id;
+        <nav
+          role="tablist"
+          aria-label="Manager Portal Navigation"
+          className="shrink-0 w-full border-b border-[#EAE5DF] bg-[#FAF8F5] px-3 sm:px-4 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none font-mono text-slate-900"
+        >
+          {TAB_ITEMS.map((sc) => {
+            const isActive = activeTab === sc.id;
             return (
               <button
                 key={sc.id}
-                onClick={() => setCurrentScreen(sc.id)}
-                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-bold transition shrink-0 ${
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleTabClick(sc.id)}
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer select-none ${
                   isActive
                     ? 'border-[#9C3D1E] bg-[#9C3D1E] text-white shadow-xs'
                     : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-[#FAF8F5]'
@@ -63,8 +186,10 @@ export default function ManagerPortalPage() {
         {/* ── ACTUAL PARTICULAR SCREEN CONTAINER (Internal Scrolling only) ── */}
         <div className="flex-1 min-h-0 w-full bg-[#FAF8F5] p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
           <div className="w-full flex justify-center pb-6">
-            <div key={currentScreen} className="w-full flex justify-center transition-all duration-150">
-              {renderActiveScreen()}
+            <div key={activeTab} className="w-full flex justify-center transition-all duration-150">
+              <ManagerScreenErrorBoundary resetKey={activeTab}>
+                {renderActiveScreen(activeTab)}
+              </ManagerScreenErrorBoundary>
             </div>
           </div>
         </div>

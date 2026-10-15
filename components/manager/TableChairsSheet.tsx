@@ -221,11 +221,19 @@ export function TableChairsSheet({
   // Vacate is enabled ONLY when payment is done and the table is not already vacant
   const isVacateEnabled = !isVacant && isSelectionPaid;
 
+  // Add Items is enabled until payment is done (once paid by waiter mobile, customer, waiter tablet, or manager, cannot add extra items to settled bill)
+  const isAddItemsEnabled = !isSelectionPaid;
+
   const handleOpenBilling = () => {
     setSelectedTableNumber(table.number);
     setSelectedSeatNumber(selectedSeat);
     setCurrentScreen(3); // Screen 03 Billing & POS
     onClose?.();
+  };
+
+  const handleAddItems = () => {
+    if (!isAddItemsEnabled) return;
+    handleOpenBilling();
   };
 
   const handlePrintKOT = () => {
@@ -416,9 +424,19 @@ export function TableChairsSheet({
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={handleOpenBilling}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-[10px] font-black transition shadow-2xs"
-            title="Add dishes or extra items to this table/chair"
+            type="button"
+            onClick={handleAddItems}
+            disabled={!isAddItemsEnabled}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded font-mono text-[10px] font-black transition shadow-2xs ${
+              isAddItemsEnabled
+                ? 'bg-[#9C3D1E] hover:bg-orange-700 text-white cursor-pointer active:scale-95'
+                : 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed opacity-60'
+            }`}
+            title={
+              isAddItemsEnabled
+                ? 'Add dishes or extra items to this table/chair'
+                : 'Bill already paid — cannot add items to a settled bill. Vacate table first to seat new orders.'
+            }
           >
             <PlusCircle className="h-3 w-3" />
             <span>+ Add Items</span>
@@ -426,9 +444,11 @@ export function TableChairsSheet({
           <span
             className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
               selectedSeat === 'ALL'
-                ? isBilling || (table.currentBill === 0 && !isOccupied)
+                ? isBilling || isTablePaid || (table.currentBill === 0 && !isOccupied)
                   ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                   : 'bg-orange-100 text-orange-900 border-orange-300'
+                : isSelectionPaid
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                 : displayedItems.length > 0
                 ? 'bg-amber-100 text-amber-900 border-amber-300'
                 : (typeof selectedSeat === 'number' && selectedSeat <= occupiedGuests)
@@ -437,11 +457,13 @@ export function TableChairsSheet({
             }`}
           >
             {selectedSeat === 'ALL'
-              ? isBilling
+              ? isBilling || isTablePaid
                 ? 'BILLING'
                 : isOccupied
                 ? 'ACTIVE'
                 : 'VACANT'
+              : isSelectionPaid
+              ? 'PAID'
               : displayedItems.length > 0
               ? 'ACTIVE ORDERS'
               : (typeof selectedSeat === 'number' && selectedSeat <= occupiedGuests)

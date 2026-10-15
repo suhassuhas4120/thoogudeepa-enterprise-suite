@@ -461,7 +461,7 @@ group('UX logic — ScreenM1Login.tsx (authentication flow)', () => {
   ok('M1 Unlock button navigates to screen 2', /setCurrentScreen\(2\)/.test(s));
   ok('M1 has authentication error state', /authError/.test(s));
   ok('M1 shows INVALID PIN message on error', /INVALID PIN/.test(s));
-  ok('M1 shows MANAGER / CASHIER AUTHENTICATION header', /MANAGER \/ CASHIER AUTHENTICATION/i.test(s));
+  ok('M1 shows Manager Desktop header', /Manager Desktop|MANAGER \/ CASHIER AUTHENTICATION/i.test(s));
   ok('M1 shows Shift Selection controls', /Select Restaurant Shift|Shift/i.test(s));
   ok('M1 shows opening float as VERIFIED', /VERIFIED/.test(s));
 });
@@ -782,7 +782,7 @@ group('Brand venue name consistency — manager portal', () => {
   const store = read('store/useManagerStore.ts');
 
   ok('Manager Shell defines portal frame branding', page.includes('manager-portal') && page.includes('#9C3D1E'));
-  ok('M1 shows MANAGER / CASHIER AUTHENTICATION header', /MANAGER \/ CASHIER AUTHENTICATION/i.test(m1));
+  ok('M1 shows Manager Desktop header', /Manager Desktop|MANAGER \/ CASHIER AUTHENTICATION/i.test(m1));
   ok('Store manager profiles use proper restaurant section names', /SECTION A.*Ground AC|Ground AC.*SECTION A/.test(store));
   ok('Store petty expenses reference real Karnataka vendors', /Nandini Dairy|Gandhi Bazaar|Indane Gas/.test(store));
   ok('Store queue tokens have Kannada/Karnataka names', /Santhosh Kumar|Deepak Rao|Meenakshi Iyer/.test(store));

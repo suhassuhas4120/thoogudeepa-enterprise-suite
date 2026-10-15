@@ -110,11 +110,11 @@ export function ScreenM1Login() {
           </div>
         </div>
 
-        {/* Opening Cash Float Box */}
+        {/* Starting Cash Balance Box */}
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
           {adjustingFloat ? (
             <div>
-              <p className="text-xs font-mono font-bold text-slate-700 mb-2">ADJUST OPENING CASH FLOAT:</p>
+              <p className="text-xs font-mono font-bold text-slate-700 mb-2">EDIT STARTING CASH BALANCE:</p>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-sm font-black text-slate-700">₹</span>
                 <input
@@ -146,7 +146,7 @@ export function ScreenM1Login() {
           ) : (
             <>
               <div className="flex justify-between items-center text-xs font-mono text-slate-500">
-                <span>OPENING CASH FLOAT:</span>
+                <span>STARTING CASH BALANCE:</span>
                 <div className="flex items-center gap-2">
                   <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-bold">VERIFIED</span>
                   <button
@@ -154,7 +154,7 @@ export function ScreenM1Login() {
                     className="flex items-center gap-1 bg-orange-50 border border-orange-200 text-orange-700 px-2 py-0.5 rounded font-mono text-[10px] font-bold hover:bg-orange-100 transition"
                   >
                     <Edit2 className="h-3 w-3" />
-                    ADJUST FLOAT
+                    EDIT AMOUNT
                   </button>
                 </div>
               </div>
@@ -174,11 +174,11 @@ export function ScreenM1Login() {
               <KeyRound className="h-6 w-6" />
             </div>
             <h3 className="text-base font-black font-mono text-slate-900">
-              MANAGER / CASHIER AUTHENTICATION
+              Manager Desktop
             </h3>
           </div>
 
-          {/* Profile Select — [ACTIVE PROFILE] label removed */}
+          {/* Profile Select */}
           <div className="mt-4">
             <label className="block text-xs font-mono font-bold text-slate-700 mb-1.5">
               Staff Profile:
@@ -188,12 +188,15 @@ export function ScreenM1Login() {
               onChange={handleProfileChange}
               className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2.5 font-mono text-xs font-bold text-slate-900 focus:outline-none"
             >
-              {MANAGER_PROFILES.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} — ({p.role})
-                </option>
-              ))}
-              <option value="other">OTHER STAFF — (Enter Name Below)</option>
+              {MANAGER_PROFILES.map((p) => {
+                const cleanName = p.name.replace(/\s*\([^)]*\)/g, '').trim();
+                return (
+                  <option key={p.id} value={p.id}>
+                    {cleanName} — ({p.role})
+                  </option>
+                );
+              })}
+              <option value="other">Other Staff — (Enter Name Below)</option>
             </select>
 
             {/* Other Staff Name Input */}
@@ -275,7 +278,7 @@ export function ScreenM1Login() {
             className="flex-1 bg-[#9C3D1E] text-white py-2.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs hover:bg-orange-600 transition"
           >
             <Unlock className="h-4 w-4" />
-            <span>VERIFY & UNLOCK DESK</span>
+            <span>Verify & Login</span>
           </button>
         </div>
       </div>

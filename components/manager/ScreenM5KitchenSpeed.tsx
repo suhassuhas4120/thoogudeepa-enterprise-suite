@@ -47,6 +47,7 @@ export function ScreenM5KitchenSpeed() {
 
   const [activeTab, setActiveTab] = useState<'PLACED' | 'PAID'>('PLACED');
   const [placedFilter, setPlacedFilter] = useState<'ALL' | 'PLACED' | 'RECEIVED' | 'PREPARING' | 'READY'>('ALL');
+  const [paidFilter, setPaidFilter] = useState<'ALL' | 'CASH' | 'UPI' | 'CARD'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── 1. Minimum 20 Placed Orders ──
@@ -169,6 +170,20 @@ export function ScreenM5KitchenSpeed() {
     [combinedPlacedOrders]
   );
 
+  // Paid Orders method filter counts (Cash, UPI, Card)
+  const cashCount = React.useMemo(
+    () => combinedPaidOrders.filter((b) => (b.method || '').toUpperCase() === 'CASH').length,
+    [combinedPaidOrders]
+  );
+  const upiCount = React.useMemo(
+    () => combinedPaidOrders.filter((b) => (b.method || '').toUpperCase() === 'UPI').length,
+    [combinedPaidOrders]
+  );
+  const cardCount = React.useMemo(
+    () => combinedPaidOrders.filter((b) => (b.method || '').toUpperCase() === 'CARD').length,
+    [combinedPaidOrders]
+  );
+
   // Filtered and Sorted Placed Orders for Left Column
   const filteredPlaced = React.useMemo(() => {
     return combinedPlacedOrders
@@ -207,21 +222,36 @@ export function ScreenM5KitchenSpeed() {
     return combinedPaidOrders
       .filter((bill) => {
         const term = searchTerm.trim().toLowerCase();
-        return (
+        const matchesSearch =
           !term ||
           (bill.tableName || '').toLowerCase().includes(term) ||
           (bill.invoiceNumber || '').toLowerCase().includes(term) ||
           (bill.method || '').toLowerCase().includes(term) ||
-          (bill.items || []).some((it) => (it?.name || '').toLowerCase().includes(term))
-        );
+          (bill.items || []).some((it) => (it?.name || '').toLowerCase().includes(term));
+
+        if (!matchesSearch) return false;
+        if (paidFilter === 'ALL') return true;
+        return (bill.method || '').toUpperCase() === paidFilter;
       })
       .sort((a, b) => {
+        // Method priority sorting when viewing ALL: CASH -> UPI -> CARD
+        if (paidFilter === 'ALL') {
+          const priority: Record<string, number> = { CASH: 1, UPI: 2, CARD: 3 };
+          const pA = priority[(a.method || '').toUpperCase()] || 4;
+          const pB = priority[(b.method || '').toUpperCase()] || 4;
+          if (pA !== pB) return pA - pB;
+        }
+        // Numeric sort by table number
         const numA = parseInt((a.tableName || '').replace(/\D/g, ''), 10) || 0;
         const numB = parseInt((b.tableName || '').replace(/\D/g, ''), 10) || 0;
         if (numA !== numB) return numA - numB;
+        // Secondary sort by timestamp (most recent first) or invoiceNumber
+        const timeA = typeof a.timestamp === 'number' ? a.timestamp : 0;
+        const timeB = typeof b.timestamp === 'number' ? b.timestamp : 0;
+        if (timeA !== timeB) return timeB - timeA;
         return (b.invoiceNumber || '').localeCompare(a.invoiceNumber || '');
       });
-  }, [combinedPaidOrders, searchTerm]);
+  }, [combinedPaidOrders, searchTerm, paidFilter]);
 
   // Stage Badge Formatting: PLACED, RECEIVED, PREPARING, READY, SERVED
   // Enhanced with proper badge width (min-w-[90px]) and larger font size (text-xs font-black)
@@ -406,6 +436,34 @@ export function ScreenM5KitchenSpeed() {
                       : st === 'PREPARING'
                       ? `Preparing (${preparingCount})`
                       : `Ready (${readyCount})`}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeTab === 'PAID' && (
+              <div className="flex items-center gap-2 overflow-x-auto text-xs pt-1.5 border-t border-slate-100">
+                <span className="text-xs font-black text-slate-700 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1 shrink-0">
+                  <Filter className="h-3.5 w-3.5 text-slate-600" />
+                  <span>FILTER:</span>
+                </span>
+                {(['ALL', 'CASH', 'UPI', 'CARD'] as const).map((method) => (
+                  <button
+                    key={method}
+                    onClick={() => setPaidFilter(method)}
+                    className={`px-3.5 py-1.5 rounded-lg font-black transition text-xs shrink-0 cursor-pointer min-w-[70px] text-center ${
+                      paidFilter === method
+                        ? 'bg-[#9C3D1E] text-white shadow-xs'
+                        : 'bg-[#FAF8F5] text-slate-700 hover:bg-stone-200 border border-slate-300'
+                    }`}
+                  >
+                    {method === 'ALL'
+                      ? `All (${combinedPaidOrders.length})`
+                      : method === 'CASH'
+                      ? `Cash (${cashCount})`
+                      : method === 'UPI'
+                      ? `UPI (${upiCount})`
+                      : `Card (${cardCount})`}
                   </button>
                 ))}
               </div>

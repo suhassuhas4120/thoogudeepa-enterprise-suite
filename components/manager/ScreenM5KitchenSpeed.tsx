@@ -46,7 +46,7 @@ export function ScreenM5KitchenSpeed() {
   } = useSharedBridge();
 
   const [activeTab, setActiveTab] = useState<'PLACED' | 'PAID'>('PLACED');
-  const [placedFilter, setPlacedFilter] = useState<'ALL' | 'READY' | 'PREP' | 'PLACED'>('ALL');
+  const [placedFilter, setPlacedFilter] = useState<'ALL' | 'PLACED' | 'RECEIVED' | 'PREPARING' | 'READY'>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── 1. Minimum 20 Placed Orders ──
@@ -119,39 +119,52 @@ export function ScreenM5KitchenSpeed() {
     return list;
   }, [combinedPlacedOrders]);
 
-  // Helper to accurately classify ticket stage category (READY, PREP, PLACED)
-  const getTicketStageCategory = (tk: SharedKDSTicket): 'READY' | 'PREP' | 'PLACED' => {
-    const status = (tk.status || '').toUpperCase();
-    const itemStages = (tk.items || []).map((it) => String(it.stage || '').toUpperCase());
+  // Normalize any item stage or ticket status to the 4 canonical stages (PLACED, RECEIVED, PREPARING, READY)
+  const getItemStageNormalized = (itemStage?: string, ticketStatus?: string): 'PLACED' | 'RECEIVED' | 'PREPARING' | 'READY' => {
+    const s = String(itemStage || '').toUpperCase().trim();
+    if (s === 'READY' || s === 'PLATED') return 'READY';
+    if (s === 'PREPARING' || s === 'PREP' || s === 'COOKING') return 'PREPARING';
+    if (s === 'RECEIVED') return 'RECEIVED';
+    if (s === 'PLACED' || s === 'NEW') return 'PLACED';
 
-    // 1. Ready: if ticket status or any item is READY / PLATED
-    if (status === 'READY' || status === 'PLATED' || itemStages.some((s) => s === 'READY' || s === 'PLATED')) {
-      return 'READY';
-    }
-    // 2. Prep: if ticket status or any item is PREP / PREPARING / COOKING
-    if (
-      status === 'PREP' ||
-      status === 'PREPARING' ||
-      status === 'COOKING' ||
-      itemStages.some((s) => s === 'PREP' || s === 'PREPARING' || s === 'COOKING')
-    ) {
-      return 'PREP';
-    }
-    // 3. Placed: NEW, PLACED, RECEIVED
+    const ts = String(ticketStatus || '').toUpperCase().trim();
+    if (ts === 'READY' || ts === 'PLATED') return 'READY';
+    if (ts === 'PREPARING' || ts === 'PREP' || ts === 'COOKING') return 'PREPARING';
+    if (ts === 'RECEIVED') return 'RECEIVED';
     return 'PLACED';
   };
 
-  // Filter stage counts
-  const readyCount = React.useMemo(
-    () => combinedPlacedOrders.filter((t) => getTicketStageCategory(t) === 'READY').length,
-    [combinedPlacedOrders]
-  );
-  const prepCount = React.useMemo(
-    () => combinedPlacedOrders.filter((t) => getTicketStageCategory(t) === 'PREP').length,
-    [combinedPlacedOrders]
-  );
+  // Helper to accurately classify ticket stage category (PLACED, RECEIVED, PREPARING, READY)
+  const getTicketStageCategory = (tk: SharedKDSTicket): 'PLACED' | 'RECEIVED' | 'PREPARING' | 'READY' => {
+    const itemStages = (tk.items || []).map((it) => getItemStageNormalized(it.stage, tk.status));
+    if (itemStages.length > 0) {
+      if (itemStages.some((s) => s === 'PREPARING')) return 'PREPARING';
+      if (itemStages.some((s) => s === 'RECEIVED')) return 'RECEIVED';
+      if (itemStages.some((s) => s === 'PLACED')) return 'PLACED';
+      if (itemStages.every((s) => s === 'READY')) return 'READY';
+    }
+    const ts = String(tk.status || '').toUpperCase().trim();
+    if (ts === 'READY' || ts === 'PLATED') return 'READY';
+    if (ts === 'PREPARING' || ts === 'PREP' || ts === 'COOKING') return 'PREPARING';
+    if (ts === 'RECEIVED') return 'RECEIVED';
+    return 'PLACED';
+  };
+
+  // Filter stage counts (matching tickets containing items in respective mode)
   const placedCount = React.useMemo(
-    () => combinedPlacedOrders.filter((t) => getTicketStageCategory(t) === 'PLACED').length,
+    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'PLACED')).length,
+    [combinedPlacedOrders]
+  );
+  const receivedCount = React.useMemo(
+    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'RECEIVED')).length,
+    [combinedPlacedOrders]
+  );
+  const preparingCount = React.useMemo(
+    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'PREPARING')).length,
+    [combinedPlacedOrders]
+  );
+  const readyCount = React.useMemo(
+    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'READY')).length,
     [combinedPlacedOrders]
   );
 
@@ -169,14 +182,15 @@ export function ScreenM5KitchenSpeed() {
 
         if (!matchesSearch) return false;
         if (placedFilter === 'ALL') return true;
-        return getTicketStageCategory(tk) === placedFilter;
+        // In respective order mode, only keep tickets with items in this stage
+        return tk.items.some((it) => getItemStageNormalized(it.stage, tk.status) === placedFilter);
       })
       .sort((a, b) => {
-        // Stage priority order when viewing ALL: PREP first, then PLACED, then READY
+        // Stage priority order when viewing ALL: PREPARING -> RECEIVED -> PLACED -> READY
         if (placedFilter === 'ALL') {
-          const priority: Record<string, number> = { PREP: 1, PLACED: 2, READY: 3 };
-          const pA = priority[getTicketStageCategory(a)] || 4;
-          const pB = priority[getTicketStageCategory(b)] || 4;
+          const priority: Record<string, number> = { PREPARING: 1, RECEIVED: 2, PLACED: 3, READY: 4 };
+          const pA = priority[getTicketStageCategory(a)] || 5;
+          const pB = priority[getTicketStageCategory(b)] || 5;
           if (pA !== pB) return pA - pB;
         }
         // Numeric sort by table number
@@ -209,21 +223,31 @@ export function ScreenM5KitchenSpeed() {
   }, [combinedPaidOrders, searchTerm]);
 
   // Stage Badge Formatting: PLACED, RECEIVED, PREPARING, READY, SERVED
+  // Enhanced with proper badge width (min-w-[90px]) and larger font size (text-xs font-black)
   const getStageBadge = (stage?: string, status?: string) => {
-    const s = String(stage || status || '').toUpperCase().trim();
-    if (s === 'SERVED') {
-      return { text: 'SERVED', cls: 'bg-slate-100 text-slate-700 border-slate-300' };
+    const s = getItemStageNormalized(stage, status);
+    if (s === 'READY') {
+      return {
+        text: 'READY',
+        cls: 'bg-emerald-100 text-emerald-900 border border-emerald-300 shadow-2xs font-black min-w-[90px] text-center px-3 py-1 text-xs rounded-lg',
+      };
     }
-    if (s === 'READY' || s === 'PLATED') {
-      return { text: 'READY', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
-    }
-    if (s === 'PREPARING' || s === 'PREP' || s === 'COOKING') {
-      return { text: 'PREPARING', cls: 'bg-amber-100 text-amber-800 border-amber-300' };
+    if (s === 'PREPARING') {
+      return {
+        text: 'PREPARING',
+        cls: 'bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs font-black min-w-[90px] text-center px-3 py-1 text-xs rounded-lg',
+      };
     }
     if (s === 'RECEIVED') {
-      return { text: 'RECEIVED', cls: 'bg-blue-100 text-blue-800 border-blue-300' };
+      return {
+        text: 'RECEIVED',
+        cls: 'bg-blue-100 text-blue-950 border border-blue-300 shadow-2xs font-black min-w-[90px] text-center px-3 py-1 text-xs rounded-lg',
+      };
     }
-    return { text: 'PLACED', cls: 'bg-orange-100 text-orange-800 border-orange-300' };
+    return {
+      text: 'PLACED',
+      cls: 'bg-orange-100 text-[#9C3D1E] border border-orange-300 shadow-2xs font-black min-w-[90px] text-center px-3 py-1 text-xs rounded-lg',
+    };
   };
 
   // Helper for Customer Ping Icon
@@ -358,15 +382,15 @@ export function ScreenM5KitchenSpeed() {
 
             {activeTab === 'PLACED' && (
               <div className="flex items-center gap-2 overflow-x-auto text-xs pt-1.5 border-t border-slate-100">
-                <span className="text-xs font-black text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 flex items-center gap-1 shrink-0">
+                <span className="text-xs font-black text-slate-700 bg-slate-100 px-2.5 py-1.5 rounded-lg border border-slate-200 flex items-center gap-1 shrink-0">
                   <Filter className="h-3.5 w-3.5 text-slate-600" />
                   <span>FILTER:</span>
                 </span>
-                {(['ALL', 'PREP', 'PLACED', 'READY'] as const).map((st) => (
+                {(['ALL', 'PLACED', 'RECEIVED', 'PREPARING', 'READY'] as const).map((st) => (
                   <button
                     key={st}
                     onClick={() => setPlacedFilter(st)}
-                    className={`px-3 py-1.5 rounded-lg font-black transition text-xs shrink-0 cursor-pointer ${
+                    className={`px-3.5 py-1.5 rounded-lg font-black transition text-xs shrink-0 cursor-pointer min-w-[70px] text-center ${
                       placedFilter === st
                         ? 'bg-[#9C3D1E] text-white shadow-xs'
                         : 'bg-[#FAF8F5] text-slate-700 hover:bg-stone-200 border border-slate-300'
@@ -374,10 +398,12 @@ export function ScreenM5KitchenSpeed() {
                   >
                     {st === 'ALL'
                       ? `All (${combinedPlacedOrders.length})`
-                      : st === 'PREP'
-                      ? `Prep (${prepCount})`
                       : st === 'PLACED'
                       ? `Placed (${placedCount})`
+                      : st === 'RECEIVED'
+                      ? `Received (${receivedCount})`
+                      : st === 'PREPARING'
+                      ? `Preparing (${preparingCount})`
                       : `Ready (${readyCount})`}
                   </button>
                 ))}
@@ -398,16 +424,25 @@ export function ScreenM5KitchenSpeed() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[780px] overflow-y-auto pr-1">
                   {filteredPlaced.map((tk) => {
                     const chairNum = tk.seatNumber || tk.items[0]?.seatNumber || 1;
-                    const overallStage = getStageBadge(undefined, tk.status);
+                    const visibleItems =
+                      placedFilter === 'ALL'
+                        ? tk.items
+                        : tk.items.filter(
+                            (it) => getItemStageNormalized(it.stage, tk.status) === placedFilter
+                          );
+                    const overallStage =
+                      placedFilter === 'ALL'
+                        ? getStageBadge(undefined, getTicketStageCategory(tk))
+                        : getStageBadge(placedFilter);
 
                     return (
                       <div
                         key={tk.id}
-                        className="p-3 rounded-xl border border-[#EAE5DF] bg-white shadow-xs flex flex-col justify-between hover:border-orange-300 transition"
+                        className="p-3.5 rounded-xl border border-[#EAE5DF] bg-white shadow-xs flex flex-col justify-between hover:border-orange-300 transition"
                       >
                         <div>
                           {/* Ticket Header */}
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-mono text-xs sm:text-sm font-black text-white bg-[#9C3D1E] px-2.5 py-1 rounded-lg shadow-2xs">
@@ -417,46 +452,49 @@ export function ScreenM5KitchenSpeed() {
                                   Chair {chairNum}
                                 </span>
                               </div>
-                              <div className="text-[9.5px] text-slate-400 font-bold mt-0.5">
+                              <div className="text-[10px] text-slate-400 font-bold mt-1">
                                 {tk.id} • {tk.timestamp}
                               </div>
                             </div>
 
-                            <span
-                              className={`px-1.5 py-0.5 rounded text-[9.5px] font-black border ${overallStage.cls}`}
-                            >
+                            <span className={overallStage.cls}>
                               {overallStage.text}
                             </span>
                           </div>
 
-                          {/* Items List (Read-Only Badges) */}
-                          <div className="mt-2 space-y-1.5">
-                            {tk.items.map((it, idx) => {
-                              const itemBadge = getStageBadge(it.stage, tk.status);
+                          {/* Items List (Respective Items Matching Selected Stage Mode) */}
+                          <div className="mt-2.5 space-y-2">
+                            {visibleItems.map((it, idx) => {
+                              const itemStageNorm = getItemStageNormalized(it.stage, tk.status);
+                              const itemBadge = getStageBadge(itemStageNorm);
                               return (
                                 <div
                                   key={it.id || idx}
-                                  className="p-1.5 rounded-lg bg-[#FAF8F5] border border-slate-200/80 flex items-center justify-between gap-1.5 text-xs"
+                                  className="p-2.5 rounded-xl bg-[#FAF8F5] border border-slate-200/90 flex items-center justify-between gap-3 text-xs"
                                 >
                                   <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-black text-orange-600 text-xs shrink-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span className="font-mono text-sm sm:text-base font-black text-[#9C3D1E] shrink-0">
                                         {it.quantity}x
                                       </span>
-                                      <span className="font-bold text-slate-800 text-xs truncate">
+                                      <span className="font-mono text-sm sm:text-base font-black text-slate-900 truncate">
                                         {it.name}
                                       </span>
                                     </div>
                                     {it.options && (
-                                      <div className="text-[9px] text-slate-400 truncate">
-                                        ({it.options})
+                                      <div className="font-mono text-xs font-bold text-slate-500 mt-1 flex items-center gap-1.5 truncate">
+                                        <span>•</span>
+                                        <span>{it.options}</span>
+                                      </div>
+                                    )}
+                                    {it.notes && (
+                                      <div className="font-mono text-xs font-bold text-amber-800 mt-0.5 truncate">
+                                        Note: {it.notes}
                                       </div>
                                     )}
                                   </div>
 
-                                  <span
-                                    className={`text-[9px] font-black px-1.5 py-0.5 rounded border shrink-0 ${itemBadge.cls}`}
-                                  >
+                                  <span className={`shrink-0 ${itemBadge.cls}`}>
                                     {itemBadge.text}
                                   </span>
                                 </div>
@@ -465,10 +503,11 @@ export function ScreenM5KitchenSpeed() {
                           </div>
                         </div>
 
-                        {/* Clean Card Footer (No Buttons) */}
-                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
-                          <span className="text-slate-500 font-bold">
-                            {tk.items.reduce((s, i) => s + i.quantity, 0)} Items Total
+                        {/* Clean Card Footer */}
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs">
+                          <span className="text-slate-600 font-bold">
+                            {visibleItems.reduce((s, i) => s + i.quantity, 0)} Items{' '}
+                            {placedFilter !== 'ALL' ? `(${placedFilter})` : 'Total'}
                           </span>
                           <span className="text-slate-400 font-medium">
                             Capt: <strong className="text-slate-700">{tk.serverName}</strong>
@@ -507,11 +546,11 @@ export function ScreenM5KitchenSpeed() {
                     return (
                       <div
                         key={bill.invoiceNumber || idx}
-                        className="p-3 rounded-xl border border-[#EAE5DF] bg-white shadow-xs flex flex-col justify-between hover:border-emerald-300 transition"
+                        className="p-3.5 rounded-xl border border-[#EAE5DF] bg-white shadow-xs flex flex-col justify-between hover:border-emerald-300 transition"
                       >
                         <div>
                           {/* Bill Header */}
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                             <div>
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-mono text-xs sm:text-sm font-black text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg shadow-2xs">
@@ -521,33 +560,33 @@ export function ScreenM5KitchenSpeed() {
                                   {bill.seatLabel || 'Whole Table'}
                                 </span>
                               </div>
-                              <div className="text-[9.5px] text-slate-400 font-bold mt-0.5">
+                              <div className="text-[10px] text-slate-400 font-bold mt-1">
                                 {bill.invoiceNumber} • {bill.formattedTime}
                               </div>
                             </div>
 
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-0.5">
-                              <CheckCheck className="h-3 w-3" />
+                            <span className="min-w-[85px] px-3 py-1 rounded-lg text-xs font-black bg-emerald-100 text-emerald-900 border border-emerald-300 flex items-center justify-center gap-1 shadow-2xs">
+                              <CheckCheck className="h-3.5 w-3.5" />
                               <span>PAID</span>
                             </span>
                           </div>
 
                           {/* Items Breakdown */}
-                          <div className="mt-2 space-y-1">
+                          <div className="mt-2.5 space-y-2">
                             {bill.items.map((it, iIdx) => (
                               <div
                                 key={it.id || iIdx}
-                                className="p-1.5 rounded bg-[#FAF8F5] border border-slate-200/60 flex items-center justify-between text-xs"
+                                className="p-2.5 rounded-xl bg-[#FAF8F5] border border-slate-200/90 flex items-center justify-between gap-2 text-xs"
                               >
-                                <div className="flex items-center gap-1.5 min-w-0">
-                                  <span className="font-black text-slate-900 shrink-0">
+                                <div className="flex items-center gap-2 min-w-0">
+                                  <span className="font-mono text-sm sm:text-base font-black text-[#9C3D1E] shrink-0">
                                     {it.quantity}x
                                   </span>
-                                  <span className="font-bold text-slate-800 truncate">
+                                  <span className="font-mono text-sm sm:text-base font-black text-slate-900 truncate">
                                     {it.name}
                                   </span>
                                 </div>
-                                <span className="font-black text-slate-900 shrink-0">
+                                <span className="font-mono text-sm sm:text-base font-black text-slate-900 shrink-0">
                                   ₹ {it.totalPrice || it.price * it.quantity}
                                 </span>
                               </div>
@@ -555,12 +594,12 @@ export function ScreenM5KitchenSpeed() {
                           </div>
 
                           {/* Financials & Method */}
-                          <div className="mt-2 p-2 bg-[#FAF8F5] rounded-lg border border-slate-200 text-xs space-y-0.5">
-                            <div className="flex justify-between text-slate-500 text-[10px]">
+                          <div className="mt-2.5 p-2.5 bg-[#FAF8F5] rounded-xl border border-slate-200 text-xs space-y-1">
+                            <div className="flex justify-between text-slate-500 text-xs font-bold">
                               <span>Subtotal + GST:</span>
                               <span>₹ {bill.subtotal} + ₹ {bill.totalTax}</span>
                             </div>
-                            <div className="flex justify-between font-black text-slate-900 text-xs pt-1 border-t border-slate-200">
+                            <div className="flex justify-between font-mono font-black text-slate-900 text-xs sm:text-sm pt-1 border-t border-slate-200">
                               <span>TOTAL PAID:</span>
                               <span className="text-[#9C3D1E]">₹ {bill.grandTotal}.00</span>
                             </div>
@@ -568,9 +607,9 @@ export function ScreenM5KitchenSpeed() {
                         </div>
 
                         {/* Footer Details */}
-                        <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between">
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
                           <span
-                            className={`text-[9px] font-black px-1.5 py-0.5 rounded border ${methodBadgeClass}`}
+                            className={`min-w-[70px] text-center text-xs font-black px-2.5 py-1 rounded-lg border shadow-2xs ${methodBadgeClass}`}
                           >
                             {bill.method}
                           </span>
@@ -641,7 +680,7 @@ export function ScreenM5KitchenSpeed() {
               return (
                 <div
                   key={notif.id}
-                  className={`p-3 rounded-xl border bg-white shadow-2xs space-y-2 transition-all hover:shadow-xs ${
+                  className={`p-3.5 rounded-xl border bg-white shadow-2xs space-y-2.5 transition-all hover:shadow-xs ${
                     isReady
                       ? 'border-emerald-300 bg-emerald-50/20'
                       : isPrep
@@ -655,52 +694,51 @@ export function ScreenM5KitchenSpeed() {
                 >
                   {/* Top row: Table No, Chair No, Time */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-mono text-xs font-black text-white bg-[#9C3D1E] px-2 py-0.5 rounded-md shadow-2xs">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-mono text-xs font-black text-white bg-[#9C3D1E] px-2.5 py-1 rounded-lg shadow-2xs">
                         Table {notif.tableNumber}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border border-amber-300">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
                         Chair {notif.chairNumber}
                       </span>
                     </div>
 
-                    <span className="text-[10px] text-slate-400 font-bold flex items-center gap-1">
-                      <Clock className="h-3 w-3" />
+                    <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5" />
                       <span>{notif.timestamp}</span>
                     </span>
                   </div>
 
                   {/* Item Details: Quantity & Name */}
-                  <div className="p-2 rounded-lg bg-[#FAF8F5] border border-slate-200/70">
-                    <div className="flex items-start justify-between gap-1.5">
+                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-slate-200">
+                    <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
-                        <div className="flex items-baseline gap-1.5">
-                          <span className="font-black text-orange-600 text-xs shrink-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-sm sm:text-base font-black text-[#9C3D1E] shrink-0">
                             {notif.quantity}x
                           </span>
-                          <span className="font-black text-slate-900 text-xs">
+                          <span className="font-mono text-sm sm:text-base font-black text-slate-900 truncate">
                             {notif.itemName}
                           </span>
                         </div>
                         {notif.options && (
-                          <div className="text-[9.5px] text-slate-400 mt-0.5">
-                            ({notif.options})
+                          <div className="font-mono text-xs font-bold text-slate-500 mt-1 flex items-center gap-1.5 truncate">
+                            <span>•</span>
+                            <span>{notif.options}</span>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Bottom row: Live Status Badge & Server Info (Clean, No Advance Button) */}
+                  {/* Bottom row: Live Status Badge & Server Info */}
                   <div className="flex items-center justify-between pt-1">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-black border ${stageBadge.cls}`}
-                    >
+                    <span className={stageBadge.cls}>
                       {stageBadge.text}
                     </span>
 
-                    <span className="text-[9.5px] font-bold text-slate-400">
-                      Pass: <strong className="text-slate-600">{notif.serverName}</strong>
+                    <span className="text-xs font-bold text-slate-500">
+                      Pass: <strong className="text-slate-800">{notif.serverName}</strong>
                     </span>
                   </div>
                 </div>
@@ -741,7 +779,7 @@ export function ScreenM5KitchenSpeed() {
               return (
                 <div
                   key={ping.id}
-                  className={`p-3 rounded-xl border bg-white shadow-2xs space-y-2 transition-all hover:shadow-xs ${
+                  className={`p-3.5 rounded-xl border bg-white shadow-2xs space-y-2.5 transition-all hover:shadow-xs ${
                     isResolved
                       ? 'border-slate-200 bg-slate-50/50 opacity-70'
                       : isPending
@@ -751,37 +789,37 @@ export function ScreenM5KitchenSpeed() {
                 >
                   {/* Top row: Icon, Table, Chair, Time */}
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                       <div className="p-1 rounded-md bg-[#FAF8F5] border border-slate-200 shrink-0">
                         {getPingIcon(ping.type)}
                       </div>
-                      <span className="font-mono text-xs font-black text-rose-950 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-md shadow-2xs">
+                      <span className="font-mono text-xs font-black text-rose-950 bg-rose-100 border border-rose-300 px-2.5 py-1 rounded-lg shadow-2xs">
                         Table {ping.tableNumber}
                       </span>
-                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-200">
                         {typeof ping.seatNumber === 'number'
                           ? `Chair ${ping.seatNumber}`
                           : 'Table'}
                       </span>
                     </div>
 
-                    <span className="text-[10px] text-slate-400 font-bold">
+                    <span className="text-xs text-slate-400 font-bold">
                       {ping.timestamp}
                     </span>
                   </div>
 
                   {/* Message & Type */}
-                  <div className="p-2 rounded-lg bg-[#FAF8F5] border border-slate-200/70">
-                    <div className="flex items-center justify-between gap-1 text-[11px]">
-                      <span className="font-black text-slate-800 uppercase text-[10px]">
+                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-slate-200">
+                    <div className="flex items-center justify-between gap-1 text-xs">
+                      <span className="font-black text-slate-800 uppercase text-xs">
                         {ping.type} REQUEST
                       </span>
-                      <span className="text-[9.5px] text-slate-400">
+                      <span className="text-xs text-slate-500 font-bold">
                         {ping.guestName || 'Guest'}
                       </span>
                     </div>
                     {ping.message && (
-                      <p className="text-[11px] text-slate-600 mt-1 line-clamp-2">
+                      <p className="text-xs font-bold text-slate-700 mt-1.5 line-clamp-2">
                         {ping.message}
                       </p>
                     )}
@@ -790,18 +828,18 @@ export function ScreenM5KitchenSpeed() {
                   {/* Bottom row: Live Status badge (Clean, No Resolve Button) */}
                   <div className="flex items-center justify-between pt-1">
                     <span
-                      className={`px-2 py-0.5 rounded text-[9.5px] font-black border ${
+                      className={`min-w-[85px] text-center px-3 py-1 rounded-lg text-xs font-black border shadow-2xs ${
                         isResolved
-                          ? 'bg-slate-100 text-slate-600 border-slate-300'
+                          ? 'bg-slate-100 text-slate-700 border-slate-300'
                           : isPending
-                          ? 'bg-rose-100 text-rose-800 border-rose-300'
-                          : 'bg-blue-100 text-blue-800 border-blue-300'
+                          ? 'bg-rose-100 text-rose-950 border-rose-300'
+                          : 'bg-blue-100 text-blue-950 border-blue-300'
                       }`}
                     >
                       {ping.status}
                     </span>
 
-                    <span className="text-[9.5px] font-bold text-slate-400">
+                    <span className="text-xs font-bold text-slate-500">
                       {isResolved ? 'Resolved by Waiter' : 'Awaiting Floor Server'}
                     </span>
                   </div>

@@ -477,53 +477,24 @@ export function TableChairsSheet({
       </div>
 
       {/* Selected Chair / All Table Breakdown Header */}
-      <div className="px-4 py-3 bg-stone-100 border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-black text-slate-900 uppercase tracking-wide">
+      <div className="px-4 py-2.5 bg-white border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-black text-slate-900 uppercase tracking-wide truncate">
             {selectedSeat === "ALL"
-              ? `Table Orders (${tickets.length || (allTableOrderedItems.length > 0 ? 1 : 0)} KOT)`
+              ? "Table Orders"
               : `Chair ${selectedSeat} Breakdown`}
           </span>
-          <span className="text-xs font-bold text-slate-600">
-            • {displayedItems.reduce((s, i) => s + i.quantity, 0)} Items
+          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
+            {displayedItems.reduce((s, i) => s + i.quantity, 0)} {displayedItems.reduce((s, i) => s + i.quantity, 0) === 1 ? "item" : "items"}
           </span>
         </div>
-        <div className="flex items-center gap-2.5">
-          <button
-            onClick={handleOpenBilling}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer"
-          >
-            <PlusCircle className="h-4 w-4" />
-            <span>Add Items</span>
-          </button>
-          <span
-            className={`text-xs font-black uppercase px-2.5 py-1 rounded-lg border ${
-              selectedSeat === "ALL"
-                ? isBilling || (table.currentBill === 0 && !isOccupied)
-                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
-                  : "bg-orange-100 text-orange-900 border-orange-300"
-                : displayedItems.length > 0
-                  ? "bg-amber-100 text-amber-900 border-amber-300"
-                  : typeof selectedSeat === "number" &&
-                      selectedSeat <= occupiedGuests
-                    ? "bg-amber-50 text-amber-800 border-amber-200"
-                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
-            }`}
-          >
-            {selectedSeat === "ALL"
-              ? isBilling
-                ? "BILLING"
-                : isOccupied
-                  ? "ACTIVE"
-                  : "VACANT"
-              : displayedItems.length > 0
-                ? "ACTIVE ORDERS"
-                : typeof selectedSeat === "number" &&
-                    selectedSeat <= occupiedGuests
-                  ? "SEATED"
-                  : "AVAILABLE"}
-          </span>
-        </div>
+        <button
+          onClick={handleOpenBilling}
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer shrink-0"
+        >
+          <PlusCircle className="h-4 w-4" />
+          <span>Add Items</span>
+        </button>
       </div>
 
       {/* Dishes List */}

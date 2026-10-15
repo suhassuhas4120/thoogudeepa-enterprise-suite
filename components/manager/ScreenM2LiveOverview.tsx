@@ -77,9 +77,9 @@ export function ScreenM2LiveOverview() {
       </div>
 
       {/* Main Tables Status Matrix (5 Cols) + Chairs Section (3 Cols) Side-by-Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-8 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-8 gap-4 items-stretch">
         {/* Left: 5 Columns for Restaurant Tables Live Status Matrix */}
-        <div className="lg:col-span-5 bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-sm flex flex-col min-h-[650px]">
+        <div className="lg:col-span-5 bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-sm flex flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200">
             <div>
               <h3 className="text-sm font-black font-mono text-slate-900">
@@ -151,7 +151,7 @@ export function ScreenM2LiveOverview() {
         </div>
 
         {/* Right: Remaining 3 Columns for Chairs Section of that particular table */}
-        <div className="lg:col-span-3 flex flex-col h-[650px] sticky top-20">
+        <div className="lg:col-span-3 flex flex-col h-full sticky top-4">
           <TableChairsSheet
             tableNumber={activeTableNum}
             isModal={false}

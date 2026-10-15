@@ -104,7 +104,11 @@ export function ScreenM3TableSheet({
     pings,
     kdsTickets,
     activeSettlementSessions,
+    settledBills,
     waiterVacatesTable,
+    waiterRecordsPayment,
+    waiterClearsChairAfterPayment,
+    recordSettledBill,
     waiterMergeTables,
     waiterUnmergeTable,
     waiterMarkKitchenItemServed,
@@ -649,6 +653,106 @@ export function ScreenM3TableSheet({
       ? 'Awaiting customer bill request'
       : '';
   }
+
+  const hasSettledBill = Boolean(
+    settledBills?.[chairKey] ||
+    settledBills?.[normTable] ||
+    Object.entries(settledBills || {}).some(
+      ([k, b]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`))
+    )
+  );
+
+  const isPaymentDoneViaUpi = Boolean(
+    hasTableVerifiedUpi ||
+    hasChairVerifiedUpi ||
+    hasSettledBill ||
+    Object.entries(activeSettlementSessions || {}).some(
+      ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
+    )
+  );
+
+  if (isPaymentDoneViaUpi) {
+    isCurrentSelectionSettleDisabled = false;
+    currentSelectionSettleReason = '';
+  }
+
+  const handleDirectConfirmAndVacate = () => {
+    const finalAmt = Math.round(effectiveTotalDueForSettle > 0 ? effectiveTotalDueForSettle : (table.currentBill || 26));
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const formattedTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const cleanTbl = tableNum.replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const invoiceNumber = `INV-${cleanTbl.padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+
+    const activeChairsWithOrders = Array.from(
+      new Set(allTableOrderedItems.map((i) => i.seatNumber).filter((s): s is number => typeof s === 'number'))
+    );
+
+    const resolvedSeatNum = typeof selectedSeat === 'number'
+      ? selectedSeat
+      : (liveSessionSnapshot?.seatNumber || (activeChairsWithOrders.length === 1 ? activeChairsWithOrders[0] : undefined));
+
+    const seatLabel = resolvedSeatNum
+      ? `Chair ${resolvedSeatNum}`
+      : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
+      ? `Chairs ${mergedSeatGroups[selectedSeat].join(' & ')}`
+      : 'All Seats';
+
+    const snapshotItems = liveSessionSnapshot?.items && liveSessionSnapshot.items.length > 0
+      ? liveSessionSnapshot.items
+      : allTableOrderedItems
+          .filter((i) => !resolvedSeatNum || i.seatNumber === resolvedSeatNum)
+          .map((it, idx) => ({
+            id: it.id || `item-${idx}`,
+            name: it.name,
+            quantity: it.quantity,
+            price: it.price,
+            totalPrice: it.totalPrice,
+            seatNumber: it.seatNumber,
+            ticketNumber: 'TBL',
+          }));
+
+    const calcSub = liveSessionSnapshot?.subtotal || Math.round(finalAmt / 1.05);
+    const calcTax = liveSessionSnapshot?.totalTax ?? (finalAmt - calcSub);
+
+    recordSettledBill({
+      invoiceNumber,
+      tableName: tableNum,
+      section: table.section || 'Main Dining Hall',
+      guestCount: resolvedSeatNum ? 1 : (table.guestCount || 1),
+      formattedDate,
+      formattedTime,
+      captainName: 'Floor Captain',
+      method: 'UPI',
+      subtotal: calcSub,
+      totalTax: calcTax,
+      cgst: liveSessionSnapshot?.cgst ?? (calcTax / 2),
+      sgst: liveSessionSnapshot?.sgst ?? (calcTax / 2),
+      grandTotal: finalAmt,
+      items: snapshotItems,
+      seatNumber: resolvedSeatNum,
+      seatLabel,
+    });
+
+    waiterRecordsPayment(tableNum, 'UPI', finalAmt, resolvedSeatNum);
+
+    if (resolvedSeatNum !== undefined) {
+      waiterClearsChairAfterPayment(tableNum, resolvedSeatNum);
+      const remainingChairs = activeChairsWithOrders.filter((c) => c !== resolvedSeatNum);
+      if (remainingChairs.length === 0) {
+        waiterVacatesTable(tableNum);
+        onVacated();
+      } else {
+        setSelectedSeat('ALL');
+      }
+    } else {
+      waiterVacatesTable(tableNum);
+      onVacated();
+    }
+
+    setNotice(`Payment confirmed. ${seatLabel} vacated.`);
+    setTimeout(() => setNotice(null), 2500);
+  };
 
   const handleVacate = () => {
     waiterVacatesTable(tableNum);
@@ -1746,6 +1850,10 @@ export function ScreenM3TableSheet({
             type="button"
             disabled={isCurrentSelectionSettleDisabled}
             onClick={() => {
+              if (isPaymentDoneViaUpi) {
+                handleDirectConfirmAndVacate();
+                return;
+              }
               if (typeof selectedSeat === 'number') {
                 const bd = getChairBillBreakdown(selectedSeat);
                 const finalAmt = bd.totalDue > 0 ? bd.totalDue : effectiveTotalDueForSettle;
@@ -1774,16 +1882,20 @@ export function ScreenM3TableSheet({
                 : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95 shadow-xs'
             }`}
           >
-            <CreditCard className="h-4 w-4" />
+            {isPaymentDoneViaUpi ? (
+              <CheckCircle2 className="h-4 w-4" />
+            ) : (
+              <CreditCard className="h-4 w-4" />
+            )}
             <span>
-              {isCurrentSelectionSettleDisabled && hasTableOrders
+              {isPaymentDoneViaUpi
+                ? `Payment Done - Please Confirm (₹${Math.round(effectiveTotalDueForSettle)})`
+                : isCurrentSelectionSettleDisabled && hasTableOrders
                 ? currentSelectionSettleReason.startsWith('Select an individual')
                   ? 'Select Chair'
                   : hasUnservedTableItems
                   ? 'Serve to Settle'
                   : 'Awaiting Bill'
-                : hasTableVerifiedUpi || hasChairVerifiedUpi
-                ? `Confirm & Settle (₹${Math.round(effectiveTotalDueForSettle)})`
                 : 'Settle'}
             </span>
           </motion.button>

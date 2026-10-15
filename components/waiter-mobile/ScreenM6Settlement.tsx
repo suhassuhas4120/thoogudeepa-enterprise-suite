@@ -1366,6 +1366,8 @@ export function ScreenM6Settlement({
                 ? 'Confirm above to enable'
                 : method === 'UPI' && !isUpiVerified
                 ? 'Confirm QR Pay above to enable'
+                : method === 'UPI' && isUpiVerified
+                ? `Payment Done - Please Confirm (₹${Math.round(grandTotal)})`
                 : `Confirm & Settle ₹${grandTotal.toFixed(2)} via ${method}`}
             </span>
           </motion.button>

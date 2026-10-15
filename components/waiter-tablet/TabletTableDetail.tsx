@@ -142,6 +142,11 @@ export function TabletTableDetail({
     kdsTickets,
     pings,
     activeSettlementSessions,
+    settledBills,
+    waiterVacatesTable,
+    waiterRecordsPayment,
+    waiterClearsChairAfterPayment,
+    recordSettledBill,
     waiterMergeChairs,
     waiterMergeSeatGroup,
     waiterUnmergeSeatGroup,
@@ -359,6 +364,32 @@ export function TabletTableDetail({
     ? billToSettle
     : (liveSessionSnapshot?.grandTotal || 0);
 
+  const hasSettledBill = Boolean(
+    settledBills?.[chairKey] ||
+    settledBills?.[normTable] ||
+    Object.entries(settledBills || {}).some(
+      ([k, b]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`))
+    )
+  );
+
+  const isPaymentDoneViaUpi = Boolean(
+    hasTableVerifiedUpi ||
+    hasChairVerifiedUpi ||
+    hasSettledBill ||
+    Object.entries(activeSettlementSessions || {}).some(
+      ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
+    )
+  );
+
+  const activeChairsWithOrders = Array.from(
+    new Set(
+      [
+        ...allItems.map((i: any) => i.seatNumber),
+        ...(table.activeItems || []).map((ai: any) => ai.seatNumber),
+      ].filter((s): s is number => typeof s === 'number')
+    )
+  );
+
   // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
   const hasItemsToSettle = relevantItems.length > 0;
   const areAllRelevantItemsServed =
@@ -371,12 +402,82 @@ export function TabletTableDetail({
   // 1. All items have been served
   // 2. Customer has requested bill/settlement (serving dishes alone does NOT enable Settle Bill)
   // 3. No pending drafts, and bill > 0
-  const canSettle =
+  const canSettle = isPaymentDoneViaUpi || (
     !isVacant &&
     effectiveBillToSettle > 0 &&
     relevantDrafts.length === 0 &&
     areAllRelevantItemsServed &&
-    isCustomerBillRequested;
+    isCustomerBillRequested
+  );
+
+  const handleDirectConfirmAndVacate = () => {
+    const finalAmt = Math.round(effectiveBillToSettle > 0 ? effectiveBillToSettle : (targetChairBill || table.currentBill || 26));
+    const now = new Date();
+    const formattedDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    const formattedTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
+    const cleanTbl = tableNum.replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const invoiceNumber = `INV-${cleanTbl.padStart(2, '0')}-${Date.now().toString().slice(-4)}`;
+
+    const resolvedSeatNum = typeof selectedChair === 'number'
+      ? selectedChair
+      : (liveSessionSnapshot?.seatNumber || (activeChairsWithOrders.length === 1 ? activeChairsWithOrders[0] : undefined));
+
+    const seatLabel = resolvedSeatNum
+      ? `Chair ${resolvedSeatNum}`
+      : typeof selectedChair === 'string' && mergedSeatGroups[selectedChair]
+      ? `Chairs ${mergedSeatGroups[selectedChair].join(' & ')}`
+      : 'All Seats';
+
+    const snapshotItems = liveSessionSnapshot?.items && liveSessionSnapshot.items.length > 0
+      ? liveSessionSnapshot.items
+      : relevantItems.map((it: any, idx: number) => ({
+          id: it.id || `item-${idx}`,
+          name: it.name || it.menuItem?.name || 'Item',
+          quantity: it.quantity || 1,
+          price: it.price || it.menuItem?.price || 0,
+          totalPrice: (it.price || it.menuItem?.price || 0) * (it.quantity || 1),
+          seatNumber: it.seatNumber,
+          ticketNumber: 'TBL',
+        }));
+
+    const calcSub = liveSessionSnapshot?.subtotal || Math.round(finalAmt / 1.05);
+    const calcTax = liveSessionSnapshot?.totalTax ?? (finalAmt - calcSub);
+
+    recordSettledBill({
+      invoiceNumber,
+      tableName: tableNum,
+      section: formatSectionName(table?.section || '', tableNum),
+      guestCount: resolvedSeatNum ? 1 : (table?.guestCount || 1),
+      formattedDate,
+      formattedTime,
+      captainName: 'Floor Captain',
+      method: 'UPI',
+      subtotal: calcSub,
+      totalTax: calcTax,
+      cgst: liveSessionSnapshot?.cgst ?? (calcTax / 2),
+      sgst: liveSessionSnapshot?.sgst ?? (calcTax / 2),
+      grandTotal: finalAmt,
+      items: snapshotItems,
+      seatNumber: resolvedSeatNum,
+      seatLabel,
+    });
+
+    waiterRecordsPayment(tableNum, 'UPI', finalAmt, resolvedSeatNum);
+
+    if (resolvedSeatNum !== undefined) {
+      waiterClearsChairAfterPayment(tableNum, resolvedSeatNum);
+      const remainingChairs = activeChairsWithOrders.filter((c) => c !== resolvedSeatNum);
+      if (remainingChairs.length === 0) {
+        waiterVacatesTable(tableNum);
+        onVacate();
+      } else {
+        onSelectChair('ALL');
+      }
+    } else {
+      waiterVacatesTable(tableNum);
+      onVacate();
+    }
+  };
 
   const handleConfirmMergeSelectedChairs = () => {
     if (chairsSelectedForMerge.length < 2) return;
@@ -1160,15 +1261,15 @@ export function TabletTableDetail({
                   Awaiting Customer Bill Request
                 </span>
               )}
-              {areAllRelevantItemsServed && isCustomerBillRequested && (
+              {areAllRelevantItemsServed && (isCustomerBillRequested || isPaymentDoneViaUpi) && (
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                  Ready to Settle
+                  {isPaymentDoneViaUpi ? 'Payment Done via UPI' : 'Ready to Settle'}
                 </span>
               )}
             </div>
             <span className="font-black text-stone-950 text-2xl">
-              ₹{targetChairBill.toLocaleString()}
+              ₹{Math.round(effectiveBillToSettle > 0 ? effectiveBillToSettle : targetChairBill).toLocaleString()}
             </span>
           </div>
 
@@ -1192,6 +1293,10 @@ export function TabletTableDetail({
               type="button"
               onClick={() => {
                 if (!canSettle) return;
+                if (isPaymentDoneViaUpi) {
+                  handleDirectConfirmAndVacate();
+                  return;
+                }
                 onSettle();
               }}
               disabled={!canSettle}
@@ -1208,14 +1313,18 @@ export function TabletTableDetail({
                   : "bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs"
               }`}
             >
-              <CreditCard className="h-4 w-4 stroke-[2.4]" />
+              {isPaymentDoneViaUpi ? (
+                <CheckCircle2 className="h-4 w-4 stroke-[2.4]" />
+              ) : (
+                <CreditCard className="h-4 w-4 stroke-[2.4]" />
+              )}
               <span>
-                {!canSettle && hasItemsToSettle
+                {isPaymentDoneViaUpi
+                  ? `Payment Done - Please Confirm (₹${Math.round(effectiveBillToSettle)})`
+                  : !canSettle && hasItemsToSettle
                   ? !areAllRelevantItemsServed
                     ? "Serve to Settle"
                     : "Awaiting Bill"
-                  : hasTableVerifiedUpi || hasChairVerifiedUpi
-                  ? `Confirm & Settle (₹${Math.round(effectiveBillToSettle)})`
                   : `Settle ${selectedChair === "ALL" ? "Bill" : chairLabel}`}
               </span>
             </button>

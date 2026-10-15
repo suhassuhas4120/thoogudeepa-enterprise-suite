@@ -722,8 +722,10 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
             <span>
               {relevantFired.length > 0 && !areAllFiredServed
                 ? 'Serve Dishes First'
-                : !hasCustomerPaymentRequest
+                : !hasCustomerPaymentRequest && !isUpiVerified && !liveSession?.isUpiVerified
                 ? 'Awaiting Bill Request'
+                : isUpiVerified || liveSession?.isUpiVerified
+                ? `Payment Done - Please Confirm (₹${Math.round(bill)})`
                 : `Complete Settlement (₹${bill.toFixed(2)})`}
             </span>
           </button>

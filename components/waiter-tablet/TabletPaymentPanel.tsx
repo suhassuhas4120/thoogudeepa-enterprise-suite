@@ -42,7 +42,7 @@ export function TabletPaymentPanel({
   splitAmount,
   splitLabel,
 }: Props) {
-  const { tables, kdsTickets, pings, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill } = useSharedBridge();
+  const { tables, kdsTickets, pings, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill, waiterInitiatesSettlement, waiterClearsSettlementSession } = useSharedBridge();
   const { cart } = useCustomer();
   const table = tables.find((t) => t.number === tableNum);
 
@@ -147,6 +147,10 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
   const cgst = (totalTax / 2).toFixed(2);
   const sgst = (totalTax / 2).toFixed(2);
 
+  const splitSeatNum = typeof selectedChair === 'number'
+    ? selectedChair
+    : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
   // ── Generate real dynamic UPI QR code whenever method, table or bill changes ──
   useEffect(() => {
     if (method !== 'UPI' || !table) return;
@@ -155,6 +159,21 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
       .then((url) => setQrCodeUrl(url))
       .catch((err) => console.error('Failed to generate UPI QR code:', err));
   }, [method, table, tableNum, bill]);
+
+  // Synchronize tablet payment mode (UPI / CASH) in real-time with customer portal
+  useEffect(() => {
+    const sessionMethod = method === 'CASH' ? 'CASH' : 'UPI';
+    waiterInitiatesSettlement(tableNum, splitSeatNum, bill, sessionMethod, true);
+  }, [tableNum, splitSeatNum, bill, method, waiterInitiatesSettlement]);
+
+  // Clean up settlement session if navigating away before settling
+  useEffect(() => {
+    return () => {
+      if (!settled) {
+        waiterClearsSettlementSession(tableNum, splitSeatNum);
+      }
+    };
+  }, [tableNum, splitSeatNum, settled, waiterClearsSettlementSession]);
 
   if (!table) return null;
 
@@ -183,10 +202,6 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     method === 'CASH' && effectiveCashTendered >= bill
       ? effectiveCashTendered - bill
       : 0;
-
-  const splitSeatNum = typeof selectedChair === 'number'
-    ? selectedChair
-    : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
 
   const relevantFired = allFiredItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
   const areAllFiredServed =

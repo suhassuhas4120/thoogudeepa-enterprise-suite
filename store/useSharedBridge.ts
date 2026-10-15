@@ -2847,6 +2847,51 @@ if (typeof window !== 'undefined') {
             ),
           }));
         }
+        if (reason === 'settlementSessionStarted' && payload) {
+          const sess = payload as any;
+          useSharedBridge.setState((state) => {
+            const nextSessions = { ...state.activeSettlementSessions };
+            nextSessions[sess.tableNumber] = sess;
+            if (typeof sess.seatNumber === 'number') {
+              nextSessions[`${sess.tableNumber}-CHAIR-${sess.seatNumber}`] = sess;
+            } else {
+              for (let s = 1; s <= 6; s++) {
+                nextSessions[`${sess.tableNumber}-CHAIR-${s}`] = sess;
+              }
+            }
+            return { activeSettlementSessions: nextSessions };
+          });
+        }
+        if (reason === 'settlementSessionEnded' && payload?.tableNumber) {
+          const normTable = payload.tableNumber;
+          useSharedBridge.setState((state) => {
+            const nextSessions = { ...state.activeSettlementSessions };
+            delete nextSessions[normTable];
+            for (let s = 1; s <= 6; s++) {
+              delete nextSessions[`${normTable}-CHAIR-${s}`];
+            }
+            return { activeSettlementSessions: nextSessions };
+          });
+        }
+        if (reason === 'settlementSessionCleared' && payload?.normTable) {
+          const normTable = payload.normTable;
+          const seatNum = payload.seatNumber;
+          useSharedBridge.setState((state) => {
+            const nextSessions = { ...state.activeSettlementSessions };
+            if (typeof seatNum === 'number') {
+              delete nextSessions[`${normTable}-CHAIR-${seatNum}`];
+              if (nextSessions[normTable]?.seatNumber === seatNum) {
+                delete nextSessions[normTable];
+              }
+            } else {
+              delete nextSessions[normTable];
+              for (let s = 1; s <= 12; s++) {
+                delete nextSessions[`${normTable}-CHAIR-${s}`];
+              }
+            }
+            return { activeSettlementSessions: nextSessions };
+          });
+        }
       }
       if (event.data?.type === 'SYNC_STATE' && event.data.payload) {
         applyPersistedState(event.data.payload, true); // suppress re-broadcast

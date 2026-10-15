@@ -3,7 +3,7 @@
 import React, { useMemo, useEffect, useState, useRef } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { useCustomerTheme } from '../../context/ThemeContext';
-import { useSharedBridge, SettledBillSnapshot } from '../../store/useSharedBridge';
+import { useSharedBridge, SettledBillSnapshot, ActiveSettlementSession } from '../../store/useSharedBridge';
 import { useOrderTrackingQuery } from '../../hooks/useOrderTrackingQuery';
 import { ScreenHousing } from '../ui/ScreenHousing';
 import { WireHeader } from '../ui/WireHeader';
@@ -165,7 +165,7 @@ export const Screen5LiveTracking: React.FC = () => {
 
     const tableCandidate = sessions[normTable];
     if (isValid(tableCandidate)) {
-      if (typeof tableCandidate.seatNumber === 'number' && Number(tableCandidate.seatNumber) === effectiveSeat) {
+      if (typeof tableCandidate.seatNumber !== 'number' || Number(tableCandidate.seatNumber) === effectiveSeat) {
         return tableCandidate;
       }
     }
@@ -173,7 +173,28 @@ export const Screen5LiveTracking: React.FC = () => {
     return null;
   }, [activeSettlementSessions, chairKey, normTable, effectiveSeat]);
 
-  const isCaptainArrived = Boolean(activeSession);
+  // Stable reference to active settlement session so transient poll frames never flicker or blink
+  const [persistedActiveSession, setPersistedActiveSession] = useState<ActiveSettlementSession | null>(null);
+
+  useEffect(() => {
+    if (activeSession) {
+      setPersistedActiveSession(activeSession);
+    } else {
+      // Clear persisted session when bill is settled or table vacated
+      const currentBridge = useSharedBridge.getState();
+      const isSettled = Boolean(
+        currentBridge.settledBills?.[chairKey] ||
+        currentBridge.settledBills?.[normTable]
+      );
+      const isVacated = currentTbl?.status === 'VACANT';
+      if (isSettled || isVacated) {
+        setPersistedActiveSession(null);
+      }
+    }
+  }, [activeSession, chairKey, normTable, currentTbl?.status]);
+
+  const effectiveActiveSession = activeSession || persistedActiveSession;
+  const isCaptainArrived = Boolean(effectiveActiveSession);
 
   // Check if waiter was called for payment strictly for this chair
   const hasActivePaymentPing = useMemo(() => {
@@ -464,11 +485,33 @@ export const Screen5LiveTracking: React.FC = () => {
           const data = await res.json();
           if (data?.sessions !== undefined || data?.settledBills !== undefined) {
             const currentBridge = useSharedBridge.getState();
-            const sessionsChanged = JSON.stringify(currentBridge.activeSettlementSessions) !== JSON.stringify(data.sessions || {});
+            const incomingSessions = data.sessions || {};
+
+            const currentTableSession =
+              currentBridge.activeSettlementSessions?.[chairKey] ||
+              currentBridge.activeSettlementSessions?.[normTable];
+            const incomingTableSession =
+              incomingSessions[chairKey] ||
+              incomingSessions[normTable];
+
+            let mergedSessions = incomingSessions;
+            // Prevent wiping out a recently active local session with an empty server response
+            if (currentTableSession && !incomingTableSession) {
+              const age = Date.now() - (currentTableSession.initiatedAt || 0);
+              if (age < 120000) {
+                mergedSessions = {
+                  ...incomingSessions,
+                  ...(currentBridge.activeSettlementSessions?.[chairKey] ? { [chairKey]: currentTableSession } : {}),
+                  ...(currentBridge.activeSettlementSessions?.[normTable] ? { [normTable]: currentTableSession } : {}),
+                };
+              }
+            }
+
+            const sessionsChanged = JSON.stringify(currentBridge.activeSettlementSessions) !== JSON.stringify(mergedSessions);
             const billsChanged = JSON.stringify(currentBridge.settledBills) !== JSON.stringify(data.settledBills || {});
             if (sessionsChanged || billsChanged) {
               useSharedBridge.setState({
-                activeSettlementSessions: data.sessions || {},
+                activeSettlementSessions: mergedSessions,
                 settledBills: data.settledBills || {},
               });
             }
@@ -483,13 +526,13 @@ export const Screen5LiveTracking: React.FC = () => {
       isCancelled = true;
       clearInterval(interval);
     };
-  }, [effectiveTable]);
+  }, [effectiveTable, chairKey, normTable]);
 
   // Total payable amount strictly scoped to this chair
   const currentBillAmount = useMemo(() => {
-    if (activeSession?.grandTotal && activeSession.grandTotal > 0) {
-      if (typeof activeSession.seatNumber !== 'number' || Number(activeSession.seatNumber) === effectiveSeat) {
-        return activeSession.grandTotal;
+    if (effectiveActiveSession?.grandTotal && effectiveActiveSession.grandTotal > 0) {
+      if (typeof effectiveActiveSession.seatNumber !== 'number' || Number(effectiveActiveSession.seatNumber) === effectiveSeat) {
+        return effectiveActiveSession.grandTotal;
       }
     }
     const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
@@ -505,7 +548,7 @@ export const Screen5LiveTracking: React.FC = () => {
       return Math.round(cartSub * 1.05);
     }
     return 0;
-  }, [activeSession, tables, effectiveTable, effectiveSeat, cart]);
+  }, [effectiveActiveSession, tables, effectiveTable, effectiveSeat, cart]);
 
   // Detailed bill breakdown for placed orders with proper calculation
   const ordersSummary = useMemo(() => {
@@ -593,6 +636,7 @@ export const Screen5LiveTracking: React.FC = () => {
 
   const cancelPaymentPing = () => {
     setIsWaitingForCaptain(false);
+    setPersistedActiveSession(null);
     useCustomerStore.getState().dismissWaiterNotification();
     const paymentPings = (pings || []).filter(
       (p) =>
@@ -1123,59 +1167,45 @@ export const Screen5LiveTracking: React.FC = () => {
                 </span>
               </div>
 
-              {/* Sub-case 2A: Waiter selected UPI on Waiter Mobile */}
-              {activeSession?.method === 'UPI' && (
+              {/* Sub-case 2A: Waiter selected UPI on Waiter Mobile or Tablet */}
+              {effectiveActiveSession?.method !== 'CASH' && (
                 <div className="space-y-2.5">
-                  {activeSession.isUpiVerified ? (
-                    <>
-                      <div className="flex items-center gap-1.5 text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
-                        <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
-                        <span>QR Terminal Verified by Captain Suresh • Ready to Pay</span>
-                      </div>
-                      <p className="text-[11px] text-stone-700 font-medium">
-                        Select your UPI payment app to scan captain's QR code:
-                      </p>
-                      <div className="grid grid-cols-5 gap-1.5 pt-1">
-                        {UPI_APPS.map((app) => (
-                          <button
-                            key={app.name}
-                            onClick={() => {
-                              setSelectedUpiApp(app.name as any);
-                              setIsScannerOpen(true);
-                            }}
-                            className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-50/50 hover:border-emerald-500 transition shadow-xs active:scale-95 cursor-pointer ring-1 ring-emerald-200"
-                          >
-                            {app.logo}
-                            <span className="text-[9px] font-bold text-stone-800 truncate w-full text-center">
-                              {app.shortName}
-                            </span>
-                          </button>
-                        ))}
-                      </div>
+                  <div className="flex items-center gap-1.5 text-xs font-black text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-xl">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+                    <span>QR Terminal Ready • Scan Floor Captain's QR Code</span>
+                  </div>
+                  <p className="text-[11px] text-stone-700 font-medium">
+                    Select your UPI payment app to scan captain's QR code:
+                  </p>
+                  <div className="grid grid-cols-5 gap-1.5 pt-1">
+                    {UPI_APPS.map((app) => (
                       <button
-                        onClick={() => setIsScannerOpen(true)}
-                        className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black shadow-xs transition cursor-pointer active:scale-98"
+                        key={app.name}
+                        onClick={() => {
+                          setSelectedUpiApp(app.name as any);
+                          setIsScannerOpen(true);
+                        }}
+                        className="flex flex-col items-center justify-center gap-1 p-2 rounded-xl border border-emerald-300 bg-white hover:bg-emerald-50/50 hover:border-emerald-500 transition shadow-xs active:scale-95 cursor-pointer ring-1 ring-emerald-200"
                       >
-                        <QrCode className="h-4 w-4" />
-                        <span>Scan Floor Captain&apos;s QR Code (₹{currentBillAmount})</span>
+                        {app.logo}
+                        <span className="text-[9px] font-bold text-stone-800 truncate w-full text-center">
+                          {app.shortName}
+                        </span>
                       </button>
-                    </>
-                  ) : (
-                    <div className="bg-amber-50/80 p-3 rounded-xl border border-amber-200 space-y-1.5">
-                      <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
-                        <span className="h-2 w-2 rounded-full bg-amber-500 animate-ping" />
-                        <span>Floor Captain Suresh is setting up UPI QR Terminal...</span>
-                      </div>
-                      <p className="text-[11px] text-amber-800 leading-snug">
-                        Please wait a moment while the captain verifies your QR payment on the terminal.
-                      </p>
-                    </div>
-                  )}
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setIsScannerOpen(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black shadow-xs transition cursor-pointer active:scale-98"
+                  >
+                    <QrCode className="h-4 w-4" />
+                    <span>Scan Floor Captain&apos;s QR Code (₹{currentBillAmount})</span>
+                  </button>
                 </div>
               )}
 
-              {/* Sub-case 2B: Waiter selected Cash on Waiter Mobile */}
-              {activeSession?.method === 'CASH' && (
+              {/* Sub-case 2B: Waiter selected Cash on Waiter Mobile or Tablet */}
+              {effectiveActiveSession?.method === 'CASH' && (
                 <div className="space-y-2 bg-amber-50/70 p-3 rounded-xl border border-amber-200">
                   <div className="flex items-center gap-1.5 text-xs font-black text-amber-900">
                     <Banknote className="h-4 w-4 text-amber-700" />

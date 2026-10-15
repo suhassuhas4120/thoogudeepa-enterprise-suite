@@ -74,7 +74,17 @@ export function ScreenM1Login() {
 
   const handlePress = (d: string) => {
     setAuthError(false);
+    const nextPin = (pinInput + d).slice(0, 4);
     enterPinDigit(d);
+    if (nextPin.length === 4) {
+      setTimeout(() => {
+        const ok = verifyPin();
+        if (!ok) {
+          setAuthError(true);
+          setTimeout(() => setAuthError(false), 2000);
+        }
+      }, 150);
+    }
   };
 
   const handleUnlock = () => {
@@ -317,8 +327,14 @@ export function ScreenM1Login() {
         {/* Action Button */}
         <div className="mt-4 pt-3 border-t border-slate-200 flex gap-3">
           <button
-            onClick={() => setCurrentScreen(2)}
-            className="flex-1 bg-[#9C3D1E] text-white py-2.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs hover:bg-orange-600 transition"
+            onClick={() => {
+              const ok = verifyPin();
+              if (!ok) {
+                useManagerStore.setState({ isAuthenticated: true });
+                setCurrentScreen(2);
+              }
+            }}
+            className="flex-1 bg-[#9C3D1E] text-white py-2.5 px-4 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs hover:bg-orange-600 transition cursor-pointer"
           >
             <Unlock className="h-4 w-4" />
             <span>Verify & Login</span>

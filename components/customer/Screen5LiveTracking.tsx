@@ -1192,85 +1192,111 @@ export const Screen5LiveTracking: React.FC = () => {
             </motion.div>
           )}
 
-          {/* Action buttons: Display status badge while cooking; show payment options only when all dishes are served */}
+          {/* Status Indicator Banner */}
           {!allDishesServed ? (
-            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-4 py-3 flex items-center gap-2.5 text-amber-900 shadow-2xs">
-              <span className="h-2.5 w-2.5 rounded-full bg-amber-500 animate-pulse shrink-0" />
-              <p className="text-xs font-semibold leading-snug">
-                Dishes are actively being prepared &amp; served. Payment options will appear once your food reaches the table.
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/90 px-3.5 py-2.5 flex items-center gap-2 text-amber-900 shadow-2xs">
+              <span className="h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <p className="text-[11px] font-semibold leading-snug">
+                Dishes are being prepared &amp; served. Payment unlocks once all food is served.
               </p>
             </div>
           ) : (
-            <div>
-              {isSummoned && (
-                <div className="flex items-center justify-between px-1 mb-2 text-[11px] font-medium text-amber-500">
-                  <span className="flex items-center gap-1.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
-                    <span>Captain summoned • Self-pay locked</span>
-                  </span>
-                  <button
-                    onClick={() => {
-                      cancelPaymentPing();
-                      setIsWaitingForCaptain(false);
-                      useCustomerStore.getState().dismissWaiterNotification();
-                    }}
-                    className="text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
-                  >
-                    Cancel &amp; Unlock
-                  </button>
-                </div>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <motion.button
-                  disabled={isSummoned}
-                  whileTap={!isSummoned ? { scale: 0.98 } : undefined}
+            isSummoned && (
+              <div className="flex items-center justify-between px-1 mb-1 text-[11px] font-medium text-amber-500">
+                <span className="flex items-center gap-1.5">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
+                  <span>Captain summoned • Self-pay locked</span>
+                </span>
+                <button
                   onClick={() => {
-                    if (!isSummoned) setShowPayViaWaiterModal(true);
+                    cancelPaymentPing();
+                    setIsWaitingForCaptain(false);
+                    useCustomerStore.getState().dismissWaiterNotification();
                   }}
-                  className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
-                    isSummoned
-                      ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-90 cursor-not-allowed'
-                      : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
-                  }`}
+                  className="text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
                 >
-                  <CreditCard className="h-4 w-4 stroke-[2.2]" />
-                  <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
-                </motion.button>
-
-                <motion.button
-                  disabled={isSummoned}
-                  whileTap={!isSummoned ? { scale: 0.98 } : undefined}
-                  onClick={() => {
-                    if (!isSummoned) {
-                      cancelPaymentPing();
-                      setIsWaitingForCaptain(false);
-                      useCustomerStore.getState().dismissWaiterNotification();
-                      setCurrentScreen(6);
-                    }
-                  }}
-                  style={
-                    isSummoned
-                      ? {
-                          backgroundColor: '#292524',
-                          color: '#78716C',
-                          border: '1px solid #44403C',
-                        }
-                      : {
-                          backgroundColor: currentTheme.colors.buttonBg,
-                          color: currentTheme.colors.buttonFg,
-                          boxShadow: currentTheme.colors.buttonShadow,
-                        }
-                  }
-                  className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
-                    isSummoned ? 'cursor-not-allowed opacity-50' : 'hover:brightness-105 cursor-pointer shadow-md'
-                  }`}
-                >
-                  <span>{isSummoned ? 'Self-Pay Locked' : 'Self Pay (QR/UPI)'}</span>
-                  <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
-                </motion.button>
+                  Cancel &amp; Unlock
+                </button>
               </div>
-            </div>
+            )
           )}
+
+          {/* Payment Action Buttons: ALWAYS rendered, enabled only when all dishes are served */}
+          <div className="grid grid-cols-2 gap-2">
+            <motion.button
+              disabled={!allDishesServed || isSummoned}
+              whileTap={allDishesServed && !isSummoned ? { scale: 0.98 } : undefined}
+              onClick={() => {
+                if (allDishesServed && !isSummoned) setShowPayViaWaiterModal(true);
+              }}
+              title={
+                !allDishesServed
+                  ? 'Dishes are being prepared. Payment unlocks once all items are served.'
+                  : isSummoned
+                  ? 'Captain already summoned'
+                  : 'Call Floor Captain to pay at table'
+              }
+              className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
+                !allDishesServed
+                  ? 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-60 shadow-none'
+                  : isSummoned
+                  ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-90 cursor-not-allowed'
+                  : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
+              }`}
+            >
+              <CreditCard className="h-4 w-4 stroke-[2.2]" />
+              <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
+            </motion.button>
+
+            <motion.button
+              disabled={!allDishesServed || isSummoned}
+              whileTap={allDishesServed && !isSummoned ? { scale: 0.98 } : undefined}
+              onClick={() => {
+                if (allDishesServed && !isSummoned) {
+                  cancelPaymentPing();
+                  setIsWaitingForCaptain(false);
+                  useCustomerStore.getState().dismissWaiterNotification();
+                  setCurrentScreen(6);
+                }
+              }}
+              title={
+                !allDishesServed
+                  ? 'Dishes are being prepared. Payment unlocks once all items are served.'
+                  : isSummoned
+                  ? 'Self-pay locked while Captain is summoned'
+                  : 'Pay directly via UPI QR code or Cards'
+              }
+              style={
+                !allDishesServed
+                  ? {
+                      backgroundColor: '#E7E5E4',
+                      color: '#A8A29E',
+                      border: '1px solid #D6D3D1',
+                    }
+                  : isSummoned
+                  ? {
+                      backgroundColor: '#292524',
+                      color: '#78716C',
+                      border: '1px solid #44403C',
+                    }
+                  : {
+                      backgroundColor: currentTheme.colors.buttonBg,
+                      color: currentTheme.colors.buttonFg,
+                      boxShadow: currentTheme.colors.buttonShadow,
+                    }
+              }
+              className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
+                !allDishesServed
+                  ? 'cursor-not-allowed opacity-60 shadow-none'
+                  : isSummoned
+                  ? 'cursor-not-allowed opacity-50'
+                  : 'hover:brightness-105 cursor-pointer shadow-md'
+              }`}
+            >
+              <span>{isSummoned ? 'Self-Pay Locked' : 'Self Pay (QR/UPI)'}</span>
+              <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
+            </motion.button>
+          </div>
         </div>
       </StickyBottomBar>
 

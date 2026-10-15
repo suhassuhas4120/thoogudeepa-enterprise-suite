@@ -103,6 +103,7 @@ export function ScreenM3TableSheet({
     tables,
     pings,
     kdsTickets,
+    activeSettlementSessions,
     waiterVacatesTable,
     waiterMergeTables,
     waiterUnmergeTable,
@@ -490,7 +491,29 @@ export function ScreenM3TableSheet({
     setTimeout(() => setNotice(null), 2000);
   };
 
-  // ── Settle Button Validation (Require all dishes to be SERVED) ──
+  // ── Settle Button Validation (Require all dishes to be SERVED + Customer Bill Request) ──
+  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetNum = cleanNum(tableNum);
+  const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+  const hasCustomerPaymentRequest = (pings || []).some(
+    (p) =>
+      p.status === 'PENDING' &&
+      cleanNum(p.tableNumber) === targetNum &&
+      (p.type === 'PAYMENT' || p.type === 'BILL') &&
+      (selectedSeat === 'ALL' ||
+        !p.seatNumber ||
+        (typeof selectedSeat === 'number' && p.seatNumber === selectedSeat) ||
+        (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]?.includes(p.seatNumber)))
+  );
+
+  const hasActiveSession = Boolean(
+    activeSettlementSessions?.[normTable] ||
+    (typeof selectedSeat === 'number' && activeSettlementSessions?.[`${normTable}-CHAIR-${selectedSeat}`])
+  );
+
+  const isCustomerBillRequested = hasCustomerPaymentRequest || hasActiveSession;
+
   const hasTableOrders = allTableOrderedItems.length > 0;
   const hasUnservedTableItems =
     !hasTableOrders ||
@@ -507,11 +530,14 @@ export function ScreenM3TableSheet({
       isCurrentSelectionSettleDisabled = true;
       currentSelectionSettleReason = 'Select an individual chair tab above to settle its bill';
     } else {
-      isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems;
+      isCurrentSelectionSettleDisabled =
+        isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems || !isCustomerBillRequested;
       currentSelectionSettleReason = !hasTableOrders
         ? 'No orders placed'
         : hasUnservedTableItems
         ? 'Serve all table items to settle'
+        : !isCustomerBillRequested
+        ? 'Awaiting customer bill request'
         : '';
     }
   } else if (typeof selectedSeat === 'number') {
@@ -521,11 +547,14 @@ export function ScreenM3TableSheet({
     const hasChairItems = chairTargetItems.length > 0;
     const hasUnservedChair = !hasChairItems || chairTargetItems.some((i) => i.stage !== 'Served');
     const chairBreakdown = getChairBillBreakdown(selectedSeat);
-    isCurrentSelectionSettleDisabled = isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || hasUnservedChair;
+    isCurrentSelectionSettleDisabled =
+      isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || hasUnservedChair || !isCustomerBillRequested;
     currentSelectionSettleReason = !hasChairItems
       ? 'No orders for this chair'
       : hasUnservedChair
       ? `Serve all items for Chair ${selectedSeat} to settle`
+      : !isCustomerBillRequested
+      ? 'Awaiting customer bill request'
       : '';
   } else if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
     const groupSeats = mergedSeatGroups[selectedSeat];
@@ -535,11 +564,14 @@ export function ScreenM3TableSheet({
     const hasGroupItems = groupTargetItems.length > 0;
     const hasUnservedGroup = !hasGroupItems || groupTargetItems.some((i) => i.stage !== 'Served');
     const groupBreakdown = getChairBillBreakdown(selectedSeat);
-    isCurrentSelectionSettleDisabled = isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || hasUnservedGroup;
+    isCurrentSelectionSettleDisabled =
+      isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || hasUnservedGroup || !isCustomerBillRequested;
     currentSelectionSettleReason = !hasGroupItems
       ? 'No orders for this group'
       : hasUnservedGroup
       ? 'Serve all group items to settle'
+      : !isCustomerBillRequested
+      ? 'Awaiting customer bill request'
       : '';
   }
 
@@ -1645,7 +1677,9 @@ export function ScreenM3TableSheet({
               {isCurrentSelectionSettleDisabled && hasTableOrders
                 ? currentSelectionSettleReason.startsWith('Select an individual')
                   ? 'Select Chair'
-                  : 'Serve to Settle'
+                  : hasUnservedTableItems
+                  ? 'Serve to Settle'
+                  : 'Awaiting Bill'
                 : 'Settle'}
             </span>
           </motion.button>

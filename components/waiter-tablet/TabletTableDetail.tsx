@@ -140,6 +140,8 @@ export function TabletTableDetail({
   const {
     tables,
     kdsTickets,
+    pings,
+    activeSettlementSessions,
     waiterMergeChairs,
     waiterMergeSeatGroup,
     waiterUnmergeSeatGroup,
@@ -283,6 +285,29 @@ export function TabletTableDetail({
   const billToSettle =
     selectedChair === "ALL" ? totalTableBill : targetChairBill;
 
+  // Check if customer requested bill / payment settlement (serving food alone does NOT enable settle)
+  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetNum = cleanNum(tableNum);
+  const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+  const hasCustomerPaymentRequest = (pings || []).some(
+    (p) =>
+      p.status === 'PENDING' &&
+      cleanNum(p.tableNumber) === targetNum &&
+      (p.type === 'PAYMENT' || p.type === 'BILL') &&
+      (selectedChair === 'ALL' ||
+        !p.seatNumber ||
+        (typeof selectedChair === 'number' && p.seatNumber === selectedChair) ||
+        (typeof selectedChair === 'string' && mergedSeatGroups[selectedChair]?.includes(p.seatNumber)))
+  );
+
+  const hasActiveSession = Boolean(
+    activeSettlementSessions?.[normTable] ||
+    (typeof selectedChair === 'number' && activeSettlementSessions?.[`${normTable}-CHAIR-${selectedChair}`])
+  );
+
+  const isCustomerBillRequested = hasCustomerPaymentRequest || hasActiveSession;
+
   // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
   const hasItemsToSettle = relevantItems.length > 0;
   const areAllRelevantItemsServed =
@@ -291,12 +316,16 @@ export function TabletTableDetail({
       (it) => it.stage === "SERVED" || (it.stage as string) === "Served",
     );
 
-  // Settle is enabled ONLY AFTER all items have been served, with no pending drafts, and bill > 0
+  // Settle is enabled ONLY AFTER:
+  // 1. All items have been served
+  // 2. Customer has requested bill/settlement (serving dishes alone does NOT enable Settle Bill)
+  // 3. No pending drafts, and bill > 0
   const canSettle =
     !isVacant &&
     billToSettle > 0 &&
     relevantDrafts.length === 0 &&
-    areAllRelevantItemsServed;
+    areAllRelevantItemsServed &&
+    isCustomerBillRequested;
 
   const handleConfirmMergeSelectedChairs = () => {
     if (chairsSelectedForMerge.length < 2) return;
@@ -1052,7 +1081,13 @@ export function TabletTableDetail({
                   Serve dishes to settle
                 </span>
               )}
-              {areAllRelevantItemsServed && (
+              {areAllRelevantItemsServed && !isCustomerBillRequested && (
+                <span className="text-[10px] font-bold text-stone-600 bg-stone-100 px-2 py-0.5 rounded-md border border-stone-300 flex items-center gap-1">
+                  <Clock className="h-3 w-3 text-stone-500" />
+                  Awaiting Customer Bill Request
+                </span>
+              )}
+              {areAllRelevantItemsServed && isCustomerBillRequested && (
                 <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
                   <CheckCircle2 className="h-3 w-3 text-emerald-600" />
                   Ready to Settle
@@ -1090,6 +1125,8 @@ export function TabletTableDetail({
               title={
                 !areAllRelevantItemsServed && hasItemsToSettle
                   ? "All ordered dishes must be served before settling the bill"
+                  : !isCustomerBillRequested
+                  ? "Dishes served. Settle bill unlocks when customer requests bill."
                   : undefined
               }
               className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
@@ -1100,7 +1137,11 @@ export function TabletTableDetail({
             >
               <CreditCard className="h-4 w-4 stroke-[2.4]" />
               <span>
-                Settle {selectedChair === "ALL" ? "Bill" : chairLabel}
+                {!canSettle && hasItemsToSettle
+                  ? !areAllRelevantItemsServed
+                    ? "Serve to Settle"
+                    : "Awaiting Bill"
+                  : `Settle ${selectedChair === "ALL" ? "Bill" : chairLabel}`}
               </span>
             </button>
           </div>

@@ -208,7 +208,28 @@ export const Screen5LiveTracking: React.FC = () => {
     );
   }, [pings, effectiveTable, effectiveSeat, orderPlacedAt]);
 
+  // Latch when customer has requested payment via floor captain for this order
+  const payViaWaiterStorageKey = `pay_via_waiter_${effectiveTable}_${effectiveSeat}_${orderPlacedAt || 'active'}`;
+  const [hasRequestedPayViaWaiter, setHasRequestedPayViaWaiter] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        return sessionStorage.getItem(payViaWaiterStorageKey) === 'true';
+      }
+    } catch {}
+    return false;
+  });
+
+  useEffect(() => {
+    if (hasActivePaymentPing || isCaptainArrived) {
+      setHasRequestedPayViaWaiter(true);
+      try {
+        sessionStorage.setItem(payViaWaiterStorageKey, 'true');
+      } catch {}
+    }
+  }, [hasActivePaymentPing, isCaptainArrived, payViaWaiterStorageKey]);
+
   const isSummoned = isWaitingForCaptain || hasActivePaymentPing || (waiterNotification?.active && waiterNotification.type === 'PAYMENT');
+  const isPayViaWaiterActive = isSummoned || isCaptainArrived || hasRequestedPayViaWaiter;
 
   const unplacedCartItems = useMemo(() => {
     return (cart || []).filter((ci) => ci && !ci.isOrdered);
@@ -475,6 +496,15 @@ export const Screen5LiveTracking: React.FC = () => {
     }
   }, [matchingSnapshot, trackedDishes, orderPlacedAt]);
 
+  useEffect(() => {
+    if (currentTbl?.status === 'VACANT' || matchingSnapshot) {
+      setHasRequestedPayViaWaiter(false);
+      try {
+        sessionStorage.removeItem(payViaWaiterStorageKey);
+      } catch {}
+    }
+  }, [currentTbl?.status, matchingSnapshot, payViaWaiterStorageKey]);
+
   // Synchronize settlement session without causing broadcast loops across tabs
   useEffect(() => {
     let isCancelled = false;
@@ -654,6 +684,10 @@ export const Screen5LiveTracking: React.FC = () => {
   const handleConfirmCallCaptain = () => {
     setShowPayViaWaiterModal(false);
     setIsWaitingForCaptain(true);
+    setHasRequestedPayViaWaiter(true);
+    try {
+      sessionStorage.setItem(payViaWaiterStorageKey, 'true');
+    } catch {}
     pingWaiter('PAYMENT', `Customer requested bill settlement at Table ${effectiveTable} (Chair ${effectiveSeat})`);
   };
 
@@ -1232,22 +1266,16 @@ export const Screen5LiveTracking: React.FC = () => {
               </p>
             </div>
           ) : (
-            isSummoned && (
-              <div className="flex items-center justify-between px-1 mb-1 text-[11px] font-medium text-amber-500">
+            isPayViaWaiterActive && (
+              <div className="flex items-center justify-between px-1 mb-1 text-[11px] font-medium text-amber-600">
                 <span className="flex items-center gap-1.5">
-                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-ping" />
-                  <span>Captain summoned • Self-pay locked</span>
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                  <span>
+                    {isCaptainArrived
+                      ? 'Floor Captain at Table • Self-Pay Locked'
+                      : 'Captain Summoned • Self-Pay Locked'}
+                  </span>
                 </span>
-                <button
-                  onClick={() => {
-                    cancelPaymentPing();
-                    setIsWaitingForCaptain(false);
-                    useCustomerStore.getState().dismissWaiterNotification();
-                  }}
-                  className="text-amber-400 hover:text-amber-300 font-bold underline cursor-pointer"
-                >
-                  Cancel &amp; Unlock
-                </button>
               </div>
             )
           )}
@@ -1255,35 +1283,43 @@ export const Screen5LiveTracking: React.FC = () => {
           {/* Payment Action Buttons: ALWAYS rendered, enabled only when all dishes are served */}
           <div className="grid grid-cols-2 gap-2">
             <motion.button
-              disabled={!allDishesServed || isSummoned}
-              whileTap={allDishesServed && !isSummoned ? { scale: 0.98 } : undefined}
+              disabled={!allDishesServed || isPayViaWaiterActive}
+              whileTap={allDishesServed && !isPayViaWaiterActive ? { scale: 0.98 } : undefined}
               onClick={() => {
-                if (allDishesServed && !isSummoned) setShowPayViaWaiterModal(true);
+                if (allDishesServed && !isPayViaWaiterActive) setShowPayViaWaiterModal(true);
               }}
               title={
                 !allDishesServed
                   ? 'Dishes are being prepared. Payment unlocks once all items are served.'
-                  : isSummoned
+                  : isCaptainArrived
+                  ? 'Floor Captain is currently settling bill at table'
+                  : isPayViaWaiterActive
                   ? 'Captain already summoned'
                   : 'Call Floor Captain to pay at table'
               }
               className={`flex items-center justify-center gap-1.5 rounded-2xl border-2 py-3 text-xs font-black transition shadow-xs ${
                 !allDishesServed
                   ? 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-60 shadow-none'
-                  : isSummoned
+                  : isPayViaWaiterActive
                   ? 'border-amber-300 bg-amber-50 text-amber-800 opacity-90 cursor-not-allowed'
                   : 'border-[#9C3D1E] bg-[#FFF8F5] text-[#9C3D1E] hover:bg-[#FDF0E9] cursor-pointer'
               }`}
             >
               <CreditCard className="h-4 w-4 stroke-[2.2]" />
-              <span>{isSummoned ? 'Captain Summoned' : 'Pay via Waiter'}</span>
+              <span>
+                {isCaptainArrived
+                  ? 'Captain at Table'
+                  : isPayViaWaiterActive
+                  ? 'Captain Summoned'
+                  : 'Pay via Waiter'}
+              </span>
             </motion.button>
 
             <motion.button
-              disabled={!allDishesServed || isSummoned}
-              whileTap={allDishesServed && !isSummoned ? { scale: 0.98 } : undefined}
+              disabled={!allDishesServed || isPayViaWaiterActive}
+              whileTap={allDishesServed && !isPayViaWaiterActive ? { scale: 0.98 } : undefined}
               onClick={() => {
-                if (allDishesServed && !isSummoned) {
+                if (allDishesServed && !isPayViaWaiterActive) {
                   cancelPaymentPing();
                   setIsWaitingForCaptain(false);
                   useCustomerStore.getState().dismissWaiterNotification();
@@ -1293,22 +1329,16 @@ export const Screen5LiveTracking: React.FC = () => {
               title={
                 !allDishesServed
                   ? 'Dishes are being prepared. Payment unlocks once all items are served.'
-                  : isSummoned
-                  ? 'Self-pay locked while Captain is summoned'
+                  : isPayViaWaiterActive
+                  ? 'Self-pay locked once Pay via Waiter is initiated'
                   : 'Pay directly via UPI QR code or Cards'
               }
               style={
-                !allDishesServed
+                (!allDishesServed || isPayViaWaiterActive)
                   ? {
                       backgroundColor: '#E7E5E4',
                       color: '#A8A29E',
                       border: '1px solid #D6D3D1',
-                    }
-                  : isSummoned
-                  ? {
-                      backgroundColor: '#292524',
-                      color: '#78716C',
-                      border: '1px solid #44403C',
                     }
                   : {
                       backgroundColor: currentTheme.colors.buttonBg,
@@ -1317,14 +1347,12 @@ export const Screen5LiveTracking: React.FC = () => {
                     }
               }
               className={`flex items-center justify-center gap-1.5 rounded-2xl py-3 text-xs font-black uppercase tracking-wider transition ${
-                !allDishesServed
+                (!allDishesServed || isPayViaWaiterActive)
                   ? 'cursor-not-allowed opacity-60 shadow-none'
-                  : isSummoned
-                  ? 'cursor-not-allowed opacity-50'
                   : 'hover:brightness-105 cursor-pointer shadow-md'
               }`}
             >
-              <span>{isSummoned ? 'Self-Pay Locked' : 'Self Pay (QR/UPI)'}</span>
+              <span>{(!allDishesServed || !isPayViaWaiterActive) ? 'Self Pay (QR/UPI)' : 'Self-Pay Locked'}</span>
               <ArrowRight className="h-3.5 w-3.5 stroke-[2.5]" />
             </motion.button>
           </div>

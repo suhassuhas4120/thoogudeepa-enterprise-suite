@@ -272,13 +272,11 @@ export function TableChairsSheet({
   );
 
   const displayedSubtotal =
-    itemsSubtotal > 0
-      ? itemsSubtotal
-      : selectedSeat === "ALL"
-        ? Math.round(table.currentBill / 1.05)
-        : occupiedGuests > 0 && (isOccupied || isBilling)
-          ? Math.round(table.currentBill / 1.05 / Math.max(1, occupiedGuests))
-          : 0;
+    selectedSeat === "ALL"
+      ? itemsSubtotal > 0
+        ? itemsSubtotal
+        : Math.round(table.currentBill / 1.05)
+      : itemsSubtotal;
 
   const displayedTax = Math.round(displayedSubtotal * 0.05);
   const displayedTotal = displayedSubtotal + displayedTax;
@@ -334,7 +332,7 @@ export function TableChairsSheet({
   };
 
   const content = (
-    <div className="flex flex-col h-full bg-[#FAF8F5] font-mono text-slate-900 select-none">
+    <div className="flex flex-col h-full bg-[#FAF8F5] font-mono text-slate-900 select-none overflow-hidden">
       {/* Table Identity Header */}
       <div className="p-4 bg-white border-b border-[#EAE5DF] flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
@@ -420,12 +418,7 @@ export function TableChairsSheet({
               hasOrders ||
               (chairsWithOrders.size === 0 && seatNum <= occupiedGuests);
             const chairSub = chairItems.reduce((s, it) => s + it.totalPrice, 0);
-            const chairAmt =
-              chairSub > 0
-                ? Math.round(chairSub * 1.05)
-                : isSeated && table.currentBill > 0
-                  ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
-                  : 0;
+            const chairAmt = chairSub > 0 ? Math.round(chairSub * 1.05) : 0;
 
             const hasReadyItem = chairItems.some((i) => i.stage === "READY");
 
@@ -547,26 +540,19 @@ export function TableChairsSheet({
             );
           })
         ) : (
-          <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-400">
+          <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400">
             <Armchair className="h-9 w-9 text-slate-300" />
             <p className="font-bold text-sm text-slate-600">
               {selectedSeat === "ALL"
                 ? "No items ordered"
                 : `No active orders for Chair ${selectedSeat}`}
             </p>
-            <button
-              onClick={handleOpenBilling}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer"
-            >
-              <PlusCircle className="h-4 w-4" />
-              <span>Add Items</span>
-            </button>
           </div>
         )}
       </div>
 
       {/* Bill & Actions Footer */}
-      <div className="p-4 bg-white border-t border-[#EAE5DF] space-y-3 shrink-0">
+      <div className="p-4 bg-white border-t border-[#EAE5DF] space-y-3 shrink-0 sticky bottom-0 z-20 shadow-xs">
         {/* Bill Summary */}
         {selectedSeat === "ALL" ? (
           <div className="p-3.5 bg-white rounded-xl border border-slate-300 shadow-xs flex items-center justify-between font-mono">

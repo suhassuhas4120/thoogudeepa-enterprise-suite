@@ -1,9 +1,16 @@
-'use client';
+"use client";
 
-import React from 'react';
-import { Bell, CheckCircle2, Clock, X, Eye, Utensils, MessageSquare } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import React, { useState, useEffect } from "react";
+import {
+  Bell,
+  CreditCard,
+  CheckCircle2,
+  Clock,
+  X,
+  Eye,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSharedBridge } from "../../store/useSharedBridge";
 
 interface Props {
   open: boolean;
@@ -13,7 +20,32 @@ interface Props {
 
 export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
   const { pings, waiterResolvePing } = useSharedBridge();
-  const activePings = pings.filter((p) => p.status === 'PENDING');
+  const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
+
+  const activePings = pings.filter((p) => p.status === "PENDING");
+
+  // Auto-dismiss feedback toast after 1.8s
+  useEffect(() => {
+    if (feedbackToast) {
+      const timer = setTimeout(() => setFeedbackToast(null), 1800);
+      return () => clearTimeout(timer);
+    }
+  }, [feedbackToast]);
+
+  // Helper: Pings older than 2 minutes are highlighted as URGENT
+  const isPingUrgent = (ts: string) => {
+    try {
+      const pingTime = new Date(ts).getTime();
+      return !isNaN(pingTime) && Date.now() - pingTime > 120000;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleResolvePing = (pingId: string, tableNum: string) => {
+    setFeedbackToast(`✓ Table ${tableNum} attended`);
+    waiterResolvePing(pingId);
+  };
 
   const handleFocusTable = (tblNum: string) => {
     if (onSelectTable) {
@@ -32,113 +64,190 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-stone-950/30 backdrop-blur-2xs z-40"
+            className="absolute inset-0 bg-stone-950/60 backdrop-blur-xs z-50"
           />
 
           <motion.div
             key="pings-drawer"
-            initial={{ x: '100%' }}
+            initial={{ x: "100%" }}
             animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 28, stiffness: 320 }}
-            className="fixed right-0 top-0 bottom-0 w-96 bg-white border-l border-[#EAE5DF] z-50 flex flex-col shadow-2xl font-sans"
+            exit={{ x: "100%" }}
+            transition={{ type: "spring", damping: 30, stiffness: 320 }}
+            className="absolute right-0 top-0 h-full w-[400px] bg-white shadow-2xl border-l-2 border-stone-300 z-50 flex flex-col overflow-hidden font-sans select-none"
           >
             {/* Drawer header */}
-            <div className="px-5 py-4 border-b border-[#EAE5DF] bg-[#FAF8F5] flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5 font-mono text-xs font-black text-stone-900">
-                <div className="h-8 w-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center">
-                  <Bell className="h-4 w-4" />
-                </div>
-                <div>
-                  <span className="block">CUSTOMER ASSISTANCE</span>
-                  <span className="text-[10px] text-stone-400 font-bold">
-                    {activePings.length} urgent {activePings.length === 1 ? 'call' : 'calls'}
+            <div className="px-6 py-4 border-b-2 border-stone-200 bg-white flex items-center justify-between shrink-0 shadow-2xs">
+              <h2 className="text-lg font-black text-stone-950 tracking-tight font-mono">
+                Customer Calls
+              </h2>
+              <div className="flex items-center gap-2">
+                {activePings.length > 0 && (
+                  <span className="h-6 px-2.5 flex items-center bg-rose-600 text-white font-mono text-xs font-black rounded-full animate-pulse">
+                    {activePings.length} CALLS
                   </span>
-                </div>
+                )}
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 hover:bg-stone-100 border border-stone-300 rounded-xl transition cursor-pointer text-stone-600 hover:text-stone-900"
+                >
+                  <X className="h-5 w-5 stroke-[2.4]" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="p-2 bg-white hover:bg-stone-200 border border-[#EAE5DF] rounded-xl transition cursor-pointer"
-              >
-                <X className="h-4 w-4 text-stone-500" />
-              </button>
             </div>
 
             {/* Pings list */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3 font-mono">
+            <div className="flex-1 overflow-y-auto p-4 space-y-3.5">
               {activePings.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 text-stone-400 text-xs space-y-3">
-                  <div className="h-12 w-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600">
-                    <CheckCircle2 className="h-6 w-6" />
-                  </div>
-                  <div className="text-center">
-                    <p className="font-bold text-stone-700 text-sm">All Calls Attended</p>
-                    <p className="text-[11px] text-stone-400 mt-0.5">No guests currently waiting for service</p>
-                  </div>
+                <div className="flex flex-col items-center justify-center py-24 text-stone-400 font-mono text-xs space-y-2">
+                  <CheckCircle2 className="h-10 w-10 text-emerald-600 opacity-60" />
+                  <p className="font-bold text-stone-700 text-sm">All Calls Attended</p>
+                  <p className="text-stone-500">No active customer assistance requests</p>
                 </div>
               ) : (
-                activePings.map((p) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-4 bg-rose-50/70 border border-rose-200 rounded-2xl space-y-3 shadow-2xs"
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-mono text-xs font-black text-rose-800 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-md">
-                        {p.tableNumber}
-                      </span>
-                      <span className="font-mono text-[10px] font-black text-stone-700 uppercase bg-white border border-stone-200 px-2 py-0.5 rounded-md">
-                        {p.type}
-                      </span>
-                    </div>
+                <AnimatePresence>
+                  {activePings.map((p) => {
+                    const urgent = isPingUrgent(p.timestamp);
 
-                    {p.guestName && (
-                      <p className="text-[11px] text-stone-600 font-bold">
-                        Guest: <span className="text-stone-900">{p.guestName}</span>
-                      </p>
-                    )}
-
-                    {p.message && (
-                      <div className="p-2.5 bg-white rounded-xl border border-rose-200/80 text-xs text-stone-800 italic font-sans flex items-start gap-1.5">
-                        <MessageSquare className="h-3.5 w-3.5 text-rose-500 shrink-0 mt-0.5" />
-                        <span>&ldquo;{p.message}&rdquo;</span>
-                      </div>
-                    )}
-
-                    <div className="flex items-center justify-between text-[10px] text-stone-400 pt-1">
-                      <span className="flex items-center gap-1 font-bold text-stone-500">
-                        <Clock className="h-3 w-3 text-rose-500" /> {p.timestamp || 'Just now'}
-                      </span>
-                      <span className="text-rose-700 font-bold uppercase text-[9px]">
-                        Urgent Action
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => handleFocusTable(p.tableNumber)}
-                        className="py-2 bg-white hover:bg-stone-100 border border-stone-300 text-stone-800 text-xs font-bold rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5"
+                    return (
+                      <motion.div
+                        key={p.id}
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: 80, transition: { duration: 0.15 } }}
+                        className={`p-4 rounded-2xl shadow-xs space-y-3 relative touch-pan-y ${
+                          urgent
+                            ? "bg-red-50/90 border-2 border-red-400 ring-2 ring-red-400/20"
+                            : "bg-gradient-to-br from-amber-50/70 to-orange-50/50 border-2 border-orange-300"
+                        }`}
                       >
-                        <Eye className="h-3.5 w-3.5 text-stone-500" />
-                        <span>Focus Table</span>
-                      </button>
+                        {/* Table, Seat & Request Type Header - Perfectly aligned horizontal row */}
+                        <div className="flex items-center justify-between gap-2 font-mono">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`text-xs font-black px-2.5 py-1 rounded-lg shadow-2xs shrink-0 ${
+                                urgent
+                                  ? "text-red-950 bg-red-100 border border-red-300"
+                                  : p.type === "PAYMENT"
+                                  ? "text-purple-950 bg-purple-100 border border-purple-300"
+                                  : "text-orange-950 bg-orange-100 border border-orange-300"
+                              }`}
+                            >
+                              Table {p.tableNumber.replace(/^TABLE\s*/i, "")}
+                            </span>
+                            {p.seatNumber && (
+                              <span className="text-xs font-bold text-amber-950 bg-amber-200/90 border border-amber-400 px-2 py-0.5 rounded-md shrink-0">
+                                Chair {p.seatNumber}
+                              </span>
+                            )}
+                          </div>
 
-                      <button
-                        type="button"
-                        onClick={() => waiterResolvePing(p.id)}
-                        className="py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black rounded-xl shadow-xs transition cursor-pointer active:scale-95 flex items-center justify-center gap-1"
-                      >
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        <span>Attended</span>
-                      </button>
-                    </div>
-                  </motion.div>
-                ))
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {p.type === "PAYMENT" ? (
+                              <span className="text-xs font-black text-purple-900 bg-purple-100 border border-purple-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                                <CreditCard className="h-3.5 w-3.5 text-purple-700 shrink-0" />
+                                <span>Bill Request</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs font-black text-amber-900 bg-white border border-amber-300 px-2.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs">
+                                <Bell className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+                                <span>{p.type ? `${p.type} Request` : "Service Request"}</span>
+                              </span>
+                            )}
+                            {urgent && (
+                              <span className="text-[10.5px] font-black text-red-700 bg-red-100 border border-red-300 px-2 py-0.5 rounded-full animate-pulse shrink-0">
+                                URGENT
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Guest & Message Details Box - Clean structure and aligned text */}
+                        <div className="bg-white/95 rounded-xl border border-orange-200/90 p-3 space-y-2 shadow-2xs">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-stone-700 font-medium">
+                              Guest: <strong className="font-bold text-stone-900">{p.guestName || "Guest"}</strong>
+                            </span>
+                            <span className="flex items-center gap-1 font-mono text-stone-500 text-[11px]">
+                              <Clock className="h-3 w-3 text-stone-400" />
+                              <span>{p.timestamp || "Just now"}</span>
+                            </span>
+                          </div>
+
+                          {p.message ? (
+                            <div className="text-xs font-medium text-stone-900 leading-relaxed bg-orange-50/60 rounded-lg p-2.5 border border-orange-200/70">
+                              &ldquo;{p.message}&rdquo;
+                            </div>
+                          ) : (
+                            <p className="text-xs text-stone-500 italic pt-0.5">
+                              Customer requested assistance at table.
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Action Buttons: Clean 2-column balanced row */}
+                        <div className="space-y-2 pt-1 border-t border-orange-200/70">
+                          {p.type === "PAYMENT" && onSelectTable && (
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              type="button"
+                              onClick={() => {
+                                handleResolvePing(p.id, p.tableNumber);
+                                handleFocusTable(p.tableNumber);
+                              }}
+                              className="w-full h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer active:scale-98"
+                            >
+                              <CreditCard className="h-4 w-4" />
+                              <span>Settle Bill →</span>
+                            </motion.button>
+                          )}
+
+                          <div className="grid grid-cols-2 gap-2.5">
+                            {onSelectTable && (
+                              <button
+                                type="button"
+                                onClick={() => handleFocusTable(p.tableNumber)}
+                                className="h-10 px-3 bg-white hover:bg-stone-50 border-2 border-stone-300 text-stone-800 text-xs font-bold font-mono rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-2xs"
+                              >
+                                <Eye className="h-4 w-4 text-stone-500" />
+                                <span>Open Table</span>
+                              </button>
+                            )}
+                            <motion.button
+                              whileTap={{ scale: 0.95 }}
+                              type="button"
+                              onClick={() => handleResolvePing(p.id, p.tableNumber)}
+                              className={`h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-700 hover:to-amber-700 text-white cursor-pointer active:scale-95 ${
+                                !onSelectTable ? "col-span-2" : ""
+                              }`}
+                            >
+                              <CheckCircle2 className="h-4 w-4" />
+                              <span>Attended ✓</span>
+                            </motion.button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
               )}
             </div>
+
+            {/* Tactile Feedback Toast */}
+            <AnimatePresence>
+              {feedbackToast && (
+                <motion.div
+                  initial={{ opacity: 0, y: 16, scale: 0.92 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 16, scale: 0.92 }}
+                  transition={{ duration: 0.18 }}
+                  className="absolute bottom-4 left-4 right-4 z-50 py-2.5 px-3 bg-stone-900/95 text-white rounded-xl shadow-2xl border border-stone-700 flex items-center justify-center gap-2 font-mono text-xs font-black backdrop-blur-md"
+                >
+                  <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
+                  <span>{feedbackToast}</span>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </>
       )}

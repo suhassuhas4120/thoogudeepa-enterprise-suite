@@ -16,10 +16,12 @@ import {
   UserX,
   Split,
   Sparkles,
-  CheckCircle2
+  CheckCircle2,
+  X
 } from 'lucide-react';
 import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 import { useCustomer } from '../../context/CustomerContext';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   tableNum: string;
@@ -49,14 +51,49 @@ function statusBadge(status: SharedTable['status']) {
   }
 }
 
-function itemStagePill(stage: string) {
-  if (stage === 'PLATED')
-    return 'bg-blue-600 text-white border-blue-700 shadow-2xs animate-pulse';
-  if (stage === 'PREP')
-    return 'bg-amber-600 text-white border-amber-700 shadow-2xs';
-  if (stage === 'SERVED')
-    return 'bg-emerald-600 text-white border-emerald-700 shadow-2xs';
-  return 'bg-stone-200 text-stone-800 border-stone-300 font-bold';
+function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) {
+  if (stage === 'Received' || stage === 'RECEIVED') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
+        Received
+      </span>
+    );
+  }
+  if (stage === 'Cooking' || stage === 'PREP' || stage === 'Preparing') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+        Preparing
+      </span>
+    );
+  }
+  if (stage === 'Ready' || stage === 'PLATED') {
+    return (
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onServe?.();
+        }}
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95 border border-emerald-700"
+      >
+        <span className="text-white">●</span>
+        <span>Serve</span>
+      </motion.button>
+    );
+  }
+  if (stage === 'Served' || stage === 'SERVED') {
+    return (
+      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
+        <span>Served</span>
+      </span>
+    );
+  }
+  return (
+    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600 border border-stone-200">
+      Placed
+    </span>
+  );
 }
 
 function getElapsed(seatedTime: string): number {
@@ -90,7 +127,15 @@ export function TabletTableDetail({
   onVacate,
   activePanelTab,
 }: Props) {
-  const { tables, kdsTickets, waiterMergeChairs, waiterMergeSeatGroup, waiterUnmergeSeatGroup, waiterSeatsGuests } = useSharedBridge();
+  const {
+    tables,
+    kdsTickets,
+    waiterMergeChairs,
+    waiterMergeSeatGroup,
+    waiterUnmergeSeatGroup,
+    waiterSeatsGuests,
+    waiterMarkKitchenItemServed,
+  } = useSharedBridge();
   const { cart, addToCart } = useCustomer();
 
   // ── Drag & Drop & Chair Merging State ──
@@ -125,6 +170,15 @@ export function TabletTableDetail({
   const allItems = tickets.flatMap((tk) =>
     tk.items.map((item) => ({ ...item, tableNum: tk.tableNumber }))
   );
+
+  const allFiredItems = allItems;
+  const hasFiredItems = allFiredItems.length > 0;
+  const allFoodServed =
+    !isVacant &&
+    hasFiredItems &&
+    allFiredItems.every(
+      (it) => it.stage === 'SERVED' || (it.stage as string) === 'Served'
+    );
 
   const mergedSeatGroups = table.mergedSeatGroups || {};
   const groupSeats = Object.values(mergedSeatGroups).flat();
@@ -188,6 +242,26 @@ export function TabletTableDetail({
       targetChairBill = 0;
     }
   }
+
+  // Food serving validation for settlement
+  const relevantItems = selectedChair === 'ALL' ? allItems : displayItems;
+  const relevantDrafts = selectedChair === 'ALL' ? allTableDraftItems : draftItems;
+  const billToSettle = selectedChair === 'ALL' ? totalTableBill : targetChairBill;
+
+  // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
+  const hasItemsToSettle = relevantItems.length > 0;
+  const areAllRelevantItemsServed =
+    hasItemsToSettle &&
+    relevantItems.every(
+      (it) => it.stage === 'SERVED' || (it.stage as string) === 'Served'
+    );
+
+  // Settle is enabled ONLY AFTER all items have been served, with no pending drafts, and bill > 0
+  const canSettle =
+    !isVacant &&
+    billToSettle > 0 &&
+    relevantDrafts.length === 0 &&
+    areAllRelevantItemsServed;
 
   const handleConfirmMergeSelectedChairs = () => {
     if (chairsSelectedForMerge.length < 2) return;
@@ -274,13 +348,19 @@ export function TabletTableDetail({
                 <h2 className="text-3xl font-black text-stone-950 tracking-tight font-mono">
                   {groupPeers.length > 1 ? groupPeers.join(' + ') : tableNum}
                 </h2>
-                <span
-                  className={`px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider ${statusBadge(
-                    table.status
-                  )}`}
-                >
-                  {table.status}
-                </span>
+                {allFoodServed ? (
+                  <span className="px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300 shadow-2xs">
+                    SERVED
+                  </span>
+                ) : (
+                  <span
+                    className={`px-2.5 py-0.5 rounded-xl border text-xs font-black font-mono uppercase tracking-wider ${statusBadge(
+                      table.status
+                    )}`}
+                  >
+                    {table.status}
+                  </span>
+                )}
                 {groupPeers.length > 1 && (
                   <span className="px-2.5 py-0.5 rounded-xl bg-indigo-600 text-white text-xs font-black font-mono flex items-center gap-1">
                     <Link2 className="h-3 w-3" />
@@ -289,7 +369,7 @@ export function TabletTableDetail({
                 )}
               </div>
               <p className="font-mono text-xs text-stone-700 mt-1 font-bold">
-                {table.section} · Maximum Capacity: {totalCapacity} Seats
+                {formatSectionName(table.section, table.number)} · Maximum Capacity: {totalCapacity} Seats
               </p>
             </div>
           </div>
@@ -376,7 +456,7 @@ export function TabletTableDetail({
           </div>
         )}
 
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pt-2.5 pb-2 px-1.5 -mt-1.5">
           {/* ALL Seats Button — supports dropping menu dish */}
           <button
             type="button"
@@ -478,9 +558,9 @@ export function TabletTableDetail({
                     onSelectChair('ALL');
                   }}
                   title="Unmerge Chairs"
-                  className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-rose-600 hover:bg-rose-700 text-white rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white shadow-xs cursor-pointer"
+                  className="absolute -top-2 -right-2 h-6 w-6 bg-rose-600 hover:bg-rose-700 active:scale-95 text-white rounded-full flex items-center justify-center border-2 border-white shadow-md z-20 cursor-pointer transition-transform"
                 >
-                  ×
+                  <X className="h-3.5 w-3.5 stroke-[3]" />
                 </button>
               </div>
             );
@@ -612,15 +692,15 @@ export function TabletTableDetail({
                 </span>
                 {/* Food Ready Dot */}
                 {hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-600 border-2 border-white animate-pulse" />
+                  <span className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 rounded-full bg-blue-600 border-2 border-white shadow-xs animate-pulse z-10" />
                 )}
                 {/* Active Items Dot */}
                 {hasItems && !hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 border-2 border-white" />
+                  <span className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 rounded-full bg-amber-500 border-2 border-white shadow-xs z-10" />
                 )}
                 {/* Draft Items Dot */}
                 {hasDraft && !hasItems && !hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-400 border-2 border-white animate-bounce" />
+                  <span className="absolute -top-1.5 -right-1.5 h-4.5 w-4.5 rounded-full bg-amber-400 border-2 border-white shadow-xs animate-pulse z-10" />
                 )}
               </button>
             );
@@ -645,7 +725,7 @@ export function TabletTableDetail({
                 Table {tableNum} is Vacant
               </h3>
               <p className="font-mono text-xs text-stone-600 mt-1 font-bold">
-                Capacity: {table.capacity} Guests · {table.section}
+                Capacity: {table.capacity} Guests · {formatSectionName(table.section, table.number)}
               </p>
               <p className="text-xs text-stone-500 mt-2 max-w-xs leading-relaxed">
                 {selectedChair !== 'ALL'
@@ -694,7 +774,7 @@ export function TabletTableDetail({
               >
                 <div className="min-w-0 flex-1 pr-2">
                   <div className="flex items-center gap-2">
-                    <p className="text-xs font-black text-stone-950 leading-tight">
+                    <p className="text-[14px] font-black text-stone-950 leading-tight antialiased">
                       {ci.menuItem.name}
                     </p>
                     {ci.seatNumber && (
@@ -750,121 +830,168 @@ export function TabletTableDetail({
 
         {!isVacant && displayItems.length > 0 && (
           tickets.map((tk, tkIdx) => {
-            const tkItems = tk.items.filter(
-              (it) => selectedChair === 'ALL' || it.seatNumber === selectedChair
-            );
+            const tkItems = tk.items.filter((it) => {
+              if (selectedChair === 'ALL') return true;
+              if (typeof selectedChair === 'number') return it.seatNumber === selectedChair;
+              if (targetSeats.length > 0) return it.seatNumber && targetSeats.includes(it.seatNumber);
+              return false;
+            });
             if (tkItems.length === 0) return null;
+
+            const isAllServed = tk.items.length > 0 && tk.items.every((i) => i.stage === 'SERVED' || (i.stage as string) === 'Served');
+
             return (
-              <div key={tk.id ? `${tk.id}-${tkIdx}` : `kot-${tkIdx}`} className="space-y-2 bg-white p-3.5 rounded-2xl border-2 border-stone-200">
+              <div
+                key={tk.id ? `${tk.id}-${tkIdx}` : `kot-${tkIdx}`}
+                className={`space-y-2 p-3.5 rounded-2xl border-2 transition ${
+                  isAllServed ? 'bg-stone-50/70 border-stone-200' : 'bg-white border-stone-200'
+                }`}
+              >
                 {/* KOT Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-stone-200">
                   <div className="flex items-center gap-2">
-                    <Flame className="h-4 w-4 text-orange-600 stroke-[2.4]" />
+                    <Flame className={`h-4 w-4 stroke-[2.4] ${isAllServed ? 'text-stone-400' : 'text-orange-600'}`} />
                     <span className="font-mono text-xs font-black text-stone-900 uppercase tracking-wider">
                       KOT #{tk.id ? tk.id.slice(-4) : String(tkIdx + 1)} · {tk.timestamp}
                     </span>
                   </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider ${
-                      tk.status === 'READY'
-                        ? 'text-white bg-blue-600 border-blue-700 animate-pulse'
-                        : tk.status === 'PREP'
-                        ? 'text-white bg-amber-600 border-amber-700'
-                        : tk.status === 'COMPLETED'
-                        ? 'text-white bg-emerald-600 border-emerald-700'
-                        : 'text-stone-800 bg-stone-200 border-stone-300'
-                    }`}
-                  >
-                    {tk.status}
-                  </span>
+                  {(isAllServed || tk.status === 'COMPLETED' || tk.status === 'SERVED') && (
+                    <span className="px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300">
+                      SERVED
+                    </span>
+                  )}
                 </div>
 
-                {tkItems.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0"
-                  >
-                    <div className="min-w-0 flex-1 pr-2">
-                      <p className="text-xs font-black text-stone-950 leading-tight">
-                        {item.name}
-                      </p>
-                      {item.options && (
-                        <p className="text-[10px] text-stone-500 font-mono mt-0.5">
-                          {item.options}
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2.5 shrink-0 font-mono">
-                      <span className="text-xs font-black text-stone-700 bg-stone-100 px-2 py-1 rounded-lg">
-                        ×{item.quantity}
-                      </span>
-                      {item.price && (
-                        <span className="text-xs font-black text-[#9C3D1E]">
-                          ₹{item.price * item.quantity}
+                {tkItems.map((item) => {
+                  const isServed = item.stage === 'SERVED' || (item.stage as string) === 'Served';
+                  return (
+                    <div
+                      key={item.id}
+                      className={`flex items-center justify-between py-2 border-b border-stone-100 last:border-0 transition ${
+                        isServed ? 'opacity-60' : ''
+                      }`}
+                    >
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="flex items-center gap-2">
+                          <p
+                            className={`text-[14px] font-black leading-tight antialiased ${
+                              isServed ? 'line-through text-stone-400' : 'text-stone-950'
+                            }`}
+                          >
+                            {item.name}
+                          </p>
+                          {item.seatNumber && (
+                            <span
+                              className={`text-[9.5px] font-black font-mono px-1.5 py-0.5 rounded border ${
+                                isServed
+                                  ? 'bg-stone-100 text-stone-400 border-stone-200'
+                                  : 'bg-amber-100 text-amber-900 border-amber-200'
+                              }`}
+                            >
+                              Chair {item.seatNumber}
+                            </span>
+                          )}
+                        </div>
+                        {item.options && (
+                          <p
+                            className={`text-[10px] font-mono mt-0.5 ${
+                              isServed ? 'text-stone-400' : 'text-stone-500'
+                            }`}
+                          >
+                            {item.options}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2.5 shrink-0 font-mono">
+                        <span
+                          className={`text-xs font-black px-2 py-1 rounded-lg ${
+                            isServed
+                              ? 'text-stone-400 bg-stone-100 border border-stone-200'
+                              : 'text-stone-700 bg-stone-100'
+                          }`}
+                        >
+                          ×{item.quantity}
                         </span>
-                      )}
-                      <span
-                        className={`px-2 py-0.5 rounded-lg border text-[10px] font-black uppercase tracking-wider ${itemStagePill(
-                          item.stage
-                        )}`}
-                      >
-                        {item.stage === 'PLATED'
-                          ? 'Ready'
-                          : item.stage === 'SERVED'
-                          ? 'Served'
-                          : item.stage === 'PREP'
-                          ? 'Cooking'
-                          : 'Placed'}
-                      </span>
+                        {item.price !== undefined && (
+                          <span
+                            className={`text-xs font-black ${
+                              isServed ? 'line-through text-stone-400' : 'text-[#9C3D1E]'
+                            }`}
+                          >
+                            ₹{item.price * item.quantity}
+                          </span>
+                        )}
+                        <StagePill
+                          stage={item.stage}
+                          onServe={() => waiterMarkKitchenItemServed(tk.id, item.id)}
+                        />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             );
           })
         )}
       </div>
 
-      {/* ── High-Contrast Bottom Action Bar for Occupied Tables ── */}
+      {/* ── High-Contrast Bottom Action Bar for Occupied Tables (Matching Waiter Mobile) ── */}
       {!isVacant && (
         <div className="shrink-0 bg-white border-t-2 border-stone-200 px-5 py-3.5 space-y-3 shadow-sm">
           {/* Bill Summary Row */}
           <div className="flex items-center justify-between font-mono">
-            <span className="text-stone-700 font-black text-xs uppercase tracking-wider">
-              {chairLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-stone-700 font-black text-xs uppercase tracking-wider">
+                {chairLabel}
+              </span>
+              {!areAllRelevantItemsServed && hasItemsToSettle && (
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300">
+                  Serve dishes to settle
+                </span>
+              )}
+              {areAllRelevantItemsServed && (
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                  Ready to Settle
+                </span>
+              )}
+            </div>
             <span className="font-black text-stone-950 text-2xl">
               ₹{targetChairBill.toLocaleString()}
             </span>
           </div>
 
-          {/* Primary Action Buttons — hide the button whose panel is already open */}
-          <div className={`grid gap-2.5 ${
-            activePanelTab === 'menu' || activePanelTab === 'payment'
-              ? 'grid-cols-1'
-              : 'grid-cols-2'
-          }`}>
-            {activePanelTab !== 'menu' && (
-              <button
-                type="button"
-                onClick={() => onAddDishes(typeof selectedChair === 'number' ? selectedChair : targetSeats[0])}
-                className="py-3 px-4 bg-[#9C3D1E] hover:bg-[#7d3018] text-white rounded-2xl font-mono font-black text-xs uppercase tracking-wider transition cursor-pointer shadow-xs flex items-center justify-center gap-2 active:scale-98"
-              >
-                <Plus className="h-4 w-4 stroke-[3]" />
-                <span>Add More Items</span>
-              </button>
-            )}
-            {activePanelTab !== 'payment' && (
-              <button
-                type="button"
-                onClick={onSettle}
-                disabled={targetChairBill === 0 && totalTableBill === 0}
-                className="py-3 px-4 bg-purple-700 hover:bg-purple-800 disabled:opacity-40 disabled:cursor-not-allowed text-white rounded-2xl font-mono font-black text-xs uppercase tracking-wider transition cursor-pointer shadow-xs flex items-center justify-center gap-2 active:scale-98"
-              >
-                <CreditCard className="h-4 w-4 stroke-[2.4]" />
-                <span>Settle {selectedChair === 'ALL' ? 'Bill' : chairLabel}</span>
-              </button>
-            )}
+          {/* Primary Action Buttons — Two side-by-side buttons matching Waiter Mobile */}
+          <div className="grid grid-cols-2 gap-2.5 font-mono text-xs font-black">
+            <button
+              type="button"
+              onClick={() => onAddDishes(typeof selectedChair === 'number' ? selectedChair : targetSeats[0])}
+              className="min-h-[46px] rounded-xl bg-[#9C3D1E] hover:bg-[#853318] text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs cursor-pointer active:scale-98 border-0"
+            >
+              <Plus className="h-4 w-4 stroke-[3]" />
+              <span>Add Dishes</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!canSettle) return;
+                onSettle();
+              }}
+              disabled={!canSettle}
+              title={
+                !areAllRelevantItemsServed && hasItemsToSettle
+                  ? 'All ordered dishes must be served before settling the bill'
+                  : undefined
+              }
+              className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
+                !canSettle
+                  ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs'
+              }`}
+            >
+              <CreditCard className="h-4 w-4 stroke-[2.4]" />
+              <span>Settle {selectedChair === 'ALL' ? 'Bill' : chairLabel}</span>
+            </button>
           </div>
 
           {/* Secondary Action Buttons */}

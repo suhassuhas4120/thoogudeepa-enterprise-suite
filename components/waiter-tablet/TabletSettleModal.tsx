@@ -4,6 +4,7 @@ import React, { useState, useMemo } from 'react';
 import { X, CreditCard, QrCode, Banknote, CheckCircle2, ShieldCheck, Printer, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   tableNum: string;
@@ -48,15 +49,33 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
     return Array.from(presets).filter((v) => v >= bill).sort((a, b) => a - b).slice(0, 4);
   }, [bill]);
 
+  const effectiveCashTendered =
+    typeof cashTendered === 'number'
+      ? cashTendered
+      : (cashTendered === '' && bill > 0 ? bill : 0);
+
   const change =
-    method === 'CASH' && typeof cashTendered === 'number' && cashTendered >= bill
-      ? cashTendered - bill
+    method === 'CASH' && effectiveCashTendered >= bill
+      ? effectiveCashTendered - bill
       : 0;
+
+  const splitSeatNum = splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i)
+    ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1])
+    : undefined;
+
+  const groupPeers = table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
+  const tickets = kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const allFiredItems = tickets.flatMap((tk) => tk.items);
+  const relevantFired = allFiredItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
+  const areAllFiredServed =
+    relevantFired.length > 0 &&
+    relevantFired.every((it) => it.stage === 'SERVED' || (it.stage as string) === 'Served');
 
   const isSettleDisabled =
     bill <= 0 ||
+    (relevantFired.length > 0 && !areAllFiredServed) ||
     (method === 'UPI' && !isUpiVerified) ||
-    (method === 'CASH' && (cashTendered === '' || Number(cashTendered) < bill));
+    (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
   const handleSettle = () => {
     if (isSettleDisabled) return;
@@ -102,7 +121,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
     recordSettledBill({
       invoiceNumber,
       tableName: tableNum,
-      section: table?.section || 'Main Dining Hall',
+      section: formatSectionName(table?.section || '', tableNum),
       guestCount: splitSeatNum ? 1 : table?.guestCount || table?.capacity || 1,
       formattedDate,
       formattedTime,
@@ -113,7 +132,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
       cgst,
       sgst,
       grandTotal: bill,
-      cashTendered: method === 'CASH' && typeof cashTendered === 'number' ? cashTendered : undefined,
+      cashTendered: method === 'CASH' ? (typeof cashTendered === 'number' ? cashTendered : bill) : undefined,
       cashChange: method === 'CASH' ? change : undefined,
       items: snapshotItems,
       seatNumber: splitSeatNum,
@@ -294,7 +313,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                         <span className="font-bold text-stone-700">Quick Cash Presets:</span>
                         {typeof change === 'number' && change >= 0 && (
                           <span className="font-black text-emerald-700">
-                            Change Due: ₹{change.toFixed(2)}
+                            Return Change: ₹{change === 0 ? '0.0' : change.toFixed(2)}
                           </span>
                         )}
                       </div>
@@ -306,7 +325,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                             type="button"
                             onClick={() => setCashTendered(preset)}
                             className={`flex-1 py-1.5 rounded-xl border text-xs font-black transition cursor-pointer ${
-                              cashTendered === preset
+                              cashTendered === preset || (cashTendered === '' && preset === bill)
                                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
                                 : 'bg-white border-stone-300 text-stone-800 hover:bg-stone-100'
                             }`}
@@ -319,11 +338,15 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                       <div className="flex items-center gap-2">
                         <span className="text-xs font-bold text-stone-600">Tendered:</span>
                         <input
-                          type="number"
-                          placeholder={`Min ₹${bill}`}
+                          type="tel"
+                          inputMode="numeric"
+                          placeholder={`₹${bill.toFixed(2)}`}
                           value={cashTendered}
-                          onChange={(e) => setCashTendered(e.target.value === '' ? '' : Number(e.target.value))}
-                          className="flex-1 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          onChange={(e) => {
+                            const raw = e.target.value.replace(/[^\d.]/g, '');
+                            setCashTendered(raw === '' ? '' : Number(raw));
+                          }}
+                          className="flex-1 px-3 py-1.5 bg-white border border-stone-300 rounded-xl text-xs font-bold text-stone-900 placeholder:text-stone-400 font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500"
                         />
                       </div>
                     </div>
@@ -366,7 +389,9 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       <span>
-                        Confirm ₹{bill.toFixed(2)} Payment ({method})
+                        {relevantFired.length > 0 && !areAllFiredServed
+                          ? 'Serve Dishes First'
+                          : `Confirm ₹${bill.toFixed(2)} Payment (${method})`}
                       </span>
                     </button>
                   </div>

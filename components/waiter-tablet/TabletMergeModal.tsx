@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, Link2, Unlink, CheckCircle2, AlertCircle, Users, Armchair } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
+import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
   open: boolean;
@@ -26,7 +27,10 @@ export function TabletMergeModal({ open, onClose, tableNum, onMergedSuccess }: P
 
   // Candidates for merging: other tables (prefer same section or occupied/vacant)
   const candidateTables = tables.filter(
-    (t) => t.number !== tableNum && !groupPeers.includes(t.number) && (filterSection === 'ALL' || t.section === filterSection)
+    (t) =>
+      t.number !== tableNum &&
+      !groupPeers.includes(t.number) &&
+      (filterSection === 'ALL' || formatSectionName(t.section, t.number) === filterSection)
   );
 
   const handleMerge = () => {
@@ -130,7 +134,7 @@ export function TabletMergeModal({ open, onClose, tableNum, onMergedSuccess }: P
                         Current Focus Table
                       </span>
                       <span className="text-xl font-black text-stone-950">
-                        {currentTable.number} ({currentTable.section})
+                        {currentTable.number} ({formatSectionName(currentTable.section, currentTable.number)})
                       </span>
                       <span className="text-xs text-stone-600 block mt-0.5">
                         {currentTable.capacity} seats · Status: {currentTable.status} · Bill: ₹{currentTable.currentBill || 0}
@@ -178,6 +182,24 @@ export function TabletMergeModal({ open, onClose, tableNum, onMergedSuccess }: P
                         </span>
                       </div>
 
+                      {/* Section Filter Pills: Section A to Section D */}
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+                        {['ALL', 'Section A', 'Section B', 'Section C', 'Section D'].map((sec) => (
+                          <button
+                            key={sec}
+                            type="button"
+                            onClick={() => setFilterSection(sec)}
+                            className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition cursor-pointer whitespace-nowrap ${
+                              filterSection === sec
+                                ? 'bg-purple-600 text-white border-purple-600 shadow-2xs'
+                                : 'bg-stone-50 text-stone-600 border-stone-200 hover:bg-stone-100'
+                            }`}
+                          >
+                            {sec === 'ALL' ? 'All Sections' : sec}
+                          </button>
+                        ))}
+                      </div>
+
                       {/* Candidate Grid */}
                       <div className="grid grid-cols-3 gap-2.5 max-h-56 overflow-y-auto pr-1">
                         {candidateTables.map((t) => {
@@ -198,7 +220,7 @@ export function TabletMergeModal({ open, onClose, tableNum, onMergedSuccess }: P
                                 <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded uppercase ${
                                   isSelected ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'
                                 }`}>
-                                  {t.status}
+                                  {formatSectionName(t.section, t.number)}
                                 </span>
                               </div>
                               <div className="mt-2 text-[10px] opacity-80 flex items-center gap-1">

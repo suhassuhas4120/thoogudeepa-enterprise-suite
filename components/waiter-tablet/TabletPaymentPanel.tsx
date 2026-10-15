@@ -10,7 +10,6 @@ import {
   Printer,
   FileText,
   ArrowRight,
-  UtensilsCrossed,
   Split,
   Check,
   RefreshCw,
@@ -19,6 +18,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useCustomer } from '../../context/CustomerContext';
+import { formatSectionName } from './TabletFloorMap';
 import QRCode from 'qrcode';
 
 interface Props {
@@ -174,22 +174,33 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
       .slice(0, 4);
   }, [bill]);
 
+  const effectiveCashTendered =
+    typeof cashTendered === 'number'
+      ? cashTendered
+      : (cashTendered === '' && bill > 0 ? bill : 0);
+
   const change =
-    method === 'CASH' && typeof cashTendered === 'number' && cashTendered >= bill
-      ? cashTendered - bill
+    method === 'CASH' && effectiveCashTendered >= bill
+      ? effectiveCashTendered - bill
       : 0;
+
+  const splitSeatNum = typeof selectedChair === 'number'
+    ? selectedChair
+    : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
+  const relevantFired = allFiredItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
+  const areAllFiredServed =
+    relevantFired.length > 0 &&
+    relevantFired.every((it) => it.stage === 'SERVED' || (it.stage as string) === 'Served');
 
   const isSettleDisabled =
     bill <= 0 ||
+    (relevantFired.length > 0 && !areAllFiredServed) ||
     (method === 'UPI' && !isUpiVerified) ||
-    (method === 'CASH' && (cashTendered === '' || Number(cashTendered) < bill));
+    (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
   const handleSettle = () => {
     if (isSettleDisabled) return;
-
-    const splitSeatNum = typeof selectedChair === 'number'
-      ? selectedChair
-      : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
 
     const now = new Date();
     const formattedDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -224,7 +235,7 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     recordSettledBill({
       invoiceNumber,
       tableName: tableNum,
-      section: table?.section || 'Main Dining Hall',
+      section: formatSectionName(table?.section || '', tableNum),
       guestCount: splitSeatNum ? 1 : table?.guestCount || table?.capacity || 1,
       formattedDate,
       formattedTime,
@@ -235,7 +246,7 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
       cgst: Number(cgst),
       sgst: Number(sgst),
       grandTotal: bill,
-      cashTendered: method === 'CASH' && typeof cashTendered === 'number' ? cashTendered : undefined,
+      cashTendered: method === 'CASH' ? (typeof cashTendered === 'number' ? cashTendered : bill) : undefined,
       cashChange: method === 'CASH' ? change : undefined,
       items: snapshotItems,
       seatNumber: splitSeatNum,
@@ -291,24 +302,14 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
           </h2>
         </div>
 
-        {/* Amount Due & Add Dishes Switcher */}
-        <div className="flex items-center gap-3.5">
-          <div className="text-right">
-            <p className="font-mono text-xs font-black text-stone-500 uppercase tracking-wider">
-              Amount Due
-            </p>
-            <p className="font-mono text-2xl font-black text-[#9C3D1E]">
-              ₹{bill.toFixed(2)}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onSwitchToMenu}
-            className="flex items-center gap-1.5 px-3.5 py-2.5 bg-[#9C3D1E] hover:bg-[#7d3018] text-white rounded-xl font-mono text-xs font-black uppercase tracking-wider transition cursor-pointer shadow-xs active:scale-98"
-          >
-            <UtensilsCrossed className="h-4 w-4 stroke-[2.4]" />
-            <span>Add Dishes</span>
-          </button>
+        {/* Amount Due */}
+        <div className="text-right">
+          <p className="font-mono text-xs font-black text-stone-500 uppercase tracking-wider">
+            Amount Due
+          </p>
+          <p className="font-mono text-2xl font-black text-[#9C3D1E]">
+            ₹{bill.toFixed(2)}
+          </p>
         </div>
       </div>
 
@@ -357,26 +358,6 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                 <span className="text-xl text-[#9C3D1E]">₹{bill.toFixed(2)}</span>
               </div>
             </div>
-
-
-            {/* Split bill trigger if needed */}
-            {onOpenSplit && !splitAmount && bill > 0 && (
-              <div className="flex items-center justify-between p-3.5 bg-amber-50 border-2 border-amber-300 rounded-2xl">
-                <div className="flex items-center gap-2.5">
-                  <Split className="h-4.5 w-4.5 text-amber-800 stroke-[2.4]" />
-                  <span className="text-xs font-black text-amber-950">
-                    Split bill across guests or chairs?
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={onOpenSplit}
-                  className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black tracking-wider transition cursor-pointer"
-                >
-                  Split Check
-                </button>
-              </div>
-            )}
 
             {/* Payment Method Selector — supports horizontal swipe to cycle modes */}
             <div>
@@ -481,14 +462,18 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                 </div>
 
                 {/* Verified checkbox */}
-                <label className="flex items-center gap-3 p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl cursor-pointer">
+                <label className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer border-2 transition ${
+                  isUpiVerified
+                    ? 'bg-emerald-50 border-emerald-400 text-emerald-950'
+                    : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
+                }`}>
                   <input
                     type="checkbox"
                     checked={isUpiVerified}
                     onChange={(e) => setIsUpiVerified(e.target.checked)}
                     className="h-5 w-5 rounded accent-emerald-600 cursor-pointer"
                   />
-                  <span className="text-xs font-black text-emerald-950">
+                  <span className="text-xs font-black">
                     Soundbox Confirmation / Payment Received
                   </span>
                 </label>
@@ -506,13 +491,15 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                     Cash Tendered from Customer (₹)
                   </label>
                   <input
-                    type="number"
+                    type="tel"
+                    inputMode="numeric"
                     value={cashTendered}
-                    onChange={(e) =>
-                      setCashTendered(e.target.value === '' ? '' : Number(e.target.value))
-                    }
-                    placeholder={`Enter amount (≥ ₹${bill})`}
-                    className="w-full px-4 py-3 bg-[#FAF8F5] border-2 border-stone-300 focus:border-[#9C3D1E] rounded-xl text-base font-black focus:outline-none"
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^\d.]/g, '');
+                      setCashTendered(raw === '' ? '' : Number(raw));
+                    }}
+                    placeholder={`₹${bill.toFixed(2)}`}
+                    className="w-full px-4 py-3 bg-[#FAF8F5] border-2 border-stone-300 focus:border-[#9C3D1E] rounded-xl text-base font-black text-stone-950 placeholder:text-stone-400 font-mono focus:outline-none transition"
                   />
                 </div>
 
@@ -524,7 +511,7 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                       type="button"
                       onClick={() => setCashTendered(preset)}
                       className={`px-3.5 py-2 rounded-xl border-2 text-xs font-black transition cursor-pointer ${
-                        cashTendered === preset
+                        cashTendered === preset || (cashTendered === '' && preset === bill)
                           ? 'border-[#9C3D1E] bg-[#9C3D1E] text-white shadow-xs'
                           : 'border-stone-300 bg-stone-100 text-stone-800 hover:bg-stone-200'
                       }`}
@@ -534,10 +521,12 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
                   ))}
                 </div>
 
-                {typeof cashTendered === 'number' && cashTendered >= bill && (
+                {((typeof cashTendered === 'number' && cashTendered >= bill) || cashTendered === '') && (
                   <div className="flex items-center justify-between p-3 bg-emerald-50 border-2 border-emerald-300 rounded-xl text-xs font-black text-emerald-950">
                     <span>Return Change:</span>
-                    <span className="text-base text-emerald-800">₹{change.toFixed(2)}</span>
+                    <span className="text-base text-emerald-800 font-mono">
+                      ₹{change === 0 ? '0.0' : change.toFixed(2)}
+                    </span>
                   </div>
                 )}
                 {typeof cashTendered === 'number' && cashTendered < bill && (
@@ -601,14 +590,23 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
             type="button"
             onClick={handleSettle}
             disabled={isSettleDisabled}
-            className={`flex-1 py-3.5 px-5 rounded-2xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition cursor-pointer shadow-md ${
+            title={
+              relevantFired.length > 0 && !areAllFiredServed
+                ? 'All ordered dishes must be served before completing settlement'
+                : undefined
+            }
+            className={`flex-1 py-3.5 px-5 rounded-2xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition border-0 ${
               isSettleDisabled
-                ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white active:scale-98'
+                ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-md active:scale-98'
             }`}
           >
             <CheckCircle2 className="h-5 w-5 stroke-[2.4]" />
-            <span>Complete Settlement (₹{bill.toFixed(2)})</span>
+            <span>
+              {relevantFired.length > 0 && !areAllFiredServed
+                ? 'Serve Dishes First'
+                : `Complete Settlement (₹${bill.toFixed(2)})`}
+            </span>
           </button>
         </div>
       )}

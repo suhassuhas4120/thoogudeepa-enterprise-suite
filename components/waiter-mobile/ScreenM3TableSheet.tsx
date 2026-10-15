@@ -1571,10 +1571,10 @@ export function ScreenM3TableSheet({
               }
             }}
             title={currentSelectionSettleReason || 'Proceed to payment settlement'}
-            className={`min-h-[48px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs ${
+            className={`min-h-[48px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
               isCurrentSelectionSettleDisabled
-                ? 'bg-stone-200 text-stone-400 cursor-not-allowed border border-stone-300'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95'
+                ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95 shadow-xs'
             }`}
           >
             <CreditCard className="h-4 w-4" />

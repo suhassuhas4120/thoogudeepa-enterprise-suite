@@ -432,16 +432,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextBills = { ...state.settledBills };
+      delete nextBills[normTable];
+      delete nextBills[tableNumber];
       delete nextBills[`${normTable}-CHAIR-${assignedSeat}`];
-      if (nextBills[normTable] && (!nextBills[normTable].seatNumber || nextBills[normTable].seatNumber === assignedSeat)) {
-        delete nextBills[normTable];
-      }
+      delete nextBills[`${tableNumber}-CHAIR-${assignedSeat}`];
 
       if (typeof window !== 'undefined') {
         supabase
           .from('pings')
           .delete()
-          .or(`id.eq.SETTLED-BILL-${normTable}-S${assignedSeat},id.eq.SETTLE-SESSION-${normTable}-S${assignedSeat}`)
+          .or(`id.eq.SETTLED-BILL-${normTable}-S${assignedSeat},id.eq.SETTLE-SESSION-${normTable}-S${assignedSeat},id.eq.SETTLED-BILL-${normTable}`)
           .then(() => {}, () => {});
       }
 
@@ -1142,13 +1142,28 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextBills = { ...state.settledBills };
+      delete nextBills[normTable];
+      delete nextBills[tableNumber];
       if (typeof seatNumber === 'number') {
         delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+        delete nextBills[`${tableNumber}-CHAIR-${seatNumber}`];
         if (typeof window !== 'undefined') {
           supabase
             .from('pings')
             .delete()
-            .or(`id.eq.SETTLED-BILL-${normTable}-S${seatNumber},id.eq.SETTLE-SESSION-${normTable}-S${seatNumber}`)
+            .or(`id.eq.SETTLED-BILL-${normTable}-S${seatNumber},id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}`)
+            .then(() => {}, () => {});
+        }
+      } else {
+        for (let s = 1; s <= 12; s++) {
+          delete nextBills[`${normTable}-CHAIR-${s}`];
+          delete nextBills[`${tableNumber}-CHAIR-${s}`];
+        }
+        if (typeof window !== 'undefined') {
+          supabase
+            .from('pings')
+            .delete()
+            .or(`id.ilike.SETTLED-BILL-${normTable}%,id.ilike.SETTLE-SESSION-${normTable}%`)
             .then(() => {}, () => {});
         }
       }

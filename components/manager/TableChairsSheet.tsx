@@ -188,38 +188,50 @@ export function TableChairsSheet({
   const displayedTax = Math.round(displayedSubtotal * 0.05);
   const displayedTotal = displayedSubtotal + displayedTax;
 
-  // Check whether payment is done for this table / chair from Waiter Mobile, Waiter Tablet, or Customer Side
+  // Check whether payment is done for this table / chair from Waiter Mobile, Waiter Tablet, Customer, or Manager
   const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
 
-  const hasTableSettledBill = Boolean(
-    settledBills?.[normTable] ||
-    settledBills?.[table.number] ||
-    settledBills?.[`T-${targetNum}`]
-  );
+  // Active stages indicate dishes currently placed or cooking in kitchen — payment cannot be settled yet
+  const isItemActiveUnsettled = (stage: string) =>
+    stage === 'PLACED' || stage === 'RECEIVED' || stage === 'PREPARING' || stage === 'READY';
 
   const chairsWithOrdersList = Array.from(
     new Set(allTableOrderedItems.map((i) => i.seatNumber).filter((s): s is number => typeof s === 'number'))
   );
+
+  // Check if a chair has active cooking or unsettled items
+  const chairHasUnsettledItems = (seatNum: number) =>
+    allTableOrderedItems.some((i) => i.seatNumber === seatNum && isItemActiveUnsettled(i.stage));
+
+  // Whole table payment is done ONLY when:
+  // 1. Table is in 'BILLING' status (explicitly set upon full table payment by waiter mobile, tablet, customer, or manager), OR
+  // 2. All chairs that ordered have settled their bills AND there are no active cooking/unsettled items on any chair.
   const allActiveChairsSettled =
     chairsWithOrdersList.length > 0 &&
-    chairsWithOrdersList.every((seatNum) =>
-      Boolean(
+    chairsWithOrdersList.every((seatNum) => {
+      if (chairHasUnsettledItems(seatNum)) return false;
+      return Boolean(
         settledBills?.[`${normTable}-CHAIR-${seatNum}`] ||
         settledBills?.[`${table.number}-CHAIR-${seatNum}`]
-      )
-    );
+      );
+    });
 
+  const isTablePaid = isBilling || (allActiveChairsSettled && !isVacant && chairsWithOrdersList.length > 0);
+
+  // Single chair payment:
+  // A chair is paid ONLY if:
+  // 1. The whole table is paid (isTablePaid / isBilling), OR
+  // 2. This specific chair has a settled bill in settledBills AND has NO active cooking/unsettled items (PLACED, RECEIVED, PREPARING, READY).
   const isCurrentChairSettled =
     typeof selectedSeat === 'number' &&
     Boolean(
       settledBills?.[`${normTable}-CHAIR-${selectedSeat}`] ||
       settledBills?.[`${table.number}-CHAIR-${selectedSeat}`]
-    );
+    ) &&
+    !chairHasUnsettledItems(selectedSeat);
 
-  // Payment is done if table is in BILLING status (set upon payment from waiter mobile, tablet, or customer)
-  // OR if a settled bill exists in the shared bridge for the table
-  const isTablePaid = isBilling || hasTableSettledBill || allActiveChairsSettled;
-  const isSelectionPaid = selectedSeat === 'ALL' ? isTablePaid : (isTablePaid || isCurrentChairSettled);
+  const isSelectionPaid =
+    !isVacant && (selectedSeat === 'ALL' ? isTablePaid : (isTablePaid || isCurrentChairSettled));
 
   // Vacate is enabled ONLY when payment is done and the table is not already vacant
   const isVacateEnabled = !isVacant && isSelectionPaid;
@@ -228,7 +240,7 @@ export function TableChairsSheet({
   const isPrintKOTEnabled = !isVacant && isSelectionPaid;
 
   // Add Items is enabled until payment is done (once paid by waiter mobile, customer, waiter tablet, or manager, cannot add extra items to settled bill)
-  const isAddItemsEnabled = !isSelectionPaid;
+  const isAddItemsEnabled = !isVacant && !isSelectionPaid;
 
   const handleOpenBilling = () => {
     setSelectedTableNumber(table.number);

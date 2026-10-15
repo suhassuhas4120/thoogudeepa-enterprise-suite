@@ -309,10 +309,27 @@ async function reconcileAllState(): Promise<void> {
             const seatNum = typeof bill.seatNumber === 'number'
               ? bill.seatNumber
               : (bill.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(bill.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
+            const currentTbl = mappedTables.find((t) => clean(t.number) === tNum);
+            const isTableOccupied = currentTbl?.status === 'OCCUPIED';
+
             if (typeof seatNum === 'number') {
-              settledBillsFromDb[`${normTable}-CHAIR-${seatNum}`] = bill;
+              // Only hydrate if chair does not have live active cooking/placed items in the KDS
+              const hasActiveCookingOnChair = mappedTickets.some((tk) =>
+                clean(tk.tableNumber) === tNum &&
+                tk.status !== 'COMPLETED' &&
+                (tk.items || []).some(
+                  (it) => it.seatNumber === seatNum && it.stage !== 'SERVED'
+                )
+              );
+              if (!hasActiveCookingOnChair) {
+                settledBillsFromDb[`${normTable}-CHAIR-${seatNum}`] = bill;
+              }
             } else {
-              settledBillsFromDb[normTable] = bill;
+              // Only hydrate whole table bill if table is not currently occupied with live dining
+              if (!isTableOccupied) {
+                settledBillsFromDb[normTable] = bill;
+              }
             }
           }
         } catch {}

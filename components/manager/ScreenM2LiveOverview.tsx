@@ -33,51 +33,53 @@ export function ScreenM2LiveOverview() {
 
   return (
     <div className="w-full mx-auto p-1 space-y-4">
-      {/* Top 4 KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>TODAY SALES (LIVE)</span>
-            <TrendingUp className="h-4 w-4 text-emerald-600" />
+      {/* Top 4 KPI Cards - Sticky Header */}
+      <div className="sticky top-0 z-30 bg-[#FAF8F5] pt-1 pb-3 -mt-1">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span>TODAY SALES (LIVE)</span>
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              ₹ {(shiftStats.totalRevenue + currentLiveBillSum).toLocaleString('en-IN')}.00
+            </div>
           </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            ₹ {(shiftStats.totalRevenue + currentLiveBillSum).toLocaleString('en-IN')}.00
-          </div>
-        </div>
 
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>GUESTS SEATED</span>
-            <Users className="h-4 w-4 text-blue-600" />
+          <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span>GUESTS SEATED</span>
+              <Users className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              {totalSeated} Guests
+            </div>
           </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            {totalSeated} Guests
-          </div>
-        </div>
 
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>ACTIVE KITCHEN KOTS</span>
-            <Utensils className="h-4 w-4 text-orange-600" />
+          <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span>ACTIVE KITCHEN KOTS</span>
+              <Utensils className="h-4 w-4 text-orange-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              {activeKdsCount} Orders
+            </div>
           </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            {activeKdsCount} Orders
-          </div>
-        </div>
 
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>TABLE OCCUPANCY</span>
-            <Clock className="h-4 w-4 text-purple-600" />
-          </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            {occupiedTables.length}/{tables.length} Tables
+          <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span>TABLE OCCUPANCY</span>
+              <Clock className="h-4 w-4 text-purple-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              {occupiedTables.length}/{tables.length} Tables
+            </div>
           </div>
         </div>
       </div>
 
       {/* Main Tables Status Matrix (5 Cols) + Chairs Section (3 Cols) Side-by-Side */}
-      <div className="grid grid-cols-1 lg:grid-cols-8 gap-4 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-8 gap-4 items-stretch">
         {/* Left: 5 Columns for Restaurant Tables Live Status Matrix */}
         <div className="lg:col-span-5 bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-sm flex flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-200">
@@ -151,7 +153,7 @@ export function ScreenM2LiveOverview() {
         </div>
 
         {/* Right: Remaining 3 Columns for Chairs Section of that particular table */}
-        <div className="lg:col-span-3 flex flex-col h-[750px] lg:h-[calc(100vh-2rem)] lg:max-h-[calc(100vh-2rem)] lg:sticky lg:top-4">
+        <div className="lg:col-span-3 flex flex-col h-full">
           <TableChairsSheet
             tableNumber={activeTableNum}
             isModal={false}

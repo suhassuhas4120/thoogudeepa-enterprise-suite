@@ -368,7 +368,7 @@ export function TableChairsSheet({
           {isModal && onClose && (
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95"
               title="Close"
             >
               <X className="h-5 w-5" />
@@ -381,7 +381,7 @@ export function TableChairsSheet({
       <div className="p-3 bg-white border-b border-[#EAE5DF] shrink-0">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-            <Armchair className="h-3.5 w-3.5 text-[#9C3D1E]" />
+            <Armchair className="h-4 w-4 text-[#9C3D1E]" />
             <span>Select Chair:</span>
           </span>
           <span className="text-[10px] font-bold text-slate-400">
@@ -395,15 +395,15 @@ export function TableChairsSheet({
           <button
             type="button"
             onClick={() => setSelectedSeat("ALL")}
-            className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition flex flex-col items-center justify-between h-[78px] min-w-[85px] shrink-0 shadow-2xs active:scale-95 ${
+            className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition flex flex-col items-center justify-between h-[82px] min-w-[90px] shrink-0 shadow-2xs active:scale-95 ${
               selectedSeat === "ALL"
                 ? "bg-stone-900 text-white border-stone-900 ring-2 ring-stone-900/30"
                 : "bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]"
             }`}
           >
-            <FileText className="h-4 w-4 mb-0.5 shrink-0" />
+            <FileText className="h-4.5 w-4.5 mb-0.5 shrink-0" />
             <span className="truncate w-full text-center">All Table</span>
-            <span className="text-[10px] opacity-80 shrink-0 font-bold">
+            <span className="text-[11px] opacity-80 shrink-0 font-black">
               ₹ {table.currentBill}
             </span>
           </button>
@@ -434,7 +434,7 @@ export function TableChairsSheet({
                 key={seatNum}
                 type="button"
                 onClick={() => setSelectedSeat(seatNum)}
-                className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition-all active:scale-95 flex flex-col items-center justify-between h-[78px] min-w-[85px] shrink-0 relative select-none shadow-2xs ${
+                className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition-all active:scale-95 flex flex-col items-center justify-between h-[82px] min-w-[90px] shrink-0 relative select-none shadow-2xs ${
                   isSelected
                     ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-sm ring-2 ring-[#9C3D1E]/40"
                     : hasOrders
@@ -448,13 +448,13 @@ export function TableChairsSheet({
                   <span className="absolute -top-1 -left-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
                 )}
 
-                <div className="flex items-center gap-1">
-                  <Armchair className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-1.5">
+                  <Armchair className="h-4 w-4" />
                   <span>Chair {seatNum}</span>
                 </div>
 
                 <span
-                  className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase truncate max-w-full ${
+                  className={`text-[10px] px-2 py-0.5 rounded font-black uppercase truncate max-w-full ${
                     isSelected
                       ? "bg-white/20 text-white"
                       : hasOrders
@@ -467,7 +467,7 @@ export function TableChairsSheet({
                   {hasOrders ? "Ordered" : isSeated ? "Seated" : "Available"}
                 </span>
 
-                <span className="text-[10px] opacity-80 shrink-0 font-bold">
+                <span className="text-[11px] opacity-80 shrink-0 font-black">
                   {chairAmt > 0 ? `₹ ${chairAmt}` : "--"}
                 </span>
               </button>
@@ -491,13 +491,13 @@ export function TableChairsSheet({
         <div className="flex items-center gap-2">
           <button
             onClick={handleOpenBilling}
-            className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-[10px] font-black transition shadow-2xs"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer"
           >
-            <PlusCircle className="h-3 w-3" />
+            <PlusCircle className="h-4 w-4" />
             <span>Add Items</span>
           </button>
           <span
-            className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
+            className={`text-[10px] md:text-[11px] font-black uppercase px-2.5 py-1 rounded-lg border ${
               selectedSeat === "ALL"
                 ? isBilling || (table.currentBill === 0 && !isOccupied)
                   ? "bg-emerald-100 text-emerald-800 border-emerald-300"
@@ -576,13 +576,20 @@ export function TableChairsSheet({
             );
           })
         ) : (
-          <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400">
-            <Armchair className="h-8 w-8 text-slate-300" />
+          <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-400">
+            <Armchair className="h-9 w-9 text-slate-300" />
             <p className="font-bold text-xs text-slate-500">
               {selectedSeat === "ALL"
                 ? "No items ordered"
                 : `No active orders for Chair ${selectedSeat}`}
             </p>
+            <button
+              onClick={handleOpenBilling}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer"
+            >
+              <PlusCircle className="h-4 w-4" />
+              <span>Add Items</span>
+            </button>
           </div>
         )}
       </div>
@@ -611,21 +618,21 @@ export function TableChairsSheet({
         <div className="grid grid-cols-3 gap-2">
           <button
             onClick={handleOpenBilling}
-            className="col-span-1 bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black py-2.5 px-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
+            className="col-span-1 bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs md:text-sm font-black py-3 px-3 rounded-xl transition shadow-xs hover:shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Receipt className="h-4 w-4" />
             <span>POS Bill</span>
           </button>
           <button
             onClick={handlePrintKOT}
-            className="col-span-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5"
+            className="col-span-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-mono text-xs md:text-sm font-bold py-3 px-3 rounded-xl transition shadow-xs hover:shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Printer className="h-4 w-4" />
             <span>Print KOT</span>
           </button>
           <button
             onClick={handleVacateTable}
-            className="col-span-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5"
+            className="col-span-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-mono text-xs md:text-sm font-bold py-3 px-3 rounded-xl transition shadow-xs hover:shadow-sm active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <Trash2 className="h-4 w-4" />
             <span>Vacate</span>

@@ -13,8 +13,7 @@ import {
   Banknote,
   Search,
   Layers,
-  ArrowUpRight,
-  Clock,
+  IndianRupee,
 } from 'lucide-react';
 
 type TimeFilter = 'TODAY' | 'WEEKLY' | 'MONTHLY' | 'CUSTOM';
@@ -180,28 +179,28 @@ export function ScreenM11SalesReport() {
     return [
       {
         name: 'UPI Dynamic QR (PhonePe / GPay)',
-        icon: <QrCode className="h-3.5 w-3.5 text-indigo-600" />,
+        icon: <QrCode className="h-4 w-4 text-indigo-600 shrink-0" />,
         amount: upiAmt,
         percent: Math.round((upiAmt / totalSplit) * 100),
         barColor: 'bg-indigo-600',
       },
       {
         name: 'Cash',
-        icon: <Banknote className="h-3.5 w-3.5 text-emerald-600" />,
+        icon: <Banknote className="h-4 w-4 text-emerald-600 shrink-0" />,
         amount: cashAmt,
         percent: Math.round((cashAmt / totalSplit) * 100),
         barColor: 'bg-emerald-600',
       },
       {
         name: 'Card',
-        icon: <CreditCard className="h-3.5 w-3.5 text-blue-600" />,
+        icon: <CreditCard className="h-4 w-4 text-blue-600 shrink-0" />,
         amount: cardAmt,
         percent: Math.round((cardAmt / totalSplit) * 100),
         barColor: 'bg-blue-600',
       },
       {
         name: 'Food Aggregators (Swiggy/Zomato)',
-        icon: <Layers className="h-3.5 w-3.5 text-amber-600" />,
+        icon: <Layers className="h-4 w-4 text-amber-600 shrink-0" />,
         amount: remainingAmt,
         percent: Math.round((remainingAmt / totalSplit) * 100),
         barColor: 'bg-amber-500',
@@ -212,7 +211,6 @@ export function ScreenM11SalesReport() {
   // 4. Comparison Table Graph Points (Current vs Previous Comparison across Time, Week, Month)
   const comparisonData: ComparisonDataPoint[] = useMemo(() => {
     if (graphMode === 'MONTH') {
-      // Monthly comparison: This Month vs Last Month
       return [
         { timeLabel: 'Week 1', currentSales: 260000, previousSales: 215000, label: 'Week 1: This Month ₹2.60L vs Last Month ₹2.15L' },
         { timeLabel: 'Week 2', currentSales: 285000, previousSales: 240000, label: 'Week 2: This Month ₹2.85L vs Last Month ₹2.40L' },
@@ -222,7 +220,6 @@ export function ScreenM11SalesReport() {
     }
 
     if (graphMode === 'WEEK') {
-      // Weekly comparison: This Week vs Last Week
       return [
         { timeLabel: 'Mon', currentSales: 42000, previousSales: 35000, label: 'Mon: This Week ₹42k vs Last Week ₹35k' },
         { timeLabel: 'Tue', currentSales: 38000, previousSales: 32000, label: 'Tue: This Week ₹38k vs Last Week ₹32k' },
@@ -234,7 +231,7 @@ export function ScreenM11SalesReport() {
       ];
     }
 
-    // Default: Time (Today vs Yesterday) matching the sketch curve numbers
+    // Default: Time (Today vs Yesterday)
     return [
       { timeLabel: '11 AM', currentSales: 8500, previousSales: 6800, label: '11:00 AM — Today ₹8.5k vs Yesterday ₹6.8k' },
       { timeLabel: '01 PM', currentSales: 20000, previousSales: 15200, label: '01:00 PM — Today ₹20k vs Yesterday ₹15.2k' },
@@ -302,7 +299,7 @@ export function ScreenM11SalesReport() {
     }, '');
   }, [plottedPoints]);
 
-  // 5. Recent Transactions Feed (with Date and Time columns as requested)
+  // 5. Recent Transactions Feed
   interface TransactionRow {
     orderId: string;
     chairNo: string;
@@ -343,7 +340,6 @@ export function ScreenM11SalesReport() {
         ? `${cleanTable} ${bill.seatLabel.replace('Chair ', 'C-')}`
         : `${cleanTable} Whole`;
 
-      // Format date for clean display
       const displayDate = bill.formattedDate
         ? bill.formattedDate.replace(' 2026', '')
         : '14 Oct';
@@ -387,7 +383,7 @@ export function ScreenM11SalesReport() {
     );
   }, [recentTransactions, transactionSearch]);
 
-  // 6. Action Handlers: Print PDF & Print Excel
+  // Action Handlers: Print PDF & Print Excel
   const handlePrintPdf = () => {
     window.print();
   };
@@ -435,37 +431,34 @@ export function ScreenM11SalesReport() {
   return (
     <div className="w-full mx-auto p-1 space-y-4 font-mono print:p-0 print:max-w-none">
       {/* =========================================================================
-          TOP BAR: Screen Title & Period Filter Tabs (matching sketch)
+          TOP BAR: Screen Title & Period Filter Tabs
           ========================================================================= */}
-      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-[#EAE5DF]">
-        <div>
-          <h2 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#EAE5DF]">
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2.5">
             <span>Sales Report</span>
-            <span className="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold px-2 py-0.5 rounded-full">
-              LIVE REALTIME
-            </span>
           </h2>
-          <p className="text-xs text-slate-500 font-medium">
-            Shift revenue metrics, category sales, settlement breakdown &amp; transactions audit
-          </p>
+          <span className="text-xs bg-emerald-100 text-emerald-950 border border-emerald-300 font-black px-3 py-1 rounded-lg shadow-2xs">
+            Real-Time Data
+          </span>
         </div>
 
-        {/* Filter Tabs matching sketch: [ Today ▾ ] [ Weekly ] [ Monthly ] [ Custom date 📅 ] */}
-        <div className="flex flex-wrap items-center gap-1.5 bg-white p-1 rounded-xl border border-slate-300 shadow-xs print:hidden">
+        {/* Filter Tabs: [ Today ▾ ] [ Weekly ] [ Monthly ] [ Custom Date 📅 ] */}
+        <div className="flex flex-wrap items-center gap-2 bg-white p-1.5 rounded-2xl border-2 border-slate-300 shadow-2xs print:hidden">
           <button
             onClick={() => {
               setActiveFilter('TODAY');
               setGraphMode('TIME');
               setShowCustomPicker(false);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1 ${
+            className={`h-10 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 cursor-pointer ${
               activeFilter === 'TODAY'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
             <span>Today</span>
-            <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+            <ChevronDown className="h-4 w-4 opacity-70" />
           </button>
 
           <button
@@ -474,7 +467,7 @@ export function ScreenM11SalesReport() {
               setGraphMode('WEEK');
               setShowCustomPicker(false);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
+            className={`h-10 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
               activeFilter === 'WEEKLY'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-700 hover:bg-slate-100'
@@ -489,7 +482,7 @@ export function ScreenM11SalesReport() {
               setGraphMode('MONTH');
               setShowCustomPicker(false);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition ${
+            className={`h-10 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition cursor-pointer ${
               activeFilter === 'MONTHLY'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-700 hover:bg-slate-100'
@@ -503,42 +496,42 @@ export function ScreenM11SalesReport() {
               setActiveFilter('CUSTOM');
               setShowCustomPicker(!showCustomPicker);
             }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-black transition flex items-center gap-1.5 ${
+            className={`h-10 px-4 py-2 rounded-xl text-xs sm:text-sm font-black transition flex items-center gap-1.5 cursor-pointer ${
               activeFilter === 'CUSTOM'
                 ? 'bg-slate-900 text-white shadow-xs'
                 : 'text-slate-700 hover:bg-slate-100'
             }`}
           >
-            <span>custom date</span>
-            <Calendar className="h-3.5 w-3.5 text-amber-500" />
+            <span>Custom Date</span>
+            <Calendar className="h-4 w-4 text-amber-500" />
           </button>
         </div>
       </div>
 
       {/* Optional Custom Date Selector Dropdown */}
       {showCustomPicker && activeFilter === 'CUSTOM' && (
-        <div className="bg-white border border-slate-300 rounded-xl p-3 shadow-sm flex flex-wrap items-center gap-4 text-xs font-bold animate-in fade-in duration-200">
+        <div className="bg-white border-2 border-slate-300 rounded-2xl p-4 shadow-sm flex flex-wrap items-center gap-4 text-xs sm:text-sm font-bold animate-in fade-in duration-200">
           <div className="flex items-center gap-2">
-            <span className="text-slate-500">From:</span>
+            <span className="text-slate-600 font-bold">From:</span>
             <input
               type="date"
               value={customStartDate}
               onChange={(e) => setCustomStartDate(e.target.value)}
-              className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-slate-800"
+              className="bg-[#FAF8F5] border-2 border-slate-300 rounded-xl px-3 py-1.5 text-slate-900 font-bold outline-none focus:border-[#9C3D1E]"
             />
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-slate-500">To:</span>
+            <span className="text-slate-600 font-bold">To:</span>
             <input
               type="date"
               value={customEndDate}
               onChange={(e) => setCustomEndDate(e.target.value)}
-              className="bg-slate-50 border border-slate-300 rounded-lg px-2 py-1 text-slate-800"
+              className="bg-[#FAF8F5] border-2 border-slate-300 rounded-xl px-3 py-1.5 text-slate-900 font-bold outline-none focus:border-[#9C3D1E]"
             />
           </div>
           <button
             onClick={() => setShowCustomPicker(false)}
-            className="bg-[#9C3D1E] text-white px-3 py-1 rounded-lg text-xs font-bold hover:bg-[#823318]"
+            className="h-10 bg-[#9C3D1E] text-white px-5 py-2 rounded-xl text-xs sm:text-sm font-black hover:bg-orange-700 transition shadow-2xs cursor-pointer"
           >
             Apply Range
           </button>
@@ -546,52 +539,54 @@ export function ScreenM11SalesReport() {
       )}
 
       {/* =========================================================================
-          BANNER: Today Sales and revenue Report | Total amount : ₹ 38000.00
+          BANNER: Today Sales and Revenue Report | Total Amount : ₹ 38000.00
           ========================================================================= */}
-      <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-sm flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-white border border-[#EAE5DF] rounded-2xl p-5 sm:p-6 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">
+          <h3 className="text-lg sm:text-xl font-black text-slate-900 uppercase tracking-tight">
             {periodLabel} Sales and Revenue Report
           </h3>
-          <p className="text-xs text-slate-500 font-bold mt-0.5">
-            Consolidated register receipts and dining revenue
-          </p>
         </div>
         <div className="text-right">
           <div className="text-xs font-black text-slate-500 uppercase tracking-wider">
             Total Amount :
           </div>
-          <div className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">
-            ₹ {totalSalesAmount.toLocaleString('en-IN')}.00
+          <div className="text-2xl sm:text-3xl md:text-4xl font-black text-slate-950 tracking-tight flex items-center justify-end mt-0.5">
+            <IndianRupee className="h-6 w-6 sm:h-7 sm:w-7 mr-0.5 text-[#9C3D1E] shrink-0" />
+            <span>{totalSalesAmount.toLocaleString('en-IN')}.00</span>
           </div>
         </div>
       </div>
 
       {/* =========================================================================
-          TOP ROW (Matching new sketch):
-          - LEFT: category wise Distrib (Category-wise sales distribution)
-          - RIGHT: Graph (Comparison Table: Sales vs Time / Day / Week / Month)
+          TOP ROW:
+          - LEFT: Category-Wise Sales Distribution
+          - RIGHT: Comparison Table (Dual Curve Trend Chart)
           ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-stretch">
         {/* TOP LEFT: Category-Wise Sales Distribution */}
-        <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-[#EAE5DF] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <h4 className="text-xs font-black text-slate-900 uppercase pb-3 border-b border-slate-200 flex items-center justify-between">
-              <span>Category-wise sales Distribution</span>
-              <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-black">LIVE REVENUE</span>
-            </h4>
+            <div className="pb-3 border-b border-slate-200 flex items-center justify-between">
+              <h4 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">
+                Category-Wise Sales Distribution
+              </h4>
+              <span className="text-xs text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg font-black shadow-2xs">
+                Live Revenue
+              </span>
+            </div>
 
-            <div className="space-y-3.5 mt-4">
+            <div className="space-y-4 mt-4">
               {categoryStats.map((cat) => (
-                <div key={cat.name} className="space-y-1">
-                  <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-800">{cat.name}</span>
-                    <span className="text-slate-900">
+                <div key={cat.name} className="space-y-1.5">
+                  <div className="flex justify-between items-center text-xs sm:text-sm font-bold">
+                    <span className="text-slate-900 font-black">{cat.name}</span>
+                    <span className="text-slate-950 font-black">
                       ₹ {cat.amount.toLocaleString('en-IN')} ({cat.percent}%)
                     </span>
                   </div>
-                  {/* Thick solid horizontal progress bar matching sketch */}
-                  <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+                  {/* Thick solid horizontal progress bar */}
+                  <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${cat.barColor}`}
                       style={{ width: `${Math.min(100, Math.max(4, cat.percent))}%` }}
@@ -602,63 +597,63 @@ export function ScreenM11SalesReport() {
             </div>
           </div>
 
-          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-bold">
+          <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-bold">
             <span>Primary Revenue Driver:</span>
-            <span className="text-[#9C3D1E] font-black">Donne Biryani Pots (50% share)</span>
+            <span className="text-[#9C3D1E] font-black text-sm">Donne Biryani Pots (50% share)</span>
           </div>
         </div>
 
-        {/* TOP RIGHT: Comparison Table / Graph (Sales vs Time / Day / Week / Month) */}
-        <div className="bg-white border border-slate-300 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        {/* TOP RIGHT: Comparison Table / Graph */}
+        <div className="bg-white border border-[#EAE5DF] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
           <div>
             <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2">
               <div>
-                <h4 className="text-xs font-black text-slate-900 uppercase">
-                  comparison table
+                <h4 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">
+                  Comparison Table
                 </h4>
-                <div className="text-sm font-black text-slate-800 flex items-center gap-2 mt-0.5">
+                <div className="text-sm sm:text-base font-black text-slate-950 flex items-center gap-2 mt-1">
                   <span>
                     {graphMode === 'MONTH'
                       ? 'Monthly (This Month vs Last Month)'
                       : graphMode === 'WEEK'
                       ? 'Weekly (This Week vs Last Week)'
-                      : 'Today (Sales vs time)'}
+                      : 'Today (Sales vs Time)'}
                   </span>
-                  <span className="text-xs font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-md flex items-center">
-                    <TrendingUp className="h-3 w-3 mr-0.5 inline" />
+                  <span className="text-xs font-black text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg flex items-center shadow-2xs">
+                    <TrendingUp className="h-3.5 w-3.5 mr-1 inline text-emerald-700" />
                     +{growthPercent > 0 ? growthPercent : 32}%
                   </span>
                 </div>
               </div>
 
-              {/* In-Graph Comparison Mode Switcher: Time, Day/Week, Month */}
-              <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-300 text-[10px] font-black">
+              {/* In-Graph Comparison Mode Switcher */}
+              <div className="flex items-center gap-1.5 bg-[#FAF8F5] p-1 rounded-xl border border-slate-300 shadow-2xs">
                 <button
                   onClick={() => setGraphMode('TIME')}
-                  className={`px-2 py-1 rounded transition ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black transition cursor-pointer ${
                     graphMode === 'TIME'
                       ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   Time
                 </button>
                 <button
                   onClick={() => setGraphMode('WEEK')}
-                  className={`px-2 py-1 rounded transition ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black transition cursor-pointer ${
                     graphMode === 'WEEK'
                       ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   Day/Week
                 </button>
                 <button
                   onClick={() => setGraphMode('MONTH')}
-                  className={`px-2 py-1 rounded transition ${
+                  className={`px-3.5 py-1.5 rounded-lg text-xs sm:text-sm font-black transition cursor-pointer ${
                     graphMode === 'MONTH'
                       ? 'bg-slate-900 text-white shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
+                      : 'text-slate-700 hover:bg-slate-200'
                   }`}
                 >
                   Month
@@ -666,37 +661,38 @@ export function ScreenM11SalesReport() {
               </div>
             </div>
 
-            {/* Legend showing Current vs Previous comparison lines */}
-            <div className="flex items-center gap-4 text-[11px] font-bold text-slate-600 mt-2">
-              <span className="flex items-center gap-1.5">
+            {/* Legend */}
+            <div className="flex items-center gap-3 text-xs font-bold text-slate-700 mt-2.5 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 bg-orange-50 border border-orange-200 px-2.5 py-1 rounded-lg">
                 <span className="inline-block w-3 h-3 rounded-full bg-[#9C3D1E]"></span>
-                <span className="text-slate-900">
+                <span className="text-slate-950 font-black">
                   {graphMode === 'MONTH' ? 'This Month' : graphMode === 'WEEK' ? 'This Week' : 'Today (Current)'}
                 </span>
               </span>
-              <span className="flex items-center gap-1.5">
+              <span className="inline-flex items-center gap-1.5 bg-indigo-50 border border-indigo-200 px-2.5 py-1 rounded-lg">
                 <span className="inline-block w-4 h-0.5 border-t-2 border-dashed border-indigo-500"></span>
-                <span className="text-slate-500">
+                <span className="text-indigo-950 font-bold">
                   {graphMode === 'MONTH' ? 'Last Month' : graphMode === 'WEEK' ? 'Last Week' : 'Yesterday (Prior)'}
                 </span>
               </span>
             </div>
 
             {/* Interactive Dual-Curve SVG Trend Chart */}
-            <div className="mt-3 relative bg-[#FAF8F5] border border-slate-200 rounded-xl p-3 overflow-hidden">
+            <div className="mt-3.5 relative bg-[#FAF8F5] border-2 border-slate-200 rounded-2xl p-4 overflow-hidden shadow-2xs">
               {hoveredPoint && (
-                <div className="absolute top-2 right-2 bg-slate-900 text-white text-[11px] font-bold px-2 py-1 rounded shadow-md z-10 animate-in fade-in">
-                  {hoveredPoint.label}
+                <div className="absolute top-3 right-3 bg-slate-900 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-lg z-20 animate-in fade-in border border-slate-700 flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-amber-400" />
+                  <span>{hoveredPoint.label}</span>
                 </div>
               )}
 
               <svg
                 viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                className="w-full h-48 overflow-visible"
+                className="w-full h-48 sm:h-52 overflow-visible"
               >
                 <defs>
                   <linearGradient id="currentGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#9C3D1E" stopOpacity="0.22" />
+                    <stop offset="0%" stopColor="#9C3D1E" stopOpacity="0.25" />
                     <stop offset="100%" stopColor="#9C3D1E" stopOpacity="0.0" />
                   </linearGradient>
                 </defs>
@@ -715,13 +711,13 @@ export function ScreenM11SalesReport() {
                           y2={y}
                           stroke="#E2E8F0"
                           strokeDasharray="3 3"
-                          strokeWidth="1"
+                          strokeWidth="1.2"
                         />
                         <text
                           x={paddingX - 8}
-                          y={y + 3}
+                          y={y + 3.5}
                           textAnchor="end"
-                          fontSize="9"
+                          fontSize="10"
                           fill="#64748B"
                           fontFamily="monospace"
                           fontWeight="bold"
@@ -741,8 +737,8 @@ export function ScreenM11SalesReport() {
                   d={previousPathD}
                   fill="none"
                   stroke="#6366F1"
-                  strokeWidth="2"
-                  strokeDasharray="4 4"
+                  strokeWidth="2.5"
+                  strokeDasharray="5 5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -752,7 +748,7 @@ export function ScreenM11SalesReport() {
                   d={currentPathD}
                   fill="none"
                   stroke="#9C3D1E"
-                  strokeWidth="3"
+                  strokeWidth="3.5"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
@@ -769,38 +765,38 @@ export function ScreenM11SalesReport() {
                     <circle
                       cx={pt.x}
                       cy={pt.yPrevious}
-                      r={3}
+                      r={3.5}
                       fill="#FFFFFF"
                       stroke="#6366F1"
-                      strokeWidth="1.5"
+                      strokeWidth="2"
                     />
 
                     {/* Current period marker */}
                     <circle
                       cx={pt.x}
                       cy={pt.yCurrent}
-                      r={hoveredPoint?.timeLabel === pt.timeLabel ? 5.5 : 4}
+                      r={hoveredPoint?.timeLabel === pt.timeLabel ? 6 : 4.5}
                       fill="#FFFFFF"
                       stroke="#9C3D1E"
-                      strokeWidth="2.5"
+                      strokeWidth="3"
                       className="transition-all duration-200"
                     />
                     {/* Hover halo */}
                     <circle
                       cx={pt.x}
                       cy={pt.yCurrent}
-                      r="12"
+                      r="14"
                       fill="#9C3D1E"
-                      fillOpacity="0.1"
+                      fillOpacity="0.15"
                       className="opacity-0 group-hover:opacity-100 transition-opacity"
                     />
                     {/* X-Axis Time Label */}
                     <text
                       x={pt.x}
-                      y={chartHeight - 8}
+                      y={chartHeight - 6}
                       textAnchor="middle"
-                      fontSize="9"
-                      fill="#475569"
+                      fontSize="10"
+                      fill="#334155"
                       fontFamily="monospace"
                       fontWeight="bold"
                     >
@@ -815,7 +811,7 @@ export function ScreenM11SalesReport() {
                   y={chartHeight / 2}
                   textAnchor="middle"
                   transform={`rotate(-90 12 ${chartHeight / 2})`}
-                  fontSize="10"
+                  fontSize="11"
                   fill="#0F172A"
                   fontFamily="monospace"
                   fontWeight="900"
@@ -826,20 +822,20 @@ export function ScreenM11SalesReport() {
                   x={chartWidth / 2}
                   y={chartHeight + 8}
                   textAnchor="middle"
-                  fontSize="10"
+                  fontSize="11"
                   fill="#0F172A"
                   fontFamily="monospace"
                   fontWeight="900"
                 >
-                  {graphMode === 'MONTH' ? 'Month Weeks' : graphMode === 'WEEK' ? 'Day of Week' : 'Time / Day / week'}
+                  {graphMode === 'MONTH' ? 'Month Weeks' : graphMode === 'WEEK' ? 'Day of Week' : 'Time / Day / Week'}
                 </text>
               </svg>
             </div>
           </div>
 
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 font-bold">
+          <div className="mt-3.5 pt-2.5 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600 font-bold">
             <span>Comparison Trend:</span>
-            <span className="text-emerald-700 font-black">
+            <span className="text-emerald-700 font-black text-sm">
               +{growthPercent > 0 ? growthPercent : 32}% Higher Turnover vs Previous Cycle
             </span>
           </div>
@@ -847,35 +843,37 @@ export function ScreenM11SalesReport() {
       </div>
 
       {/* =========================================================================
-          BOTTOM ROW (Matching new sketch):
-          - LEFT: Payment modes (slightly reduced size) with [ Print Pdf ] below
-          - RIGHT: Recent Transactions (wider horizontal size with Date & Time columns) with [ Print Excel ] below
+          BOTTOM ROW:
+          - LEFT: Payment Modes with [ Print PDF ] below
+          - RIGHT: Recent Transactions with [ Print Excel ] below
           ========================================================================= */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        {/* BOTTOM LEFT: Payment modes (Reduced width ~ 38-40% via lg:col-span-5) */}
-        <div className="lg:col-span-5 bg-white border border-slate-300 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        {/* BOTTOM LEFT: Payment Modes */}
+        <div className="lg:col-span-5 bg-white border border-[#EAE5DF] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <h4 className="text-xs font-black text-slate-900 uppercase pb-3 border-b border-slate-200 flex items-center justify-between">
-              <span>Payment modes</span>
-              <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded font-black">
+            <div className="pb-3 border-b border-slate-200 flex items-center justify-between">
+              <h4 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">
+                Payment Modes
+              </h4>
+              <span className="text-xs text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg font-black shadow-2xs">
                 100% BALANCED
               </span>
-            </h4>
+            </div>
 
-            <div className="space-y-3.5 mt-4">
+            <div className="space-y-4 mt-4">
               {paymentModeStats.map((mode) => (
-                <div key={mode.name} className="space-y-1">
-                  <div className="flex justify-between items-center text-xs font-bold">
-                    <span className="text-slate-800 flex items-center gap-1.5 truncate pr-2">
+                <div key={mode.name} className="space-y-1.5">
+                  <div className="flex justify-between items-center text-xs sm:text-sm font-bold">
+                    <span className="text-slate-900 font-black flex items-center gap-2 truncate pr-2">
                       {mode.icon}
                       <span className="truncate">{mode.name}</span>
                     </span>
-                    <span className="text-slate-900 shrink-0">
+                    <span className="text-slate-950 font-black shrink-0">
                       ₹ {mode.amount.toLocaleString('en-IN')} ({mode.percent}%)
                     </span>
                   </div>
-                  {/* Thick solid horizontal progress bar matching sketch */}
-                  <div className="w-full bg-slate-100 rounded-full h-3 overflow-hidden border border-slate-200">
+                  {/* Thick solid horizontal progress bar */}
+                  <div className="w-full bg-slate-100 rounded-full h-3.5 overflow-hidden border border-slate-200">
                     <div
                       className={`h-full rounded-full transition-all duration-500 ${mode.barColor}`}
                       style={{ width: `${Math.min(100, Math.max(4, mode.percent))}%` }}
@@ -886,60 +884,56 @@ export function ScreenM11SalesReport() {
             </div>
           </div>
 
-          {/* Action button placed right below Payment Modes as in sketch: [ Print Pdf ] */}
-          <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-between">
+          {/* Action button placed right below Payment Modes: [ Print PDF ] */}
+          <div className="mt-5 pt-3.5 border-t border-slate-200 flex items-center justify-between">
             <button
               onClick={handlePrintPdf}
-              className="bg-slate-900 text-white hover:bg-slate-800 transition px-4 py-2 rounded-lg text-xs font-black shadow-xs flex items-center gap-2 border border-slate-900"
+              className="h-11 bg-slate-900 hover:bg-slate-800 text-white transition px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black shadow-2xs flex items-center gap-2 border border-slate-900 cursor-pointer active:scale-95"
             >
-              <Printer className="h-3.5 w-3.5" />
-              <span>Print Pdf</span>
+              <Printer className="h-4 w-4" />
+              <span>Print PDF</span>
             </button>
-            <span className="text-[10px] text-slate-400 font-bold">
+            <span className="text-xs text-slate-500 font-bold">
               72% Digital / 20% Cash
             </span>
           </div>
         </div>
 
-        {/* BOTTOM RIGHT: Recent Transactions (Increased width ~ 60-62% via lg:col-span-7) */}
-        <div className="lg:col-span-7 bg-white border border-slate-300 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        {/* BOTTOM RIGHT: Recent Transactions */}
+        <div className="lg:col-span-7 bg-white border border-[#EAE5DF] rounded-2xl p-5 shadow-xs flex flex-col justify-between">
           <div>
-            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2">
+            <div className="flex flex-wrap items-center justify-between pb-3 border-b border-slate-200 gap-2.5">
               <div>
-                <h4 className="text-xs font-black text-slate-900 uppercase">
+                <h4 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight">
                   Recent Transactions
                 </h4>
-                <p className="text-[11px] text-slate-500 font-bold">
-                  Order settlements &amp; active dining bills
-                </p>
               </div>
 
-              {/* Quick search input */}
+              {/* Generously-sized search input with proper width and height */}
               <div className="relative">
-                <Search className="h-3.5 w-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                 <input
                   type="text"
-                  placeholder="Search order / date / chair..."
+                  placeholder="Search order ID, date, or chair..."
                   value={transactionSearch}
                   onChange={(e) => setTransactionSearch(e.target.value)}
-                  className="bg-slate-50 border border-slate-300 rounded-lg pl-8 pr-2 py-1 text-xs text-slate-800 w-44 focus:w-52 transition-all focus:outline-none focus:border-slate-500"
+                  className="bg-[#FAF8F5] border-2 border-slate-300 rounded-xl pl-9 pr-3 h-10 text-xs sm:text-sm font-bold text-slate-950 w-64 sm:w-80 focus:w-72 sm:focus:w-96 transition-all focus:outline-none focus:border-[#9C3D1E] focus:ring-1 focus:ring-orange-200 shadow-2xs placeholder:text-slate-400"
                 />
               </div>
             </div>
 
-            {/* Table with NEW Date and Time columns:
-                Order id | Chair No. | Total Items | Status | Date | Time | Amount */}
-            <div className="overflow-x-auto mt-3 max-h-[280px] overflow-y-auto pr-1">
-              <table className="w-full text-xs">
+            {/* Table with Date and Time columns */}
+            <div className="overflow-x-auto mt-3 max-h-[300px] overflow-y-auto pr-1">
+              <table className="w-full text-xs sm:text-sm">
                 <thead className="sticky top-0 bg-white z-10">
-                  <tr className="border-b border-slate-200 text-slate-500 text-left font-black">
-                    <th className="pb-2">Order id</th>
-                    <th className="pb-2">Chair No.</th>
-                    <th className="pb-2 text-center">Items</th>
-                    <th className="pb-2 text-center">Status</th>
-                    <th className="pb-2">Date</th>
-                    <th className="pb-2">Time</th>
-                    <th className="pb-2 text-right">Amount</th>
+                  <tr className="border-b-2 border-slate-200 text-slate-600 text-left font-black">
+                    <th className="pb-2.5">Order ID</th>
+                    <th className="pb-2.5">Chair No.</th>
+                    <th className="pb-2.5 text-center">Items</th>
+                    <th className="pb-2.5 text-center">Status</th>
+                    <th className="pb-2.5">Date</th>
+                    <th className="pb-2.5">Time</th>
+                    <th className="pb-2.5 text-right">Amount</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -948,32 +942,32 @@ export function ScreenM11SalesReport() {
                       key={`${tx.orderId}-${idx}`}
                       className="hover:bg-[#FAF8F5] transition-colors font-mono"
                     >
-                      <td className="py-2 font-black text-slate-900 whitespace-nowrap">{tx.orderId}</td>
-                      <td className="py-2 font-bold text-slate-700 whitespace-nowrap">{tx.chairNo}</td>
-                      <td className="py-2 text-center font-bold text-slate-800">
+                      <td className="py-2.5 font-black text-slate-950 whitespace-nowrap">{tx.orderId}</td>
+                      <td className="py-2.5 font-bold text-slate-800 whitespace-nowrap">{tx.chairNo}</td>
+                      <td className="py-2.5 text-center font-black text-slate-900">
                         {tx.totalItems}
                       </td>
-                      <td className="py-2 text-center whitespace-nowrap">
+                      <td className="py-2.5 text-center whitespace-nowrap">
                         <span
-                          className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
+                          className={`min-w-[85px] text-center px-3 py-1 rounded-lg text-xs font-black uppercase tracking-wider inline-block shadow-2xs ${
                             tx.status === 'paid'
-                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                              : 'bg-amber-100 text-amber-800 border border-amber-300'
+                              ? 'bg-emerald-100 text-emerald-950 border border-emerald-300'
+                              : 'bg-amber-100 text-amber-950 border border-amber-300'
                           }`}
                         >
                           {tx.status}
                         </span>
                       </td>
-                      <td className="py-2 text-slate-600 font-bold whitespace-nowrap">{tx.date}</td>
-                      <td className="py-2 text-slate-500 font-medium whitespace-nowrap">{tx.time}</td>
-                      <td className="py-2 text-right font-black text-slate-900 whitespace-nowrap">
+                      <td className="py-2.5 text-slate-700 font-bold whitespace-nowrap">{tx.date}</td>
+                      <td className="py-2.5 text-slate-600 font-medium whitespace-nowrap">{tx.time}</td>
+                      <td className="py-2.5 text-right font-black text-slate-950 whitespace-nowrap">
                         ₹ {tx.amount.toLocaleString('en-IN')}.00
                       </td>
                     </tr>
                   ))}
                   {filteredTransactions.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="py-6 text-center text-slate-400 font-bold">
+                      <td colSpan={7} className="py-8 text-center text-slate-400 font-bold">
                         No transactions found matching "{transactionSearch}"
                       </td>
                     </tr>
@@ -983,16 +977,16 @@ export function ScreenM11SalesReport() {
             </div>
           </div>
 
-          {/* Action button placed right below Recent Transactions as in sketch: [ Print Excel ] */}
-          <div className="mt-5 pt-3 border-t border-slate-200 flex items-center justify-between">
-            <span className="text-[11px] text-slate-500 font-bold">
+          {/* Action button placed right below Recent Transactions: [ Print Excel ] */}
+          <div className="mt-5 pt-3.5 border-t border-slate-200 flex items-center justify-between">
+            <span className="text-xs text-slate-600 font-bold">
               Showing {filteredTransactions.length} of {recentTransactions.length} records
             </span>
             <button
               onClick={handlePrintExcel}
-              className="bg-[#FAF8F5] text-slate-800 hover:bg-slate-200 transition px-4 py-2 rounded-lg text-xs font-black shadow-xs flex items-center gap-2 border border-slate-300"
+              className="h-11 bg-white hover:bg-stone-100 text-slate-900 transition px-5 py-2.5 rounded-xl text-xs sm:text-sm font-black shadow-2xs flex items-center gap-2 border-2 border-slate-300 cursor-pointer active:scale-95"
             >
-              <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-700" />
+              <FileSpreadsheet className="h-4 w-4 text-emerald-700" />
               <span>Print Excel</span>
             </button>
           </div>

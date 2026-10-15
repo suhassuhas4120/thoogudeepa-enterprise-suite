@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useSharedBridge } from '../../store/useSharedBridge';
-import { useManagerStore } from '../../store/useManagerStore';
+import React, { useState } from "react";
+import { useSharedBridge } from "../../store/useSharedBridge";
+import { useManagerStore } from "../../store/useManagerStore";
 import {
   X,
   Armchair,
@@ -17,13 +17,94 @@ import {
   Clock,
   Users,
   PlusCircle,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface Props {
   tableNumber: string;
   isModal?: boolean;
   onClose?: () => void;
+}
+
+export function getSectionAndCaptain(
+  tableNumber: string,
+  rawSection?: string,
+  rawServer?: string,
+) {
+  const num =
+    parseInt((tableNumber || "").replace(/^(TABLE\s*|T-?)/i, ""), 10) || 1;
+  let section = "Section A";
+  let captain = "Captain Ramesh";
+
+  if (rawSection) {
+    const s = rawSection.toLowerCase();
+    if (
+      s.includes("section a") ||
+      s.includes("sec_a") ||
+      s.includes("express") ||
+      s.includes("couple")
+    ) {
+      section = "Section A";
+      captain = "Captain Ramesh";
+    } else if (
+      s.includes("section b") ||
+      s.includes("sec_b") ||
+      s.includes("main dining")
+    ) {
+      section = "Section B";
+      captain = "Captain Suresh";
+    } else if (
+      s.includes("section c") ||
+      s.includes("sec_c") ||
+      s.includes("family")
+    ) {
+      section = "Section C";
+      captain = "Captain Nayana";
+    } else if (
+      s.includes("section d") ||
+      s.includes("sec_d") ||
+      s.includes("grand") ||
+      s.includes("courtyard")
+    ) {
+      section = "Section D";
+      captain = "Captain Vennela";
+    } else if (num <= 8) {
+      section = "Section A";
+      captain = "Captain Ramesh";
+    } else if (num <= 16) {
+      section = "Section B";
+      captain = "Captain Suresh";
+    } else if (num <= 24) {
+      section = "Section C";
+      captain = "Captain Nayana";
+    } else {
+      section = "Section D";
+      captain = "Captain Vennela";
+    }
+  } else {
+    if (num <= 8) {
+      section = "Section A";
+      captain = "Captain Ramesh";
+    } else if (num <= 16) {
+      section = "Section B";
+      captain = "Captain Suresh";
+    } else if (num <= 24) {
+      section = "Section C";
+      captain = "Captain Nayana";
+    } else {
+      section = "Section D";
+      captain = "Captain Vennela";
+    }
+  }
+
+  if (rawServer && rawServer !== "Floor Captain" && rawServer !== "--") {
+    const clean = rawServer.replace(/\s*\([^)]*\)/g, "").trim();
+    if (clean) {
+      captain = clean.startsWith("Captain ") ? clean : `Captain ${clean}`;
+    }
+  }
+
+  return { section, captain };
 }
 
 export function TableChairsSheet({
@@ -32,37 +113,44 @@ export function TableChairsSheet({
   onClose,
 }: Props) {
   const { tables, kdsTickets, waiterVacatesTable } = useSharedBridge();
-  const { setSelectedTableNumber, setSelectedSeatNumber, setCurrentScreen } = useManagerStore();
+  const { setSelectedTableNumber, setSelectedSeatNumber, setCurrentScreen } =
+    useManagerStore();
 
-  const [selectedSeat, setSelectedSeat] = useState<'ALL' | number>('ALL');
+  const [selectedSeat, setSelectedSeat] = useState<"ALL" | number>("ALL");
 
-  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const cleanNum = (s: string) =>
+    (s || "").replace(/^(TABLE\s*|T-?)/i, "").trim();
   const targetNum = cleanNum(tableNumber);
-  const table =
-    tables.find((t) => cleanNum(t.number) === targetNum) ||
+  const table = tables.find((t) => cleanNum(t.number) === targetNum) ||
     tables[0] || {
-      id: 'tbl-01',
-      number: tableNumber || 'T-01',
-      section: 'Main Dining Hall',
+      id: "tbl-01",
+      number: tableNumber || "T-01",
+      section: "Section A",
       capacity: 4,
-      status: 'VACANT' as const,
+      status: "VACANT" as const,
       guestCount: 0,
-      seatedTime: '--',
+      seatedTime: "--",
       currentBill: 0,
-      serverName: 'Floor Captain',
+      serverName: "Captain Ramesh",
       kotCount: 0,
     };
 
+  const { section, captain } = getSectionAndCaptain(
+    table.number,
+    table.section,
+    table.serverName,
+  );
+
   const capacity = table.capacity || 4;
-  const isOccupied = table.status === 'OCCUPIED';
-  const isBilling = table.status === 'BILLING';
+  const isOccupied = table.status === "OCCUPIED";
+  const isBilling = table.status === "BILLING";
 
   // Find all active tickets for this table
   const groupPeers: string[] = table.mergeGroupPeers ?? [table.number];
   const tickets = kdsTickets.filter(
     (tk) =>
       groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber)) &&
-      tk.status !== 'COMPLETED'
+      tk.status !== "COMPLETED",
   );
 
   // Unified items list
@@ -74,7 +162,7 @@ export function TableChairsSheet({
     totalPrice: number;
     options?: string;
     addOns?: string[];
-    stage: 'PLACED' | 'RECEIVED' | 'PREPARING' | 'READY' | 'SERVED';
+    stage: "PLACED" | "RECEIVED" | "PREPARING" | "READY" | "SERVED";
     seatNumber?: number;
     ticketId: string;
   }
@@ -83,17 +171,19 @@ export function TableChairsSheet({
 
   tickets.forEach((tk) => {
     (tk.items || []).forEach((it) => {
-      const rawStage = String(it.stage || tk.status || '').toUpperCase();
-      const stage: ChairItem['stage'] =
-        rawStage === 'SERVED'
-          ? 'SERVED'
-          : rawStage === 'READY' || rawStage === 'PLATED'
-          ? 'READY'
-          : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
-          ? 'PREPARING'
-          : rawStage === 'RECEIVED'
-          ? 'RECEIVED'
-          : 'PLACED';
+      const rawStage = String(it.stage || tk.status || "").toUpperCase();
+      const stage: ChairItem["stage"] =
+        rawStage === "SERVED"
+          ? "SERVED"
+          : rawStage === "READY" || rawStage === "PLATED"
+            ? "READY"
+            : rawStage === "PREPARING" ||
+                rawStage === "PREP" ||
+                rawStage === "COOKING"
+              ? "PREPARING"
+              : rawStage === "RECEIVED"
+                ? "RECEIVED"
+                : "PLACED";
 
       const seat = it.seatNumber || tk.seatNumber || 1;
       const unitPrice = it.price && it.price > 0 ? it.price : 220;
@@ -114,19 +204,25 @@ export function TableChairsSheet({
   });
 
   // Fallback to table activeItems if tickets are empty
-  if (allTableOrderedItems.length === 0 && table.activeItems && table.activeItems.length > 0) {
+  if (
+    allTableOrderedItems.length === 0 &&
+    table.activeItems &&
+    table.activeItems.length > 0
+  ) {
     table.activeItems.forEach((ai, idx) => {
-      const rawStage = String(ai.status || '').toUpperCase();
-      const stage: ChairItem['stage'] =
-        rawStage === 'SERVED'
-          ? 'SERVED'
-          : rawStage === 'READY' || rawStage === 'PLATED'
-          ? 'READY'
-          : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
-          ? 'PREPARING'
-          : rawStage === 'RECEIVED'
-          ? 'RECEIVED'
-          : 'PLACED';
+      const rawStage = String(ai.status || "").toUpperCase();
+      const stage: ChairItem["stage"] =
+        rawStage === "SERVED"
+          ? "SERVED"
+          : rawStage === "READY" || rawStage === "PLATED"
+            ? "READY"
+            : rawStage === "PREPARING" ||
+                rawStage === "PREP" ||
+                rawStage === "COOKING"
+              ? "PREPARING"
+              : rawStage === "RECEIVED"
+                ? "RECEIVED"
+                : "PLACED";
 
       const seat = ai.seatNumber || 1;
       const unitPrice = ai.price && ai.price > 0 ? ai.price : 220;
@@ -140,7 +236,7 @@ export function TableChairsSheet({
         options: ai.options,
         stage,
         seatNumber: seat,
-        ticketId: 'tbl-direct',
+        ticketId: "tbl-direct",
       });
     });
   }
@@ -153,27 +249,36 @@ export function TableChairsSheet({
 
   const occupiedGuests = Math.min(
     capacity,
-    Math.max(chairsWithOrders.size, table.guestCount || (isOccupied || isBilling ? 1 : 0))
+    Math.max(
+      chairsWithOrders.size,
+      table.guestCount || (isOccupied || isBilling ? 1 : 0),
+    ),
   );
 
   // Filtered items based on selected seat
   const displayedItems =
-    selectedSeat === 'ALL'
+    selectedSeat === "ALL"
       ? allTableOrderedItems
       : allTableOrderedItems.filter((i) => i.seatNumber === selectedSeat);
 
   // Pricing calculations
-  const itemsSubtotal = displayedItems.reduce((sum, it) => sum + it.totalPrice, 0);
-  const totalTableItemsSubtotal = allTableOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+  const itemsSubtotal = displayedItems.reduce(
+    (sum, it) => sum + it.totalPrice,
+    0,
+  );
+  const totalTableItemsSubtotal = allTableOrderedItems.reduce(
+    (sum, it) => sum + it.totalPrice,
+    0,
+  );
 
   const displayedSubtotal =
     itemsSubtotal > 0
       ? itemsSubtotal
-      : selectedSeat === 'ALL'
-      ? Math.round(table.currentBill / 1.05)
-      : occupiedGuests > 0 && (isOccupied || isBilling)
-      ? Math.round((table.currentBill / 1.05) / Math.max(1, occupiedGuests))
-      : 0;
+      : selectedSeat === "ALL"
+        ? Math.round(table.currentBill / 1.05)
+        : occupiedGuests > 0 && (isOccupied || isBilling)
+          ? Math.round(table.currentBill / 1.05 / Math.max(1, occupiedGuests))
+          : 0;
 
   const displayedTax = Math.round(displayedSubtotal * 0.05);
   const displayedTotal = displayedSubtotal + displayedTax;
@@ -190,24 +295,41 @@ export function TableChairsSheet({
   };
 
   const handleVacateTable = () => {
-    if (confirm(`Vacate Table ${table.number}? This will reset table to vacant.`)) {
+    if (
+      confirm(`Vacate Table ${table.number}? This will reset table to vacant.`)
+    ) {
       waiterVacatesTable(table.number);
       onClose?.();
     }
   };
 
-  const getStageBadge = (stage: ChairItem['stage']) => {
+  const getStageBadge = (stage: ChairItem["stage"]) => {
     switch (stage) {
-      case 'SERVED':
-        return { text: 'SERVED', cls: 'bg-slate-100 text-slate-700 border-slate-300' };
-      case 'READY':
-        return { text: 'READY', cls: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
-      case 'PREPARING':
-        return { text: 'PREPARING', cls: 'bg-amber-100 text-amber-800 border-amber-300' };
-      case 'RECEIVED':
-        return { text: 'RECEIVED', cls: 'bg-blue-100 text-blue-800 border-blue-300' };
+      case "SERVED":
+        return {
+          text: "SERVED",
+          cls: "bg-slate-100 text-slate-700 border-slate-300",
+        };
+      case "READY":
+        return {
+          text: "READY",
+          cls: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        };
+      case "PREPARING":
+        return {
+          text: "PREPARING",
+          cls: "bg-amber-100 text-amber-800 border-amber-300",
+        };
+      case "RECEIVED":
+        return {
+          text: "RECEIVED",
+          cls: "bg-blue-100 text-blue-800 border-blue-300",
+        };
       default:
-        return { text: 'PLACED', cls: 'bg-orange-100 text-orange-800 border-orange-300' };
+        return {
+          text: "PLACED",
+          cls: "bg-orange-100 text-orange-800 border-orange-300",
+        };
     }
   };
 
@@ -227,17 +349,17 @@ export function TableChairsSheet({
               <span
                 className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase ${
                   isOccupied
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E]'
+                    ? "bg-[#9C3D1E] text-white border-[#9C3D1E]"
                     : isBilling
-                    ? 'bg-amber-100 text-amber-900 border-amber-400'
-                    : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      ? "bg-amber-100 text-amber-900 border-amber-400"
+                      : "bg-emerald-100 text-emerald-800 border-emerald-300"
                 }`}
               >
                 {table.status}
               </span>
             </div>
             <p className="text-[11px] text-slate-500 font-bold">
-              {table.section} • {occupiedGuests}/{capacity} Chairs Occupied • {table.serverName}
+              {section} • {occupiedGuests}/{capacity} Chairs • {captain}
             </p>
           </div>
         </div>
@@ -260,7 +382,7 @@ export function TableChairsSheet({
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
             <Armchair className="h-3.5 w-3.5 text-[#9C3D1E]" />
-            <span>Select Chair To Inspect Dishes:</span>
+            <span>Select Chair:</span>
           </span>
           <span className="text-[10px] font-bold text-slate-400">
             {capacity} Total Chairs
@@ -272,11 +394,11 @@ export function TableChairsSheet({
           {/* All Table Card */}
           <button
             type="button"
-            onClick={() => setSelectedSeat('ALL')}
+            onClick={() => setSelectedSeat("ALL")}
             className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition flex flex-col items-center justify-between h-[78px] min-w-[85px] shrink-0 shadow-2xs active:scale-95 ${
-              selectedSeat === 'ALL'
-                ? 'bg-stone-900 text-white border-stone-900 ring-2 ring-stone-900/30'
-                : 'bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]'
+              selectedSeat === "ALL"
+                ? "bg-stone-900 text-white border-stone-900 ring-2 ring-stone-900/30"
+                : "bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]"
             }`}
           >
             <FileText className="h-4 w-4 mb-0.5 shrink-0" />
@@ -290,18 +412,22 @@ export function TableChairsSheet({
           {Array.from({ length: capacity }).map((_, idx) => {
             const seatNum = idx + 1;
             const isSelected = selectedSeat === seatNum;
-            const chairItems = allTableOrderedItems.filter((i) => i.seatNumber === seatNum);
+            const chairItems = allTableOrderedItems.filter(
+              (i) => i.seatNumber === seatNum,
+            );
             const hasOrders = chairItems.length > 0;
-            const isSeated = hasOrders || (chairsWithOrders.size === 0 && seatNum <= occupiedGuests);
+            const isSeated =
+              hasOrders ||
+              (chairsWithOrders.size === 0 && seatNum <= occupiedGuests);
             const chairSub = chairItems.reduce((s, it) => s + it.totalPrice, 0);
             const chairAmt =
               chairSub > 0
                 ? Math.round(chairSub * 1.05)
                 : isSeated && table.currentBill > 0
-                ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
-                : 0;
+                  ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
+                  : 0;
 
-            const hasReadyItem = chairItems.some((i) => i.stage === 'READY');
+            const hasReadyItem = chairItems.some((i) => i.stage === "READY");
 
             return (
               <button
@@ -310,12 +436,12 @@ export function TableChairsSheet({
                 onClick={() => setSelectedSeat(seatNum)}
                 className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition-all active:scale-95 flex flex-col items-center justify-between h-[78px] min-w-[85px] shrink-0 relative select-none shadow-2xs ${
                   isSelected
-                    ? 'bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-sm ring-2 ring-[#9C3D1E]/40'
+                    ? "bg-[#9C3D1E] text-white border-[#9C3D1E] shadow-sm ring-2 ring-[#9C3D1E]/40"
                     : hasOrders
-                    ? 'bg-amber-100 text-amber-950 border-amber-400 hover:bg-amber-200'
-                    : isSeated
-                    ? 'bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100'
-                    : 'bg-white text-slate-400 border-dashed border-slate-300 hover:bg-[#FAF8F5]'
+                      ? "bg-amber-100 text-amber-950 border-amber-400 hover:bg-amber-200"
+                      : isSeated
+                        ? "bg-amber-50 text-amber-950 border-amber-300 hover:bg-amber-100"
+                        : "bg-white text-slate-400 border-dashed border-slate-300 hover:bg-[#FAF8F5]"
                 }`}
               >
                 {hasReadyItem && (
@@ -330,19 +456,19 @@ export function TableChairsSheet({
                 <span
                   className={`text-[9px] px-1.5 py-0.5 rounded font-bold uppercase truncate max-w-full ${
                     isSelected
-                      ? 'bg-white/20 text-white'
+                      ? "bg-white/20 text-white"
                       : hasOrders
-                      ? 'bg-amber-200 text-amber-900'
-                      : isSeated
-                      ? 'bg-amber-100 text-amber-900'
-                      : 'bg-slate-100 text-slate-500'
+                        ? "bg-amber-200 text-amber-900"
+                        : isSeated
+                          ? "bg-amber-100 text-amber-900"
+                          : "bg-slate-100 text-slate-500"
                   }`}
                 >
-                  {hasOrders ? 'Ordered' : isSeated ? 'Seated' : 'Available'}
+                  {hasOrders ? "Ordered" : isSeated ? "Seated" : "Available"}
                 </span>
 
                 <span className="text-[10px] opacity-80 shrink-0 font-bold">
-                  {chairAmt > 0 ? `₹ ${chairAmt}` : '--'}
+                  {chairAmt > 0 ? `₹ ${chairAmt}` : "--"}
                 </span>
               </button>
             );
@@ -354,7 +480,7 @@ export function TableChairsSheet({
       <div className="px-4 py-2.5 bg-stone-100 border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <span className="text-xs font-black text-slate-900 uppercase">
-            {selectedSeat === 'ALL'
+            {selectedSeat === "ALL"
               ? `Table Orders (${tickets.length || (allTableOrderedItems.length > 0 ? 1 : 0)} KOT)`
               : `Chair ${selectedSeat} Breakdown`}
           </span>
@@ -366,35 +492,36 @@ export function TableChairsSheet({
           <button
             onClick={handleOpenBilling}
             className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-[10px] font-black transition shadow-2xs"
-            title="Add dishes or extra items to this table/chair"
           >
             <PlusCircle className="h-3 w-3" />
-            <span>+ Add Items</span>
+            <span>Add Items</span>
           </button>
           <span
             className={`text-[10px] font-black uppercase px-2 py-0.5 rounded border ${
-              selectedSeat === 'ALL'
+              selectedSeat === "ALL"
                 ? isBilling || (table.currentBill === 0 && !isOccupied)
-                  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                  : 'bg-orange-100 text-orange-900 border-orange-300'
+                  ? "bg-emerald-100 text-emerald-800 border-emerald-300"
+                  : "bg-orange-100 text-orange-900 border-orange-300"
                 : displayedItems.length > 0
-                ? 'bg-amber-100 text-amber-900 border-amber-300'
-                : (typeof selectedSeat === 'number' && selectedSeat <= occupiedGuests)
-                ? 'bg-amber-50 text-amber-800 border-amber-200'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                  ? "bg-amber-100 text-amber-900 border-amber-300"
+                  : typeof selectedSeat === "number" &&
+                      selectedSeat <= occupiedGuests
+                    ? "bg-amber-50 text-amber-800 border-amber-200"
+                    : "bg-emerald-50 text-emerald-700 border-emerald-200"
             }`}
           >
-            {selectedSeat === 'ALL'
+            {selectedSeat === "ALL"
               ? isBilling
-                ? 'BILLING'
+                ? "BILLING"
                 : isOccupied
-                ? 'ACTIVE'
-                : 'VACANT'
+                  ? "ACTIVE"
+                  : "VACANT"
               : displayedItems.length > 0
-              ? 'ACTIVE ORDERS'
-              : (typeof selectedSeat === 'number' && selectedSeat <= occupiedGuests)
-              ? 'SEATED'
-              : 'AVAILABLE'}
+                ? "ACTIVE ORDERS"
+                : typeof selectedSeat === "number" &&
+                    selectedSeat <= occupiedGuests
+                  ? "SEATED"
+                  : "AVAILABLE"}
           </span>
         </div>
       </div>
@@ -430,7 +557,7 @@ export function TableChairsSheet({
                   )}
                   {item.addOns && item.addOns.length > 0 && (
                     <div className="text-[10px] text-slate-400 truncate">
-                      Add-ons: {item.addOns.join(', ')}
+                      Add-ons: {item.addOns.join(", ")}
                     </div>
                   )}
                 </div>
@@ -451,17 +578,10 @@ export function TableChairsSheet({
         ) : (
           <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400">
             <Armchair className="h-8 w-8 text-slate-300" />
-            <p className="font-bold text-xs text-slate-600">
-              {selectedSeat === 'ALL'
-                ? 'No items currently ordered on this table'
-                : `No active orders placed for Chair ${selectedSeat}`}
-            </p>
-            <p className="text-[11px] text-slate-400">
-              {selectedSeat === 'ALL'
-                ? 'Table is ready for new guest orders'
-                : typeof selectedSeat === 'number' && selectedSeat <= occupiedGuests
-                ? 'Guest is seated • Waiting to place dishes'
-                : 'Chair is available for dining'}
+            <p className="font-bold text-xs text-slate-500">
+              {selectedSeat === "ALL"
+                ? "No items ordered"
+                : `No active orders for Chair ${selectedSeat}`}
             </p>
           </div>
         )}
@@ -473,7 +593,10 @@ export function TableChairsSheet({
         <div className="p-3 bg-[#FAF8F5] rounded-xl border border-slate-200 flex items-center justify-between text-xs font-mono">
           <div>
             <span className="font-bold text-slate-500 text-[11px] block">
-              {selectedSeat === 'ALL' ? 'TOTAL TABLE BILL' : `CHAIR ${selectedSeat} BILL`} (INC. 5% GST)
+              {selectedSeat === "ALL"
+                ? "TOTAL TABLE BILL"
+                : `CHAIR ${selectedSeat} BILL`}{" "}
+              (INC. 5% GST)
             </span>
             <span className="text-[10px] text-slate-400">
               Subtotal: ₹{displayedSubtotal} • GST: ₹{displayedTax}

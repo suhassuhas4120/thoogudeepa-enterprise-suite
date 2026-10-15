@@ -85,9 +85,6 @@ export function ScreenM2LiveOverview() {
               <h3 className="text-sm font-black font-mono text-slate-900">
                 RESTAURANT TABLES LIVE STATUS MATRIX
               </h3>
-              <p className="text-[11px] font-mono text-slate-400 mt-0.5">
-                Click any table to inspect chairs &amp; dishes on the right
-              </p>
             </div>
             {/* Legend */}
             <div className="flex items-center gap-3 font-mono text-[11px] font-bold">

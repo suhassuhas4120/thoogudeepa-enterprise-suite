@@ -452,11 +452,11 @@ group('UX logic — ScreenM1Login.tsx (authentication flow)', () => {
   ok('M1 destructures activeManager, pinInput, verifyPin', /activeManager/.test(s) && /pinInput/.test(s) && /verifyPin/.test(s));
   ok('M1 shows MANAGER_PROFILES in select dropdown', /MANAGER_PROFILES/.test(s));
   ok('M1 shows INITIAL_SHIFTS for shift selection', /INITIAL_SHIFTS/.test(s));
-  ok('M1 has numeric keypad (1-9 digits)', /\['1', '2', '3', '4', '5', '6', '7', '8', '9'\]/.test(s));
+  ok('M1 has numeric keypad (1-9 digits)', /\[(['"])1\1,\s*(['"])2\2,\s*(['"])3\3,\s*(['"])4\4,\s*(['"])5\5,\s*(['"])6\6,\s*(['"])7\7,\s*(['"])8\8,\s*(['"])9\9\]/.test(s));
   ok('M1 has CLR (clearPin) button', /clearPin/.test(s));
   ok('M1 has DEL (deletePinDigit) button', /deletePinDigit/.test(s));
   ok('M1 PIN indicators are 4 dots', /\[0, 1, 2, 3\]\.map/.test(s));
-  ok('M1 filled dot uses terracotta or dark fill', /isFilled \? 'bg-\[#9C3D1E\]|isFilled \? 'bg-slate-900/.test(s));
+  ok('M1 filled dot uses terracotta or dark fill', /isFilled \? ['"]bg-\[#9C3D1E\]|isFilled \? ['"]bg-slate-900/.test(s));
   ok('M1 shows openingFloat value', /openingFloat|localFloat/.test(s));
   ok('M1 Unlock button navigates to screen 2', /setCurrentScreen\(2\)/.test(s));
   ok('M1 has authentication error state', /authError/.test(s));
@@ -798,7 +798,7 @@ group('Lucide icons — proper usage across manager screens', () => {
   const s7 = read('components/manager/ScreenM7StaffRoster.tsx');
   const s8 = read('components/manager/ScreenM8CallsAlerts.tsx');
 
-  ok('M1 imports lucide-react icons', /from 'lucide-react'/.test(s1));
+  ok('M1 imports lucide-react icons', /from ['"]lucide-react['"]/.test(s1));
   ok('M1 uses KeyRound or security icon', /KeyRound|ShieldCheck/.test(s1));
   ok('M1 uses Unlock icon', /Unlock/.test(s1));
   ok('M2 uses TrendingUp for revenue KPI', /TrendingUp/.test(s2));

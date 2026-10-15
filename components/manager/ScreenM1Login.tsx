@@ -1,8 +1,21 @@
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useManagerStore, MANAGER_PROFILES, INITIAL_SHIFTS } from '../../store/useManagerStore';
-import { Unlock, Clock, KeyRound, Printer, Edit2, Check, X, User } from 'lucide-react';
+import React, { useState } from "react";
+import {
+  useManagerStore,
+  MANAGER_PROFILES,
+  INITIAL_SHIFTS,
+} from "../../store/useManagerStore";
+import {
+  Unlock,
+  Clock,
+  KeyRound,
+  Printer,
+  Edit2,
+  Check,
+  X,
+  User,
+} from "lucide-react";
 
 export function ScreenM1Login() {
   const {
@@ -24,29 +37,39 @@ export function ScreenM1Login() {
 
   // Float adjustment state
   const [adjustingFloat, setAdjustingFloat] = useState(false);
-  const [floatInput, setFloatInput] = useState('');
+  const [floatInput, setFloatInput] = useState("");
   const [localFloat, setLocalFloat] = useState(openingFloat);
 
   // Other staff selection state
   const [selectedProfileId, setSelectedProfileId] = useState(activeManager.id);
-  const [otherStaffName, setOtherStaffName] = useState('');
-  const isOtherStaff = selectedProfileId === 'other';
+  const [otherStaffName, setOtherStaffName] = useState("");
+  const isOtherStaff = selectedProfileId === "other";
 
   const handleProfileChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setSelectedProfileId(val);
-    if (val !== 'other') {
+    if (val !== "other") {
       const found = MANAGER_PROFILES.find((m) => m.id === val);
       if (found) setActiveManager(found);
     } else {
-      setActiveManager({ id: 'other', name: otherStaffName.toUpperCase() || 'OTHER STAFF', role: 'Staff', pin: '1234' });
+      setActiveManager({
+        id: "other",
+        name: otherStaffName.toUpperCase() || "OTHER STAFF",
+        role: "Staff",
+        pin: "1234",
+      });
     }
   };
 
   const handleOtherNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
     setOtherStaffName(name);
-    setActiveManager({ id: 'other', name: name.toUpperCase() || 'OTHER STAFF', role: 'Staff', pin: '1234' });
+    setActiveManager({
+      id: "other",
+      name: name.toUpperCase() || "OTHER STAFF",
+      role: "Staff",
+      pin: "1234",
+    });
   };
 
   const handlePress = (d: string) => {
@@ -68,12 +91,12 @@ export function ScreenM1Login() {
       setLocalFloat(parsed);
     }
     setAdjustingFloat(false);
-    setFloatInput('');
+    setFloatInput("");
   };
 
   const handleFloatCancel = () => {
     setAdjustingFloat(false);
-    setFloatInput('');
+    setFloatInput("");
   };
 
   return (
@@ -95,14 +118,20 @@ export function ScreenM1Login() {
                 onClick={() => setActiveShift(sh)}
                 className={`flex items-center justify-between p-2.5 rounded-lg border text-xs font-mono font-bold cursor-pointer transition ${
                   activeShift.name === sh.name
-                    ? 'bg-orange-50 border-orange-500 text-orange-950 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                    ? "bg-orange-50 border-orange-500 text-orange-950 shadow-xs"
+                    : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
                 }`}
               >
-                <span>{sh.name} ({sh.timeRange})</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded ${
-                  sh.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-800' : 'bg-[#FAF8F5] text-slate-500'
-                }`}>
+                <span>
+                  {sh.name} ({sh.timeRange})
+                </span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.5 rounded ${
+                    sh.status === "ACTIVE"
+                      ? "bg-emerald-100 text-emerald-800"
+                      : "bg-[#FAF8F5] text-slate-500"
+                  }`}
+                >
                   [{sh.status}]
                 </span>
               </label>
@@ -114,16 +143,23 @@ export function ScreenM1Login() {
         <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
           {adjustingFloat ? (
             <div>
-              <p className="text-xs font-mono font-bold text-slate-700 mb-2">EDIT STARTING CASH BALANCE:</p>
+              <p className="text-xs font-mono font-bold text-slate-700 mb-2">
+                EDIT STARTING CASH BALANCE:
+              </p>
               <div className="flex items-center gap-2">
-                <span className="font-mono text-sm font-black text-slate-700">₹</span>
+                <span className="font-mono text-sm font-black text-slate-700">
+                  ₹
+                </span>
                 <input
                   type="number"
                   min="0"
                   autoFocus
                   value={floatInput}
                   onChange={(e) => setFloatInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleFloatSave(); if (e.key === 'Escape') handleFloatCancel(); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleFloatSave();
+                    if (e.key === "Escape") handleFloatCancel();
+                  }}
                   placeholder={localFloat.toString()}
                   className="flex-1 bg-[#FAF8F5] border border-[#D28835] rounded-lg px-3 py-2 font-mono text-base font-black text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 />
@@ -133,13 +169,15 @@ export function ScreenM1Login() {
                   onClick={handleFloatSave}
                   className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 text-white rounded-lg py-2 font-mono text-xs font-black hover:bg-emerald-700 transition"
                 >
-                  <Check className="h-3.5 w-3.5" /> SAVE
+                  {/* <Check className="h-3.5 w-3.5" />  */}
+                  SAVE
                 </button>
                 <button
                   onClick={handleFloatCancel}
                   className="flex-1 flex items-center justify-center gap-1.5 bg-slate-100 text-slate-700 rounded-lg py-2 font-mono text-xs font-black hover:bg-slate-200 transition"
                 >
-                  <X className="h-3.5 w-3.5" /> CANCEL
+                  {/* <X className="h-3.5 w-3.5" /> */}
+                  CANCEL
                 </button>
               </div>
             </div>
@@ -148,9 +186,14 @@ export function ScreenM1Login() {
               <div className="flex justify-between items-center text-xs font-mono text-slate-500">
                 <span>STARTING CASH BALANCE:</span>
                 <div className="flex items-center gap-2">
-                  <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-bold">VERIFIED</span>
+                  <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-bold">
+                    VERIFIED
+                  </span>
                   <button
-                    onClick={() => { setAdjustingFloat(true); setFloatInput(localFloat.toString()); }}
+                    onClick={() => {
+                      setAdjustingFloat(true);
+                      setFloatInput(localFloat.toString());
+                    }}
                     className="flex items-center gap-1 bg-orange-50 border border-orange-200 text-orange-700 px-2 py-0.5 rounded font-mono text-[10px] font-bold hover:bg-orange-100 transition"
                   >
                     <Edit2 className="h-3 w-3" />
@@ -159,7 +202,7 @@ export function ScreenM1Login() {
                 </div>
               </div>
               <div className="text-2xl font-black font-mono text-slate-900 mt-1">
-                ₹ {localFloat.toLocaleString('en-IN')}.00
+                ₹ {localFloat.toLocaleString("en-IN")}.00
               </div>
             </>
           )}
@@ -189,7 +232,7 @@ export function ScreenM1Login() {
               className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2.5 font-mono text-xs font-bold text-slate-900 focus:outline-none"
             >
               {MANAGER_PROFILES.map((p) => {
-                const cleanName = p.name.replace(/\s*\([^)]*\)/g, '').trim();
+                const cleanName = p.name.replace(/\s*\([^)]*\)/g, "").trim();
                 return (
                   <option key={p.id} value={p.id}>
                     {cleanName} — ({p.role})
@@ -211,7 +254,7 @@ export function ScreenM1Login() {
                   onChange={handleOtherNameChange}
                   placeholder="Enter staff member name..."
                   className="flex-1 bg-transparent font-mono text-xs font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none"
-                  style={{ textTransform: 'uppercase' }}
+                  style={{ textTransform: "uppercase" }}
                 />
               </div>
             )}
@@ -226,7 +269,7 @@ export function ScreenM1Login() {
                   <div
                     key={idx}
                     className={`w-4 h-4 rounded-full border border-[#EAE5DF] transition-all ${
-                      isFilled ? 'bg-[#9C3D1E] scale-110' : 'bg-[#FAF8F5]'
+                      isFilled ? "bg-[#9C3D1E] scale-110" : "bg-[#FAF8F5]"
                     }`}
                   />
                 );
@@ -257,7 +300,7 @@ export function ScreenM1Login() {
               CLR
             </button>
             <button
-              onClick={() => handlePress('0')}
+              onClick={() => handlePress("0")}
               className="h-10 bg-white border border-[#EAE5DF] rounded-lg font-mono text-base font-black text-slate-900 shadow-xs hover:translate-x-0.5 hover:translate-y-0.5 hover:shadow-none active:bg-[#FAF8F5] transition"
             >
               0

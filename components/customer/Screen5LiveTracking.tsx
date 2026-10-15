@@ -1671,6 +1671,13 @@ export const Screen5LiveTracking: React.FC = () => {
                     true,
                     snapshot
                   );
+                  useSharedBridge.getState().customerPingsWaiter(
+                    effectiveTable,
+                    'PAYMENT',
+                    'Guest',
+                    'UPI Payment Scanned',
+                    effectiveSeat
+                  );
 
                   // 3. Instant BroadcastChannel dispatch across all browser tabs / devices
                   if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {

@@ -525,11 +525,66 @@ export function ScreenM3TableSheet({
     return false;
   });
 
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchSession = async () => {
+      try {
+        const res = await fetch(`/api/settlement/session?tableNumber=${encodeURIComponent(tableNum)}`, { cache: 'no-store' });
+        if (res.ok && !isCancelled) {
+          const data = await res.json();
+          if (data?.sessions !== undefined || data?.settledBills !== undefined) {
+            useSharedBridge.setState((prev) => ({
+              activeSettlementSessions: {
+                ...(prev.activeSettlementSessions || {}),
+                ...(data.sessions || {}),
+              },
+              settledBills: {
+                ...(prev.settledBills || {}),
+                ...(data.settledBills || {}),
+              },
+            }));
+          }
+        }
+      } catch {}
+    };
+
+    fetchSession();
+    const interval = setInterval(fetchSession, 1000);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [tableNum]);
+
   const chairKey = `${normTable}-CHAIR-${selectedSeat}`;
-  const isCustomerBillRequested = hasCustomerPaymentRequest || Boolean(
+  const hasTableVerifiedUpi = Object.entries(activeSettlementSessions || {}).some(
+    ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
+  );
+  const hasChairVerifiedUpi = Boolean(
     activeSettlementSessions?.[chairKey]?.isUpiVerified ||
     activeSettlementSessions?.[normTable]?.isUpiVerified
   );
+  const isCustomerBillRequested = hasCustomerPaymentRequest || hasTableVerifiedUpi || hasChairVerifiedUpi;
+
+  const liveSessionSnapshot =
+    activeSettlementSessions?.[chairKey]?.billSnapshot ||
+    activeSettlementSessions?.[normTable]?.billSnapshot ||
+    Object.entries(activeSettlementSessions || {}).find(
+      ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.billSnapshot
+    )?.[1]?.billSnapshot;
+
+  let currentSelectionTotalDue = 0;
+  if (typeof selectedSeat === 'number') {
+    currentSelectionTotalDue = getChairBillBreakdown(selectedSeat).totalDue;
+  } else if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+    currentSelectionTotalDue = getChairBillBreakdown(selectedSeat).totalDue;
+  } else {
+    currentSelectionTotalDue = grandTotal;
+  }
+
+  const effectiveTotalDueForSettle = currentSelectionTotalDue > 0
+    ? currentSelectionTotalDue
+    : (liveSessionSnapshot?.grandTotal || 0);
 
   const hasTableOrders = allTableOrderedItems.length > 0;
   const hasUnservedTableItems =
@@ -547,8 +602,9 @@ export function ScreenM3TableSheet({
       isCurrentSelectionSettleDisabled = true;
       currentSelectionSettleReason = 'Select an individual chair tab above to settle its bill';
     } else {
+      const effectiveAmt = grandTotal > 0 ? grandTotal : effectiveTotalDueForSettle;
       isCurrentSelectionSettleDisabled =
-        isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems || !isCustomerBillRequested;
+        isVacant || effectiveAmt <= 0 || !hasTableOrders || hasUnservedTableItems || !isCustomerBillRequested;
       currentSelectionSettleReason = !hasTableOrders
         ? 'No orders placed'
         : hasUnservedTableItems
@@ -562,10 +618,11 @@ export function ScreenM3TableSheet({
     const tableSharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
     const chairTargetItems = chairDirectItems.length > 0 ? chairDirectItems : tableSharedItems;
     const hasChairItems = chairTargetItems.length > 0;
-    const hasUnservedChair = !hasChairItems || chairTargetItems.some((i) => i.stage !== 'Served');
+    const hasUnservedChair = !hasChairItems || chairTargetItems.some((i) => i.stage !== 'Served' && (i.stage as string) !== 'SERVED');
     const chairBreakdown = getChairBillBreakdown(selectedSeat);
+    const effectiveAmt = chairBreakdown.totalDue > 0 ? chairBreakdown.totalDue : effectiveTotalDueForSettle;
     isCurrentSelectionSettleDisabled =
-      isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || hasUnservedChair || !isCustomerBillRequested;
+      isVacant || effectiveAmt <= 0 || !hasChairItems || hasUnservedChair || !isCustomerBillRequested;
     currentSelectionSettleReason = !hasChairItems
       ? 'No orders for this chair'
       : hasUnservedChair
@@ -579,10 +636,11 @@ export function ScreenM3TableSheet({
     const tableSharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
     const groupTargetItems = groupDirectItems.length > 0 ? groupDirectItems : tableSharedItems;
     const hasGroupItems = groupTargetItems.length > 0;
-    const hasUnservedGroup = !hasGroupItems || groupTargetItems.some((i) => i.stage !== 'Served');
+    const hasUnservedGroup = !hasGroupItems || groupTargetItems.some((i) => i.stage !== 'Served' && (i.stage as string) !== 'SERVED');
     const groupBreakdown = getChairBillBreakdown(selectedSeat);
+    const effectiveAmt = groupBreakdown.totalDue > 0 ? groupBreakdown.totalDue : effectiveTotalDueForSettle;
     isCurrentSelectionSettleDisabled =
-      isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || hasUnservedGroup || !isCustomerBillRequested;
+      isVacant || effectiveAmt <= 0 || !hasGroupItems || hasUnservedGroup || !isCustomerBillRequested;
     currentSelectionSettleReason = !hasGroupItems
       ? 'No orders for this group'
       : hasUnservedGroup
@@ -1690,19 +1748,22 @@ export function ScreenM3TableSheet({
             onClick={() => {
               if (typeof selectedSeat === 'number') {
                 const bd = getChairBillBreakdown(selectedSeat);
-                onGoToSettle(Math.round(bd.totalDue), `Chair ${selectedSeat}`);
+                const finalAmt = bd.totalDue > 0 ? bd.totalDue : effectiveTotalDueForSettle;
+                onGoToSettle(Math.round(finalAmt), `Chair ${selectedSeat}`);
               } else if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
                 const bd = getChairBillBreakdown(selectedSeat);
-                onGoToSettle(Math.round(bd.totalDue), `Chairs ${mergedSeatGroups[selectedSeat].join(' & ')}`);
+                const finalAmt = bd.totalDue > 0 ? bd.totalDue : effectiveTotalDueForSettle;
+                onGoToSettle(Math.round(finalAmt), `Chairs ${mergedSeatGroups[selectedSeat].join(' & ')}`);
               } else {
                 const activeChairs = Array.from(
                   new Set(allTableOrderedItems.map((i) => i.seatNumber).filter((s): s is number => typeof s === 'number'))
                 );
                 if (activeChairs.length === 1) {
                   const bd = getChairBillBreakdown(activeChairs[0]);
-                  onGoToSettle(Math.round(bd.totalDue), `Chair ${activeChairs[0]}`);
+                  const finalAmt = bd.totalDue > 0 ? bd.totalDue : effectiveTotalDueForSettle;
+                  onGoToSettle(Math.round(finalAmt), `Chair ${activeChairs[0]}`);
                 } else {
-                  onGoToSettle();
+                  onGoToSettle(Math.round(effectiveTotalDueForSettle));
                 }
               }
             }}
@@ -1721,6 +1782,8 @@ export function ScreenM3TableSheet({
                   : hasUnservedTableItems
                   ? 'Serve to Settle'
                   : 'Awaiting Bill'
+                : hasTableVerifiedUpi || hasChairVerifiedUpi
+                ? `Confirm & Settle (₹${Math.round(effectiveTotalDueForSettle)})`
                 : 'Settle'}
             </span>
           </motion.button>
@@ -2068,7 +2131,7 @@ export function ScreenM3TableSheet({
                       const breakdown = getChairBillBreakdown(groupKey);
                       const groupDirect = allTableOrderedItems.filter((i) => i.seatNumber && groupSeats.includes(i.seatNumber));
                       const groupTarget = groupDirect.length > 0 ? groupDirect : allTableOrderedItems.filter((i) => !i.seatNumber);
-                      const canSettleGroup = breakdown.totalDue > 0 && groupTarget.length > 0 && groupTarget.every((i) => i.stage === 'Served');
+                      const canSettleGroup = breakdown.totalDue > 0 && groupTarget.length > 0 && groupTarget.every((i) => i.stage === 'Served' || (i.stage as string) === 'SERVED');
                       return (
                         <div
                           key={groupKey}
@@ -2123,7 +2186,7 @@ export function ScreenM3TableSheet({
 
                       const chairDirect = allTableOrderedItems.filter((i) => i.seatNumber === seatNum);
                       const chairTarget = chairDirect.length > 0 ? chairDirect : allTableOrderedItems.filter((i) => !i.seatNumber);
-                      const canSettleChair = breakdown.totalDue > 0 && chairTarget.length > 0 && chairTarget.every((i) => i.stage === 'Served');
+                      const canSettleChair = breakdown.totalDue > 0 && chairTarget.length > 0 && chairTarget.every((i) => i.stage === 'Served' || (i.stage as string) === 'SERVED');
 
                       return (
                         <div

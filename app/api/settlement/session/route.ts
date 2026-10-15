@@ -124,8 +124,24 @@ export async function POST(req: NextRequest) {
       }
 
       const normTable = normalizeTable(session.tableNumber);
+      const chairKey = `${normTable}-CHAIR-${session.seatNumber}`;
+      const existing = activeSettlementSessions.get(chairKey) || activeSettlementSessions.get(normTable);
+
+      const effectiveMethod = session.method || 'UPI';
+      const effectiveIsUpiVerified = effectiveMethod === 'CASH'
+        ? false
+        : Boolean(session.isUpiVerified || existing?.isUpiVerified);
+      const effectiveBillSnapshot = session.billSnapshot || existing?.billSnapshot;
+      const effectiveGrandTotal = (typeof session.grandTotal === 'number' && session.grandTotal > 0)
+        ? session.grandTotal
+        : (effectiveBillSnapshot?.grandTotal || existing?.grandTotal || session.grandTotal || 0);
+
       const cleanSession: ActiveSettlementSession = {
         ...session,
+        grandTotal: effectiveGrandTotal,
+        method: effectiveMethod,
+        isUpiVerified: effectiveIsUpiVerified,
+        billSnapshot: effectiveBillSnapshot,
         tableNumber: normTable,
         initiatedAt: session.initiatedAt || Date.now(),
       };
@@ -138,9 +154,7 @@ export async function POST(req: NextRequest) {
 
       if (typeof session.seatNumber === 'number') {
         activeSettlementSessions.set(`${normTable}-CHAIR-${session.seatNumber}`, cleanSession);
-        if (activeSettlementSessions.get(normTable)?.seatNumber === session.seatNumber) {
-          activeSettlementSessions.delete(normTable);
-        }
+        activeSettlementSessions.set(normTable, cleanSession);
       } else {
         activeSettlementSessions.set(normTable, cleanSession);
       }

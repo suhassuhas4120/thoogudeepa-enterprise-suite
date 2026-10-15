@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ChevronLeft,
@@ -161,6 +161,37 @@ export function TabletTableDetail({
     number[]
   >([]);
 
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchSession = async () => {
+      try {
+        const res = await fetch(`/api/settlement/session?tableNumber=${encodeURIComponent(tableNum)}`, { cache: 'no-store' });
+        if (res.ok && !isCancelled) {
+          const data = await res.json();
+          if (data?.sessions !== undefined || data?.settledBills !== undefined) {
+            useSharedBridge.setState((prev) => ({
+              activeSettlementSessions: {
+                ...(prev.activeSettlementSessions || {}),
+                ...(data.sessions || {}),
+              },
+              settledBills: {
+                ...(prev.settledBills || {}),
+                ...(data.settledBills || {}),
+              },
+            }));
+          }
+        }
+      } catch {}
+    };
+
+    fetchSession();
+    const interval = setInterval(fetchSession, 1000);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [tableNum]);
+
   const table = tables.find((t) => t.number === tableNum);
   if (!table) {
     return (
@@ -308,10 +339,25 @@ export function TabletTableDetail({
   });
 
   const chairKey = `${normTable}-CHAIR-${selectedChair}`;
-  const isCustomerBillRequested = hasCustomerPaymentRequest || Boolean(
+  const hasTableVerifiedUpi = Object.entries(activeSettlementSessions || {}).some(
+    ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
+  );
+  const hasChairVerifiedUpi = Boolean(
     activeSettlementSessions?.[chairKey]?.isUpiVerified ||
     activeSettlementSessions?.[normTable]?.isUpiVerified
   );
+  const isCustomerBillRequested = hasCustomerPaymentRequest || hasTableVerifiedUpi || hasChairVerifiedUpi;
+
+  const liveSessionSnapshot =
+    activeSettlementSessions?.[chairKey]?.billSnapshot ||
+    activeSettlementSessions?.[normTable]?.billSnapshot ||
+    Object.entries(activeSettlementSessions || {}).find(
+      ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.billSnapshot
+    )?.[1]?.billSnapshot;
+
+  const effectiveBillToSettle = billToSettle > 0
+    ? billToSettle
+    : (liveSessionSnapshot?.grandTotal || 0);
 
   // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
   const hasItemsToSettle = relevantItems.length > 0;
@@ -327,7 +373,7 @@ export function TabletTableDetail({
   // 3. No pending drafts, and bill > 0
   const canSettle =
     !isVacant &&
-    billToSettle > 0 &&
+    effectiveBillToSettle > 0 &&
     relevantDrafts.length === 0 &&
     areAllRelevantItemsServed &&
     isCustomerBillRequested;
@@ -1168,6 +1214,8 @@ export function TabletTableDetail({
                   ? !areAllRelevantItemsServed
                     ? "Serve to Settle"
                     : "Awaiting Bill"
+                  : hasTableVerifiedUpi || hasChairVerifiedUpi
+                  ? `Confirm & Settle (₹${Math.round(effectiveBillToSettle)})`
                   : `Settle ${selectedChair === "ALL" ? "Bill" : chairLabel}`}
               </span>
             </button>

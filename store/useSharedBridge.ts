@@ -2188,23 +2188,38 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
     const tNum = cleanNum(tableNumber);
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+    const chairKey = `${normTable}-CHAIR-${seatNumber}`;
+
+    const existingSession = get().activeSettlementSessions?.[chairKey] ||
+      get().activeSettlementSessions?.[normTable] ||
+      Object.entries(get().activeSettlementSessions || {}).find(
+        ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`))
+      )?.[1];
+
+    const effectiveMethod = method || 'UPI';
+    const effectiveIsUpiVerified = effectiveMethod === 'CASH'
+      ? false
+      : Boolean(isUpiVerified || existingSession?.isUpiVerified);
+    const effectiveBillSnapshot = billSnapshot || existingSession?.billSnapshot;
+    const effectiveGrandTotal = (typeof grandTotal === 'number' && grandTotal > 0)
+      ? grandTotal
+      : (effectiveBillSnapshot?.grandTotal || existingSession?.grandTotal || grandTotal || 0);
+
     const session: ActiveSettlementSession = {
       tableNumber: normTable,
       seatNumber,
-      grandTotal,
-      method: method || 'UPI',
-      isUpiVerified: Boolean(isUpiVerified),
+      grandTotal: effectiveGrandTotal,
+      method: effectiveMethod,
+      isUpiVerified: effectiveIsUpiVerified,
       initiatedAt: Date.now(),
-      billSnapshot,
+      billSnapshot: effectiveBillSnapshot,
     };
 
     set((state) => {
       const nextSessions = { ...state.activeSettlementSessions };
       if (typeof seatNumber === 'number') {
         nextSessions[`${normTable}-CHAIR-${seatNumber}`] = session;
-        if (nextSessions[normTable]?.seatNumber === seatNumber) {
-          delete nextSessions[normTable];
-        }
+        nextSessions[normTable] = session;
       } else {
         nextSessions[normTable] = session;
       }

@@ -221,7 +221,40 @@ export function ScreenM6Settlement({
   const targetNum = cleanTableNum(tableNum);
   const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
   const chairKey = `${normTable}-CHAIR-${splitSeatNumber ?? 1}`;
-  const liveSession = activeSettlementSessions?.[chairKey] || activeSettlementSessions?.[normTable];
+  const liveSession = activeSettlementSessions?.[chairKey] || activeSettlementSessions?.[normTable] || Object.entries(activeSettlementSessions || {}).find(
+    ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && (sess?.isUpiVerified || sess?.billSnapshot)
+  )?.[1];
+
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchSession = async () => {
+      try {
+        const res = await fetch(`/api/settlement/session?tableNumber=${encodeURIComponent(tableNum)}`, { cache: 'no-store' });
+        if (res.ok && !isCancelled) {
+          const data = await res.json();
+          if (data?.sessions !== undefined || data?.settledBills !== undefined) {
+            useSharedBridge.setState((prev) => ({
+              activeSettlementSessions: {
+                ...(prev.activeSettlementSessions || {}),
+                ...(data.sessions || {}),
+              },
+              settledBills: {
+                ...(prev.settledBills || {}),
+                ...(data.settledBills || {}),
+              },
+            }));
+          }
+        }
+      } catch {}
+    };
+
+    fetchSession();
+    const interval = setInterval(fetchSession, 1000);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, [tableNum]);
 
   useEffect(() => {
     if (liveSession?.isUpiVerified) {

@@ -158,7 +158,7 @@ export function ScreenM2LiveOverview() {
           {/* Exactly 5 Columns Grid of Tables */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-3.5">
             {tables.map((tbl) => {
-              const isSelected = tbl.number === activeTableNum;
+              const isSelected = selectedTableNumber === tbl.number;
               const isOcc = tbl.status === 'OCCUPIED';
               const isBill = tbl.status === 'BILLING';
               return (
@@ -175,8 +175,8 @@ export function ScreenM2LiveOverview() {
                         ? 'bg-amber-100 text-amber-950 border-amber-600 shadow-sm z-10'
                         : 'bg-amber-100 text-amber-950 border-amber-400 hover:border-amber-500 shadow-2xs'
                       : isSelected
-                      ? 'bg-white text-slate-900 border-[#9C3D1E] shadow-sm z-10'
-                      : 'bg-white text-slate-900 border-[#EAE5DF] hover:border-[#9C3D1E] shadow-2xs'
+                      ? 'bg-white text-slate-900 border-slate-400 shadow-sm z-10 ring-2 ring-slate-200'
+                      : 'bg-white text-slate-900 border-[#EAE5DF] hover:border-slate-300 shadow-2xs'
                   }`}
                 >
                   <div className="flex items-center justify-between">

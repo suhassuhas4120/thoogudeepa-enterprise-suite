@@ -6,7 +6,7 @@ import { motion, AnimatePresence, useMotionValue, animate } from 'framer-motion'
 import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
 
 interface Props {
-  selectedTableNum: string;
+  selectedTableNum?: string;
   selectedSection: string;
   searchQuery?: string;
   onSelectTable: (num: string) => void;
@@ -17,8 +17,16 @@ interface Props {
 }
 
 function tileStyle(status: SharedTable['status'], isSelected: boolean) {
-  if (isSelected) {
-    return 'border-2 border-[#9C3D1E] bg-[#FFF8F5] ring-4 ring-[#9C3D1E]/20 shadow-lg scale-[1.02]';
+  if (isSelected && status !== 'VACANT') {
+    if (status === 'OCCUPIED') {
+      return 'border-2 border-amber-600 bg-amber-50/50 ring-4 ring-amber-300/40 shadow-lg scale-[1.02]';
+    }
+    if (status === 'BILLING') {
+      return 'border-2 border-purple-600 bg-purple-50/50 ring-4 ring-purple-300/40 shadow-lg scale-[1.02]';
+    }
+    if (status === 'CLEANING') {
+      return 'border-2 border-stone-500 bg-stone-100 ring-4 ring-stone-300/40 shadow-lg scale-[1.02]';
+    }
   }
   switch (status) {
     case 'OCCUPIED':
@@ -342,7 +350,7 @@ export function TabletFloorMap({
         elapsedMins,
         isTimerActive,
         memberNumbers: peers,
-        isSelected: peers.includes(selectedTableNum),
+        isSelected: Boolean(selectedTableNum && peers.includes(selectedTableNum)),
       });
     } else {
       if (seenGroupIds.has(tbl.number)) continue;
@@ -379,7 +387,7 @@ export function TabletFloorMap({
         elapsedMins,
         isTimerActive,
         memberNumbers: [tbl.number],
-        isSelected: tbl.number === selectedTableNum,
+        isSelected: Boolean(selectedTableNum && tbl.number === selectedTableNum),
       });
     }
   }

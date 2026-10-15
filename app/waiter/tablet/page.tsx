@@ -648,7 +648,7 @@ export default function WaiterTabletPage() {
                       </div>
                     </div>
                     <TabletFloorMap
-                      selectedTableNum={selectedTableNum}
+                      selectedTableNum={view === "floor" ? undefined : selectedTableNum}
                       selectedSection={selectedSection}
                       searchQuery={searchQuery}
                       onSelectTable={selectTable}

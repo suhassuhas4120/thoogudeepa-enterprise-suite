@@ -56,6 +56,10 @@ export function getStationForItem(itemName: string): KitchenStation {
 // Category list for filter
 export type MenuCategory =
   | 'ALL CATEGORIES'
+  | 'HANDI (BIRYANI & DEG)'
+  | 'TAWA FRY & DRY'
+  | 'GRAVY & SOUP'
+  | 'TIFFIN (IDLI & DOSA)'
   | 'DUM BIRYANI'
   | 'STARTERS & KEBABS'
   | 'CURRY & SIDES'
@@ -64,6 +68,10 @@ export type MenuCategory =
 
 export const ALL_CATEGORIES: MenuCategory[] = [
   'ALL CATEGORIES',
+  'HANDI (BIRYANI & DEG)',
+  'TAWA FRY & DRY',
+  'GRAVY & SOUP',
+  'TIFFIN (IDLI & DOSA)',
   'DUM BIRYANI',
   'STARTERS & KEBABS',
   'CURRY & SIDES',
@@ -74,15 +82,11 @@ export const ALL_CATEGORIES: MenuCategory[] = [
 // Map item → category (for filter logic)
 export function getCategoryForItem(itemName: string): MenuCategory {
   const n = itemName.toLowerCase();
-  if (n.includes('biryani') || n.includes('rice')) return 'DUM BIRYANI';
-  if (
-    n.includes('kebab') ||
-    n.includes('tandoor') ||
-    n.includes('chops') ||
-    n.includes('wings') ||
-    n.includes('fry')
-  )
-    return 'STARTERS & KEBABS';
+  // Primary Bangalore military stations
+  if (n.includes('biryani') || n.includes('rice') || n.includes('kushka')) return 'HANDI (BIRYANI & DEG)';
+  if (n.includes('fry') || n.includes('dry') || n.includes('kabab') || n.includes('ball') || n.includes('liver') || n.includes('leg piece') || n.includes('chilli')) return 'TAWA FRY & DRY';
+  if (n.includes('soup') || n.includes('gojju') || n.includes('chops') || n.includes('curry') || n.includes('salna') || n.includes('gravy')) return 'GRAVY & SOUP';
+  if (n.includes('idli') || n.includes('dosa')) return 'TIFFIN (IDLI & DOSA)';
   if (n.includes('curry') || n.includes('salna') || n.includes('gravy'))
     return 'CURRY & SIDES';
   if (

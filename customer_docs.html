@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Thoogudeepa Customer QR System - Complete Specification Manual</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 12mm 14mm 12mm 14mm;
+    }
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.45;
+      color: #1e293b;
+      background-color: #ffffff;
+      margin: 0;
+      padding: 0;
+    }
+    .cover {
+      page-break-after: always;
+      text-align: center;
+      padding-top: 50px;
+      padding-bottom: 40px;
+    }
+    .cover-banner {
+      background: #7c2d12;
+      color: #ffffff;
+      display: inline-block;
+      padding: 6px 20px;
+      border-radius: 9999px;
+      font-size: 9.5pt;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 24px;
+    }
+    .cover h1 {
+      font-size: 25pt;
+      font-weight: 900;
+      color: #0f172a;
+      margin: 0 0 10px 0;
+      line-height: 1.2;
+    }
+    .cover h2 {
+      font-size: 13.5pt;
+      font-weight: 700;
+      color: #ea580c;
+      margin: 0 0 20px 0;
+    }
+    .cover p.subtitle {
+      font-size: 10.5pt;
+      color: #64748b;
+      max-width: 680px;
+      margin: 0 auto 36px auto;
+      line-height: 1.6;
+    }
+    .cover-meta {
+      display: inline-grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      text-align: left;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 18px 26px;
+      font-size: 9.5pt;
+      max-width: 680px;
+      width: 100%;
+    }
+    .cover-meta strong {
+      color: #0f172a;
+    }
+
+    h2.section-header {
+      font-size: 14pt;
+      font-weight: 900;
+      color: #ffffff;
+      background: #0f172a;
+      padding: 8px 14px;
+      border-radius: 6px;
+      margin-top: 26px;
+      margin-bottom: 14px;
+      page-break-after: avoid;
+    }
+    h3.screen-header {
+      font-size: 12pt;
+      font-weight: 800;
+      color: #c2410c;
+      border-bottom: 2px solid #fdba74;
+      padding-bottom: 4px;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      page-break-after: avoid;
+    }
+    h4.sub-header {
+      font-size: 10.5pt;
+      font-weight: 800;
+      color: #1e293b;
+      margin-top: 12px;
+      margin-bottom: 6px;
+      page-break-after: avoid;
+    }
+    .purpose-box {
+      background: #fff7ed;
+      border-left: 4px solid #ea580c;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+      margin-bottom: 12px;
+    }
+    .info-callout {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      padding: 8px 12px;
+      border-radius: 4px;
+      font-size: 9.5pt;
+      margin-bottom: 12px;
+    }
+    ul {
+      margin: 4px 0 10px 18px;
+      padding: 0;
+    }
+    li {
+      margin-bottom: 5px;
+    }
+    li strong {
+      color: #0f172a;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-right: 4px;
+    }
+    .badge-green { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .badge-amber { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+    .badge-purple { background: #f3e8ff; color: #6b21a8; border: 1px solid #d8b4fe; }
+    .badge-orange { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
+    .badge-gray { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+    .badge-blue { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+    .badge-red { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+
+    table.ref-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8pt;
+      margin-top: 10px;
+      margin-bottom: 18px;
+      page-break-inside: auto;
+    }
+    table.ref-table tr {
+      page-break-inside: avoid;
+      page-break-after: auto;
+    }
+    table.ref-table th {
+      background: #0f172a;
+      color: #ffffff;
+      padding: 6px 6px;
+      text-align: left;
+      font-weight: 800;
+      border: 1px solid #334155;
+    }
+    table.ref-table td {
+      padding: 5px 6px;
+      border: 1px solid #cbd5e1;
+      vertical-align: top;
+      line-height: 1.35;
+    }
+    table.ref-table tr:nth-child(even) {
+      background-color: #f8fafc;
+    }
+
+    .diagram-box {
+      background: #0f172a;
+      color: #38bdf8;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 8pt;
+      line-height: 1.35;
+      white-space: pre;
+      overflow-x: auto;
+      margin: 10px 0;
+    }
+
+    .seq-box {
+      background: #f8fafc;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 8pt;
+      line-height: 1.35;
+      white-space: pre;
+      overflow-x: auto;
+      margin: 10px 0;
+      color: #1e293b;
+    }
+
+    .page-break {
+      page-break-before: always;
+    }
+
+    .button-item {
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      page-break-inside: avoid;
+    }
+    .button-title {
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 9.5pt;
+      margin-bottom: 4px;
+    }
+    .button-details {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 4px 12px;
+      font-size: 8.5pt;
+      color: #334155;
+    }
+    .button-details span strong {
+      color: #64748b;
+      font-size: 8pt;
+      text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- COVER PAGE -->
+  <div class="cover">
+    <div class="cover-banner">Thoogudeepa Donne Biryani Mane • Enterprise Suite</div>
+    <h1>COMPLETE CUSTOMER ENTERPRISE SYSTEM MANUAL & CROSS-ROLE ARCHITECTURE</h1>
+    <h2>Comprehensive Operational Flows, Button-by-Button Functionality, Multi-Guest Synchronization, and Cross-Portal Workflows</h2>
+    <p class="subtitle">
+      A definitive, end-to-end technical and operational specification document covering the diner smartphone experience, table QR code session binding, multi-chair ordering, shared billing, real-time KDS integration, Floor Waiter communications, and managerial POS sync.
+    </p>
+
+    <div class="cover-meta">
+      <div><strong>Repository:</strong> github.com/suhassuhas4120/thoogudeepa-enterprise-suite</div>
+      <div><strong>Active Branch:</strong> feature/customer-app</div>
+      <div><strong>Architecture:</strong> Next.js 15, TypeScript, Tailwind CSS, Zustand, TanStack Query</div>
+      <div><strong>Real-Time Sync:</strong> Supabase Realtime & BroadcastChannel('thoogudeepa_bridge_sync')</div>
+      <div><strong>Document ID:</strong> THOOGUDEEPA-CUST-2026-v2.4</div>
+      <div><strong>Release Date:</strong> October 2026</div>
+      <div><strong>System Scope:</strong> Screens 1 to 9 + Waiter, Kitchen, and POS Bridges</div>
+      <div><strong>Engineering Division:</strong> Nelja Restaurant Operating Systems</div>
+    </div>
+  </div>
+
+  <!-- EXECUTIVE ARCHITECTURE OVERVIEW -->
+  <h2 class="section-header">EXECUTIVE SYSTEM ARCHITECTURE & REAL-TIME HIGHWAY</h2>
+  
+  <div class="purpose-box">
+    The Thoogudeepa Customer QR System empowers seated diners to explore the authentic culinary heritage of Donne Biryani Mane, order with fine-grained tossing and spice customizations, monitor kitchen preparation milestones in real time, settle bills through flexible digital and cash tender options, and summon staff on demand. All actions operate on an ultra-low-latency real-time highway connecting mobile diners, Floor Waiters, Kitchen Display Systems (KDS), and Manager Consoles.
+  </div>
+
+  <div class="diagram-box">
+┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   CROSS-ROLE REAL-TIME HIGHWAY                                   │
+│                       BroadcastChannel('thoogudeepa_bridge_sync') & Supabase                      │
+├─────────────────────┬──────────────────────────┬──────────────────────────┬──────────────────────┤
+│ 1. CUSTOMER PORTAL  │  2. FLOOR WAITER TABLET  │  3. KITCHEN DISPLAY KDS  │  4. MANAGER CONSOLE  │
+│ (Screens 1 to 9)    │  (Screens 1 to 6 & Tab)  │  (4 Station Bump Bars)   │  (POS & Live Odometer)│
+└─────────────────────┴──────────────────────────┴──────────────────────────┴──────────────────────┘
+  </div>
+
+  <div class="info-callout">
+    <strong>Synchronized State Bus:</strong> Every client instance listens on <code>BroadcastChannel('thoogudeepa_bridge_sync')</code> and Supabase Realtime websocket subscriptions. Changes made on a customer's phone (such as firing an order, selecting a cash note, or requesting water) dispatch instantly to the Captain's tablet and Kitchen KDS bump bars without polling.
+  </div>
+
+  <!-- SECTION 1 -->
+  <div class="page-break"></div>
+  <h2 class="section-header">SECTION 1: Self-Customer Connections & Customer-to-Customer Flow (Screens 1 to 9)</h2>
+
+  <h3 class="screen-header">1.1 Table QR Scan Onboarding & Multi-Guest Architecture</h3>
+  
+  <p>
+    When guests arrive at Table <code>T-01</code> and scan the acrylic table stand QR code with their mobile phone cameras, the customer portal initiates an automated onboarding sequence:
+  </p>
+
+  <div class="seq-box">
+[Customer Scans Table Acrylic QR Stand]
+               │
+               ▼
+https://thoogudeepa-mane.surge.sh/?table=T-01&seat=1
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│ Customer Context Initializes:                               │
+│ • Reads URL parameters: Table = T-01, Seat = 1              │
+│ • Subscribes to BroadcastChannel('thoogudeepa_bridge_sync') │
+│ • Fetches live menu & out-of-stock (86) inventory           │
+│ • Opens Screen 1: Welcome & Connect                         │
+└─────────────────────────────────────────────────────────────┘
+  </div>
+
+  <h4 class="sub-header">Multi-Guest / Customer-to-Customer Table Collaboration:</h4>
+  <ul>
+    <li>
+      <strong>Seat Independence:</strong> Guest A scans the QR code, lands on Screen 1, and selects <strong>Chair C-01</strong>. Guest B scans the same QR stand, lands on Screen 1, and selects <strong>Chair C-02</strong>. Both guests have distinct seat coordinates in their browser state.
+    </li>
+    <li>
+      <strong>Order Collaboration & Pooled Bill:</strong> Both guests share the unified Table <code>T-01</code> order ledger. When Guest A adds Biryani and Guest B adds Chicken Ghee Roast, both items append to the shared table order without collision.
+    </li>
+    <li>
+      <strong>Bill Splitting Calculation (Screen 6):</strong> When proceeding to checkout, either guest can toggle the <strong>Split Bill</strong> feature. Selecting <code>2 Diners</code>, <code>3 Diners</code>, <code>4 Diners</code>, or <code>5 Diners</code> calculates the exact equal share:
+      <br>
+      <code>Per Person Amount = Math.ceil(Grand Total / Number of Diners)</code>
+      <br>
+      Each diner can verify their individual payable share while viewing the consolidated tax breakdown.
+    </li>
+  </ul>
+
+  <!-- SCREEN 1 -->
+  <h3 class="screen-header">SCREEN 1: Welcome & Table Connect (<code>Screen1Welcome.tsx</code>)</h3>
+  
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Authenticates the diner at the table, establishes physical chair assignment, displays restaurant heritage branding, and unlocks the menu via Wi-Fi or cellular network.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Restaurant Brand Header Card:</strong> Contains Donne Biryani Pot emblem with golden Royal Crown badge, dynamic time-aware greeting badge (<code>Good Morning</code> before 12 PM, <code>Good Afternoon</code> 12 PM–5 PM, <code>Good Evening</code> after 5 PM), establishment title <code>THOOGUDEEPA DONNE BIRIYANI MANE</code>, and heritage tagline <code>Authentic Military Donne Biryani</code>.</li>
+    <li><strong>Container 2: Scanned Table Information Card:</strong> Highlights Table Number (<code>T-01</code>), Chair Tag (<code>C-01</code>), and <code>Live QR Session</code> status badge.</li>
+    <li><strong>Container 3: Interactive Chair Selection Matrix Card:</strong> Houses the 4 dining chair buttons corresponding to physical seats at the table.</li>
+    <li><strong>Container 4: Network Authentication & Gateway Card:</strong> Houses the Wi-Fi and Cellular connect CTA buttons.</li>
+    <li><strong>Container 5: Footer Accreditation Badge:</strong> Displays <code>Powered by Nelja Restaurant Operating System</code>.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. Chair Selection Buttons (<code>C-01</code>, <code>C-02</code>, <code>C-03</code>, <code>C-04</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Chair Selection Matrix)</span>
+      <span><strong>Action:</strong> Selects active dining seat; updates URL query param <code>?seat=N</code> via <code>replaceState</code></span>
+      <span><strong>State Changed:</strong> <code>seatNumber = N</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 1 (highlights selected chair)</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. "Connect via 5G Wi-Fi" Button (Hero Orange Button)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Network Gateway Card)</span>
+      <span><strong>Action:</strong> Authenticates diner session with restaurant local network and unlocks digital menu</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 2</code>, <code>previousScreen = 1</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 2 (Authentic Menu)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. "Continue via Mobile Data" Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Network Gateway Card)</span>
+      <span><strong>Action:</strong> Unlocks digital menu using diner's cellular data connection</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 2</code>, <code>previousScreen = 1</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 2 (Authentic Menu)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 2 -->
+  <div class="page-break"></div>
+  <h3 class="screen-header">SCREEN 2: Authentic Menu & Discovery (<code>Screen2Menu.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Primary culinary catalogue. Provides live text search, dynamic category filtering, instant cart counters, 86-stockout locks, and quick-customization drawer triggers.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Navigation Header (<code>WireHeader</code>):</strong> Displays Table Tag (<code>T-01 • C-01</code>), Call Waiter Bell button, and quick Cart icon with red badge counter.</li>
+    <li><strong>Container 2: Live Search & Filter Bar:</strong> Search input box with search icon and clear (X) button.</li>
+    <li><strong>Container 3: Dynamic Category Tabs Scroller:</strong> Horizontally scrollable pill tabs derived dynamically from live menu data.</li>
+    <li><strong>Container 4: Menu Items Grid:</strong> Vertical list of dish cards with food photos, Veg/Non-Veg FSSAI badges, preparation modes, prices, and quantity controls.</li>
+    <li><strong>Container 5: Quick Customization Slide-Up Sheet (<code>ItemDrawer</code>):</strong> Bottom sheet modal for in-menu spice and toss selection.</li>
+    <li><strong>Container 6: Floating Bottom Cart Bar (Sticky Dock):</strong> Appears whenever <code>cart.length > 0</code>, displaying total item count and running bill total.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. Header Call Waiter Bell Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 1 (<code>WireHeader</code> Top Right)</span>
+      <span><strong>Action:</strong> Opens immediate assistance hub</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 9</code>, <code>previousScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 9 (Call Waiter)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. Header Cart Icon Button with Red Counter Badge</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 1 (<code>WireHeader</code> Top Right)</span>
+      <span><strong>Action:</strong> Opens cart review page</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 4</code>, <code>previousScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 4 (Cart Review)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. Search Clear Button (X icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 2 (Search Bar)</span>
+      <span><strong>Action:</strong> Resets search input query to empty string</span>
+      <span><strong>State Changed:</strong> <code>searchTerm = ""</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 2 (restores full dish catalog)</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">4. Category Filter Pills (<code>All</code>, <code>Rice & Bowls</code>, <code>Starters</code>, <code>Desserts</code>, <code>Chef Special</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Category Tabs)</span>
+      <span><strong>Action:</strong> Filters visible dishes to the clicked category</span>
+      <span><strong>State Changed:</strong> <code>selectedCategory = category</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 2</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">5. Dish Card Photo / Title Click</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Dish Card)</span>
+      <span><strong>Action:</strong> Opens deep item detail and recipe customization screen</span>
+      <span><strong>State Changed:</strong> <code>selectedDetailItem = item</code>, <code>currentScreen = 3</code>, <code>previousScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 3 (Item Customization)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">6. Quick Customize Sliders Button (Sliders / Gear icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Dish Card)</span>
+      <span><strong>Action:</strong> Opens quick customization slide-up bottom drawer without leaving the menu</span>
+      <span><strong>State Changed:</strong> <code>drawerOpen = true</code>, <code>drawerItem = item</code></span>
+      <span><strong>Destination:</strong> Opens <code>ItemDrawer</code> modal on Screen 2</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">7. <code>+ ADD</code> Button (Item not in cart, Qty = 0)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Dish Card Bottom Right)</span>
+      <span><strong>Action:</strong> Adds 1 unit of dish to cart; triggers tactile haptic feedback</span>
+      <span><strong>State Changed:</strong> Appends item to <code>cart</code>; Cart Item Count +1, Cart Total +Price</span>
+      <span><strong>Destination:</strong> Stays on Screen 2 (transforms into <code>[-] [1] [+]</code> stepper)</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">8. Minus Stepper Button (<code>-</code>, Qty > 0)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Dish Card Stepper)</span>
+      <span><strong>Action:</strong> Decrements item quantity by 1 (removes from cart if reaching 0)</span>
+      <span><strong>State Changed:</strong> Updates item quantity in <code>cart</code>; Cart Item Count -1, Cart Total -Price</span>
+      <span><strong>Destination:</strong> Stays on Screen 2</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">9. Plus Stepper Button (<code>+</code>, Qty > 0)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Dish Card Stepper)</span>
+      <span><strong>Action:</strong> Increments item quantity by 1</span>
+      <span><strong>State Changed:</strong> Updates item quantity in <code>cart</code>; Cart Item Count +1, Cart Total +Price</span>
+      <span><strong>Destination:</strong> Stays on Screen 2</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">10. Floating Bottom Cart Pill ("View Cart • ₹{totalCartAmount}")</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 6 (Floating Dock)</span>
+      <span><strong>Action:</strong> Advances to order review</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 4</code>, <code>previousScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 4 (Cart Review)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 3 -->
+  <div class="page-break"></div>
+  <h3 class="screen-header">SCREEN 3: Item Customization & Flavours (<code>Screen3ItemDetail.tsx</code> & <code>ItemDrawer.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Full culinary configuration view for a selected dish. Lets diners customize Donne Dum Toss style, select add-ons, adjust portions, and view chef spices.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Header (<code>WireHeader</code>):</strong> Displays dish category, dish name, and back button.</li>
+    <li><strong>Container 2: Dish Hero Banner Card:</strong> Large dish photograph, Veg/Non-Veg tag, description, and base price.</li>
+    <li><strong>Container 3: Donne Dum Toss Style / Flavours Card:</strong> Radio selection list for recipe tossing style.</li>
+    <li><strong>Container 4: Add-Ons & Extras Card:</strong> Multi-select checkbox options with extra price indicators.</li>
+    <li><strong>Container 5: Portion & Quantity Card:</strong> Quantity counter stepper with minus/plus buttons.</li>
+    <li><strong>Container 6: Sticky Bottom Action Bar (<code>StickyBottomBar</code>):</strong> Displays dynamic computed price and "Add to Cart" CTA.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. Header Back Button (Arrow Left icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 1 (<code>WireHeader</code>)</span>
+      <span><strong>Action:</strong> Returns to menu without committing unadded changes</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates back to <strong>Screen 2 (Menu)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. Flavour Radio Option Buttons</div>
+    <div class="button-details">
+      <span><strong>Options:</strong> <code>Authentic Donne Dum</code>, <code>Nati Style Masala Toss</code>, <code>Pepper Garlic Roast</code></span>
+      <span><strong>Action:</strong> Selects recipe style with round dot indicator</span>
+      <span><strong>State Changed:</strong> <code>selectedOption = choice</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 3</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. Add-On Checkbox Buttons</div>
+    <div class="button-details">
+      <span><strong>Options:</strong> <code>Extra Boiled Egg (+₹20)</code>, <code>Biryani Kushka Rice (+₹90)</code>, <code>Special Raita & Salna (+₹30)</code></span>
+      <span><strong>Action:</strong> Toggles add-on in <code>selectedAddOns</code></span>
+      <span><strong>Math:</strong> Dynamically updates <code>currentTotal</code> on CTA button (+₹20, +₹90, +₹30)</span>
+      <span><strong>Destination:</strong> Stays on Screen 3</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">4. Quantity Minus Button (<code>-</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 5 (Quantity Card)</span>
+      <span><strong>Action:</strong> Decrements quantity (minimum 1)</span>
+      <span><strong>Math:</strong> <code>quantity = Math.max(1, quantity - 1)</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 3</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">5. Quantity Plus Button (<code>+</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 5 (Quantity Card)</span>
+      <span><strong>Action:</strong> Increments quantity</span>
+      <span><strong>Math:</strong> <code>quantity = quantity + 1</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 3</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">6. Sticky Bottom CTA — "Add to Cart • ₹{currentTotal}"</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 6 (<code>StickyBottomBar</code>)</span>
+      <span><strong>Action:</strong> Commits configured dish with selected flavours and add-ons into master cart</span>
+      <span><strong>State Changed:</strong> Appends item to <code>cart</code>, <code>currentScreen = 4</code>, <code>previousScreen = 3</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 4 (Cart Review)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 4 -->
+  <div class="page-break"></div>
+  <h3 class="screen-header">SCREEN 4: Cart & Order Review (<code>Screen4Cart.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Order verification and dining dispatch hub. Review item list, modify portions, dispatch priority starters separately, or fire complete table order to kitchen.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Header (<code>WireHeader</code>):</strong> Displays table and chair coordinates, back button, and call waiter button.</li>
+    <li><strong>Container 2: Dine-In Context Banner:</strong> Shows Table <code>T-01</code>, Chair <code>C-01</code>, and total dishes selected.</li>
+    <li><strong>Container 3: Selected Dishes List:</strong> Individual item cards with names, quantities, line totals, and priority options.</li>
+    <li><strong>Container 4: Add More Dishes Action Container:</strong> Dashed outline button to browse more items.</li>
+    <li><strong>Container 5: Sticky Bottom Order Dispatch Bar (<code>StickyBottomBar</code>):</strong> Houses the master "Send Order to Kitchen" hero CTA button.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. Header Back Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 1 (<code>WireHeader</code>)</span>
+      <span><strong>Action:</strong> Returns to menu</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 2 (Menu)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. Item Quantity Stepper (<code>-</code> and <code>+</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Dish Card)</span>
+      <span><strong>Action:</strong> Modifies item quantity directly in cart</span>
+      <span><strong>Math:</strong> Updates cart totals and counts in real time</span>
+      <span><strong>Destination:</strong> Stays on Screen 4</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. Remove Item Button (Trash icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Dish Card)</span>
+      <span><strong>Action:</strong> Removes dish completely from cart</span>
+      <span><strong>State Changed:</strong> Filters item out of <code>cart</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 4</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">4. "Order Separately" Priority Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Dish Card)</span>
+      <span><strong>Action:</strong> Flags starter dish to be fired independently to kitchen ahead of main biryani courses</span>
+      <span><strong>State Changed:</strong> Creates separate tracking entry with status <code>Sent to Kitchen Separately</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 4</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">5. "Add More Dishes from Menu" Button (Dashed outline)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4</span>
+      <span><strong>Action:</strong> Returns to menu to pick more items</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 2 (Menu)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">6. Sticky Bottom CTA — "Send Order to Kitchen"</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 5 (<code>StickyBottomBar</code>)</span>
+      <span><strong>Action:</strong> Dispatches KOT tickets to Supabase, emits KDS broadcast, updates Waiter console table to OCCUPIED, marks items <code>isOrdered = true</code></span>
+      <span><strong>State Changed:</strong> <code>orderStage = 'PLACED'</code>, <code>currentScreen = 5</code>, <code>previousScreen = 4</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 5 (Live Tracking)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 5 -->
+  <div class="page-break"></div>
+  <h3 class="screen-header">SCREEN 5: Live Order Tracking (<code>Screen5LiveTracking.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Live culinary tracking pipeline synchronized directly with Kitchen Display System (KDS) bump bar.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Header (<code>WireHeader</code>):</strong> Displays Table <code>T-01 • C-01</code> badge and Call Waiter button.</li>
+    <li><strong>Container 2: 4-Stage Overall Progress Stepper Banner:</strong> Progress bar tracking stages: <code>Received (0%)</code> ➔ <code>Preparing (33%)</code> ➔ <code>Ready (66%)</code> ➔ <code>Collected (100%)</code>.</li>
+    <li><strong>Container 3: Individual Item Status Cards:</strong> Displays each ordered dish with cooking stage badge (<code>Received</code>, <code>Preparing</code>, <code>Ready</code>, <code>Collected</code>).</li>
+    <li><strong>Container 4: Add More Dishes to Same Bill Container:</strong> Button to add more items during meal without opening a new bill.</li>
+    <li><strong>Container 5: Sticky Bottom Payment CTA Bar (<code>StickyBottomBar</code>):</strong> Houses "Proceed to Payment" button.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. "Mark as Collected" Button (Appears when dish is Ready)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Dish Card)</span>
+      <span><strong>Action:</strong> Confirms Floor Captain has delivered the dish to table</span>
+      <span><strong>State Changed:</strong> Sets item stage to <code>COLLECTED</code> (100% progress)</span>
+      <span><strong>Destination:</strong> Stays on Screen 5</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. "Add More Dishes to Same Bill" Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4</span>
+      <span><strong>Action:</strong> Returns to menu to add extra dishes to the same bill</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 2</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 2 (Menu)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. Sticky Bottom CTA — "Proceed to Payment"</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 5 (<code>StickyBottomBar</code>)</span>
+      <span><strong>Action:</strong> Advances diner to bill summary</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 6</code>, <code>previousScreen = 5</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 6 (Order Summary & Bill)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 6 -->
+  <h3 class="screen-header">SCREEN 6: Order Summary & Bill Breakdown (<code>Screen6PaymentBreakdown.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Pre-payment tax breakdown, staff gratuity selection, and multi-diner bill splitting.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Header (<code>WireHeader</code>):</strong> Displays back button returning to live tracking, Table <code>T-01 • C-01</code>, and Call Waiter button.</li>
+    <li><strong>Container 2: Itemized Bill Breakdown Card:</strong> List of dishes with quantities and prices.</li>
+    <li><strong>Container 3: Statutory Tax & Charges Card:</strong> Subtotal, 5% GST (2.5% CGST + 2.5% SGST), and Loyalty Rewards discount.</li>
+    <li><strong>Container 4: Staff Tip Gratuity Card:</strong> Preset tip buttons and custom input.</li>
+    <li><strong>Container 5: Split Bill Calculator Card:</strong> Toggle switch and diner count selector (2 to 5 diners).</li>
+    <li><strong>Container 6: Sticky Bottom Proceed to Payment Bar (<code>StickyBottomBar</code>):</strong> Displays grand total and navigation button.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. Header Back Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 1 (<code>WireHeader</code>)</span>
+      <span><strong>Action:</strong> Returns to live tracking</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 5</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 5 (Live Tracking)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. Tip Preset Buttons (<code>₹30</code>, <code>₹50</code>, <code>₹100</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Staff Tip Card)</span>
+      <span><strong>Action:</strong> Sets staff tip amount and recalculates grand total</span>
+      <span><strong>State Changed:</strong> <code>payment.tipAmount = N</code></span>
+      <span><strong>Math:</strong> Grand Total = Subtotal + Tax + N - Discount</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. Custom Tip Input Field</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Staff Tip Card)</span>
+      <span><strong>Action:</strong> Allows diner to type any custom tip amount</span>
+      <span><strong>State Changed:</strong> Updates <code>payment.tipAmount</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 6</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">4. "Enable Split" Toggle Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 5 (Split Bill Card)</span>
+      <span><strong>Action:</strong> Toggles multi-diner bill calculator</span>
+      <span><strong>State Changed:</strong> <code>isSplitEnabled = true | false</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 6</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">5. Split Diners Selector Buttons (<code>2</code>, <code>3</code>, <code>4</code>, <code>5 Diners</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 5 (Split Bill Card)</span>
+      <span><strong>Action:</strong> Sets number of diners sharing bill</span>
+      <span><strong>State Changed:</strong> <code>splitPersons = N</code></span>
+      <span><strong>Math:</strong> Recalculates <code>perPersonAmount = Math.ceil(Grand Total / N)</code></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">6. Sticky Bottom CTA — "Proceed to Payment (₹{grandTotal})"</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 6 (<code>StickyBottomBar</code>)</span>
+      <span><strong>Action:</strong> Commits bill breakdown and advances to payment gateway</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 7</code>, <code>previousScreen = 6</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 7 (Payment Options)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 7 -->
+  <div class="page-break"></div>
+  <h3 class="screen-header">SCREEN 7: Payment Options & Gateway (<code>Screen7PaymentGateway.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Multi-channel payment hub. Supports UPI (Instant dynamic QR & 1-tap app links), Cash (Smart tender notes with return balance calculation), and Card POS terminal request.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Header (<code>WireHeader</code>):</strong> Displays back button returning to bill, Table tag, and Call Waiter button.</li>
+    <li><strong>Container 2: Bill Amount Hero Banner:</strong> Displays grand total payable (<code>₹1,239</code>).</li>
+    <li><strong>Container 3: Payment Method Tabs Row:</strong> Three single-icon, single-word tabs: <code>UPI</code>, <code>Cash</code>, <code>Card</code>.</li>
+    <li><strong>Container 4: UPI Mode Content:</strong> Dynamic NPCI QR Code card + 1-Tap UPI app launch grid.</li>
+    <li><strong>Container 5: Cash Mode Content (Smart Cash Tender):</strong> Dynamic currency note pills (<code>Exact (₹1239)</code>, <code>₹1250</code>, <code>₹1300</code>, <code>₹2000</code>), Tender Collection summary card displaying exact return balance, and Floor Captain arrival notice highlighting the return amount.</li>
+    <li><strong>Container 6: Card Mode Content:</strong> Wireless POS machine instructions card.</li>
+    <li><strong>Container 7: Sticky Bottom Action Bar (<code>StickyBottomBar</code>):</strong> Houses the dynamic single-action payment confirmation button.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. Header Back Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 1 (<code>WireHeader</code>)</span>
+      <span><strong>Action:</strong> Returns to bill breakdown</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 6</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 6 (Bill Breakdown)</strong></span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. Payment Tabs (<code>UPI</code>, <code>Cash</code>, <code>Card</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Payment Method Tabs)</span>
+      <span><strong>Action:</strong> Switches active payment mode</span>
+      <span><strong>State Changed:</strong> <code>activeTab = 'UPI' | 'CASH' | 'CARD'</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 7</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. UPI 1-Tap App Buttons (<code>Google Pay</code>, <code>PhonePe</code>, <code>Paytm</code>, <code>Other UPI</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (UPI Mode)</span>
+      <span><strong>Action:</strong> On mobile, directly launches the native UPI app with pre-filled amount via deep links (<code>gpay://upi/pay?...</code>)</span>
+      <span><strong>State Changed:</strong> Sets <code>selectedApp</code></span>
+      <span><strong>Destination:</strong> Opens native UPI application</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">4. Smart Cash Tender Note Pills (<code>Exact (₹1239)</code>, <code>₹1250</code>, <code>₹1300</code>, <code>₹2000</code>)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 5 (Cash Mode)</span>
+      <span><strong>Action:</strong> Selects currency note for cash settlement</span>
+      <span><strong>Math:</strong> Calculates return balance: <code>Return = Amount - GrandTotal</code> (e.g. 1250 - 1239 = ₹11)</span>
+      <span><strong>Display Update:</strong> Highlights return amount in Tender Collection card and Floor Captain arrival alert (<code>₹11 RETURN</code>)</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">5. Sticky Bottom CTA — "Confirm Payment"</div>
+    <div class="button-details">
+      <span><strong>Dynamic Label:</strong> UPI: <code>Pay ₹1239 via UPI</code> | Cash (Exact): <code>Confirm Cash (Exact ₹1239)</code> | Cash (Change): <code>Confirm Cash ₹1250 (Return ₹11)</code> | Card: <code>Request Card Machine (₹1239)</code></span>
+      <span><strong>Action:</strong> Sets <code>isProcessing = true</code>; calls <code>waiterRecordsPayment()</code>; advances after 700ms verification</span>
+      <span><strong>State Changed:</strong> <code>payment.paymentMethod = activeTab</code>, <code>currentScreen = 8</code></span>
+      <span><strong>Destination:</strong> Navigates to <strong>Screen 8 (Confirmed & Digital Tax Bill)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 8 -->
+  <div class="page-break"></div>
+  <h3 class="screen-header">SCREEN 8: Confirmed & Digital Tax Invoice (<code>Screen8Confirmation.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Official post-settlement confirmation. Features 12-digit bank UTR proof, Floor Captain console acknowledgement (<code>Captain Suresh</code>), 3-row structured tax receipt, PDF/WhatsApp dispatch, interactive star rating, and session reset.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Header (<code>WireHeader</code>):</strong> Displays <code>Payment Confirmed</code> + Table Tag (<code>T-01 • C-01</code>).</li>
+    <li><strong>Container 2: Hero Success Card:</strong> Green Checkmark icon, large hero amount <code>Amount Paid: ₹1,239</code>, 12-digit Bank UTR box (<code>BANK UTR: 4281...</code>), and Floor Captain console acknowledgement badge.</li>
+    <li><strong>Container 3: Official Digital Tax Invoice (Receipt):</strong> Header with GSTIN, FSSAI, Tax Invoice Number; 3-row balanced metadata grid (Guaranteed non-wrapping timestamps); itemized dishes list with quantities and line totals; statutory 5% GST breakdown and total paid; Floor Captain hospitality sign-off note.</li>
+    <li><strong>Container 4: Dispatch Action Buttons Grid:</strong> Download PDF Bill and Share on WhatsApp buttons.</li>
+    <li><strong>Container 5: Interactive Experience Rating Card:</strong> 5 interactive star buttons + centered feedback acknowledgement pill below.</li>
+    <li><strong>Container 6: Sticky Bottom Reset Bar (<code>StickyBottomBar</code>):</strong> Houses "Start New Order / Dine Again" CTA.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. "Download PDF Bill" Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Dispatch Grid)</span>
+      <span><strong>Action:</strong> Generates offline receipt; button text updates to <code>Downloaded!</code></span>
+      <span><strong>State Changed:</strong> <code>downloadMsg = true</code> (auto-resets after 2.2s)</span>
+      <span><strong>Destination:</strong> Stays on Screen 8</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. "Share on WhatsApp" Button</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Dispatch Grid)</span>
+      <span><strong>Action:</strong> Sends digital receipt link via WhatsApp; button text updates to <code>Sent on WhatsApp!</code></span>
+      <span><strong>State Changed:</strong> <code>shareMsg = true</code> (auto-resets after 2.2s)</span>
+      <span><strong>Destination:</strong> Stays on Screen 8</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. Interactive Star Rating Buttons (Stars 1 to 5)</div>
+    <div class="button-details">
+      <span><strong>Default State:</strong> All 5 stars start <strong>empty</strong> (<code>fill-none text-slate-300</code>); subtitle shows <code>Tap stars to rate</code></span>
+      <span><strong>Action on Click:</strong> Fills stars up to chosen rating with gold amber (<code>fill-amber-400</code>); updates subtitle to <code>{rating} / 5 Stars</code>; slides in centered confirmation badge below: <code>[ (✓) Thank you for your feedback! ]</code></span>
+      <span><strong>State Changed:</strong> <code>rating = star</code>, <code>feedbackSubmitted = true</code></span>
+      <span><strong>Destination:</strong> Stays on Screen 8</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">4. Sticky Bottom CTA — "Start New Order / Dine Again"</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 6 (<code>StickyBottomBar</code>)</span>
+      <span><strong>Action:</strong> Calls <code>resetSession()</code>, clears cart, resets table coordinates</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = 1</code></span>
+      <span><strong>Destination:</strong> Returns to <strong>Screen 1 (Welcome)</strong></span>
+    </div>
+  </div>
+
+  <!-- SCREEN 9 -->
+  <h3 class="screen-header">SCREEN 9: Call Waiter Assistance Hub (<code>Screen10WaiterCall.tsx</code>)</h3>
+
+  <div class="purpose-box">
+    <strong>Purpose:</strong> Rapid assistance summon console accessible from the bell icon on every screen.
+  </div>
+
+  <h4 class="sub-header">Containers & Elements:</h4>
+  <ul>
+    <li><strong>Container 1: Top Header (<code>WireHeader</code>):</strong> Displays <code>Call Waiter</code> + Table Tag (<code>T-01 • C-01</code>) and Back button.</li>
+    <li><strong>Container 2: Active Ping Status Banner:</strong> Animated pulsing notification showing captain summoned status.</li>
+    <li><strong>Container 3: Rapid Assistance Service Grid:</strong> 4 large service buttons with colorful icons.</li>
+    <li><strong>Container 4: Custom Message Input & Send Container:</strong> Free-text input field and send button.</li>
+  </ul>
+
+  <h4 class="sub-header">Clickable Buttons & Interactive Controls:</h4>
+
+  <div class="button-item">
+    <div class="button-title">1. Header Back Button (Arrow Left icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 1 (<code>WireHeader</code>)</span>
+      <span><strong>Action:</strong> Returns diner to their previous active screen (<code>previousScreen || 2</code>)</span>
+      <span><strong>State Changed:</strong> <code>currentScreen = previousScreen</code></span>
+      <span><strong>Destination:</strong> Navigates back to previous screen</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">2. "Drinking Water" Button (Droplets icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Service Grid)</span>
+      <span><strong>Action:</strong> Calls <code>pingWaiter('WATER')</code>; emits chime and orange banner on waiter devices</span>
+      <span><strong>State Changed:</strong> Adds active water ping</span>
+      <span><strong>Destination:</strong> Stays on Screen 9</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">3. "Extra Tissues" Button (Scroll icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Service Grid)</span>
+      <span><strong>Action:</strong> Calls <code>pingWaiter('TISSUE')</code></span>
+      <span><strong>State Changed:</strong> Adds active tissue ping</span>
+      <span><strong>Destination:</strong> Stays on Screen 9</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">4. "Cutlery & Salad" Button (Utensils icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Service Grid)</span>
+      <span><strong>Action:</strong> Calls <code>pingWaiter('CUTLERY')</code></span>
+      <span><strong>State Changed:</strong> Adds active cutlery ping</span>
+      <span><strong>Destination:</strong> Stays on Screen 9</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">5. "Table Cleaning" Button (Sparkles icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 3 (Service Grid)</span>
+      <span><strong>Action:</strong> Calls <code>pingWaiter('TABLE CLEAN')</code></span>
+      <span><strong>State Changed:</strong> Adds active cleaning ping</span>
+      <span><strong>Destination:</strong> Stays on Screen 9</span>
+    </div>
+  </div>
+
+  <div class="button-item">
+    <div class="button-title">6. Custom Message Send Button (Send icon)</div>
+    <div class="button-details">
+      <span><strong>Location:</strong> Container 4 (Custom Message)</span>
+      <span><strong>Action:</strong> Dispatches custom text request via <code>pingWaiter('GENERAL CALL', text)</code></span>
+      <span><strong>State Changed:</strong> Sends text payload to Floor Captain</span>
+      <span><strong>Destination:</strong> Stays on Screen 9</span>
+    </div>
+  </div>
+
+  <!-- PERSISTENT COMPONENTS -->
+  <h3 class="screen-header">PERSISTENT GLOBAL COMPONENTS</h3>
+  <ul>
+    <li>
+      <strong>WireHeader (<code>WireHeader.tsx</code>):</strong> Fixed top app bar present on Screens 2 through 8. Renders Table Tag (<code>T-01 • C-01</code>), Screen Title, Back Button (when applicable), Call Waiter bell trigger (Screen 9), and Cart button with badge counter.
+    </li>
+    <li>
+      <strong>StickyBottomBar (<code>StickyBottomBar.tsx</code>):</strong> Fixed bottom CTA dock. Provides single-action flow lock with tactile spring animations, safe-area inset padding for edge-to-edge mobile screens, and contextual total price displays.
+    </li>
+  </ul>
+
+  <!-- SECTION 2 -->
+  <div class="page-break"></div>
+  <h2 class="section-header">SECTION 2: Customer to Waiter Connections</h2>
+
+  <div class="purpose-box">
+    Documents every touchpoint where a diner action triggers real-time sound chimes, banner alerts, status mutations, or order additions on the Floor Waiter's tablet or mobile phone.
+  </div>
+
+  <div class="seq-box">
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                          CUSTOMER TO WAITER WORKFLOW PIPELINE                               │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+  (Customer Smartphone)                                       (Floor Captain Tablet)
+           │                                                            │
+           ├─── [1. QR Scan & Seat Select] ────────────────────────────▶│ Table T-01: Seated (00:00)
+           │                                                            │
+           ├─── [2. Assistance Ping: Water] ───────────────────────────▶│ Triple-Tone Chime & Banner:
+           │                                                            │ "Table T-01: Water Refill"
+           │                                                            │
+           ├─── [3. Send Order to Kitchen] ────────────────────────────▶│ KOT Count +1; Dishes appear
+           │                                                            │ in Table Hub Screen 3
+           │                                                            │
+           ├─── [4. Cash Tender ₹1250 Selected] ───────────────────────▶│ "Collect ₹1250 • Return ₹11"
+           │                                                            │ Prepares bill folder
+           │                                                            │
+           └─── [5. Card Mode Selected] ───────────────────────────────▶│ "Bring Wireless POS to T-01"
+  </div>
+
+  <h4 class="sub-header">Detailed Customer-to-Waiter Button Actions:</h4>
+  <ol>
+    <li>
+      <strong>QR Scan & Chair Select (Screen 1):</strong>
+      <br>Sets Table <code>T-01</code> to active. The Floor Captain tablet displays table occupancy and starts the seated dining timer from <code>00:00</code>.
+    </li>
+    <li>
+      <strong>Four Assistance Pings & Custom Text (Screen 9):</strong>
+      <br>Emits a real-time event via <code>BroadcastChannel('thoogudeepa_bridge_sync')</code>. The waiter phone buzzes with a distinct triple-tone sound. A high-priority orange banner drops down on the waiter screen: <code>"Guest Call • Table T-01: Drinking Water Refill"</code>.
+    </li>
+    <li>
+      <strong>Send Order to Kitchen (Screen 4):</strong>
+      <br>Increments running bill on waiter's console. Dishes populate in waiter's <strong>Table Hub (Screen 3)</strong> with <code>Received</code> or <code>Preparing</code> badges.
+    </li>
+    <li>
+      <strong>Cash Tender Selection (Screen 7):</strong>
+      <br>Notifies Floor Captain console of the exact cash note selected (<code>₹1,250</code>) and the exact balance to return (<code>₹11</code>). The Floor Captain prepares the printed bill folder and cash change before walking to the table.
+    </li>
+    <li>
+      <strong>Request Card Machine (Screen 7):</strong>
+      <br>Sends notification to Floor Captain to bring the portable wireless POS terminal to Table <code>T-01</code>.
+    </li>
+  </ol>
+
+  <!-- SECTION 3 -->
+  <div class="page-break"></div>
+  <h2 class="section-header">SECTION 3: Waiter to Customer Connections</h2>
+
+  <div class="purpose-box">
+    Documents how Floor Waiter terminal operations communicate back to the diner's mobile screen in real time.
+  </div>
+
+  <div class="seq-box">
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                          WAITER TO CUSTOMER WORKFLOW PIPELINE                               │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+  (Floor Captain Tablet)                                      (Customer Smartphone)
+           │                                                            │
+           ├─── [1. Taps "Attended" on Call] ──────────────────────────▶│ Banner: "Captain Suresh
+           │                                                            │ attended your request"
+           │                                                            │
+           ├─── [2. Taps "SERVE" on Ready Dish] ───────────────────────▶│ Dish Stage advances from
+           │                                                            │ "Ready" to "Collected / Served"
+           │                                                            │
+           ├─── [3. Acknowledges Settlement in POS] ───────────────────▶│ Unlocks Screen 8 Tax Bill:
+           │                                                            │ "Attended by Captain Suresh"
+           │                                                            │
+           └─── [4. Merges Tables (T-01 + T-02)] ──────────────────────▶│ Customer Header:
+                                                                        │ "T-01 + T-02 (Merged)"
+  </div>
+
+  <h4 class="sub-header">Detailed Waiter-to-Customer Updates:</h4>
+  <ol>
+    <li>
+      <strong>Waiter Taps "Attended" on Assistance Ping:</strong>
+      <br>The pending call is cleared on the waiter terminal. The customer's Screen 9 status banner updates to: <code>"Captain Suresh attended your request. Thank you!"</code>.
+    </li>
+    <li>
+      <strong>Waiter Taps "SERVE" on Ready Dishes:</strong>
+      <br>When dishes are placed on the dining table, the captain taps <code>SERVE</code>. On the customer's Screen 5, the dish progress bar reaches 100%, and the status badge transitions from <code>Ready</code> to <code>Collected / Served</code>.
+    </li>
+    <li>
+      <strong>Waiter Records Payment in POS:</strong>
+      <br>The captain confirms receipt of cash or card authorization. Customer Screen 8 unlocks the official Digital Tax Invoice with the verified badge: <code>Attended by Captain Suresh • Console Acknowledged • Seat Released</code>.
+    </li>
+    <li>
+      <strong>Waiter Merges Tables (T-01 + T-02):</strong>
+      <br>If two parties decide to sit together, the captain merges tables on the tablet. On the customer's smartphone, the header tag updates to <code>T-01 + T-02 (Merged)</code>, and the combined dishes reflect on the shared bill.
+    </li>
+  </ol>
+
+  <!-- SECTION 4 -->
+  <h2 class="section-header">SECTION 4: Customer to Kitchen Connections</h2>
+
+  <div class="purpose-box">
+    Documents how orders placed on the diner's mobile phone are automatically sorted, partitioned, and routed to four dedicated kitchen stations.
+  </div>
+
+  <div class="diagram-box">
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                          AUTOMATED 4-STATION ROUTING ENGINE                                 │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+  [Customer Screen 4] ──▶ "Send Order to Kitchen" ──▶ Ticket: KDS-T01-104
+                                │
+        ┌───────────────────────┼───────────────────────┬───────────────────────┐
+        ▼                       ▼                       ▼                       ▼
+  ┌───────────┐           ┌───────────┐           ┌───────────┐           ┌───────────┐
+  │ Station 1 │           │ Station 2 │           │ Station 3 │           │ Station 4 │
+  │ Dum       │           │ Tandoor & │           │ Curry &   │           │ Beverages │
+  │ Biryani   │           │ Starters  │           │ Breads    │           │ & Dessert │
+  └───────────┘           └───────────┘           └───────────┘           └───────────┘
+   • Donne Mutton          • Chicken Ghee          • Mutton Gravy          • Elaneer Payasam
+     Biryani                 Roast                   Curry                 • Fresh Lime Soda
+   • Chicken Dum           • Mutton Nalli          • Roti / Parotta
+     Biryani                 Fry
+  </div>
+
+  <h4 class="sub-header">Detailed Customer-to-Kitchen Process:</h4>
+  <ol>
+    <li>
+      <strong>Firing Order via <code>placeAllOrders()</code> (Screen 4):</strong> Packages item names, quantities, portion choices, and recipe preferences. Generates sequential ticket ID: <code>KDS-T01-104</code>. Dispatches payload instantly across <code>BroadcastChannel('thoogudeepa_bridge_sync')</code>.
+    </li>
+    <li>
+      <strong>Priority Starter Firing ("Order Separately"):</strong> If a customer taps "Order Separately" on a starter (e.g. Pepper Chicken), the ticket is routed with a high-priority flag so the starter chef prepares it immediately while main biryanis simmer.
+    </li>
+    <li>
+      <strong>Culinary Modifiers & Chef Notes:</strong> Donne Dum Toss Style (<code>Nati Style Masala Toss</code>) and Add-ons (<code>Extra Boiled Egg</code>) print directly onto the station KDS screen so chefs prepare the exact customized recipe.
+    </li>
+  </ol>
+
+  <!-- SECTION 5 -->
+  <div class="page-break"></div>
+  <h2 class="section-header">SECTION 5: Kitchen to Customer Updates</h2>
+
+  <div class="purpose-box">
+    Documents the 4-stage cooking pipeline progression and out-of-stock (86) inventory lockouts.
+  </div>
+
+  <h3 class="screen-header">5.1 The 4-Stage Bump Bar Progression:</h3>
+
+  <div class="seq-box">
+┌─────────────────────────────────────────────────────────────────────────────────────────────┐
+│                       4-STAGE KITCHEN BUMP BAR PROGRESSION                                  │
+└─────────────────────────────────────────────────────────────────────────────────────────────┘
+  Stage 1: REC (Received)      ──▶ 0% Progress   (Gray clock icon on Customer Screen 5)
+  Stage 2: PREP (Preparing)    ──▶ 33% Progress  (Amber flame icon on Customer Screen 5)
+  Stage 3: READY (Plated)      ──▶ 66% Progress  (Green pulsing badge; "Mark as Collected" unlocks)
+  Stage 4: SERVED (Collected)  ──▶ 100% Progress (Checkmark badge; Dish completed)
+  </div>
+
+  <ol>
+    <li>
+      <strong>Stage 1 — Received (<code>REC</code>):</strong> The ticket lands on the chef's KDS screen. On the customer's phone (Screen 5), the item displays a gray clock icon with status <code>Received</code> (0% progress).
+    </li>
+    <li>
+      <strong>Stage 2 — Preparing (<code>PREP</code>):</strong> The chef begins cooking and taps <code>PREP</code>. The customer's item card turns amber with a flame icon and status <code>Preparing</code> (33% progress).
+    </li>
+    <li>
+      <strong>Stage 3 — Ready / Plated (<code>READY</code>):</strong> The chef garnishes the dish and taps the green <code>READY</code> button on the KDS. The customer's Screen 5 card pulses with a vibrant emerald badge <code>Ready</code> (66% progress), and the tactile <strong>"Mark as Collected"</strong> button unlocks.
+    </li>
+    <li>
+      <strong>Stage 4 — Served / Collected (<code>COLLECTED</code>):</strong> Either the Floor Captain taps <code>SERVE</code> or the customer taps <code>Mark as Collected</code>. The item status updates to <code>Collected / Served</code> (100% progress).
+    </li>
+  </ol>
+
+  <h3 class="screen-header">5.2 Kitchen 86 (Sold-Out / Out of Stock) Instant Lockout:</h3>
+  <p>When the head chef runs out of an ingredient (e.g. <em>Mutton Nalli Fry</em> at 02:15 PM):</p>
+  <ul>
+    <li>
+      <strong>Chef Taps 86 Toggle:</strong> On the kitchen tablet (<code>/kitchen</code>), the chef taps the <code>86 / Sold Out</code> toggle next to that dish.
+    </li>
+    <li>
+      <strong>Instant Broadcast:</strong> The event is broadcast across <code>BroadcastChannel('thoogudeepa_bridge_sync')</code> with payload <code>{ id: 'item-3', is86: true }</code>.
+    </li>
+    <li>
+      <strong>Immediate Lockout on Customer Phone:</strong>
+      <br>• <strong>On Screen 2 (Menu):</strong> The dish card instantly dims into a disabled state with a bold red badge <code>86 - Sold Out</code>. The <code>+ ADD</code> button is disabled and locked to prevent touches.
+      <br>• <strong>On Screen 3 (Item Detail):</strong> The "Add to Cart" button is disabled and grayed out with a Ban icon.
+    </li>
+    <li>
+      <strong>Restoration:</strong> As soon as a fresh batch is prepared, the chef untoggles 86 on the KDS, and the dish instantly unlocks across all customer devices.
+    </li>
+  </ul>
+
+  <!-- SECTION 6 -->
+  <div class="page-break"></div>
+  <h2 class="section-header">SECTION 6: Master Button-by-Button Comprehensive Reference Matrix</h2>
+
+  <div class="purpose-box">
+    Exhaustive dictionary of every single clickable control, button, stepper, and toggle across all 9 screens in the customer portal.
+  </div>
+
+  <table class="ref-table">
+    <thead>
+      <tr>
+        <th style="width: 18%;">Button Name / Label</th>
+        <th style="width: 14%;">Screen & Location</th>
+        <th style="width: 26%;">Action When Pressed</th>
+        <th style="width: 14%;">State Variable Changed</th>
+        <th style="width: 14%;">Mathematical / Counter Updates</th>
+        <th style="width: 14%;">Next Navigation Destination</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Chair Button (C-01 to C-04)</strong></td>
+        <td>Screen 1 (Grid)</td>
+        <td>Selects specific dining seat at scanned table</td>
+        <td><code>seatNumber = N</code></td>
+        <td>N/A</td>
+        <td>Stays on Screen 1</td>
+      </tr>
+      <tr>
+        <td><strong>Connect 5G Wi-Fi</strong></td>
+        <td>Screen 1 (Hero CTA)</td>
+        <td>Authenticates session via local restaurant Wi-Fi</td>
+        <td><code>currentScreen = 2</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 2</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Continue Mobile Data</strong></td>
+        <td>Screen 1 (Secondary)</td>
+        <td>Enters menu using cellular connection</td>
+        <td><code>currentScreen = 2</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 2</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Search Clear (X icon)</strong></td>
+        <td>Screen 2 (Search Bar)</td>
+        <td>Clears active dish search input text</td>
+        <td><code>searchTerm = ""</code></td>
+        <td>Restores full dish list</td>
+        <td>Stays on Screen 2</td>
+      </tr>
+      <tr>
+        <td><strong>Category Filter Pill</strong></td>
+        <td>Screen 2 (Tabs)</td>
+        <td>Filters menu dishes by culinary category</td>
+        <td><code>selectedCategory = cat</code></td>
+        <td>Updates visible cards</td>
+        <td>Stays on Screen 2</td>
+      </tr>
+      <tr>
+        <td><strong>Dish Card Photo / Title</strong></td>
+        <td>Screen 2 (Menu Grid)</td>
+        <td>Opens full detail page for that dish</td>
+        <td><code>selectedDetailItem = item</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 3</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Sliders Customizer (Opt)</strong></td>
+        <td>Screen 2 (Dish Card)</td>
+        <td>Opens quick customization slide-up sheet</td>
+        <td><code>drawerOpen = true</code></td>
+        <td>N/A</td>
+        <td>Opens ItemDrawer on Screen 2</td>
+      </tr>
+      <tr>
+        <td><strong>+ ADD Button (Qty = 0)</strong></td>
+        <td>Screen 2 (Dish Card)</td>
+        <td>Adds 1 quantity of dish to cart</td>
+        <td>Appends item to <code>cart</code></td>
+        <td>Cart count +1, Total +Price</td>
+        <td>Stays on Screen 2</td>
+      </tr>
+      <tr>
+        <td><strong>Minus Stepper (Qty > 0)</strong></td>
+        <td>Screen 2 (Dish Card)</td>
+        <td>Decreases dish quantity in cart</td>
+        <td>Modifies item in <code>cart</code></td>
+        <td>Cart count -1, Total -Price</td>
+        <td>Stays on Screen 2</td>
+      </tr>
+      <tr>
+        <td><strong>Plus Stepper (Qty > 0)</strong></td>
+        <td>Screen 2 (Dish Card)</td>
+        <td>Increases dish quantity in cart</td>
+        <td>Modifies item in <code>cart</code></td>
+        <td>Cart count +1, Total +Price</td>
+        <td>Stays on Screen 2</td>
+      </tr>
+      <tr>
+        <td><strong>Floating View Cart Bar</strong></td>
+        <td>Screen 2 (Bottom Dock)</td>
+        <td>Opens order cart review</td>
+        <td><code>currentScreen = 4</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 4</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Back Button (Arrow Left)</strong></td>
+        <td>Screen 3 (Header)</td>
+        <td>Returns to menu without adding dish</td>
+        <td><code>currentScreen = 2</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 2</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Flavour Radio Option</strong></td>
+        <td>Screen 3 (Body)</td>
+        <td>Selects Donne Dum style / flavour</td>
+        <td><code>selectedOption = choice</code></td>
+        <td>N/A</td>
+        <td>Stays on Screen 3</td>
+      </tr>
+      <tr>
+        <td><strong>Add-On Checkbox</strong></td>
+        <td>Screen 3 (Body)</td>
+        <td>Toggles optional egg/kushka/salna</td>
+        <td>Toggles in <code>selectedAddOns</code></td>
+        <td>Updates <code>currentTotal</code></td>
+        <td>Stays on Screen 3</td>
+      </tr>
+      <tr>
+        <td><strong>Add to Cart CTA</strong></td>
+        <td>Screen 3 (Bottom Bar)</td>
+        <td>Commits customized dish into cart</td>
+        <td>Appends item to <code>cart</code></td>
+        <td>Cart count +Qty, Total +Subtotal</td>
+        <td>Navigates to <strong>Screen 4</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Order Separately</strong></td>
+        <td>Screen 4 (Cart Card)</td>
+        <td>Flags starter to be prepared ahead of meal</td>
+        <td>Adds priority tracking record</td>
+        <td>Priority KDS flag</td>
+        <td>Stays on Screen 4</td>
+      </tr>
+      <tr>
+        <td><strong>Remove Dish (Trash icon)</strong></td>
+        <td>Screen 4 (Cart Card)</td>
+        <td>Removes dish completely from cart</td>
+        <td>Removes item from <code>cart</code></td>
+        <td>Cart count -N, Total -Price</td>
+        <td>Stays on Screen 4</td>
+      </tr>
+      <tr>
+        <td><strong>Add More Dishes Button</strong></td>
+        <td>Screen 4 & 5 (Body)</td>
+        <td>Returns to menu to pick more items</td>
+        <td><code>currentScreen = 2</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 2</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Send Order to Kitchen</strong></td>
+        <td>Screen 4 (Bottom Bar)</td>
+        <td>Fires KOT tickets to Supabase & KDS</td>
+        <td><code>isOrdered = true</code>, <code>orderStage = 'PLACED'</code></td>
+        <td>Sets table to OCCUPIED</td>
+        <td>Navigates to <strong>Screen 5</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Mark as Collected</strong></td>
+        <td>Screen 5 (Item Card)</td>
+        <td>Confirms ready dish delivered to table</td>
+        <td>Item stage = <code>COLLECTED</code></td>
+        <td>Ready items count -1</td>
+        <td>Stays on Screen 5</td>
+      </tr>
+      <tr>
+        <td><strong>Proceed to Payment</strong></td>
+        <td>Screen 5 (Bottom Bar)</td>
+        <td>Opens bill breakdown & tip selection</td>
+        <td><code>currentScreen = 6</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 6</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Tip Preset (₹30, ₹50, ₹100)</strong></td>
+        <td>Screen 6 (Body)</td>
+        <td>Adds staff gratuity to grand total</td>
+        <td><code>payment.tipAmount = N</code></td>
+        <td>Recalculates Grand Total</td>
+        <td>Stays on Screen 6</td>
+      </tr>
+      <tr>
+        <td><strong>Enable Split Toggle</strong></td>
+        <td>Screen 6 (Body)</td>
+        <td>Toggles multi-diner bill calculation</td>
+        <td><code>isSplitEnabled = bool</code></td>
+        <td>Calculates <code>₹{perPerson}</code></td>
+        <td>Stays on Screen 6</td>
+      </tr>
+      <tr>
+        <td><strong>Split Diners (2 to 5)</strong></td>
+        <td>Screen 6 (Body)</td>
+        <td>Sets number of diners sharing bill</td>
+        <td><code>splitPersons = N</code></td>
+        <td>Recalculates <code>₹{perPerson}</code></td>
+        <td>Stays on Screen 6</td>
+      </tr>
+      <tr>
+        <td><strong>Proceed to Payment CTA</strong></td>
+        <td>Screen 6 (Bottom Bar)</td>
+        <td>Advances to payment methods selection</td>
+        <td><code>currentScreen = 7</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 7</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Payment Tab (UPI)</strong></td>
+        <td>Screen 7 (Tabs)</td>
+        <td>Activates dynamic QR & deep links mode</td>
+        <td><code>activeTab = 'UPI'</code></td>
+        <td>N/A</td>
+        <td>Stays on Screen 7</td>
+      </tr>
+      <tr>
+        <td><strong>Payment Tab (Cash)</strong></td>
+        <td>Screen 7 (Tabs)</td>
+        <td>Activates physical cash tender mode</td>
+        <td><code>activeTab = 'CASH'</code></td>
+        <td>N/A</td>
+        <td>Stays on Screen 7</td>
+      </tr>
+      <tr>
+        <td><strong>Payment Tab (Card)</strong></td>
+        <td>Screen 7 (Tabs)</td>
+        <td>Activates table card machine request</td>
+        <td><code>activeTab = 'CARD'</code></td>
+        <td>N/A</td>
+        <td>Stays on Screen 7</td>
+      </tr>
+      <tr>
+        <td><strong>1-Tap App (GPay/PhonePe)</strong></td>
+        <td>Screen 7 (UPI Grid)</td>
+        <td>Launches mobile UPI payment intent</td>
+        <td><code>selectedApp = name</code></td>
+        <td>Pre-fills amount in app</td>
+        <td>Opens UPI app</td>
+      </tr>
+      <tr>
+        <td><strong>Tender Pill (Exact/Notes)</strong></td>
+        <td>Screen 7 (Cash Grid)</td>
+        <td>Selects currency note for cash payment</td>
+        <td><code>selectedTender = opt</code></td>
+        <td>Computes exact return balance</td>
+        <td>Stays on Screen 7</td>
+      </tr>
+      <tr>
+        <td><strong>Confirm Payment CTA</strong></td>
+        <td>Screen 7 (Bottom Bar)</td>
+        <td>Settles bill & notifies waiter console</td>
+        <td><code>currentScreen = 8</code></td>
+        <td>Table status = BILLING</td>
+        <td>Navigates to <strong>Screen 8</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Download PDF Bill</strong></td>
+        <td>Screen 8 (Action Grid)</td>
+        <td>Generates printable digital tax invoice</td>
+        <td><code>downloadMsg = true</code></td>
+        <td>N/A</td>
+        <td>Stays on Screen 8</td>
+      </tr>
+      <tr>
+        <td><strong>Share on WhatsApp</strong></td>
+        <td>Screen 8 (Action Grid)</td>
+        <td>Dispatches digital invoice to WhatsApp</td>
+        <td><code>shareMsg = true</code></td>
+        <td>N/A</td>
+        <td>Stays on Screen 8</td>
+      </tr>
+      <tr>
+        <td><strong>Star Rating (1 to 5)</strong></td>
+        <td>Screen 8 (Rating Card)</td>
+        <td>Rates dining experience (starts empty)</td>
+        <td><code>rating = star</code>, <code>feedbackSubmitted = true</code></td>
+        <td>Fills stars, shows thank-you pill</td>
+        <td>Stays on Screen 8</td>
+      </tr>
+      <tr>
+        <td><strong>Dine Again / New Order</strong></td>
+        <td>Screen 8 (Bottom Bar)</td>
+        <td>Clears session and returns to start</td>
+        <td>Calls <code>resetSession()</code>, <code>currentScreen = 1</code></td>
+        <td>Clears cart & reset totals</td>
+        <td>Navigates to <strong>Screen 1</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Call Waiter Bell (Header)</strong></td>
+        <td>Global (WireHeader)</td>
+        <td>Opens immediate waiter assistance hub</td>
+        <td><code>navigateTo(9)</code></td>
+        <td>N/A</td>
+        <td>Navigates to <strong>Screen 9</strong></td>
+      </tr>
+      <tr>
+        <td><strong>Quick Call (Water/Tissue)</strong></td>
+        <td>Screen 9 (Grid)</td>
+        <td>Sends specific service ping to waiter</td>
+        <td>Calls <code>pingWaiter(type)</code></td>
+        <td>Waiter pending pings +1</td>
+        <td>Stays on Screen 9</td>
+      </tr>
+      <tr>
+        <td><strong>Send Custom Message</strong></td>
+        <td>Screen 9 (Bottom)</td>
+        <td>Sends custom text request to captain</td>
+        <td>Calls <code>pingWaiter('GENERAL', text)</code></td>
+        <td>Waiter alert banner created</td>
+        <td>Stays on Screen 9</td>
+      </tr>
+      <tr>
+        <td><strong>Back from Waiter Hub</strong></td>
+        <td>Screen 9 (Header)</td>
+        <td>Returns to previous screen</td>
+        <td><code>navigateTo(previousScreen)</code></td>
+        <td>N/A</td>
+        <td>Returns to previous active screen</td>
+      </tr>
+    </tbody>
+  </table>
+
+</body>
+</html>

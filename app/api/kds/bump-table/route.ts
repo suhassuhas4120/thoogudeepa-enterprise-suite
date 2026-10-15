@@ -43,28 +43,35 @@ export async function POST(req: NextRequest) {
         ? 'PREP'
         : transition.item;
 
-    // 2. Update ticket status
+    const updatedTicketItems = (ticket.items || []).map((it: any) => ({
+      ...it,
+      stage: nextItemStage,
+    }));
+
+    // 2. Update ticket status & items
     await supabase
       .from('kds_tickets')
       .update({
         status: nextStatus,
+        items: updatedTicketItems,
         updated_at: new Date().toISOString(),
       })
       .eq('id', ticketId);
 
-    // 3. Update all associated line items
-    let updatedItemCount = 0;
+    // 3. Update all associated line items in order_items table
+    let updatedItemCount = updatedTicketItems.length;
+    const nowIso = new Date().toISOString();
     if (ticket.order_id) {
-      const { data: updatedItems, error: itemsErr } = await supabase
+      const { data: updatedItems } = await supabase
         .from('order_items')
         .update({
           stage: nextItemStage,
-          updated_at: new Date().toISOString(),
+          updated_at: nowIso,
         })
         .eq('order_id', ticket.order_id)
-        .select('id');
+        .select('*');
 
-      if (!itemsErr && updatedItems) {
+      if (updatedItems && updatedItems.length > 0) {
         updatedItemCount = updatedItems.length;
       }
     }

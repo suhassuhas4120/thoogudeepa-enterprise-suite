@@ -2,8 +2,9 @@
 
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, Plus, Minus, ChevronLeft, Flame, X, CheckCircle2, Armchair } from 'lucide-react';
+import { Search, Plus, Minus, ChevronLeft, Flame, X, CheckCircle2, Armchair, CreditCard, Ban } from 'lucide-react';
 import { useSharedBridge } from '../../store/useSharedBridge';
+import { useCustomerStore } from '../../store/useCustomerStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 
 interface CartItem {
@@ -21,6 +22,7 @@ interface Props {
   captainName: string;
   onBack: () => void;
   onKOTFired: () => void;
+  onSwitchToPayment?: () => void;
 }
 
 const CATEGORIES = ['All', 'Rice & Bowls', 'Starters', 'Beverages', 'Desserts'];
@@ -33,8 +35,8 @@ const BADGE_COLOR: Record<string, string> = {
   Signature: 'bg-purple-600 text-white',
 };
 
-export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTFired }: Props) {
-  const { waiterFiresKOT, tables } = useSharedBridge();
+export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTFired, onSwitchToPayment }: Props) {
+  const { waiterFiresKOT, tables, inventory86, waiterSeatsGuests } = useSharedBridge();
 
   const [category, setCategory] = useState('All');
   const [search, setSearch] = useState('');
@@ -110,6 +112,13 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
 
   const fireKOT = () => {
     if (cart.length === 0) return;
+
+    // Auto-seat guests if table is currently vacant
+    const targetTable = tables.find((t) => t.number === tableNum);
+    if (targetTable && targetTable.status === 'VACANT') {
+      waiterSeatsGuests(tableNum, seatNum ? Math.max(1, seatNum) : 2, captainName);
+    }
+
     waiterFiresKOT(
       tableNum,
       captainName,
@@ -121,6 +130,26 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
       })),
       seatNum
     );
+
+    // Sync live tracking for customer portal when matching table is active
+    try {
+      const customerStore = useCustomerStore.getState();
+      if (customerStore.tableNumber === tableNum) {
+        const newTracking = cart.map((c) => ({
+          id: `track-${c.itemId}-${Date.now()}`,
+          name: `${c.name} × ${c.quantity}`,
+          prepMode: 'Military Dum Handi',
+          status: 'In Kitchen Preparation',
+          stage: 'PREP' as const,
+        }));
+        customerStore.setItemTracking([
+          ...customerStore.itemTracking,
+          ...newTracking,
+        ]);
+        customerStore.setOrderStage('PREP');
+      }
+    } catch {}
+
     setKotFired(true);
     setCart([]);
     setTimeout(() => {
@@ -158,6 +187,17 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
             <Armchair className="h-3 w-3 text-amber-700" />
             <span className="font-mono text-[10px] font-black text-amber-800">Chair {seatNum}</span>
           </div>
+        )}
+        {/* Settle button if provided */}
+        {onSwitchToPayment && (
+          <button
+            type="button"
+            onClick={onSwitchToPayment}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] hover:bg-purple-50 text-purple-700 border border-purple-200 rounded-xl font-mono text-[11px] font-black transition cursor-pointer"
+          >
+            <CreditCard className="h-3.5 w-3.5" />
+            <span>Settle</span>
+          </button>
         )}
       </div>
 
@@ -206,12 +246,18 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
           filtered.map((item) => {
             const qty = getCartQty(item.id);
             const inCart = qty > 0;
+            const stockInfo = inventory86?.find((e) => e.id === item.id);
+            const is86 = !!stockInfo?.is86;
             return (
               <motion.div
                 key={item.id}
                 layout
                 className={`flex gap-3 p-3 rounded-2xl border transition ${
-                  inCart ? 'border-[#9C3D1E]/40 bg-[#FFF8F5]' : 'border-[#EAE5DF] bg-white'
+                  is86
+                    ? 'border-stone-200 bg-stone-100 opacity-60'
+                    : inCart
+                    ? 'border-[#9C3D1E]/40 bg-[#FFF8F5]'
+                    : 'border-[#EAE5DF] bg-white'
                 }`}
               >
                 {/* Image placeholder */}
@@ -219,9 +265,14 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
                   <span className="text-[8px] font-mono font-black text-stone-400 text-center leading-tight px-1">
                     {item.imagePlaceholder}
                   </span>
-                  {item.badge && (
+                  {item.badge && !is86 && (
                     <span className={`absolute top-1 left-0 right-0 mx-auto w-fit px-1.5 py-0.5 text-[7px] font-black font-mono rounded-full ${BADGE_COLOR[item.badge] || 'bg-stone-500 text-white'}`}>
                       {item.badge}
+                    </span>
+                  )}
+                  {is86 && (
+                    <span className="absolute top-1 left-0 right-0 mx-auto w-fit px-1 py-0.5 text-[7px] font-black font-mono rounded-full bg-rose-600 text-white">
+                      86'd
                     </span>
                   )}
                 </div>
@@ -235,7 +286,12 @@ export function TabletMenuPanel({ tableNum, seatNum, captainName, onBack, onKOTF
 
                 {/* Add/Qty controls */}
                 <div className="flex flex-col items-end justify-between shrink-0">
-                  {inCart ? (
+                  {is86 ? (
+                    <span className="flex items-center gap-1 text-[10px] font-black text-rose-600 font-mono">
+                      <Ban className="h-3 w-3" />
+                      Sold Out
+                    </span>
+                  ) : inCart ? (
                     <div className="flex items-center gap-1.5">
                       <button
                         type="button"

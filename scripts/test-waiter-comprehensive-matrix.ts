@@ -110,7 +110,7 @@ group('Group 3 — Chair-Level Ordering, Seat Isolation & Breakdown', () => {
   ok('M3 allows chair-specific order placement via OrderPad', hasText(m3Sheet, 'onGoToOrder(typeof selectedSeat === \'number\' ? selectedSeat : undefined)'));
   ok('M3 calculates per-chair itemized running subtotals', hasText(m3Sheet, 'item.seatNumber', 'price'));
   ok('Tablet table detail displays interactive chair matrix', hasText(tDetail, 'selectedChair', 'onSelectChair'));
-  ok('Tablet table detail supports chair item transfer and merging', hasText(tDetail, 'mergeChairs'));
+  ok('Tablet table detail supports chair item transfer and merging', hasText(tDetail, 'waiterMergeChairs', 'waiterMergeSeatGroup'));
   ok('Customer store supports seatNumber attribution on CartItem', hasText(customerTypes, 'seatNumber?: number'));
   ok('Customer store supports tableNumber attribution on CartItem', hasText(customerTypes, 'tableNumber?: string'));
 });
@@ -123,9 +123,9 @@ group('Group 4 — Table Grouping, Merge State Machine & Unmerging', () => {
   ok('SharedBridge defines preMergeBill cache for lossless unmerging', hasText(bridge, 'preMergeBill?: number'));
   ok('SharedBridge defines preMergeGuests cache for restore integrity', hasText(bridge, 'preMergeGuests?: number'));
   ok('SharedBridge defines preMergeStatus cache for vacant/occupied status', hasText(bridge, 'preMergeStatus?:'));
-  ok('SharedBridge waiterMergeTables aggregates total bill to primary table', hasText(bridge, 'waiterMergeTables:', 'combinedBill'));
+  ok('SharedBridge waiterMergeTables keeps each table\'s own bill and items (no consolidation onto primary)', hasText(bridge, 'waiterMergeTables:', 'do NOT consolidate onto primary', 'mergeGroupPeers: combined'));
   ok('SharedBridge waiterUnmergeTable cleanly restores individual table state', hasText(bridge, 'waiterUnmergeTable:', 'restoredTables'));
-  ok('SharedBridge supports multi-table groups with 3 or more members', hasText(bridge, 'oldPrimaryNum', 'newPeers', 'newCombinedBill'));
+  ok('SharedBridge supports multi-table groups (up to 4 members, lowest number is primary)', hasText(bridge, 'combined.length > 4', 'const primaryNum = combined[0]', 'waiterRemoveTableFromGroup'));
   ok('Tablet merge modal provides visual table selector with capacity preview', hasText(tMerge, 'candidateTables', 'handleMerge'));
   ok('SharedBridge waiterRecordsPayment flags all merged peers simultaneously', hasText(bridge, 'groupNums.has(t.number)', "status: 'BILLING'"));
   ok('SharedBridge waiterVacatesTable resets all grouped peers simultaneously', hasText(bridge, 'groupNums.has(t.number)', "status: 'VACANT'"));

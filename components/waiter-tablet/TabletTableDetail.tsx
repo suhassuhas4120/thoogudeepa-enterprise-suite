@@ -91,7 +91,7 @@ export function TabletTableDetail({
   activePanelTab,
 }: Props) {
   const { tables, kdsTickets, waiterMergeChairs, waiterMergeSeatGroup, waiterUnmergeSeatGroup, waiterSeatsGuests } = useSharedBridge();
-  const { cart, addToCart, mergeChairs } = useCustomer();
+  const { cart, addToCart } = useCustomer();
 
   // ── Drag & Drop & Chair Merging State ──
   const [dragOverTarget, setDragOverTarget] = useState<'ALL' | number | string | null>(null);
@@ -194,9 +194,6 @@ export function TabletTableDetail({
     const sorted = [...chairsSelectedForMerge].sort((a, b) => a - b);
     const groupKey = `Chairs ${sorted.join(' & ')}`;
     waiterMergeSeatGroup(tableNum, groupKey, sorted);
-    sorted.slice(1).forEach((ch) => {
-      mergeChairs(tableNum, ch, sorted[0]);
-    });
     setMergeChairMode(false);
     setChairsSelectedForMerge([]);
     onSelectChair(groupKey);
@@ -227,7 +224,7 @@ export function TabletTableDetail({
               : targetSeats.length > 0
               ? targetSeats[0]
               : undefined;
-          addToCart(item, undefined, undefined, 1, tableNum, targetSeat);
+          addToCart(item, undefined, undefined, 1);
           if (isVacant) {
             waiterSeatsGuests(tableNum, 1, 'Floor Captain');
           }
@@ -408,7 +405,7 @@ export function TabletTableDetail({
               const draggedItem = (window as any).__draggedMenuItem;
               if (draggedItem) {
                 (window as any).__draggedMenuItem = null;
-                addToCart(draggedItem, undefined, undefined, 1, tableNum, undefined);
+                addToCart(draggedItem, undefined, undefined, 1);
                 if (isVacant) {
                   waiterSeatsGuests(tableNum, 1, 'Floor Captain');
                 }
@@ -560,14 +557,13 @@ export function TabletTableDetail({
                     const sorted = [Math.min(fromChair, ch), Math.max(fromChair, ch)];
                     const groupKey = `Chairs ${sorted.join(' & ')}`;
                     waiterMergeSeatGroup(tableNum, groupKey, sorted);
-                    mergeChairs(tableNum, fromChair, ch);
                     onSelectChair(groupKey);
                     return;
                   }
 
                   if (draggedItem) {
                     (window as any).__draggedMenuItem = null;
-                    addToCart(draggedItem, undefined, undefined, 1, tableNum, ch);
+                    addToCart(draggedItem, undefined, undefined, 1);
                     if (isVacant) {
                       waiterSeatsGuests(tableNum, 1, 'Floor Captain');
                     }

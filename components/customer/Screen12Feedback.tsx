@@ -3,13 +3,15 @@
 import React, { useState } from 'react';
 import { useCustomer } from '../../context/CustomerContext';
 import { ScreenHousing } from '../ui/ScreenHousing';
-import { WireHeader } from '../ui/WireHeader';
 import { StickyBottomBar } from '../ui/StickyBottomBar';
 import { Star, Heart, CheckCircle2, MessageSquare, UtensilsCrossed, ArrowLeft, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { useSharedBridge } from '../../store/useSharedBridge';
+import { useCustomerStore } from '../../store/useCustomerStore';
 
 export const Screen12Feedback: React.FC = () => {
   const { navigateTo, tableNumber } = useCustomer();
+  const { guestName, seatNumber } = useCustomerStore();
   const [tasteRating, setTasteRating] = useState(5);
   const [speedRating, setSpeedRating] = useState(5);
   const [serviceRating, setServiceRating] = useState(5);
@@ -56,13 +58,6 @@ export const Screen12Feedback: React.FC = () => {
       screenNumber={12}
       screenTitle="DINING FEEDBACK & DISH REVIEW"
     >
-      <WireHeader
-        title="Dining Feedback"
-        showBack={true}
-        onBack={() => navigateTo(11)}
-        showCallWaiter={true}
-        showCart={false}
-      />
       <div className="p-4 space-y-4 pb-28 text-slate-800">
         {!submitted ? (
           <>
@@ -73,7 +68,7 @@ export const Screen12Feedback: React.FC = () => {
               </div>
               <h2 className="text-sm font-black text-slate-900">How was your meal today?</h2>
               <p className="text-xs text-slate-500 mt-0.5">
-                Table {tableNumber} • Chef Manjunath would love your feedback!
+                Table {tableNumber} &bull; Chef Manjunath would love your feedback!
               </p>
             </div>
 
@@ -81,7 +76,7 @@ export const Screen12Feedback: React.FC = () => {
             <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Donne Biryani Taste & Aroma</div>
+                  <div className="text-xs font-bold text-slate-900">Donne Biryani Taste &amp; Aroma</div>
                   <div className="text-[10px] text-slate-400">Authentic seeraga samba flavour</div>
                 </div>
                 {renderStars(tasteRating, setTasteRating)}
@@ -89,7 +84,7 @@ export const Screen12Feedback: React.FC = () => {
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Kitchen Speed & Prep Time</div>
+                  <div className="text-xs font-bold text-slate-900">Kitchen Speed &amp; Prep Time</div>
                   <div className="text-[10px] text-slate-400">Fresh and piping hot service</div>
                 </div>
                 {renderStars(speedRating, setSpeedRating)}
@@ -97,7 +92,7 @@ export const Screen12Feedback: React.FC = () => {
 
               <div className="flex items-center justify-between border-t border-slate-100 pt-2.5">
                 <div>
-                  <div className="text-xs font-bold text-slate-900">Table Service & Courtesy</div>
+                  <div className="text-xs font-bold text-slate-900">Table Service &amp; Courtesy</div>
                   <div className="text-[10px] text-slate-400">Attentive captain care</div>
                 </div>
                 {renderStars(serviceRating, setServiceRating)}
@@ -120,7 +115,7 @@ export const Screen12Feedback: React.FC = () => {
                       className={`px-2.5 py-1 rounded-full text-xs font-bold transition ${
                         active
                           ? 'bg-orange-600 text-white shadow-xs'
-                          : 'bg-[#FAF8F5] text-slate-600 hover:bg-slate-200'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
                       {chip}
@@ -178,7 +173,22 @@ export const Screen12Feedback: React.FC = () => {
           </button>
           {!submitted ? (
             <button
-              onClick={() => setSubmitted(true)}
+              onClick={() => {
+                setSubmitted(true);
+                try {
+                  const stars = Math.round((tasteRating + speedRating + serviceRating) / 3);
+                  const note = reviewNote.trim() ? reviewNote.trim() : (selectedChips.length > 0 ? selectedChips.join(', ') : 'Excellent Donne Biryani!');
+                  useSharedBridge.getState().customerPingsWaiter(
+                    tableNumber,
+                    'FEEDBACK',
+                    guestName || `Guest (Table ${tableNumber})`,
+                    `⭐ ${stars}/5 Stars: ${note}`,
+                    seatNumber || 1
+                  );
+                } catch (e) {
+                  console.error(e);
+                }
+              }}
               className="flex-1 py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 hover:bg-emerald-700"
             >
               <Send className="h-3.5 w-3.5" />
@@ -187,7 +197,7 @@ export const Screen12Feedback: React.FC = () => {
           ) : (
             <button
               onClick={() => navigateTo(1)}
-              className="flex-1 py-3 bg-[#9C3D1E] text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-800"
+              className="flex-1 py-3 bg-slate-800 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 hover:bg-slate-700"
             >
               <span>Done (Back to Start)</span>
             </button>

@@ -2,12 +2,18 @@
   "name": "thoogudeepa-enterprise-suite",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "22.x"
+  },
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
     "type-check": "tsc --noEmit",
     "test": "npx tsx scripts/run-all-tests.ts",
+    "test:static": "npx tsx scripts/run-all-tests.ts --group=static --keep-going",
+    "test:live": "npx tsx scripts/run-all-tests.ts --group=live --keep-going",
+    "test:quarantine": "npx tsx scripts/run-all-tests.ts --group=quarantine --keep-going",
     "test:customer": "npx tsx scripts/test-customer-workflow-matrix.ts",
     "test:kitchen": "npx tsx scripts/test-kitchen-workflow-matrix.ts",
     "test:waiter": "npx tsx scripts/test-waiter-workflow-matrix.ts",
@@ -17,6 +23,9 @@
     "test:rush": "node scripts/simulate-peak-rush.js",
     "test:phase9": "npx tsx scripts/test-phase9-comprehensive.ts",
     "test:phase10": "npx tsx scripts/test-phase10-comprehensive.ts",
+    "test:phase1": "node scripts/test-phase1-simulation.mjs",
+    "test:perimeter": "npx tsx scripts/test-phase3-perimeter.ts",
+    "test:phase4": "npx tsx scripts/test-phase4-comprehensive.ts",
     "test:schema": "npx tsx scripts/test-db-schema-validation.ts",
     "test:env": "npx tsx scripts/test-env-validation.ts",
     "generate-qrs": "node scripts/generate-qr-assets.js"
@@ -25,15 +34,14 @@
     "@supabase/supabase-js": "^2.117.2",
     "@tanstack/react-query": "^5.103.2",
     "@types/qrcode": "^1.5.6",
-    "autoprefixer": "^10.6.1",
     "framer-motion": "^13.4.0",
     "lucide-react": "^1.47.0",
     "next": "^15.2.1",
+    "node": "^22.23.3",
     "postcss": "^8.5.28",
     "qrcode": "^1.5.4",
-    "react": "^19.0.0",
+    "react": "^19.3.0",
     "react-dom": "^19.0.0",
-    "tailwindcss": "^3.4.17",
     "vaul": "^1.1.2",
     "zustand": "^5.0.15"
   },
@@ -42,6 +50,14 @@
     "@types/node": "^22.13.9",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "autoprefixer": "^10.6.1",
+    "postcss": "^8.5.28",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.8.2"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "^8.5.29"
+    }
   }
 }

@@ -6,20 +6,47 @@ on:
     - cron: '30 0 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   ping-health:
     name: Keepalive Health Ping
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - name: Ping System Health Endpoint
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Ping App Health or Supabase DB
         env:
-          TARGET_URL: ${{ secrets.DEPLOYED_APP_URL || 'https://dwjjprzyyjmunhdxvkuo.supabase.co' }}
+          DEPLOYED_APP_URL: ${{ secrets.DEPLOYED_APP_URL }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.TEST_SUPABASE_URL || secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.TEST_SUPABASE_PUBLISHABLE_KEY || secrets.SUPABASE_PUBLISHABLE_KEY }}
         run: |
-          echo "Executing scheduled keepalive ping to $TARGET_URL"
-          RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "$TARGET_URL" || echo "000")
-          echo "HTTP response status code: $RESPONSE"
-          if [ "$RESPONSE" -ge 200 ] && [ "$RESPONSE" -lt 500 ]; then
-            echo "Database connection is active and responsive."
+          if [ -n "$DEPLOYED_APP_URL" ]; then
+            URL="${DEPLOYED_APP_URL%/}/api/health"
+            echo "DEPLOYED_APP_URL found. Pinging $URL..."
+            for attempt in 1 2 3; do
+              CODE=$(curl -s -o health.json -w "%{http_code}" --max-time 30 "$URL" || echo "000")
+              echo "Attempt $attempt: HTTP $CODE"
+              if [ "$CODE" = "200" ] && grep -q '"CONNECTED"' health.json; then
+                echo "App and database are healthy."; cat health.json; exit 0
+              fi
+              sleep 10
+            done
+            echo "App health endpoint failed or returned non-200. Falling back to direct Supabase DB keepalive..."
           else
-            echo "Warning: Response code $RESPONSE received."
+            echo "DEPLOYED_APP_URL secret is not set. Performing direct Supabase DB keepalive..."
           fi
+
+          npx tsx scripts/ping-db-keepalive.ts

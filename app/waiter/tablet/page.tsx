@@ -392,7 +392,7 @@ export default function WaiterTabletPage() {
                     }`}
                   >
                     <UtensilsCrossed className="h-4 w-4 stroke-[2.4]" />
-                    <span>Customer Menu</span>
+                    <span>Menu & Order</span>
                   </button>
                   <button
                     type="button"

@@ -3,7 +3,6 @@
 import React from 'react';
 import { Wifi, Flame, AlertCircle } from 'lucide-react';
 import { useKitchenStore } from '../../store/useKitchenStore';
-import { STATION_LABELS } from '../../types/kitchen';
 
 interface KitchenTabletHousingProps {
   children: React.ReactNode;
@@ -18,17 +17,13 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
   screenTitle,
   className = '',
 }) => {
-  const {
-    activeStation,
-    waiterAlertNotice,
-    dismissWaiterAlert,
-  } = useKitchenStore();
+  const { waiterAlertNotice, dismissWaiterAlert } = useKitchenStore();
 
   return (
     <div className="flex flex-col items-center w-full max-w-[1080px] shrink-0">
-      <div className="mb-2.5 flex items-center gap-2 rounded-full border border-slate-200 bg-white/90 px-3.5 py-1 text-xs font-bold tracking-wider text-slate-700 shadow-sm backdrop-blur">
-        <span className="flex h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
-        <span className="font-mono text-[11px] text-orange-600 font-extrabold">
+      <div className="mb-2.5 flex items-center gap-2 rounded-full border border-[#EFE6DA] bg-white/90 px-3.5 py-1 text-xs font-bold tracking-wider text-slate-700 shadow-sm backdrop-blur">
+        <span className="flex h-2 w-2 rounded-full bg-[#E8722E] animate-pulse" />
+        <span className="font-mono text-[11px] text-[#E8722E] font-extrabold">
           KDS SCREEN {screenNumber}
         </span>
         <span className="text-slate-300">•</span>
@@ -44,10 +39,10 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
           <div className="h-1 w-4 rounded-full bg-slate-700" />
         </div>
 
-        <header className="h-12 bg-white border-b border-slate-200 px-5 flex items-center justify-between text-xs font-bold select-none shrink-0 z-30">
+        <header className="h-12 bg-white border-b border-[#EFE6DA] px-5 flex items-center justify-between text-xs font-bold select-none shrink-0 z-30">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-orange-700 font-black font-mono">
-              <Flame className="h-4 w-4 text-orange-600 fill-orange-500" />
+            <div className="flex items-center gap-1.5 text-[#E8722E] font-black font-mono">
+              <Flame className="h-4 w-4 text-[#E8722E] fill-[#E8722E]" />
               <span>THOOGUDEEPA KDS</span>
             </div>
           </div>
@@ -77,7 +72,7 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
         )}
 
         {/* Canvas Interior */}
-        <div className="flex-1 bg-[#FAF8F5] text-slate-900 flex flex-col overflow-hidden relative">
+        <div className="flex-1 bg-[#FAF6EE] text-slate-900 flex flex-col overflow-hidden relative">
           {children}
         </div>
       </div>

@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { MANAGER_SECTIONS, useManagerStore } from '../../store/useManagerStore';
-import { QueueToken } from '../../types/manager';
+import { useManagerStore } from '../../store/useManagerStore';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { Users, Clock, Send, CheckCircle, Plus } from 'lucide-react';
 
@@ -13,7 +12,7 @@ export function ScreenM6WaitingQueue() {
   const [guestName, setGuestName] = useState('');
   const [phone, setPhone] = useState('');
   const [pax, setPax] = useState('4');
-  const [section, setSection] = useState<string>(MANAGER_SECTIONS[0]);
+  const [section, setSection] = useState('Main Dining Hall');
 
   const handleAdd = (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +22,7 @@ export function ScreenM6WaitingQueue() {
     setPhone('');
   };
 
-  const handleSeat = (token: QueueToken) => {
+  const handleSeat = (token: any) => {
     const vacantTable = tables.find((t) => t.status === 'VACANT');
     if (vacantTable) {
       waiterSeatsGuests(vacantTable.number, token.pax, 'Manager Host');
@@ -35,7 +34,7 @@ export function ScreenM6WaitingQueue() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5 border border-[#D6D3D1] rounded-2xl bg-white shadow-sm">
+    <div className="w-full max-w-6xl mx-auto p-4 grid grid-cols-1 md:grid-cols-12 gap-5">
       {/* Left Queue List */}
       <div className="md:col-span-7 bg-white border border-[#EAE5DF] rounded-xl p-5 shadow-sm">
         <div className="flex justify-between items-center pb-3 border-b border-slate-200">
@@ -89,7 +88,7 @@ export function ScreenM6WaitingQueue() {
                         updateQueueStatus(tk.id, 'PAGED');
                         alert(`SMS Ping sent to ${tk.phone}: 'Your table at Thoogudeepa Biryani is ready!'`);
                       }}
-                      className="bg-[#FAF8F5] border border-slate-300 px-2 py-1 rounded text-[11px] font-bold hover:bg-stone-200 transition"
+                      className="bg-[#FAF8F5] border border-slate-300 px-2 py-1 rounded text-[11px] font-bold text-slate-800 hover:bg-stone-200 transition"
                     >
                       PAGE SMS
                     </button>
@@ -123,7 +122,7 @@ export function ScreenM6WaitingQueue() {
                 onChange={(e) => setGuestName(e.target.value)}
                 placeholder="e.g. Ramesh Gowda"
                 required
-                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none"
+                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs font-bold text-slate-900 focus:outline-none"
               />
             </div>
             <div>
@@ -133,7 +132,7 @@ export function ScreenM6WaitingQueue() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 placeholder="+91 98450 12345"
-                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none"
+                className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs font-bold text-slate-900 focus:outline-none"
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -145,7 +144,7 @@ export function ScreenM6WaitingQueue() {
                   onChange={(e) => setPax(e.target.value)}
                   min="1"
                   max="20"
-                  className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none"
+                  className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs font-bold text-slate-900 focus:outline-none"
                 />
               </div>
               <div>
@@ -155,9 +154,11 @@ export function ScreenM6WaitingQueue() {
                   onChange={(e) => setSection(e.target.value)}
                   className="w-full bg-[#FAF8F5] border border-[#EAE5DF] rounded-lg p-2 font-mono text-xs focus:outline-none font-bold"
                 >
-                  {MANAGER_SECTIONS.map((managerSection) => (
-                    <option key={managerSection} value={managerSection}>{managerSection}</option>
-                  ))}
+                  <option value="Express / Couple Hall">Express / Couple Hall</option>
+                  <option value="Main Dining Hall">Main Dining Hall</option>
+                  <option value="Family Section">Family Section</option>
+                  <option value="Courtyard Garden">Courtyard Garden</option>
+                  <option value="Grand Feast Hall">Grand Feast Hall</option>
                 </select>
               </div>
             </div>

@@ -59,8 +59,21 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
       ? effectiveCashTendered - bill
       : 0;
 
+  const splitSeatNum = splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i)
+    ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1])
+    : undefined;
+
+  const groupPeers = table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
+  const tickets = kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const allFiredItems = tickets.flatMap((tk) => tk.items);
+  const relevantFired = allFiredItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
+  const areAllFiredServed =
+    relevantFired.length > 0 &&
+    relevantFired.every((it) => it.stage === 'SERVED' || (it.stage as string) === 'Served');
+
   const isSettleDisabled =
     bill <= 0 ||
+    (relevantFired.length > 0 && !areAllFiredServed) ||
     (method === 'UPI' && !isUpiVerified) ||
     (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
@@ -376,7 +389,9 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       <span>
-                        Confirm ₹{bill.toFixed(2)} Payment ({method})
+                        {relevantFired.length > 0 && !areAllFiredServed
+                          ? 'Serve Dishes First'
+                          : `Confirm ₹${bill.toFixed(2)} Payment (${method})`}
                       </span>
                     </button>
                   </div>

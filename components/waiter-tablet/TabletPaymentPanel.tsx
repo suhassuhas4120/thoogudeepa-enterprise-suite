@@ -184,17 +184,23 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
       ? effectiveCashTendered - bill
       : 0;
 
+  const splitSeatNum = typeof selectedChair === 'number'
+    ? selectedChair
+    : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
+  const relevantFired = allFiredItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
+  const areAllFiredServed =
+    relevantFired.length > 0 &&
+    relevantFired.every((it) => it.stage === 'SERVED' || (it.stage as string) === 'Served');
+
   const isSettleDisabled =
     bill <= 0 ||
+    (relevantFired.length > 0 && !areAllFiredServed) ||
     (method === 'UPI' && !isUpiVerified) ||
     (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
   const handleSettle = () => {
     if (isSettleDisabled) return;
-
-    const splitSeatNum = typeof selectedChair === 'number'
-      ? selectedChair
-      : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
 
     const now = new Date();
     const formattedDate = now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -584,6 +590,11 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
             type="button"
             onClick={handleSettle}
             disabled={isSettleDisabled}
+            title={
+              relevantFired.length > 0 && !areAllFiredServed
+                ? 'All ordered dishes must be served before completing settlement'
+                : undefined
+            }
             className={`flex-1 py-3.5 px-5 rounded-2xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition border-0 ${
               isSettleDisabled
                 ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
@@ -591,7 +602,11 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
             }`}
           >
             <CheckCircle2 className="h-5 w-5 stroke-[2.4]" />
-            <span>Complete Settlement (₹{bill.toFixed(2)})</span>
+            <span>
+              {relevantFired.length > 0 && !areAllFiredServed
+                ? 'Serve Dishes First'
+                : `Complete Settlement (₹${bill.toFixed(2)})`}
+            </span>
           </button>
         </div>
       )}

@@ -243,6 +243,26 @@ export function TabletTableDetail({
     }
   }
 
+  // Food serving validation for settlement
+  const relevantItems = selectedChair === 'ALL' ? allItems : displayItems;
+  const relevantDrafts = selectedChair === 'ALL' ? allTableDraftItems : draftItems;
+  const billToSettle = selectedChair === 'ALL' ? totalTableBill : targetChairBill;
+
+  // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
+  const hasItemsToSettle = relevantItems.length > 0;
+  const areAllRelevantItemsServed =
+    hasItemsToSettle &&
+    relevantItems.every(
+      (it) => it.stage === 'SERVED' || (it.stage as string) === 'Served'
+    );
+
+  // Settle is enabled ONLY AFTER all items have been served, with no pending drafts, and bill > 0
+  const canSettle =
+    !isVacant &&
+    billToSettle > 0 &&
+    relevantDrafts.length === 0 &&
+    areAllRelevantItemsServed;
+
   const handleConfirmMergeSelectedChairs = () => {
     if (chairsSelectedForMerge.length < 2) return;
     const sorted = [...chairsSelectedForMerge].sort((a, b) => a - b);
@@ -920,9 +940,22 @@ export function TabletTableDetail({
         <div className="shrink-0 bg-white border-t-2 border-stone-200 px-5 py-3.5 space-y-3 shadow-sm">
           {/* Bill Summary Row */}
           <div className="flex items-center justify-between font-mono">
-            <span className="text-stone-700 font-black text-xs uppercase tracking-wider">
-              {chairLabel}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-stone-700 font-black text-xs uppercase tracking-wider">
+                {chairLabel}
+              </span>
+              {!areAllRelevantItemsServed && hasItemsToSettle && (
+                <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-300">
+                  Serve dishes to settle
+                </span>
+              )}
+              {areAllRelevantItemsServed && (
+                <span className="text-[10px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-md border border-emerald-300 flex items-center gap-1">
+                  <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                  Ready to Settle
+                </span>
+              )}
+            </div>
             <span className="font-black text-stone-950 text-2xl">
               ₹{targetChairBill.toLocaleString()}
             </span>
@@ -940,10 +973,18 @@ export function TabletTableDetail({
             </button>
             <button
               type="button"
-              onClick={onSettle}
-              disabled={targetChairBill === 0 && totalTableBill === 0}
+              onClick={() => {
+                if (!canSettle) return;
+                onSettle();
+              }}
+              disabled={!canSettle}
+              title={
+                !areAllRelevantItemsServed && hasItemsToSettle
+                  ? 'All ordered dishes must be served before settling the bill'
+                  : undefined
+              }
               className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
-                targetChairBill === 0 && totalTableBill === 0
+                !canSettle
                   ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs'
               }`}

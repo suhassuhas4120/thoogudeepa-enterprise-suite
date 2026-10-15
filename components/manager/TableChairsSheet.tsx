@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useManagerStore } from '../../store/useManagerStore';
+import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 import {
   X,
   Armchair,
@@ -103,7 +104,8 @@ export function TableChairsSheet({
           : 'PLACED';
 
       const seat = it.seatNumber || tk.seatNumber || 1;
-      const unitPrice = it.price && it.price > 0 ? it.price : 220;
+      const menuItem = INITIAL_MENU_ITEMS.find((m) => m.name.trim().toLowerCase() === it.name.trim().toLowerCase() || m.id === it.id);
+      const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
 
       allTableOrderedItems.push({
         id: it.id,
@@ -136,7 +138,8 @@ export function TableChairsSheet({
           : 'PLACED';
 
       const seat = ai.seatNumber || 1;
-      const unitPrice = ai.price && ai.price > 0 ? ai.price : 220;
+      const menuItem = INITIAL_MENU_ITEMS.find((m) => m.name.trim().toLowerCase() === ai.name.trim().toLowerCase() || m.id === ai.id);
+      const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
 
       allTableOrderedItems.push({
         id: ai.id || `ai-${idx}`,

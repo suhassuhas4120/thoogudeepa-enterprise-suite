@@ -97,7 +97,8 @@ export function ScreenM4BillingPOS() {
           : 'PLACED';
 
       const seat = it.seatNumber || tk.seatNumber || 1;
-      const unitPrice = it.price && it.price > 0 ? it.price : 220;
+      const menuItem = INITIAL_MENU_ITEMS.find((m) => m.name.trim().toLowerCase() === it.name.trim().toLowerCase() || m.id === it.id);
+      const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
 
       existingItems.push({
         id: it.id,
@@ -532,34 +533,22 @@ export function ScreenM4BillingPOS() {
                     : 'bg-[#FAF8F5] text-slate-700 border border-slate-200 hover:bg-stone-200'
                 }`}
               >
-                All Table ({allCombinedItems.reduce((s, i) => s + i.qty, 0)})
+                All Table
               </button>
               {Array.from({ length: selectedTable.capacity || 4 }).map((_, idx) => {
                 const chairNum = idx + 1;
-                const count = allCombinedItems
-                  .filter((i) => i.seatNumber === chairNum)
-                  .reduce((s, i) => s + i.qty, 0);
                 const isSelected = currentSeat === chairNum;
                 return (
                   <button
                     key={chairNum}
                     onClick={() => setSelectedSeatNumber(chairNum)}
-                    className={`px-2.5 py-1 rounded-md font-bold transition flex items-center gap-1 shrink-0 ${
+                    className={`px-2.5 py-1 rounded-md font-bold transition shrink-0 ${
                       isSelected
                         ? 'bg-[#9C3D1E] text-white shadow-xs'
                         : 'bg-[#FAF8F5] text-slate-700 border border-slate-200 hover:bg-stone-200'
                     }`}
                   >
                     <span>Chair {chairNum}</span>
-                    {count > 0 && (
-                      <span
-                        className={`text-[9.5px] px-1 rounded ${
-                          isSelected ? 'bg-white/20' : 'bg-amber-100 text-amber-900'
-                        }`}
-                      >
-                        {count}
-                      </span>
-                    )}
                   </button>
                 );
               })}

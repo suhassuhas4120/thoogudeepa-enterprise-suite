@@ -17,6 +17,7 @@ import {
   Clock,
   Users,
   PlusCircle,
+  IndianRupee,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -306,27 +307,27 @@ export function TableChairsSheet({
       case "SERVED":
         return {
           text: "SERVED",
-          cls: "bg-slate-100 text-slate-700 border-slate-300",
+          cls: "bg-slate-100 text-slate-700 border-slate-300 font-black",
         };
       case "READY":
         return {
           text: "READY",
-          cls: "bg-emerald-100 text-emerald-800 border-emerald-300",
+          cls: "bg-emerald-100 text-emerald-800 border-emerald-300 font-black",
         };
       case "PREPARING":
         return {
           text: "PREPARING",
-          cls: "bg-amber-100 text-amber-800 border-amber-300",
+          cls: "bg-amber-100 text-amber-900 border-amber-300 font-black",
         };
       case "RECEIVED":
         return {
           text: "RECEIVED",
-          cls: "bg-blue-100 text-blue-800 border-blue-300",
+          cls: "bg-blue-100 text-blue-900 border-blue-300 font-black",
         };
       default:
         return {
           text: "PLACED",
-          cls: "bg-orange-100 text-orange-800 border-orange-300",
+          cls: "bg-orange-100 text-orange-900 border-orange-300 font-black",
         };
     }
   };
@@ -492,18 +493,18 @@ export function TableChairsSheet({
       {/* Selected Chair / All Table Breakdown Header */}
       <div className="px-4 py-2.5 bg-white border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-black text-slate-900 uppercase tracking-wide truncate">
+          <span className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide truncate">
             {selectedSeat === "ALL"
               ? "Table Orders"
               : `Chair ${selectedSeat} Breakdown`}
           </span>
-          <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-700 shrink-0">
+          <span className="text-xs font-black px-2.5 py-0.5 rounded-md bg-stone-100 text-slate-800 border border-slate-200 shrink-0">
             {displayedItems.reduce((s, i) => s + i.quantity, 0)} {displayedItems.reduce((s, i) => s + i.quantity, 0) === 1 ? "item" : "items"}
           </span>
         </div>
         <button
           onClick={handleOpenBilling}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer shrink-0"
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs sm:text-sm font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer shrink-0"
         >
           <PlusCircle className="h-4 w-4" />
           <span>Add Items</span>
@@ -518,42 +519,50 @@ export function TableChairsSheet({
             return (
               <div
                 key={item.id || idx}
-                className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center justify-between gap-3"
+                className="p-3.5 rounded-xl bg-white border-2 border-slate-200 hover:border-orange-300 shadow-2xs flex items-center justify-between gap-3 transition-all"
               >
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-black text-orange-700 text-sm shrink-0">
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <span className="font-mono text-base sm:text-lg font-black text-[#9C3D1E] shrink-0">
                       {item.quantity}x
                     </span>
-                    <span className="font-bold text-slate-900 text-sm truncate">
+                    <span
+                      className="font-mono text-base sm:text-lg font-black text-slate-950 truncate leading-snug"
+                      title={item.name}
+                    >
                       {item.name}
                     </span>
                     {item.seatNumber && (
-                      <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                      <span className="text-xs font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-950 border border-amber-300 shadow-2xs shrink-0">
                         Chair {item.seatNumber}
                       </span>
                     )}
                   </div>
-                  {item.options && (
-                    <div className="text-xs text-slate-600 mt-1 truncate">
-                      Choice: {item.options}
-                    </div>
-                  )}
-                  {item.addOns && item.addOns.length > 0 && (
-                    <div className="text-xs text-slate-600 truncate">
-                      Add-ons: {item.addOns.join(", ")}
+                  {(item.options || (item.addOns && item.addOns.length > 0)) && (
+                    <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                      {item.options && (
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-orange-50 text-orange-900 border border-orange-200/80">
+                          Choice: {item.options}
+                        </span>
+                      )}
+                      {item.addOns && item.addOns.length > 0 && (
+                        <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                          Add-ons: {item.addOns.join(", ")}
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex items-center gap-2.5 shrink-0">
                   <span
-                    className={`text-xs font-black px-2.5 py-1 rounded-md border ${badge.cls}`}
+                    className={`text-xs font-black px-2.5 py-1 rounded-md border shadow-2xs tracking-wider uppercase shrink-0 ${badge.cls}`}
                   >
                     {badge.text}
                   </span>
-                  <span className="font-mono text-sm font-black text-slate-900 min-w-[65px] text-right">
-                    ₹ {item.totalPrice}
+                  <span className="font-mono text-base sm:text-lg font-black text-slate-950 min-w-[70px] text-right flex items-center justify-end shrink-0">
+                    <IndianRupee className="h-4 w-4 mr-0.5 text-slate-600 shrink-0" />
+                    <span>{item.totalPrice}</span>
                   </span>
                 </div>
               </div>
@@ -562,7 +571,7 @@ export function TableChairsSheet({
         ) : (
           <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-2 text-slate-400">
             <Armchair className="h-9 w-9 text-slate-300" />
-            <p className="font-bold text-sm text-slate-600">
+            <p className="font-mono font-bold text-sm text-slate-600">
               {selectedSeat === "ALL"
                 ? "No items ordered"
                 : `No active orders for Chair ${selectedSeat}`}

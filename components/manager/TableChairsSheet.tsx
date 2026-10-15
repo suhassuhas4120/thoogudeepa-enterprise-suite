@@ -221,6 +221,9 @@ export function TableChairsSheet({
   // Vacate is enabled ONLY when payment is done and the table is not already vacant
   const isVacateEnabled = !isVacant && isSelectionPaid;
 
+  // Print KOT is enabled ONLY when payment is done and the table is not already vacant
+  const isPrintKOTEnabled = !isVacant && isSelectionPaid;
+
   // Add Items is enabled until payment is done (once paid by waiter mobile, customer, waiter tablet, or manager, cannot add extra items to settled bill)
   const isAddItemsEnabled = !isSelectionPaid;
 
@@ -237,6 +240,7 @@ export function TableChairsSheet({
   };
 
   const handlePrintKOT = () => {
+    if (!isPrintKOTEnabled) return;
     alert(`Thermal Running KOT Printed for Table ${table.number}`);
   };
 
@@ -584,7 +588,19 @@ export function TableChairsSheet({
           <button
             type="button"
             onClick={handlePrintKOT}
-            className="col-span-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5"
+            disabled={!isPrintKOTEnabled}
+            title={
+              isVacant
+                ? 'Table is already vacant'
+                : isPrintKOTEnabled
+                ? `Print Running KOT for Table ${table.number}`
+                : 'Payment pending — Print KOT is enabled only after payment is completed on Waiter Mobile, Tablet, Customer, or Manager side'
+            }
+            className={`col-span-1 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
+              isPrintKOTEnabled
+                ? 'bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 cursor-pointer shadow-xs active:scale-95'
+                : 'bg-stone-100 border border-stone-200 text-stone-400 cursor-not-allowed opacity-60'
+            }`}
           >
             <Printer className="h-4 w-4" />
             <span>Print KOT</span>
@@ -600,7 +616,7 @@ export function TableChairsSheet({
                 ? selectedSeat !== 'ALL' && !isTablePaid
                   ? `Vacate Chair ${selectedSeat}`
                   : `Vacate Table ${table.number}`
-                : 'Payment pending — Vacate is enabled only after payment is completed on Waiter Mobile, Tablet, or Customer side'
+                : 'Payment pending — Vacate is enabled only after payment is completed on Waiter Mobile, Tablet, Customer, or Manager side'
             }
             className={`col-span-1 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
               isVacateEnabled
@@ -616,7 +632,7 @@ export function TableChairsSheet({
         {/* Helper prompt if payment is pending */}
         {!isVacateEnabled && !isVacant && (
           <p className="text-[10px] text-amber-800 font-mono text-center font-bold bg-amber-50 py-1.5 px-2 rounded-lg border border-amber-200">
-            Payment pending • Vacate enables after payment on Waiter Mobile, Tablet, or Customer side
+            Payment pending • Print KOT &amp; Vacate enable after payment on Waiter Mobile, Tablet, Customer, or Manager side
           </p>
         )}
       </div>

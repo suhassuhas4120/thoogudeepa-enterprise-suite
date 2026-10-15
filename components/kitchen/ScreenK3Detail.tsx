@@ -50,7 +50,7 @@ export const ScreenK3Detail: React.FC = () => {
     allTickets[0];
 
   const activeTicketItems = (currentTicket?.items || []).filter(
-    (it) => it.stage !== 'SERVED'
+    (it) => it.stage !== 'SERVED' && (it.stage as string) !== 'Served'
   );
 
   const handlePendingToggle = (itemId: string, currentIs86: boolean) => {

@@ -74,9 +74,13 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
   }
   if (stage === 'Served' || stage === 'SERVED') {
     return (
-      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
-        <span>Served</span>
-      </span>
+      <button
+        disabled
+        type="button"
+        className="px-2.5 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none cursor-not-allowed opacity-75"
+      >
+        <span className="line-through">Served</span>
+      </button>
     );
   }
   return (
@@ -103,6 +107,7 @@ export function ScreenM3TableSheet({
     waiterMergeTables,
     waiterUnmergeTable,
     waiterMarkKitchenItemServed,
+    waiterServeAllItemsForTable,
     waiterClearsSettlementSession,
   } = useSharedBridge();
 
@@ -444,9 +449,52 @@ export function ScreenM3TableSheet({
     setTimeout(() => setNotice(null), 2000);
   };
 
+  const selectionOrderedItems = useMemo(() => {
+    if (typeof selectedSeat === 'number') {
+      const chairItems = allTableOrderedItems.filter((i) => i.seatNumber === selectedSeat);
+      if (chairItems.length > 0) return chairItems;
+      return allTableOrderedItems.filter((i) => !i.seatNumber);
+    }
+    if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+      const groupSeats = mergedSeatGroups[selectedSeat];
+      const groupItems = allTableOrderedItems.filter((i) => i.seatNumber && groupSeats.includes(i.seatNumber));
+      if (groupItems.length > 0) return groupItems;
+      return allTableOrderedItems.filter((i) => !i.seatNumber);
+    }
+    return allTableOrderedItems;
+  }, [allTableOrderedItems, selectedSeat, mergedSeatGroups]);
+
+  const unservedSelectionItems = useMemo(() => {
+    return selectionOrderedItems.filter((i) => i.stage !== 'Served' && (i.stage as string) !== 'SERVED');
+  }, [selectionOrderedItems]);
+
+  const isAllSelectionServed = selectionOrderedItems.length > 0 && unservedSelectionItems.length === 0;
+
+  const handleServeSelectionFood = () => {
+    if (typeof selectedSeat === 'number') {
+      waiterServeAllItemsForTable(tableNum, selectedSeat);
+    } else if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+      const groupSeats = mergedSeatGroups[selectedSeat];
+      groupSeats.forEach((seat) => {
+        waiterServeAllItemsForTable(tableNum, seat);
+      });
+    } else {
+      waiterServeAllItemsForTable(tableNum);
+    }
+    const scopeLabel = typeof selectedSeat === 'number'
+      ? `Chair ${selectedSeat}`
+      : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
+      ? 'Selected Group'
+      : 'Table';
+    setNotice(`✓ All dishes marked as served for ${scopeLabel}`);
+    setTimeout(() => setNotice(null), 2000);
+  };
+
   // ── Settle Button Validation (Require all dishes to be SERVED) ──
   const hasTableOrders = allTableOrderedItems.length > 0;
-  const hasUnservedTableItems = !hasTableOrders || allTableOrderedItems.some((it) => it.stage !== 'Served');
+  const hasUnservedTableItems =
+    !hasTableOrders ||
+    allTableOrderedItems.some((it) => it.stage !== 'Served' && (it.stage as string) !== 'SERVED');
 
   let isCurrentSelectionSettleDisabled = false;
   let currentSelectionSettleReason = '';
@@ -1454,25 +1502,40 @@ export function ScreenM3TableSheet({
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={handleServeReadyFood}
-              disabled={!hasReadyFood}
-              className={`min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-95 ${
-                hasReadyFood
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs'
-                  : 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60'
-              }`}
-            >
-              <Utensils className="h-4 w-4" />
-              <span>
-                {typeof selectedSeat === 'number'
-                  ? `Serve Chair ${selectedSeat}`
-                  : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
-                  ? 'Serve Group'
-                  : 'Serve Food'}
-              </span>
-            </button>
+            {isAllSelectionServed ? (
+              <button
+                type="button"
+                disabled
+                className="min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-none flex items-center justify-center gap-1.5 bg-stone-100 text-stone-400 border border-stone-300 line-through cursor-not-allowed opacity-75 select-none"
+              >
+                <Utensils className="h-4 w-4 line-through text-stone-400" />
+                <span className="line-through">Served</span>
+              </button>
+            ) : unservedSelectionItems.length > 0 ? (
+              <button
+                type="button"
+                onClick={handleServeSelectionFood}
+                className="min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-95 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
+              >
+                <Utensils className="h-4 w-4" />
+                <span>
+                  {typeof selectedSeat === 'number'
+                    ? `Serve Chair ${selectedSeat}`
+                    : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
+                    ? 'Serve Group'
+                    : 'Serve All'}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60 flex items-center justify-center gap-1.5 shadow-none"
+              >
+                <Utensils className="h-4 w-4" />
+                <span>Serve Food</span>
+              </button>
+            )}
           </div>
         </div>
 

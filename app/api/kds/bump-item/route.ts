@@ -29,12 +29,18 @@ export async function POST(req: NextRequest) {
 
     const nowIso = new Date().toISOString();
 
-    // 1. Fetch item from order_items
-    const { data: item } = await supabase
-      .from('order_items')
-      .select('*')
-      .eq('id', itemId)
-      .maybeSingle();
+    const isServeAll = itemId === 'ALL';
+
+    // 1. Fetch item from order_items if not serve-all
+    let item: any = null;
+    if (!isServeAll) {
+      const { data } = await supabase
+        .from('order_items')
+        .select('*')
+        .eq('id', itemId)
+        .maybeSingle();
+      item = data;
+    }
 
     const normSearch = String(itemId).trim().toLowerCase();
 
@@ -54,12 +60,20 @@ export async function POST(req: NextRequest) {
         .from('kds_tickets')
         .select('*')
         .neq('status', 'COMPLETED');
-      targetTicket = (allActiveTickets || []).find((t: any) =>
-        Array.isArray(t.items) &&
-        t.items.some((it: any) => it.id === itemId)
-      );
+      targetTicket = (allActiveTickets || []).find((t: any) => {
+        if (isServeAll) {
+          return (
+            (body.tableNumber && (t.table_number === body.tableNumber || t.tableNumber === body.tableNumber)) ||
+            (ticketId && t.id === ticketId)
+          );
+        }
+        return (
+          Array.isArray(t.items) &&
+          t.items.some((it: any) => it.id === itemId)
+        );
+      });
 
-      if (!targetTicket) {
+      if (!targetTicket && !isServeAll) {
         // Fallback for direct dish name matching, but only target unserved items
         targetTicket = (allActiveTickets || []).find((t: any) =>
           Array.isArray(t.items) &&
@@ -72,22 +86,11 @@ export async function POST(req: NextRequest) {
     }
 
     if (!item && !targetTicket) {
-      const { data: anyTicket } = await supabase
-        .from('kds_tickets')
-        .select('*')
-        .neq('status', 'COMPLETED');
-      targetTicket = (anyTicket || []).find((t: any) =>
-        Array.isArray(t.items) &&
-        t.items.some((it: any) => it.id === itemId)
-      );
+      return NextResponse.json({ error: `Item or ticket not found` }, { status: 404 });
     }
 
-    if (!item && !targetTicket) {
-      return NextResponse.json({ error: `Item ${itemId} not found` }, { status: 404 });
-    }
-
-    let ticketItem = targetTicket?.items?.find((it: any) => it.id === itemId);
-    if (!ticketItem && targetTicket?.items) {
+    let ticketItem = !isServeAll ? targetTicket?.items?.find((it: any) => it.id === itemId) : null;
+    if (!ticketItem && targetTicket?.items && !isServeAll) {
       ticketItem = targetTicket.items.find((it: any) => {
         const itName = (it.name || '').trim().toLowerCase();
         return (itName === normSearch || (itName && normSearch.includes(itName))) && it.stage !== 'SERVED';
@@ -95,7 +98,7 @@ export async function POST(req: NextRequest) {
     }
 
     const currentStage = item?.stage || ticketItem?.stage || 'PLACED';
-    const nextStage = targetStage || STAGE_TRANSITION[currentStage] || 'PREP';
+    const nextStage = targetStage || (isServeAll ? 'SERVED' : STAGE_TRANSITION[currentStage] || 'PREP');
 
     // 3. Update order_items
     if (item) {
@@ -134,10 +137,7 @@ export async function POST(req: NextRequest) {
     let ticketStatus = 'NEW';
     if (targetTicket) {
       const updatedTicketItems = (targetTicket.items || []).map((it: any) => {
-        const isMatch =
-          it.id === itemId ||
-          (ticketItem && it.id === ticketItem.id);
-        if (isMatch) {
+        if (isServeAll || it.id === itemId || (ticketItem && it.id === ticketItem.id)) {
           return { ...it, stage: nextStage };
         }
         return it;
@@ -174,6 +174,14 @@ export async function POST(req: NextRequest) {
           itemId,
           stage: nextStage,
         });
+        if (allServed) {
+          broadcastStateChange('ITEMS_SERVED', {
+            ticketId: targetTicket.id,
+            itemId: 'ALL',
+            tableNumber: targetTicket.table_number,
+            stage: 'SERVED',
+          });
+        }
       } catch (bcErr) {
         console.warn('Broadcast error in bump-item:', bcErr);
       }

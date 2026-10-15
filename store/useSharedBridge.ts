@@ -307,6 +307,9 @@ interface SharedBridgeState {
   /** Waiter marks a kitchen-ready item as served → removes from waiter feed + updates table item status */
   waiterMarkKitchenItemServed: (ticketId: string, itemId: string) => void;
 
+  /** Waiter serves all items for an entire table or chair */
+  waiterServeAllItemsForTable: (tableNumber: string, seatNumber?: number) => void;
+
   /** Waiter initiates settlement session at table/chair */
   waiterInitiatesSettlement: (
     tableNumber: string,
@@ -1955,41 +1958,52 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const prevTickets = get().kdsTickets;
     const prevTables = get().tables;
 
-    set((state) => {
-      let targetTableNumber: string | undefined;
-      let targetItemName: string | undefined;
-      let targetSeatNumber: number | undefined;
+    let targetTableNumber: string | undefined;
+    let targetItemName: string | undefined;
+    let targetSeatNumber: number | undefined;
+    const isServeAll = itemId === 'ALL' || !itemId;
 
+    set((state) => {
       const newTickets = state.kdsTickets.map((t) => {
-        const isMatch = t.id === ticketId || t.items.some((i) => i.id === itemId);
+        const isMatch = t.id === ticketId || (itemId && itemId !== 'ALL' && t.items.some((i) => i.id === itemId));
         if (!isMatch) return t;
         targetTableNumber = t.tableNumber;
-        const target = t.items.find((i) => i.id === itemId);
-        if (target) {
-          targetItemName = target.name;
-          targetSeatNumber = target.seatNumber || t.seatNumber;
+        if (!isServeAll) {
+          const target = t.items.find((i) => i.id === itemId);
+          if (target) {
+            targetItemName = target.name;
+            targetSeatNumber = target.seatNumber || t.seatNumber;
+          }
         }
-        const newItems = t.items.map((it) =>
-          it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
-        );
+        const newItems = isServeAll
+          ? t.items.map((it) => ({ ...it, stage: 'SERVED' as OrderStage }))
+          : t.items.map((it) =>
+              it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
+            );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
         return { ...t, items: newItems, status: allServed ? 'COMPLETED' : t.status };
       });
 
       if (!targetTableNumber) {
-        const foundTbl = state.tables.find((tbl) => tbl.activeItems?.some((ai) => ai.id === itemId));
+        const foundTbl = state.tables.find((tbl) =>
+          tbl.activeItems?.some((ai) => (isServeAll ? true : ai.id === itemId))
+        );
         if (foundTbl) targetTableNumber = foundTbl.number;
       }
 
+      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const targetNum = targetTableNumber ? cleanNum(targetTableNumber) : '';
+
       const updatedTables = targetTableNumber
         ? state.tables.map((tbl) => {
-            if (tbl.number !== targetTableNumber) return tbl;
+            if (cleanNum(tbl.number) !== targetNum && tbl.number !== targetTableNumber) return tbl;
             return {
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
-                return ai.id === itemId
-                  ? { ...ai, status: 'Served' }
-                  : ai;
+                if (isServeAll || ai.id === itemId) {
+                  return { ...ai, status: 'Served' };
+                }
+                return ai;
               }),
             };
           })
@@ -1998,17 +2012,113 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       return { kdsTickets: newTickets, tables: updatedTables };
     });
 
-    broadcastStateChange('KDS_TICKET_UPDATED', { ticketId, itemId, stage: 'SERVED' });
+    const payload = {
+      ticketId,
+      itemId: isServeAll ? 'ALL' : itemId,
+      tableNumber: targetTableNumber,
+      seatNumber: targetSeatNumber,
+      stage: 'SERVED',
+      timestamp: Date.now(),
+    };
+
+    broadcastStateChange('KDS_TICKET_UPDATED', payload);
+    broadcastStateChange('ITEMS_SERVED', payload);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.postMessage({
+          type: 'ITEMS_SERVED',
+          payload,
+        });
+        bc.close();
+      } catch {}
+    }
 
     // Persist to Supabase
     bridgePost(
       '/api/kds/bump-item',
-      { ticketId, itemId, stage: 'SERVED' },
+      { ticketId, itemId: isServeAll ? 'ALL' : itemId, stage: 'SERVED' },
       () => {
         console.error('[Bridge] waiterMarkKitchenItemServed rollback');
         useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables });
       }
     );
+  },
+
+  waiterServeAllItemsForTable: (tableNumber, seatNumber) => {
+    const prevTickets = get().kdsTickets;
+    const prevTables = get().tables;
+
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    set((state) => {
+      const nextTickets = state.kdsTickets.map((t) => {
+        if (cleanNum(t.tableNumber) !== targetNum && t.tableNumber !== tableNumber && t.tableNumber !== normTable) {
+          return t;
+        }
+        if (seatNumber && t.seatNumber && t.seatNumber !== seatNumber) {
+          return t;
+        }
+        const nextItems = t.items.map((it) => {
+          if (!seatNumber || !it.seatNumber || it.seatNumber === seatNumber) {
+            return { ...it, stage: 'SERVED' as OrderStage };
+          }
+          return it;
+        });
+        const allServed = nextItems.every((it) => it.stage === 'SERVED');
+        return { ...t, items: nextItems, status: allServed ? ('COMPLETED' as const) : t.status };
+      });
+
+      const nextTables = state.tables.map((tbl) => {
+        if (cleanNum(tbl.number) !== targetNum && tbl.number !== tableNumber && tbl.number !== normTable) {
+          return tbl;
+        }
+        return {
+          ...tbl,
+          activeItems: (tbl.activeItems || []).map((ai) => {
+            if (!seatNumber || !ai.seatNumber || ai.seatNumber === seatNumber) {
+              return { ...ai, status: 'Served' };
+            }
+            return ai;
+          }),
+        };
+      });
+
+      return { kdsTickets: nextTickets, tables: nextTables };
+    });
+
+    const payload = {
+      tableNumber: normTable,
+      seatNumber,
+      itemId: 'ALL',
+      stage: 'SERVED',
+      timestamp: Date.now(),
+    };
+
+    broadcastStateChange('KDS_TICKET_UPDATED', payload);
+    broadcastStateChange('ITEMS_SERVED', payload);
+
+    if (typeof window !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.postMessage({
+          type: 'ITEMS_SERVED',
+          payload,
+        });
+        bc.close();
+      } catch {}
+    }
+
+    // Persist to Supabase
+    const matchingTickets = prevTickets.filter(
+      (t) => (cleanNum(t.tableNumber) === targetNum || t.tableNumber === tableNumber) && (!seatNumber || t.seatNumber === seatNumber)
+    );
+    matchingTickets.forEach((tk) => {
+      bridgePost('/api/kds/bump-item', { ticketId: tk.id, itemId: 'ALL', stage: 'SERVED' });
+    });
   },
 
   waiterInitiatesSettlement: (tableNumber, seatNumber, grandTotal, method, isUpiVerified) => {
@@ -2516,6 +2626,84 @@ if (typeof window !== 'undefined') {
     }
   };
 
+  const applyIncomingItemsServed = (data: {
+    ticketId?: string;
+    itemId?: string;
+    tableNumber?: string;
+    seatNumber?: number;
+    stage?: string;
+  }) => {
+    if (!data) return;
+    const { ticketId, itemId, tableNumber, seatNumber } = data;
+    const isServeAll = itemId === 'ALL' || !itemId;
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = tableNumber ? cleanNum(tableNumber) : '';
+
+    isBroadcasting = true;
+    useSharedBridge.setState((state) => {
+      let matchedTableNum = targetNum;
+
+      const newTickets = state.kdsTickets.map((t) => {
+        const matchByTicket = ticketId && t.id === ticketId;
+        const matchByTable = targetNum && (cleanNum(t.tableNumber) === targetNum || t.tableNumber === tableNumber);
+        const matchByItem = itemId && itemId !== 'ALL' && t.items.some((i) => i.id === itemId);
+
+        if (!matchByTicket && !matchByTable && !matchByItem) return t;
+
+        if (seatNumber && t.seatNumber && t.seatNumber !== seatNumber) {
+          return t;
+        }
+
+        if (!matchedTableNum && t.tableNumber) {
+          matchedTableNum = cleanNum(t.tableNumber);
+        }
+
+        const newItems = t.items.map((it) => {
+          if (seatNumber && it.seatNumber && it.seatNumber !== seatNumber) {
+            return it;
+          }
+          if (isServeAll || it.id === itemId) {
+            return { ...it, stage: 'SERVED' as OrderStage };
+          }
+          return it;
+        });
+
+        const allServed = newItems.every((i) => i.stage === 'SERVED');
+        return {
+          ...t,
+          items: newItems,
+          status: allServed ? ('COMPLETED' as const) : t.status,
+        };
+      });
+
+      const updatedTables = state.tables.map((tbl) => {
+        const isTarget =
+          (matchedTableNum && cleanNum(tbl.number) === matchedTableNum) ||
+          (targetNum && cleanNum(tbl.number) === targetNum) ||
+          (tableNumber && tbl.number === tableNumber) ||
+          tbl.activeItems?.some((ai) => (isServeAll ? false : ai.id === itemId));
+
+        if (!isTarget) return tbl;
+
+        return {
+          ...tbl,
+          activeItems: (tbl.activeItems || []).map((ai) => {
+            if (seatNumber && ai.seatNumber && ai.seatNumber !== seatNumber) {
+              return ai;
+            }
+            if (isServeAll || ai.id === itemId) {
+              return { ...ai, status: 'Served' as const };
+            }
+            return ai;
+          }),
+        };
+      });
+
+      return { kdsTickets: newTickets, tables: updatedTables };
+    });
+    isBroadcasting = false;
+  };
+
   // 1. Native Cross-Tab Sync via BroadcastChannel (0ms latency, zero dependencies)
   let syncChannel: BroadcastChannel | null = null;
   if ('BroadcastChannel' in window) {
@@ -2540,6 +2728,9 @@ if (typeof window !== 'undefined') {
       if (event.data?.type === 'ORDER_PLACED' && event.data.payload) {
         applyIncomingOrderPlaced(event.data.payload);
       }
+      if (event.data?.type === 'ITEMS_SERVED' && event.data.payload) {
+        applyIncomingItemsServed(event.data.payload);
+      }
       if (event.data?.type === 'SEAT_OCCUPIED' && event.data.tableNumber && event.data.seatNumber) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
@@ -2557,6 +2748,14 @@ if (typeof window !== 'undefined') {
         const payload = event.data.payload;
         if (reason === 'orderPlaced' && payload) {
           applyIncomingOrderPlaced(payload);
+        }
+        if (
+          (reason === 'ITEMS_SERVED' ||
+            reason === 'KDS_TICKET_UPDATED' ||
+            reason === 'KDS_ITEM_BUMPED') &&
+          payload
+        ) {
+          applyIncomingItemsServed(payload);
         }
         if (reason === 'waiterPingCreated' && payload) {
           const newPing = payload as SharedPing;
@@ -2620,6 +2819,14 @@ if (typeof window !== 'undefined') {
           }
           if (reason === 'orderPlaced' && payload) {
             applyIncomingOrderPlaced(payload);
+          }
+          if (
+            (reason === 'ITEMS_SERVED' ||
+              reason === 'KDS_TICKET_UPDATED' ||
+              reason === 'KDS_ITEM_BUMPED') &&
+            payload
+          ) {
+            applyIncomingItemsServed(payload);
           }
           if (reason === 'seatOccupied' && payload?.tableNumber && payload?.seatNumber) {
             if (typeof window !== 'undefined') {

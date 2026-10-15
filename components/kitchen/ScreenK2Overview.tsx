@@ -124,9 +124,11 @@ export const ScreenK2Overview: React.FC = () => {
 
   const activeBridgeTables: K2Table[] = useMemo(() => {
     return bridgeTickets
-      .filter((tk) => tk.status !== 'COMPLETED')
+      .filter((tk) => tk.status !== 'COMPLETED' && tk.status !== 'SERVED')
       .map((tk) => {
-        const unservedItems = tk.items.filter((it) => it.stage !== 'SERVED');
+        const unservedItems = tk.items.filter(
+          (it) => it.stage !== 'SERVED' && (it.stage as string) !== 'Served'
+        );
         return {
           id: tk.id,
           tableNumber: formatKdsTableNumber(tk.tableNumber),

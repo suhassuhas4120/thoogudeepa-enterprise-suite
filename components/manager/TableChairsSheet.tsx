@@ -69,8 +69,7 @@ export function TableChairsSheet({
   const groupPeers: string[] = table.mergeGroupPeers ?? [table.number];
   const tickets = kdsTickets.filter(
     (tk) =>
-      groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber)) &&
-      tk.status !== 'COMPLETED'
+      groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber))
   );
 
   // Unified items list
@@ -91,7 +90,9 @@ export function TableChairsSheet({
 
   tickets.forEach((tk) => {
     (tk.items || []).forEach((it) => {
-      const rawStage = String(it.stage || tk.status || '').toUpperCase();
+      const activeMatch = table.activeItems?.find((ai) => ai.id === it.id);
+      const isServed = it.stage === 'SERVED' || (it.stage as string) === 'Served' || activeMatch?.status === 'Served';
+      const rawStage = isServed ? 'SERVED' : String(it.stage || tk.status || '').toUpperCase();
       const stage: ChairItem['stage'] =
         rawStage === 'SERVED'
           ? 'SERVED'

@@ -90,9 +90,13 @@ function StagePill({
   }
   if (stage === "Served" || stage === "SERVED") {
     return (
-      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
-        <span>Served</span>
-      </span>
+      <button
+        disabled
+        type="button"
+        className="px-2.5 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none cursor-not-allowed opacity-75"
+      >
+        <span className="line-through">Served</span>
+      </button>
     );
   }
   return (
@@ -930,12 +934,27 @@ export function TabletTableDetail({
                       {tk.timestamp}
                     </span>
                   </div>
-                  {(isAllServed ||
-                    tk.status === "COMPLETED" ||
-                    tk.status === "SERVED") && (
-                    <span className="px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300">
-                      SERVED
-                    </span>
+                  {isAllServed ||
+                  tk.status === "COMPLETED" ||
+                  tk.status === "SERVED" ? (
+                    <button
+                      disabled
+                      type="button"
+                      className="px-2.5 py-1 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-stone-400 bg-stone-100 border-stone-300 line-through cursor-not-allowed opacity-75 shadow-none"
+                    >
+                      Served
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        waiterMarkKitchenItemServed(tk.id, "ALL")
+                      }
+                      className="px-2.5 py-1 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-white bg-emerald-600 hover:bg-emerald-700 border-emerald-700 shadow-xs cursor-pointer transition active:scale-95 flex items-center gap-1"
+                    >
+                      <Utensils className="h-3 w-3" />
+                      <span>Serve All</span>
+                    </button>
                   )}
                 </div>
 

@@ -15,12 +15,11 @@ export function ScreenM2LiveOverview() {
   const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
   const activeTickets = kdsTickets.filter((tk) => {
     if (!tk.items || tk.items.length === 0) return false;
-    if (tk.status === 'COMPLETED') return false;
-    const isOccupiedOrBilling = tables.some(
-      (t) => (t.status === 'OCCUPIED' || t.status === 'BILLING') && cleanNum(t.number) === cleanNum(tk.tableNumber)
+    if (tk.status === 'COMPLETED' || tk.status === 'SERVED') return false;
+    const hasUnservedItem = tk.items.some(
+      (it) => it.stage !== 'SERVED' && (it.stage as string) !== 'Served'
     );
-    const hasUnservedItem = tk.items.some((it) => it.stage !== 'SERVED');
-    return isOccupiedOrBilling || hasUnservedItem;
+    return hasUnservedItem;
   });
   const activeKdsCount = activeTickets.length;
 

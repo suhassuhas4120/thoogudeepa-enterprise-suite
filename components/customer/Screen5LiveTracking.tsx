@@ -594,16 +594,17 @@ export const Screen5LiveTracking: React.FC = () => {
   const cancelPaymentPing = () => {
     setIsWaitingForCaptain(false);
     useCustomerStore.getState().dismissWaiterNotification();
-    const paymentPing = pings.find(
+    const paymentPings = (pings || []).filter(
       (p) =>
         isTableMatch(p.tableNumber, effectiveTable) &&
-        p.type === 'PAYMENT' &&
-        p.seatNumber === effectiveSeat &&
+        (p.type === 'PAYMENT' || p.type === 'BILL') &&
+        (!p.seatNumber || p.seatNumber === effectiveSeat) &&
         p.status === 'PENDING'
     );
-    if (paymentPing) {
-      useSharedBridge.getState().waiterResolvePing(paymentPing.id);
-    }
+    paymentPings.forEach((p) => {
+      useSharedBridge.getState().waiterResolvePing(p.id);
+    });
+    useSharedBridge.getState().waiterClearsSettlementSession(effectiveTable, effectiveSeat);
   };
 
   const handleConfirmCallCaptain = () => {

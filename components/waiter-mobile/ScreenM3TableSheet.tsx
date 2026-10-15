@@ -496,23 +496,24 @@ export function ScreenM3TableSheet({
   const targetNum = cleanNum(tableNum);
   const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
 
-  const hasCustomerPaymentRequest = (pings || []).some(
-    (p) =>
-      p.status === 'PENDING' &&
-      cleanNum(p.tableNumber) === targetNum &&
-      (p.type === 'PAYMENT' || p.type === 'BILL') &&
-      (selectedSeat === 'ALL' ||
-        !p.seatNumber ||
-        (typeof selectedSeat === 'number' && p.seatNumber === selectedSeat) ||
-        (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]?.includes(p.seatNumber)))
-  );
+  const hasCustomerPaymentRequest = (pings || []).some((p) => {
+    if (p.status !== 'PENDING') return false;
+    if (cleanNum(p.tableNumber) !== targetNum) return false;
+    if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
 
-  const hasActiveSession = Boolean(
-    activeSettlementSessions?.[normTable] ||
-    (typeof selectedSeat === 'number' && activeSettlementSessions?.[`${normTable}-CHAIR-${selectedSeat}`])
-  );
+    if (selectedSeat === 'ALL') {
+      return true;
+    }
+    if (typeof selectedSeat === 'number') {
+      return p.seatNumber === selectedSeat;
+    }
+    if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+      return typeof p.seatNumber === 'number' && mergedSeatGroups[selectedSeat].includes(p.seatNumber);
+    }
+    return false;
+  });
 
-  const isCustomerBillRequested = hasCustomerPaymentRequest || hasActiveSession;
+  const isCustomerBillRequested = hasCustomerPaymentRequest;
 
   const hasTableOrders = allTableOrderedItems.length > 0;
   const hasUnservedTableItems =

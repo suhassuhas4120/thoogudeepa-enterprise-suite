@@ -290,23 +290,24 @@ export function TabletTableDetail({
   const targetNum = cleanNum(tableNum);
   const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
 
-  const hasCustomerPaymentRequest = (pings || []).some(
-    (p) =>
-      p.status === 'PENDING' &&
-      cleanNum(p.tableNumber) === targetNum &&
-      (p.type === 'PAYMENT' || p.type === 'BILL') &&
-      (selectedChair === 'ALL' ||
-        !p.seatNumber ||
-        (typeof selectedChair === 'number' && p.seatNumber === selectedChair) ||
-        (typeof selectedChair === 'string' && mergedSeatGroups[selectedChair]?.includes(p.seatNumber)))
-  );
+  const hasCustomerPaymentRequest = (pings || []).some((p) => {
+    if (p.status !== 'PENDING') return false;
+    if (cleanNum(p.tableNumber) !== targetNum) return false;
+    if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
 
-  const hasActiveSession = Boolean(
-    activeSettlementSessions?.[normTable] ||
-    (typeof selectedChair === 'number' && activeSettlementSessions?.[`${normTable}-CHAIR-${selectedChair}`])
-  );
+    if (selectedChair === 'ALL') {
+      return true;
+    }
+    if (typeof selectedChair === 'number') {
+      return p.seatNumber === selectedChair;
+    }
+    if (typeof selectedChair === 'string' && mergedSeatGroups[selectedChair]) {
+      return typeof p.seatNumber === 'number' && mergedSeatGroups[selectedChair].includes(p.seatNumber);
+    }
+    return false;
+  });
 
-  const isCustomerBillRequested = hasCustomerPaymentRequest || hasActiveSession;
+  const isCustomerBillRequested = hasCustomerPaymentRequest;
 
   // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
   const hasItemsToSettle = relevantItems.length > 0;

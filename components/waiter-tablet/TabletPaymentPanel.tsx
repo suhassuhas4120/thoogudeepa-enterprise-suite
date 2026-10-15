@@ -42,7 +42,7 @@ export function TabletPaymentPanel({
   splitAmount,
   splitLabel,
 }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill } = useSharedBridge();
+  const { tables, kdsTickets, pings, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill } = useSharedBridge();
   const { cart } = useCustomer();
   const table = tables.find((t) => t.number === tableNum);
 
@@ -193,9 +193,21 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     relevantFired.length > 0 &&
     relevantFired.every((it) => it.stage === 'SERVED' || (it.stage as string) === 'Served');
 
+  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetNum = cleanNum(tableNum);
+
+  const hasCustomerPaymentRequest = (pings || []).some((p) => {
+    if (p.status !== 'PENDING') return false;
+    if (cleanNum(p.tableNumber) !== targetNum) return false;
+    if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
+    if (!splitSeatNum) return true;
+    return p.seatNumber === splitSeatNum;
+  });
+
   const isSettleDisabled =
     bill <= 0 ||
     (relevantFired.length > 0 && !areAllFiredServed) ||
+    !hasCustomerPaymentRequest ||
     (method === 'UPI' && !isUpiVerified) ||
     (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
@@ -593,6 +605,8 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
             title={
               relevantFired.length > 0 && !areAllFiredServed
                 ? 'All ordered dishes must be served before completing settlement'
+                : !hasCustomerPaymentRequest
+                ? 'Awaiting customer bill request'
                 : undefined
             }
             className={`flex-1 py-3.5 px-5 rounded-2xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition border-0 ${
@@ -605,6 +619,8 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
             <span>
               {relevantFired.length > 0 && !areAllFiredServed
                 ? 'Serve Dishes First'
+                : !hasCustomerPaymentRequest
+                ? 'Awaiting Bill Request'
                 : `Complete Settlement (₹${bill.toFixed(2)})`}
             </span>
           </button>

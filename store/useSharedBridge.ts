@@ -442,6 +442,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       delete nextBills[`${normTable}-CHAIR-${assignedSeat}`];
       delete nextBills[`${tableNumber}-CHAIR-${assignedSeat}`];
 
+      const nextSessions = { ...state.activeSettlementSessions };
+      delete nextSessions[normTable];
+      delete nextSessions[tableNumber];
+      delete nextSessions[`${normTable}-CHAIR-${assignedSeat}`];
+      delete nextSessions[`${tableNumber}-CHAIR-${assignedSeat}`];
+
+      const cleanedPings = state.pings.filter(
+        (p) =>
+          !(
+            cleanNum(p.tableNumber) === targetNum &&
+            (p.type === 'PAYMENT' || p.type === 'BILL') &&
+            (!p.seatNumber || p.seatNumber === assignedSeat)
+          )
+      );
+
       if (typeof window !== 'undefined') {
         supabase
           .from('pings')
@@ -454,6 +469,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kdsTickets: [...state.kdsTickets, ticket],
         kitchenNotifications: [...state.kitchenNotifications, notif],
         settledBills: nextBills,
+        activeSettlementSessions: nextSessions,
+        pings: cleanedPings,
         tables: state.tables.map((t) =>
           (cleanNum(t.number) === targetNum || t.number === tableNumber || t.number === normTable)
             ? {
@@ -1166,9 +1183,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const nextBills = { ...state.settledBills };
       delete nextBills[normTable];
       delete nextBills[tableNumber];
+      const nextSessions = { ...state.activeSettlementSessions };
       if (typeof seatNumber === 'number') {
         delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
         delete nextBills[`${tableNumber}-CHAIR-${seatNumber}`];
+        delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
+        delete nextSessions[`${tableNumber}-CHAIR-${seatNumber}`];
+        if (nextSessions[normTable]?.seatNumber === seatNumber) {
+          delete nextSessions[normTable];
+        }
         if (typeof window !== 'undefined') {
           supabase
             .from('pings')
@@ -1177,9 +1200,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             .then(() => {}, () => {});
         }
       } else {
+        delete nextSessions[normTable];
+        delete nextSessions[tableNumber];
         for (let s = 1; s <= 12; s++) {
           delete nextBills[`${normTable}-CHAIR-${s}`];
           delete nextBills[`${tableNumber}-CHAIR-${s}`];
+          delete nextSessions[`${normTable}-CHAIR-${s}`];
+          delete nextSessions[`${tableNumber}-CHAIR-${s}`];
         }
         if (typeof window !== 'undefined') {
           supabase
@@ -1190,10 +1217,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         }
       }
 
+      const cleanedPings = state.pings.filter(
+        (p) =>
+          !(
+            cleanNum(p.tableNumber) === targetNum &&
+            (p.type === 'PAYMENT' || p.type === 'BILL') &&
+            (!seatNumber || !p.seatNumber || p.seatNumber === seatNumber)
+          )
+      );
+
       return {
         kdsTickets: [...state.kdsTickets, ticket],
         kitchenNotifications: [...state.kitchenNotifications, notif],
         settledBills: nextBills,
+        activeSettlementSessions: nextSessions,
+        pings: cleanedPings,
         tables: state.tables.map((t) =>
         (cleanNum(t.number) === targetNum || t.number === tableNumber || t.number === normTable)
           ? {
@@ -1320,14 +1358,37 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   
   waiterSeatsGuests: (tableNumber, guestCount, captainName) => {
     const prevTables = get().tables;
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
 
-    set((state) => ({
-      tables: state.tables.map((t) =>
-        t.number === tableNumber
-          ? { ...t, status: 'OCCUPIED', guestCount, seatedTime: nowTime(), serverName: captainName }
-          : t
-      ),
-    }));
+    set((state) => {
+      const nextSessions = { ...state.activeSettlementSessions };
+      delete nextSessions[normTable];
+      delete nextSessions[tableNumber];
+      for (let s = 1; s <= 12; s++) {
+        delete nextSessions[`${normTable}-CHAIR-${s}`];
+        delete nextSessions[`${tableNumber}-CHAIR-${s}`];
+      }
+
+      const cleanedPings = state.pings.filter(
+        (p) =>
+          !(
+            cleanNum(p.tableNumber) === targetNum &&
+            (p.type === 'PAYMENT' || p.type === 'BILL')
+          )
+      );
+
+      return {
+        tables: state.tables.map((t) =>
+          t.number === tableNumber || cleanNum(t.number) === targetNum
+            ? { ...t, status: 'OCCUPIED', guestCount, seatedTime: nowTime(), serverName: captainName }
+            : t
+        ),
+        activeSettlementSessions: nextSessions,
+        pings: cleanedPings,
+      };
+    });
 
     bridgePost(
       '/api/tables/seat',

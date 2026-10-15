@@ -275,13 +275,17 @@ export default function WaiterTabletPage() {
     setCallsOpen(false);
     setPickupOpen(false);
 
-    const targetTable = tables.find((t) => t.number === num);
-    if (!targetTable || targetTable.status === "VACANT") {
-      // 2. When empty table clicked: right side should be menu page by default!
-      setRightPanelTab("menu");
-    } else {
-      // 5. When non-vacant table clicked: right side should be payment page by default!
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const hasCustomerPaymentRequest = (pings || []).some(
+      (p) =>
+        p.status === 'PENDING' &&
+        cleanNum(p.tableNumber) === cleanNum(num) &&
+        (p.type === 'PAYMENT' || p.type === 'BILL')
+    );
+    if (hasCustomerPaymentRequest) {
       setRightPanelTab("payment");
+    } else {
+      setRightPanelTab("menu");
     }
     setView("table-detail");
   };
@@ -909,7 +913,7 @@ export default function WaiterTabletPage() {
                             onBack={() => setView("floor")}
                             onKOTFired={() => {
                               showToast(`KOT fired for ${selectedTableNum}!`);
-                              setRightPanelTab("payment");
+                              setRightPanelTab("menu");
                             }}
                             onSwitchToPayment={() =>
                               setRightPanelTab("payment")

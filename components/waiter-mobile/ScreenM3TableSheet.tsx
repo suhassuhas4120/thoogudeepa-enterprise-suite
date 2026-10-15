@@ -755,7 +755,7 @@ export function ScreenM3TableSheet({
           </AnimatePresence>
 
           {/* Horizontal Grid of Large Interactive Chair Cards */}
-          <div className={`flex items-center gap-2 pt-2 pb-0.5 px-0.5 ${isCompactRail ? 'w-full' : 'overflow-x-auto scrollbar-none'}`}>
+          <div className={`flex items-center gap-2 pt-3 pb-1.5 px-2.5 ${isCompactRail ? 'w-full' : 'overflow-x-auto scrollbar-none'}`}>
             {/* All Table Card */}
             <button
               type="button"
@@ -944,11 +944,17 @@ export function ScreenM3TableSheet({
                   }`}
                 >
                   {seatHasReady && (
-                    <span className="absolute -top-1 -left-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                    <span
+                      className="absolute -top-1.5 -left-1.5 z-20 flex h-4 w-4 items-center justify-center"
+                      title="Food Ready to Serve"
+                    >
+                      <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                      <span className="relative inline-flex h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" />
+                    </span>
                   )}
                   {/* Tick badge when selected for merge */}
                   {isSelectedForMerge && (
-                    <span className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm">
+                    <span className="absolute -top-1.5 -right-1.5 h-5 w-5 bg-emerald-500 rounded-full flex items-center justify-center border-2 border-white shadow-sm z-20">
                       <CheckCircle2 className="h-3 w-3 text-white" />
                     </span>
                   )}

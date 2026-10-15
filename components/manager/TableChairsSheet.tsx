@@ -388,23 +388,37 @@ export function TableChairsSheet({
         </div>
 
         {/* Rail of Chairs */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-thin">
+        <div className="flex items-center gap-2.5 overflow-x-auto pt-3 pb-2 px-2.5 scrollbar-thin">
           {/* All Table Card */}
-          <button
-            type="button"
-            onClick={() => setSelectedSeat("ALL")}
-            className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition flex flex-col items-center justify-between h-[82px] min-w-[90px] shrink-0 shadow-2xs active:scale-95 ${
-              selectedSeat === "ALL"
-                ? "bg-stone-900 text-white border-stone-900 ring-2 ring-stone-900/30"
-                : "bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]"
-            }`}
-          >
-            <FileText className="h-4.5 w-4.5 mb-0.5 shrink-0" />
-            <span className="truncate w-full text-center">All Table</span>
-            <span className="text-[11px] opacity-80 shrink-0 font-black">
-              ₹ {table.currentBill}
-            </span>
-          </button>
+          {(() => {
+            const hasAnyReadyItem = allTableOrderedItems.some((i) => i.stage === "READY");
+            return (
+              <button
+                type="button"
+                onClick={() => setSelectedSeat("ALL")}
+                className={`p-2.5 rounded-xl font-mono text-xs font-black border-2 transition flex flex-col items-center justify-between h-[82px] min-w-[90px] shrink-0 shadow-2xs active:scale-95 relative ${
+                  selectedSeat === "ALL"
+                    ? "bg-stone-900 text-white border-stone-900 ring-2 ring-stone-900/30"
+                    : "bg-white text-stone-700 border-[#EAE5DF] hover:bg-[#FAF8F5]"
+                }`}
+              >
+                {hasAnyReadyItem && (
+                  <span
+                    className="absolute -top-1.5 -left-1.5 z-20 flex h-4 w-4 items-center justify-center"
+                    title="Food Ready to Serve"
+                  >
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" />
+                  </span>
+                )}
+                <FileText className="h-4.5 w-4.5 mb-0.5 shrink-0" />
+                <span className="truncate w-full text-center">All Table</span>
+                <span className="text-[11px] opacity-80 shrink-0 font-black">
+                  ₹ {table.currentBill}
+                </span>
+              </button>
+            );
+          })()}
 
           {/* Individual Chairs 1..N */}
           {Array.from({ length: capacity }).map((_, idx) => {
@@ -438,7 +452,13 @@ export function TableChairsSheet({
                 }`}
               >
                 {hasReadyItem && (
-                  <span className="absolute -top-1 -left-1 h-3.5 w-3.5 rounded-full bg-emerald-500 border-2 border-white animate-pulse" />
+                  <span
+                    className="absolute -top-1.5 -left-1.5 z-20 flex h-4 w-4 items-center justify-center"
+                    title="Food Ready to Serve"
+                  >
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex h-4 w-4 rounded-full bg-emerald-500 border-2 border-white shadow-md" />
+                  </span>
                 )}
 
                 <div className="flex items-center gap-1.5">

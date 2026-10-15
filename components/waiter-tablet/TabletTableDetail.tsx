@@ -376,7 +376,7 @@ export function TabletTableDetail({
           </div>
         )}
 
-        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
+        <div className="flex gap-2.5 overflow-x-auto no-scrollbar pt-3 pb-2 px-2.5">
           {/* ALL Seats Button — supports dropping menu dish */}
           <button
             type="button"
@@ -612,15 +612,31 @@ export function TabletTableDetail({
                 </span>
                 {/* Food Ready Dot */}
                 {hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-600 border-2 border-white animate-pulse" />
+                  <span
+                    className="absolute -top-1.5 -right-1.5 z-20 flex h-4 w-4 items-center justify-center"
+                    title="Food Ready to Serve"
+                  >
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+                    <span className="relative inline-flex h-4 w-4 rounded-full bg-blue-600 border-2 border-white shadow-md" />
+                  </span>
                 )}
                 {/* Active Items Dot */}
                 {hasItems && !hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-500 border-2 border-white" />
+                  <span
+                    className="absolute -top-1.5 -right-1.5 z-20 flex h-3.5 w-3.5 items-center justify-center"
+                    title="Active Orders"
+                  >
+                    <span className="h-3.5 w-3.5 rounded-full bg-amber-500 border-2 border-white shadow-xs" />
+                  </span>
                 )}
                 {/* Draft Items Dot */}
                 {hasDraft && !hasItems && !hasReady && (
-                  <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-amber-400 border-2 border-white animate-bounce" />
+                  <span
+                    className="absolute -top-1.5 -right-1.5 z-20 flex h-3.5 w-3.5 items-center justify-center"
+                    title="Draft Orders"
+                  >
+                    <span className="h-3.5 w-3.5 rounded-full bg-amber-400 border-2 border-white shadow-xs animate-bounce" />
+                  </span>
                 )}
               </button>
             );

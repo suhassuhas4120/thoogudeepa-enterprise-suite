@@ -56,7 +56,7 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
       </span>
     );
   }
-  if (stage === 'Ready' || stage === 'PLATED') {
+  if (stage === 'Ready' || stage === 'PLATED' || stage === 'READY' || (stage as any) === 'ready') {
     return (
       <motion.button
         type="button"
@@ -467,6 +467,18 @@ export function ScreenM3TableSheet({
 
   const unservedSelectionItems = useMemo(() => {
     return selectionOrderedItems.filter((i) => i.stage !== 'Served' && (i.stage as string) !== 'SERVED');
+  }, [selectionOrderedItems]);
+
+  const readySelectionItems = useMemo(() => {
+    return selectionOrderedItems.filter((i) => {
+      const stageStr = String(i.stage || '').toUpperCase();
+      const isServed = stageStr === 'SERVED';
+      const isReady =
+        stageStr === 'READY' ||
+        stageStr === 'PLATED' ||
+        String((i as any).status || '').toUpperCase() === 'READY';
+      return !isServed && isReady;
+    });
   }, [selectionOrderedItems]);
 
   const isAllSelectionServed = selectionOrderedItems.length > 0 && unservedSelectionItems.length === 0;
@@ -1231,7 +1243,15 @@ export function ScreenM3TableSheet({
             allTableOrderedItems.length > 0 ? (
               <div className="flex-1 min-h-0 flex flex-col space-y-2.5 py-1">
                 {(() => {
-                  const readyToServeItems = allTableOrderedItems.filter((i) => i.stage === 'Ready');
+                  const readyToServeItems = allTableOrderedItems.filter((i) => {
+                    const stageStr = String(i.stage || '').toUpperCase();
+                    const isServed = stageStr === 'SERVED';
+                    const isReady =
+                      stageStr === 'READY' ||
+                      stageStr === 'PLATED' ||
+                      String((i as any).status || '').toUpperCase() === 'READY';
+                    return !isServed && isReady;
+                  });
                   if (readyToServeItems.length <= 1) return null;
                   return (
                     <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-950 font-mono text-xs shadow-2xs shrink-0">
@@ -1544,13 +1564,29 @@ export function ScreenM3TableSheet({
                 <Utensils className="h-4 w-4 line-through text-stone-400" />
                 <span className="line-through">Served</span>
               </button>
-            ) : unservedSelectionItems.length > 0 ? (
+            ) : readySelectionItems.length > 0 ? (
               <button
                 type="button"
                 onClick={handleServeSelectionFood}
                 className="min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-95 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs"
               >
                 <Utensils className="h-4 w-4" />
+                <span>
+                  {typeof selectedSeat === 'number'
+                    ? `Serve Chair ${selectedSeat}`
+                    : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
+                    ? 'Serve Group'
+                    : 'Serve All'}
+                </span>
+              </button>
+            ) : unservedSelectionItems.length > 0 ? (
+              <button
+                type="button"
+                disabled
+                title="Dishes are being prepared in kitchen. Unlocks once kitchen marks ready."
+                className="min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60 flex items-center justify-center gap-1.5 shadow-none"
+              >
+                <Utensils className="h-4 w-4 text-stone-400" />
                 <span>
                   {typeof selectedSeat === 'number'
                     ? `Serve Chair ${selectedSeat}`

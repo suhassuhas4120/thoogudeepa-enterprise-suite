@@ -72,7 +72,7 @@ function StagePill({
       </span>
     );
   }
-  if (stage === "Ready" || stage === "PLATED") {
+  if (stage === "Ready" || stage === "PLATED" || stage === "READY" || (stage as any) === "ready") {
     return (
       <motion.button
         type="button"
@@ -944,6 +944,18 @@ export function TabletTableDetail({
                 (i) => i.stage === "SERVED" || (i.stage as string) === "Served",
               );
 
+            const isTicketReady =
+              tk.status === "READY" ||
+              tkItems.some((i) => {
+                const stageStr = String(i.stage || '').toUpperCase();
+                const isServed = stageStr === "SERVED";
+                const isReady =
+                  stageStr === "READY" ||
+                  stageStr === "PLATED" ||
+                  String((i as any).status || '').toUpperCase() === "READY";
+                return !isServed && isReady;
+              });
+
             return (
               <div
                 key={tk.id ? `${tk.id}-${tkIdx}` : `kot-${tkIdx}`}
@@ -973,6 +985,16 @@ export function TabletTableDetail({
                       className="px-2.5 py-1 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-stone-400 bg-stone-100 border-stone-300 line-through cursor-not-allowed opacity-75 shadow-none"
                     >
                       Served
+                    </button>
+                  ) : !isTicketReady ? (
+                    <button
+                      disabled
+                      type="button"
+                      title="Dishes are being prepared in kitchen. Unlocks once kitchen marks ready."
+                      className="px-2.5 py-1 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-stone-400 bg-stone-100 border-stone-200 cursor-not-allowed opacity-60 shadow-none flex items-center gap-1"
+                    >
+                      <Utensils className="h-3 w-3 text-stone-400" />
+                      <span>Serve All</span>
                     </button>
                   ) : (
                     <button

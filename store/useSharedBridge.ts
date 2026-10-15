@@ -747,7 +747,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   kitchenBumpItemStage: (ticketId, itemId) => {
-    const stageOrder: OrderStage[] = ['PLACED', 'RECEIVED', 'PREP', 'PLATED', 'SERVED'];
+    const stageOrder: OrderStage[] = ['PLACED', 'PREP', 'PLATED', 'SERVED'];
 
     // Snapshot for rollback
     const prevTickets = get().kdsTickets;
@@ -768,7 +768,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -836,7 +836,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -909,7 +909,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return {
           ...t,
           items: newItems,
-          status: (allServed ? 'SERVED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
+          status: (allServed ? 'COMPLETED' : allPlated ? 'READY' : anyActive ? 'PREP' : 'NEW') as SharedKDSTicket['status'],
         };
       });
 
@@ -1906,7 +1906,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it
         );
         const allServed = newItems.every((i) => i.stage === 'SERVED');
-        return { ...t, items: newItems, status: allServed ? ('SERVED' as const) : t.status };
+        return { ...t, items: newItems, status: allServed ? 'COMPLETED' : t.status };
       });
 
       if (!targetTableNumber) {

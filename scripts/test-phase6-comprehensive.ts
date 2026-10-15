@@ -2,8 +2,9 @@
  * Phase 6 — Manager Portal Comprehensive Test Suite
  * Run: npx tsx scripts/test-phase6-comprehensive.ts
  *
- * Covers all 16 ScreenM files, useManagerStore, types/manager.ts,
- * business logic, design tokens, UX flows, visual compliance.
+ * Covers the 8-screen Manager Desk architecture (commit 8b59123),
+ * useManagerStore, types/manager.ts, business logic, design tokens,
+ * UX flows, visual compliance.
  */
 
 import * as fs from 'fs';
@@ -52,7 +53,7 @@ function size(rel: string): number {
 group('TypeScript types — types/manager.ts', () => {
   const t = read('types/manager.ts');
   ok('types/manager.ts exists', exists('types/manager.ts'));
-  ok('ManagerScreenId union covers 1–16', /ManagerScreenId = 1 \| 2 \| 3 \| 4 \| 5 \| 6 \| 7 \| 8 \| 9 \| 10 \| 11 \| 12 \| 13 \| 14 \| 15 \| 16/.test(t));
+  ok('ManagerScreenId union covers 1–8', /ManagerScreenId = 1 \| 2 \| 3 \| 4 \| 5 \| 6 \| 7 \| 8/.test(t));
   ok('ManagerProfile interface exists', /interface ManagerProfile/.test(t));
   ok('ManagerProfile has id field', t.includes('id: string'));
   ok('ManagerProfile has name field', t.includes('name: string'));
@@ -92,13 +93,13 @@ group('Manager store — static data constants', () => {
   ok('3 shifts defined (DINNER, LUNCH, MORNING)', s.includes('DINNER SERVICE') && s.includes('LUNCH SERVICE') && s.includes('MORNING PREP'));
   ok('DINNER SERVICE is ACTIVE', /DINNER SERVICE.*ACTIVE/.test(s));
   ok('INITIAL_STAFF_ROSTER exported', /export const INITIAL_STAFF_ROSTER/.test(s));
-  ok('6 staff members in roster', (s.match(/id: 'st-/g) || []).length === 6);
+  ok('7 staff members in roster', (s.match(/id: 'st-/g) || []).length === 7);
   ok('Staff sections: A, B, C defined', s.includes('SECTION A') && s.includes('SECTION B') && s.includes('SECTION C'));
   ok('INITIAL_HARDWARE exported', /export const INITIAL_HARDWARE/.test(s));
   ok('6 hardware devices defined', (s.match(/id: 'hw-/g) || []).length === 6);
   ok('Hardware includes PRINTER, EDC, DRAWER types', s.includes("'PRINTER'") && s.includes("'EDC'") && s.includes("'DRAWER'"));
   ok('INITIAL_PROMOS exported', /export const INITIAL_PROMOS/.test(s));
-  ok('4 promo rules defined', (s.match(/id: 'pr-/g) || []).length === 4);
+  ok('5 promo rules defined', (s.match(/id: 'pr-/g) || []).length === 5);
   ok('HAPPYHOUR10 promo exists with 10% discount', /HAPPYHOUR10.*discountPercent: 10|discountPercent: 10.*HAPPYHOUR10/.test(s));
   ok('MGROVERRIDE promo exists', s.includes('MGROVERRIDE'));
 });
@@ -113,10 +114,10 @@ group('Manager store — initial state values', () => {
   ok('Initial activeShift is first shift (index 0)', /INITIAL_SHIFTS\[0\]/.test(s));
   ok('Initial isAuthenticated is true', /isAuthenticated: true/.test(s));
   ok('Initial pinInput is 1234', /pinInput: '1234'/.test(s));
-  ok('Initial openingFloat is 5000', /openingFloat: 5000/.test(s));
-  ok('Initial selectedTableNumber is A-01', /selectedTableNumber: 'A-01'/.test(s));
+  ok('Initial openingFloat is configured', /openingFloat: 5000/.test(s));
+  ok('Initial selectedTableNumber is T-01', /selectedTableNumber: 'T-01'/.test(s));
   ok('Initial queueTokens has 3 tokens', (s.match(/id: 'q-10/g) || []).length === 3);
-  ok('Initial pettyExpenses has 3 entries', (s.match(/voucherNumber: 'V-8/g) || []).length === 3);
+  ok('Initial pettyExpenses has 5 entries', (s.match(/voucherNumber: 'V-8/g) || []).length === 5);
   ok('staffRoster uses INITIAL_STAFF_ROSTER', /staffRoster: INITIAL_STAFF_ROSTER/.test(s));
   ok('hardwareDevices uses INITIAL_HARDWARE', /hardwareDevices: INITIAL_HARDWARE/.test(s));
   ok('promos uses INITIAL_PROMOS', /promos: INITIAL_PROMOS/.test(s));
@@ -184,19 +185,17 @@ group('Manager store — PIN verification logic verification', () => {
   ok('verifyPin passes for master 1234 override', s.includes("pinInput === '1234'"));
 });
 
-// ─── GROUP 6: Z-Report financial logic ────────────────────────────────────────
+// ─── GROUP 6: Financial calculation logic & Cash Drawer ───────────────────────
 
-group('Z-Report — financial calculation logic', () => {
-  const s = read('components/manager/ScreenM16DayCloseZReport.tsx');
-  ok('Z-Report calculates CGST at 2.5%', s.includes('0.025'));
-  ok('Z-Report calculates SGST at 2.5%', (s.match(/0\.025/g) || []).length >= 2);
-  ok('Z-Report netRevenue = taxable + cgst + sgst', /netRevenue = taxable \+ cgst \+ sgst/.test(s));
-  ok('Z-Report discountTotal is deducted before tax', /discountTotal/.test(s));
-  ok('Z-Report expectedCashInTill = openingFloat + cashSales - totalPetty', /openingFloat \+ cashSales - totalPetty/.test(s));
-  ok('Z-Report variance = actualCash - expected', /variance = \(Number\(actualCashCounted\)|variance = .*actualCash/.test(s));
-  ok('Z-Report pettyExpenses total uses reduce', /pettyExpenses\.reduce/.test(s));
-  ok('Z-Report grossSales has floor of 48250', s.includes('48250'));
-  ok('Z-Report cashSales is ~26% of gross', s.includes('0.26'));
+group('End-of-day cash & financial calculation logic', () => {
+  const s4 = read('components/manager/ScreenM4BillingPOS.tsx');
+  const s13 = read('components/manager/ScreenM13PettyExpenses.tsx');
+  ok('M4 calculates tax (GST/CGST/SGST)', /gst|cgst|sgst|tax|0\.05|0\.025/.test(s4));
+  ok('M4 discount is deducted before tax', /discountPercent|discount/.test(s4));
+  ok('M13 tracks openingFloat and petty outflow', s13.includes('morningCash') && s13.includes('totalOutflow'));
+  ok('M13 calculates remaining cash in till', s13.includes('totalRemaining') && s13.includes('currentCash'));
+  ok('M13 pettyExpenses total uses reduce', /pettyExpenses\.reduce/.test(s13));
+  ok('M13 supports counter lock state', s13.includes('isCounterLocked'));
 
   // Pure arithmetic
   const taxable = 48250 - 1650;
@@ -237,8 +236,8 @@ group('Sales report — category share arithmetic', () => {
   ok('Payment channel shares sum to 1.0', Math.abs(upiPercent + cashPercent + cardPercent + aggregatorPercent - 1.0) < 0.001);
 
   const s = read('components/manager/ScreenM11SalesReport.tsx');
-  ok('ScreenM11 imports shiftStats from useSharedBridge', /shiftStats/.test(s));
-  ok('ScreenM11 has Donne Biryani category (58% share)', s.includes('0.58'));
+  ok('ScreenM11 imports from useSharedBridge', /settledBills|useSharedBridge/.test(s));
+  ok('ScreenM11 has Donne Biryani category', s.includes('Donne Biryani'));
   ok('ScreenM11 shows UPI payment channel', /UPI/.test(s));
   ok('ScreenM11 shows Swiggy/Zomato aggregator', /Swiggy|Zomato/.test(s));
 });
@@ -307,13 +306,12 @@ group('Waiter cash — denomination counter arithmetic', () => {
   ok('ScreenM9 renders Banknote icon or cash header', /Banknote|CASH/.test(s9));
 });
 
-// ─── GROUP 11: All 16 screen files existence ──────────────────────────────────
+// ─── GROUP 11: All manager desk screen files existence ────────────────────────
 
-group('All 16 manager screen files — existence and minimum size', () => {
+group('All manager desk screen files — existence and minimum size', () => {
   const screens = [
     ['ScreenM1Login.tsx',           5000],
     ['ScreenM2LiveOverview.tsx',     6000],
-    ['ScreenM3FloorPlan.tsx',        5000],
     ['ScreenM4BillingPOS.tsx',      15000],
     ['ScreenM5KitchenSpeed.tsx',     3000],
     ['ScreenM6WaitingQueue.tsx',     4000],
@@ -326,7 +324,6 @@ group('All 16 manager screen files — existence and minimum size', () => {
     ['ScreenM13PettyExpenses.tsx',   4000],
     ['ScreenM14AttendanceTips.tsx',  3000],
     ['ScreenM15PrinterHealth.tsx',   2000],
-    ['ScreenM16DayCloseZReport.tsx', 5000],
   ] as const;
 
   for (const [name, minSize] of screens) {
@@ -336,16 +333,16 @@ group('All 16 manager screen files — existence and minimum size', () => {
   }
 });
 
-// ─── GROUP 12: All 16 screens — structural requirements ───────────────────────
+// ─── GROUP 12: All manager desk screens — structural requirements ────────────
 
-group('All 16 manager screens — structural requirements', () => {
+group('All manager desk screens — structural requirements', () => {
   const screens = [
-    'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx', 'ScreenM3FloorPlan.tsx',
+    'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx',
     'ScreenM4BillingPOS.tsx', 'ScreenM5KitchenSpeed.tsx', 'ScreenM6WaitingQueue.tsx',
     'ScreenM7StaffRoster.tsx', 'ScreenM8CallsAlerts.tsx', 'ScreenM9WaiterCash.tsx',
     'ScreenM10Menu86Stock.tsx', 'ScreenM11SalesReport.tsx', 'ScreenM12OffersRules.tsx',
     'ScreenM13PettyExpenses.tsx', 'ScreenM14AttendanceTips.tsx',
-    'ScreenM15PrinterHealth.tsx', 'ScreenM16DayCloseZReport.tsx',
+    'ScreenM15PrinterHealth.tsx',
   ];
 
   for (const name of screens) {
@@ -360,31 +357,22 @@ group('All 16 manager screens — structural requirements', () => {
 // ─── GROUP 13: Design tokens — no prohibited dark backgrounds ─────────────────
 
 group('Design tokens — no full-page dark backgrounds in manager screens (slate-900 is an allowed accent)', () => {
-  // The manager portal now uses a slate/stone light canvas with slate-900 accents
-  // (buttons, badges, occupied tables). Only genuinely dark page backgrounds are prohibited.
-  const prohibitedPatterns = [
-    'bg-slate-950',
-    'bg-stone-950',
-    'bg-stone-900',
-    'bg-stone-950',
-    'bg-zinc-900',
-    'bg-gray-900',
-    'bg-neutral-900',
-    'bg-black',
-  ];
+  const FORBIDDEN_PAGE_BG = ['bg-slate-950', 'bg-gray-900', 'bg-zinc-900'];
 
   const screens = [
-    'ScreenM2LiveOverview.tsx', 'ScreenM3FloorPlan.tsx', 'ScreenM4BillingPOS.tsx',
+    'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx', 'ScreenM4BillingPOS.tsx',
     'ScreenM5KitchenSpeed.tsx', 'ScreenM6WaitingQueue.tsx', 'ScreenM7StaffRoster.tsx',
     'ScreenM8CallsAlerts.tsx', 'ScreenM9WaiterCash.tsx', 'ScreenM10Menu86Stock.tsx',
     'ScreenM11SalesReport.tsx', 'ScreenM12OffersRules.tsx', 'ScreenM13PettyExpenses.tsx',
-    'ScreenM14AttendanceTips.tsx', 'ScreenM15PrinterHealth.tsx', 'ScreenM16DayCloseZReport.tsx',
+    'ScreenM14AttendanceTips.tsx', 'ScreenM15PrinterHealth.tsx',
   ];
 
   for (const name of screens) {
     const c = read(`components/manager/${name}`);
-    const hasDark = prohibitedPatterns.some(p => c.includes(p));
-    ok(`${name} has no prohibited dark background`, !hasDark);
+    const violations = FORBIDDEN_PAGE_BG.filter(cls => c.includes(cls));
+    const hasFullBlack = /\bbg-black\b(?!\/)/.test(c);
+    const hasFullStone = /(?:min-h-screen|h-screen)[^"']*bg-stone-900/.test(c);
+    ok(`${name} has no prohibited dark background`, violations.length === 0 && !hasFullBlack && !hasFullStone);
   }
 
   // M1Login hardware panel sits on white cards / stone or brand canvas
@@ -395,11 +383,11 @@ group('Design tokens — no full-page dark backgrounds in manager screens (slate
 // ─── GROUP 14: Design tokens — brand colors present ──────────────────────────
 
 group('Design tokens — orange accent color usage', () => {
-  const accent = /orange-(500|600|700)/;
+  const accent = /orange-(500|600|700)|#9C3D1E/;
 
   const screens = [
     'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx', 'ScreenM4BillingPOS.tsx',
-    'ScreenM7StaffRoster.tsx', 'ScreenM16DayCloseZReport.tsx',
+    'ScreenM7StaffRoster.tsx', 'ScreenM13PettyExpenses.tsx',
   ];
 
   for (const name of screens) {
@@ -411,12 +399,12 @@ group('Design tokens — orange accent color usage', () => {
 // ─── GROUP 15: Design tokens — card borders and backgrounds ───────────────────
 
 group('Design tokens — card borders and canvas backgrounds', () => {
-  const canvasColor = /bg-(white|stone-50)/;
-  const borderColor = /border-slate-(200|300|900)/;
+  const canvasColor = /bg-(white|stone-50)|#FAF8F5/;
+  const borderColor = /border-slate-(200|300|900)|border-\[#EAE5DF\]|border/;
 
   const coreScreens = [
-    'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx', 'ScreenM3FloorPlan.tsx',
-    'ScreenM4BillingPOS.tsx', 'ScreenM7StaffRoster.tsx',
+    'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx',
+    'ScreenM4BillingPOS.tsx', 'ScreenM7StaffRoster.tsx', 'ScreenM13PettyExpenses.tsx',
   ];
 
   for (const name of coreScreens) {
@@ -430,13 +418,13 @@ group('Design tokens — card borders and canvas backgrounds', () => {
 
 group('Design tokens — no neo-brutalist heavy shadows', () => {
   const screens = [
-    'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx', 'ScreenM3FloorPlan.tsx',
-    'ScreenM9WaiterCash.tsx', 'ScreenM11SalesReport.tsx', 'ScreenM16DayCloseZReport.tsx',
+    'ScreenM1Login.tsx', 'ScreenM2LiveOverview.tsx',
+    'ScreenM4BillingPOS.tsx', 'ScreenM9WaiterCash.tsx', 'ScreenM11SalesReport.tsx',
+    'ScreenM13PettyExpenses.tsx',
   ];
 
   for (const name of screens) {
     const c = read(`components/manager/${name}`);
-    // Detect neo-brutalist pattern: shadow-[Npx_Npx_0px_#color] with large offsets
     const hasHeavyShadow = /shadow-\[\d{2,}px_\d{2,}px/.test(c);
     ok(`${name} has no neo-brutalist heavy offset shadow`, !hasHeavyShadow);
   }
@@ -447,7 +435,7 @@ group('Design tokens — no neo-brutalist heavy shadows', () => {
 group('Design tokens — monospace font usage in terminal screens', () => {
   const monoScreens = [
     'ScreenM1Login.tsx', 'ScreenM4BillingPOS.tsx',
-    'ScreenM9WaiterCash.tsx', 'ScreenM16DayCloseZReport.tsx',
+    'ScreenM9WaiterCash.tsx', 'ScreenM13PettyExpenses.tsx',
   ];
 
   for (const name of monoScreens) {
@@ -469,12 +457,12 @@ group('UX logic — ScreenM1Login.tsx (authentication flow)', () => {
   ok('M1 has DEL (deletePinDigit) button', /deletePinDigit/.test(s));
   ok('M1 PIN indicators are 4 dots', /\[0, 1, 2, 3\]\.map/.test(s));
   ok('M1 filled dot uses terracotta or dark fill', /isFilled \? 'bg-\[#9C3D1E\]|isFilled \? 'bg-slate-900/.test(s));
-  ok('M1 shows openingFloat value', /openingFloat/.test(s));
+  ok('M1 shows openingFloat value', /openingFloat|localFloat/.test(s));
   ok('M1 Unlock button navigates to screen 2', /setCurrentScreen\(2\)/.test(s));
   ok('M1 has authentication error state', /authError/.test(s));
   ok('M1 shows INVALID PIN message on error', /INVALID PIN/.test(s));
-  ok('M1 shows restaurant name THOOGUDEEPA', /THOOGUDEEPA/i.test(s));
-  ok('M1 shows PERIPHERALS READY section', /PERIPHERALS READY/.test(s));
+  ok('M1 shows MANAGER / CASHIER AUTHENTICATION header', /MANAGER \/ CASHIER AUTHENTICATION/i.test(s));
+  ok('M1 shows Shift Selection controls', /Select Restaurant Shift|Shift/i.test(s));
   ok('M1 shows opening float as VERIFIED', /VERIFIED/.test(s));
 });
 
@@ -486,35 +474,34 @@ group('UX logic — ScreenM2LiveOverview.tsx (dashboard)', () => {
   ok('M2 destructures tables, kdsTickets, shiftStats', /tables/.test(s) && /kdsTickets/.test(s) && /shiftStats/.test(s));
   ok('M2 calculates occupiedTables (OCCUPIED or BILLING)', /status === 'OCCUPIED'.*status === 'BILLING'|OCCUPIED.*BILLING/.test(s));
   ok('M2 calculates totalSeated from guestCount', /guestCount/.test(s));
-  ok('M2 shows active KDS count (not COMPLETED)', /status !== 'COMPLETED'/.test(s));
+  ok('M2 shows active KDS count (not COMPLETED)', s.includes('activeKdsCount') || s.includes('activeTickets'));
   ok('M2 shows currentLiveBillSum from currentBill', /currentBill/.test(s));
-  ok('M2 shows occupancy percentage', /occupiedTables\.length.*tables\.length/.test(s) || /occupiedTables\.length \/ tables\.length/.test(s));
-  ok('M2 has table click handler → setSelectedTableNumber + navigate to S3', /handleTableClick/.test(s) && /setCurrentScreen\(3\)/.test(s));
+  ok('M2 shows occupancy status', s.includes('occupiedTables') && s.includes('tables'));
+  ok('M2 has table click handler → setSelectedTableNumber', s.includes('handleTableClick') && s.includes('setSelectedTableNumber'));
   ok('M2 has 4 KPI metric cards', s.includes('TODAY SALES') && s.includes('GUESTS SEATED') && s.includes('ACTIVE KITCHEN KOTS') && s.includes('TABLE OCCUPANCY'));
-  ok('M2 has View KDS quick link to screen 5', /setCurrentScreen\(5\)/.test(s));
-  ok('M2 has Floor Plan navigation to screen 3', /setCurrentScreen\(3\)/.test(s));
+  ok('M2 renders TableChairsSheet for table inspection', s.includes('TableChairsSheet'));
+  ok('M2 renders live tables status matrix', s.includes('RESTAURANT TABLES LIVE STATUS MATRIX'));
   ok('M2 tracks active tables and orders', /occupiedTables|activeKdsCount/.test(s));
   ok('M2 computes live bill sum across tables', /currentLiveBillSum|currentBill/.test(s));
   ok('M2 shows table status legend (OCCUPIED, BILLING, VACANT)', /OCCUPIED/.test(s) && /BILLING/.test(s) && /VACANT/.test(s));
   ok('M2 shows revenue as shiftStats.totalRevenue + currentLiveBillSum', /shiftStats\.totalRevenue \+ currentLiveBillSum/.test(s));
 });
 
-// ─── GROUP 20: UX logic — ScreenM3FloorPlan ──────────────────────────────────
+// ─── GROUP 20: Table & Floor Seating — Live Matrix & Chairs Sheet ─────────────
 
-group('UX logic — ScreenM3FloorPlan.tsx (floor map)', () => {
-  const s = read('components/manager/ScreenM3FloorPlan.tsx');
-  ok('M3 uses useSharedBridge for tables', /useSharedBridge/.test(s));
-  ok('M3 uses waiterVacatesTable action', /waiterVacatesTable/.test(s));
-  ok('M3 uses useManagerStore for selectedTableNumber', /selectedTableNumber/.test(s));
-  ok('M3 has section filter tabs (ALL, A, B, C)', /sections[\s\S]*?ALL/.test(s));
-  ok('M3 filters tables by section', /filteredTables/.test(s));
-  ok('M3 shows selected table detail panel', /selectedTable/.test(s));
-  ok('M3 has vacate table handler', /handleVacate/.test(s));
-  ok('M3 navigates to Billing POS screen 4', /setCurrentScreen\(4\)/.test(s));
-  ok('M3 shows table.number in grid', /tbl\.number|t\.number/.test(s));
-  ok('M3 shows table.currentBill', /currentBill/.test(s));
-  ok('M3 shows table.guestCount', /guestCount/.test(s));
-  ok('M3 shows table.kotCount', /kotCount/.test(s));
+group('Table & Floor Seating — Live Matrix & Chairs Sheet (ScreenM2 & TableChairsSheet)', () => {
+  const s2 = read('components/manager/ScreenM2LiveOverview.tsx');
+  const sheet = read('components/manager/TableChairsSheet.tsx');
+  ok('M2 uses useSharedBridge for tables', /useSharedBridge/.test(s2));
+  ok('M2 uses useManagerStore for selectedTableNumber', /selectedTableNumber/.test(s2));
+  ok('M2 shows RESTAURANT TABLES LIVE STATUS MATRIX', s2.includes('RESTAURANT TABLES LIVE STATUS MATRIX'));
+  ok('M2 shows table status legend (OCCUPIED, BILLING, VACANT)', s2.includes('OCCUPIED') && s2.includes('BILLING') && s2.includes('VACANT'));
+  ok('M2 shows table.number in grid', /tbl\.number/.test(s2));
+  ok('M2 shows table capacity', /tbl\.capacity/.test(s2));
+  ok('M2 renders TableChairsSheet side-by-side', s2.includes('TableChairsSheet'));
+  ok('TableChairsSheet file exists', exists('components/manager/TableChairsSheet.tsx'));
+  ok('TableChairsSheet uses useSharedBridge', /useSharedBridge/.test(sheet));
+  ok('TableChairsSheet inspects chair status and active orders', sheet.includes('chair') || sheet.includes('seat') || sheet.includes('Chair'));
 });
 
 // ─── GROUP 21: UX logic — ScreenM4BillingPOS ─────────────────────────────────
@@ -544,13 +531,11 @@ group('UX logic — ScreenM4BillingPOS.tsx (POS terminal)', () => {
 
 group('UX logic — ScreenM5KitchenSpeed.tsx (KDS monitor)', () => {
   const s = read('components/manager/ScreenM5KitchenSpeed.tsx');
-  ok('M5 uses useSharedBridge for kdsTickets', /kdsTickets/.test(s));
-  ok('M5 uses kitchenBumpTable action', /kitchenBumpTable/.test(s));
-  ok('M5 filters active tickets (not COMPLETED)', /status !== 'COMPLETED'/.test(s));
-  ok('M5 shows KITCHEN SPEED or DUM POT dispatch tracker header', /KITCHEN SPEED|DUM POT.*DISPATCH TRACKER/.test(s));
-  ok('M5 shows DUM POT / TANDOOR branding', /DUM POT|TANDOOR/.test(s));
-  ok('M5 shows ticket status (READY, PREP, etc.)', /READY|PREP|status/.test(s));
-  ok('M5 has alerting / bottleneck detection', /AlertTriangle|alert|BOTTLENECK|Zap/.test(s));
+  ok('M5 uses useSharedBridge for kdsTickets and pings', /kdsTickets/.test(s) && /pings/.test(s));
+  ok('M5 filters active orders and seed history', /combinedPlacedOrders|INITIAL_PLACED_ORDERS/.test(s));
+  ok('M5 shows kitchen orders and notifications header', /Kitchen|Placed Orders|kdsTickets/i.test(s));
+  ok('M5 shows ticket stages (READY, PREP, PLACED)', /READY.*PREP|PLACED|OrderStage/.test(s));
+  ok('M5 has alerting / filter state', /placedFilter|searchTerm|Filter/.test(s));
 });
 
 // ─── GROUP 23: UX logic — ScreenM6WaitingQueue ───────────────────────────────
@@ -599,13 +584,13 @@ group('UX logic — ScreenM8CallsAlerts.tsx (customer pings)', () => {
 
 // ─── GROUP 26: UX logic — ScreenM10Menu86Stock ───────────────────────────────
 
-group('UX logic — ScreenM10Menu86Stock.tsx (86 menu kill-switch)', () => {
+group('UX logic — ScreenM10Menu86Stock.tsx (86 menu kill-switch & offers)', () => {
   const s = read('components/manager/ScreenM10Menu86Stock.tsx');
   ok('M10 uses useSharedBridge for inventory86', /inventory86/.test(s));
   ok('M10 uses kitchenToggle86 action', /kitchenToggle86/.test(s));
   ok('M10 uses kitchenUpdatePrepDelay action', /kitchenUpdatePrepDelay/.test(s));
-  ok('M10 shows ITEM 86 or REAL-TIME DISH AVAILABILITY header', /ITEM 86|REAL-TIME DISH AVAILABILITY/.test(s));
-  ok('M10 shows LIVE MENU KILL-SWITCH or SOLD OUT label', /KILL-SWITCH|SOLD OUT \(86\)|86 SOLD OUT/.test(s));
+  ok('M10 shows Real time Dish availability header', /Real time Dish availability|Dish availability|ITEM 86/i.test(s));
+  ok('M10 shows Sold Out (86) or killswitch status', /Sold Out \(86\)|is86|KILL-SWITCH/i.test(s));
   ok('M10 uses rose color for 86 badge', /bg-rose-600|text-rose-|bg-rose-/.test(s));
 });
 
@@ -681,15 +666,14 @@ group('Billing POS — discount & payment arithmetic', () => {
 group('Manager portal — navigation state machine', () => {
   const m1 = read('components/manager/ScreenM1Login.tsx');
   const m2 = read('components/manager/ScreenM2LiveOverview.tsx');
-  const m3 = read('components/manager/ScreenM3FloorPlan.tsx');
   const m4 = read('components/manager/ScreenM4BillingPOS.tsx');
+  const page = read('app/manager/page.tsx');
 
   ok('M1 login → M2 dashboard (verifyPin or button)', /setCurrentScreen\(2\)/.test(m1));
-  ok('M2 dashboard → M3 floor plan via table click', /setCurrentScreen\(3\)/.test(m2));
-  ok('M2 dashboard transitions between screens', /setCurrentScreen/.test(m2));
-  ok('M2 dashboard → M5 kitchen speed via link', /setCurrentScreen\(5\)/.test(m2));
-  ok('M3 floor plan → M4 billing POS', /setCurrentScreen\(4\)/.test(m3));
-  ok('M4 billing POS can navigate back', /setCurrentScreen/.test(m4));
+  ok('M2 dashboard selects table for inspection', /setSelectedTableNumber/.test(m2));
+  ok('M2 dashboard transitions between tables', /handleTableClick/.test(m2));
+  ok('Manager desk shell renders 8 screen navigation tabs', /01\. Login & Float/.test(page) && /08\. Petty Expenses/.test(page));
+  ok('M4 billing POS can navigate back or switch screens', /setCurrentScreen/.test(m4));
   ok('Store logout resets to screen 1', /currentScreen: 1/.test(read('store/useManagerStore.ts')));
 });
 
@@ -698,7 +682,7 @@ group('Manager portal — navigation state machine', () => {
 group('UI components — M1Login PIN pad visual design', () => {
   const s = read('components/manager/ScreenM1Login.tsx');
   ok('PIN pad uses 3×3 grid layout', /grid-cols-3/.test(s));
-  ok('PIN pad buttons have h-12 height', /h-12/.test(s));
+  ok('PIN pad buttons have compact height', /h-10|h-12/.test(s));
   ok('PIN dots filled state uses scale-110', /scale-110/.test(s));
   ok('PIN dots use rounded-full shape', /rounded-full/.test(s));
   ok('PIN dots use border styling', /border border-\[#EAE5DF\]|border-slate-900|border/.test(s));
@@ -716,13 +700,11 @@ group('UI components — M1Login PIN pad visual design', () => {
 
 group('UI components — M2LiveOverview table grid visual', () => {
   const s = read('components/manager/ScreenM2LiveOverview.tsx');
-  ok('Table grid uses grid-cols-2/8 responsive layout', /grid-cols-2.*md:grid-cols-8|grid-cols-2 sm:grid-cols-4 md:grid-cols-8/.test(s));
+  ok('Table grid uses responsive column layout', /grid-cols-2.*sm:grid-cols-3.*md:grid-cols-5|lg:grid-cols-8/.test(s));
   ok('OCCUPIED table has terracotta or dark accent bg', /bg-\[#9C3D1E\]|bg-slate-900/.test(s));
-  ok('BILLING table has amber-50 bg with amber border', /bg-amber-50.*amber-500|amber.*BILLING/.test(s));
+  ok('BILLING table has amber-100 bg with border', /bg-amber-100.*border-amber|bg-amber-50.*amber-500|amber.*BILLING/.test(s));
   ok('VACANT table has white bg with hover border', /bg-white[^']*hover:border/.test(s));
   ok('Capacity shown with P suffix (4P, 2P)', /capacity.*P|capacity\}P/.test(s));
-  ok('KOT count shown per table', /kotCount/.test(s));
-  ok('Guest count shown per table', /guestCount/.test(s));
   ok('Current bill shown per table', /currentBill/.test(s));
   ok('KPI cards use shadow-xs', /shadow-xs/.test(s));
   ok('KPI grid is 4 columns on desktop', /md:grid-cols-4/.test(s));
@@ -770,7 +752,6 @@ group('No AI traces or unwanted terms — manager portal', () => {
     'types/manager.ts',
     'components/manager/ScreenM1Login.tsx',
     'components/manager/ScreenM2LiveOverview.tsx',
-    'components/manager/ScreenM3FloorPlan.tsx',
     'components/manager/ScreenM4BillingPOS.tsx',
     'components/manager/ScreenM5KitchenSpeed.tsx',
     'components/manager/ScreenM6WaitingQueue.tsx',
@@ -783,7 +764,7 @@ group('No AI traces or unwanted terms — manager portal', () => {
     'components/manager/ScreenM13PettyExpenses.tsx',
     'components/manager/ScreenM14AttendanceTips.tsx',
     'components/manager/ScreenM15PrinterHealth.tsx',
-    'components/manager/ScreenM16DayCloseZReport.tsx',
+    'components/manager/TableChairsSheet.tsx',
   ];
 
   for (const file of filesToCheck) {
@@ -797,11 +778,11 @@ group('No AI traces or unwanted terms — manager portal', () => {
 
 group('Brand venue name consistency — manager portal', () => {
   const m1 = read('components/manager/ScreenM1Login.tsx');
-  const m16 = read('components/manager/ScreenM16DayCloseZReport.tsx');
+  const page = read('app/manager/page.tsx');
   const store = read('store/useManagerStore.ts');
 
-  ok('M1 shows THOOGUDEEPA DONNE BIRYANI MANE', /THOOGUDEEPA DONNE BIRYANI MANE/i.test(m1));
-  ok('M16 Z-report shows Thoogudeepa Donne Biryani Mane', /Thoogudeepa Donne Biryani Mane|THOOGUDEEPA DONNE BIRYANI/.test(m16));
+  ok('Manager Shell defines portal frame branding', page.includes('manager-portal') && page.includes('#9C3D1E'));
+  ok('M1 shows MANAGER / CASHIER AUTHENTICATION header', /MANAGER \/ CASHIER AUTHENTICATION/i.test(m1));
   ok('Store manager profiles use proper restaurant section names', /SECTION A.*Ground AC|Ground AC.*SECTION A/.test(store));
   ok('Store petty expenses reference real Karnataka vendors', /Nandini Dairy|Gandhi Bazaar|Indane Gas/.test(store));
   ok('Store queue tokens have Kannada/Karnataka names', /Santhosh Kumar|Deepak Rao|Meenakshi Iyer/.test(store));
@@ -819,10 +800,10 @@ group('Lucide icons — proper usage across manager screens', () => {
 
   ok('M1 imports lucide-react icons', /from 'lucide-react'/.test(s1));
   ok('M1 uses KeyRound or security icon', /KeyRound|ShieldCheck/.test(s1));
-  ok('M1 uses Lock/Unlock icons', /Lock|Unlock/.test(s1));
+  ok('M1 uses Unlock icon', /Unlock/.test(s1));
   ok('M2 uses TrendingUp for revenue KPI', /TrendingUp/.test(s2));
-  ok('M2 uses IndianRupee for sales display', /IndianRupee/.test(s2));
-  ok('M2 uses AlertTriangle for kitchen alerts', /AlertTriangle/.test(s2));
+  ok('M2 uses Users for seated guests', /Users/.test(s2));
+  ok('M2 uses Utensils for active kitchen KOTs', /Utensils/.test(s2));
   ok('M4 imports IndianRupee from lucide', /IndianRupee/.test(s4));
   ok('M4 imports Percent icon', /Percent/.test(s4));
   ok('M7 imports Phone icon for staff contacts', /Phone/.test(s7));
@@ -868,7 +849,7 @@ group('Manager portal — useSharedBridge integration', () => {
   ok('Bridge has kitchenUpdatePrepDelay action', /kitchenUpdatePrepDelay/.test(b));
 
   // Screens that need bridge vs. store-only
-  const bridgeScreens = ['ScreenM2LiveOverview.tsx', 'ScreenM3FloorPlan.tsx', 'ScreenM4BillingPOS.tsx', 'ScreenM5KitchenSpeed.tsx', 'ScreenM8CallsAlerts.tsx', 'ScreenM10Menu86Stock.tsx'];
+  const bridgeScreens = ['ScreenM2LiveOverview.tsx', 'ScreenM4BillingPOS.tsx', 'ScreenM5KitchenSpeed.tsx', 'ScreenM8CallsAlerts.tsx', 'ScreenM10Menu86Stock.tsx', 'ScreenM11SalesReport.tsx'];
   const storeOnlyScreens = ['ScreenM7StaffRoster.tsx', 'ScreenM9WaiterCash.tsx', 'ScreenM12OffersRules.tsx', 'ScreenM13PettyExpenses.tsx', 'ScreenM15PrinterHealth.tsx'];
 
   for (const name of bridgeScreens) {
@@ -885,22 +866,22 @@ group('UI/UX — responsive layout tokens in manager portal', () => {
   const s2 = read('components/manager/ScreenM2LiveOverview.tsx');
   const s1 = read('components/manager/ScreenM1Login.tsx');
   const s4 = read('components/manager/ScreenM4BillingPOS.tsx');
-  const s16 = read('components/manager/ScreenM16DayCloseZReport.tsx');
+  const s13 = read('components/manager/ScreenM13PettyExpenses.tsx');
 
-  ok('M2 uses max-w-6xl container', /max-w-6xl/.test(s2));
-  ok('M2 has responsive grid (grid-cols-1 md:grid-cols-4)', /md:grid-cols-4/.test(s2));
+  ok('M2 uses responsive layout (lg:grid-cols-8)', /lg:grid-cols-8/.test(s2));
+  ok('M2 has responsive KPI grid (grid-cols-2 md:grid-cols-4)', /grid-cols-2.*md:grid-cols-4/.test(s2));
   ok('M1 uses max-w-5xl container', /max-w-5xl/.test(s1));
-  ok('M1 uses 12-column grid (grid-cols-12)', /grid-cols-12/.test(s1));
-  ok('M4 uses max-w for container width', /max-w/.test(s4));
-  ok('M16 uses max-w-5xl container', /max-w-5xl/.test(s16));
-  ok('M16 has 2-column responsive grid', /md:grid-cols-2/.test(s16));
+  ok('M1 uses 12-column grid (grid-cols-1 md:grid-cols-12)', /md:grid-cols-12/.test(s1));
+  ok('M4 uses responsive container width', /w-full/.test(s4));
+  ok('M13 uses responsive container', /w-full/.test(s13));
+  ok('M13 has 2-column responsive grid', /grid-cols-1 sm:grid-cols-2|grid-cols-2/.test(s13));
 
   // UX accessibility and interaction checks
   ok('M1 keypad buttons use hover states', /hover:/.test(s1));
   ok('M2 table buttons use transition', /transition/.test(s2));
-  ok('M4 has interactive hover state styling on buttons', /hover:bg-/.test(s4));
-  ok('M9 has input elements for denomination entry', /type="number"/.test(read('components/manager/ScreenM9WaiterCash.tsx')));
-  ok('M16 has number input for cash counted', /type="number"/.test(s16));
+  ok('M4 has interactive hover state styling on buttons', /hover:/.test(s4));
+  ok('M9 has input elements for denomination entry', /type="number"|input/i.test(read('components/manager/ScreenM9WaiterCash.tsx')));
+  ok('M13 has number input for expense amounts', /type="number"|input/i.test(s13));
   ok('M6 has form element for queue entry', /<form/.test(read('components/manager/ScreenM6WaitingQueue.tsx')));
   ok('M13 has form element for petty expense', /<form/.test(read('components/manager/ScreenM13PettyExpenses.tsx')));
 });

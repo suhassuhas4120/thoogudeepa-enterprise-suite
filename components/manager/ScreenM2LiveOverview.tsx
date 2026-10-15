@@ -4,10 +4,10 @@ import React, { useState } from 'react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useManagerStore } from '../../store/useManagerStore';
 import { TableChairsSheet } from './TableChairsSheet';
-import { Users, Utensils, TrendingUp, Clock } from 'lucide-react';
+import { Users, Utensils, TrendingUp, Clock, Receipt } from 'lucide-react';
 
 export function ScreenM2LiveOverview() {
-  const { tables, kdsTickets, shiftStats, pings } = useSharedBridge();
+  const { tables, kdsTickets, shiftStats, pings, settledBills } = useSharedBridge();
   const { selectedTableNumber, setSelectedTableNumber, setCurrentScreen } = useManagerStore();
 
   const occupiedTables = tables.filter((t) => t.status === 'OCCUPIED' || t.status === 'BILLING');
@@ -23,7 +23,23 @@ export function ScreenM2LiveOverview() {
     return isOccupiedOrBilling || hasUnservedItem;
   });
   const activeKdsCount = activeTickets.length;
-  const currentLiveBillSum = tables.reduce((acc, t) => acc + t.currentBill, 0);
+
+  // Unpaid live tables currently dining where payment is pending (to be done based on live orders)
+  const pendingPaymentTables = tables.filter((t) => {
+    if (t.status !== 'OCCUPIED') return false;
+    const targetNum = cleanNum(t.number);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+    const isSettled = Boolean(settledBills?.[normTable] || settledBills?.[t.number]);
+    return !isSettled && t.currentBill > 0;
+  });
+
+  const currentLiveBillSum = pendingPaymentTables.reduce((acc, t) => acc + t.currentBill, 0);
+
+  // Today's total realized/settled sales of that particular day
+  const todaySettledSales = shiftStats.totalRevenue;
+
+  // Real-time gross potential: shiftStats.totalRevenue + currentLiveBillSum
+  const totalPotentialRevenue = shiftStats.totalRevenue + currentLiveBillSum;
 
   const activeTableNum = selectedTableNumber || tables.find((t) => t.status === 'OCCUPIED')?.number || tables[0]?.number || 'T-01';
 
@@ -33,46 +49,88 @@ export function ScreenM2LiveOverview() {
 
   return (
     <div className="w-full mx-auto p-1 space-y-4">
-      {/* Top 4 KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>TODAY SALES (LIVE)</span>
-            <TrendingUp className="h-4 w-4 text-emerald-600" />
+      {/* Top 5 KPI Metric Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-5 gap-3.5">
+        {/* Card 1: Today's Total Sales (settled payments for that day) */}
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span className="font-bold">TODAY SALES</span>
+              <TrendingUp className="h-4 w-4 text-emerald-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              ₹ {todaySettledSales.toLocaleString('en-IN')}.00
+            </div>
           </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            ₹ {(shiftStats.totalRevenue + currentLiveBillSum).toLocaleString('en-IN')}.00
-          </div>
+          <p className="text-[10px] font-mono font-bold text-emerald-700 mt-1.5 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block"></span>
+            Settled &amp; Paid Today ({shiftStats.tablesServed} Tables)
+          </p>
         </div>
 
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>GUESTS SEATED</span>
-            <Users className="h-4 w-4 text-blue-600" />
+        {/* Card 2: Current Sales (payment to be done based on current live orders) */}
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span className="font-bold text-amber-900">CURRENT LIVE ORDERS</span>
+              <Receipt className="h-4 w-4 text-amber-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-amber-950 mt-1">
+              ₹ {currentLiveBillSum.toLocaleString('en-IN')}.00
+            </div>
           </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            {totalSeated} Guests
-          </div>
+          <p className="text-[10px] font-mono font-bold text-amber-700 mt-1.5 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block"></span>
+            Payment To Be Done ({pendingPaymentTables.length} Tables Active)
+          </p>
         </div>
 
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>ACTIVE KITCHEN KOTS</span>
-            <Utensils className="h-4 w-4 text-orange-600" />
+        {/* Card 3: Guests Seated */}
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span className="font-bold">GUESTS SEATED</span>
+              <Users className="h-4 w-4 text-blue-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              {totalSeated} Guests
+            </div>
           </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            {activeKdsCount} Orders
-          </div>
+          <p className="text-[10px] font-mono font-bold text-slate-400 mt-1.5">
+            Dining in venue right now
+          </p>
         </div>
 
-        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs">
-          <div className="flex items-center justify-between text-xs font-mono text-slate-500">
-            <span>TABLE OCCUPANCY</span>
-            <Clock className="h-4 w-4 text-purple-600" />
+        {/* Card 4: Active Kitchen KOTs */}
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span className="font-bold">ACTIVE KITCHEN KOTS</span>
+              <Utensils className="h-4 w-4 text-orange-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              {activeKdsCount} Orders
+            </div>
           </div>
-          <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
-            {occupiedTables.length}/{tables.length} Tables
+          <p className="text-[10px] font-mono font-bold text-slate-400 mt-1.5">
+            At active cooking stations
+          </p>
+        </div>
+
+        {/* Card 5: Table Occupancy */}
+        <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between text-xs font-mono text-slate-500">
+              <span className="font-bold">TABLE OCCUPANCY</span>
+              <Clock className="h-4 w-4 text-purple-600" />
+            </div>
+            <div className="text-xl md:text-2xl font-black font-mono text-slate-900 mt-1">
+              {occupiedTables.length}/{tables.length} Tables
+            </div>
           </div>
+          <p className="text-[10px] font-mono font-bold text-slate-400 mt-1.5">
+            {Math.round((occupiedTables.length / Math.max(1, tables.length)) * 100)}% floor capacity active
+          </p>
         </div>
       </div>
 

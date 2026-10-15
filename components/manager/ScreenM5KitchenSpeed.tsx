@@ -99,20 +99,21 @@ export function ScreenM5KitchenSpeed() {
   const kitchenNotificationsList: KitchenItemNotification[] = React.useMemo(() => {
     const list: KitchenItemNotification[] = [];
     combinedPlacedOrders.forEach((tk) => {
-      const defaultChair = tk.seatNumber || tk.items[0]?.seatNumber || 1;
-      tk.items.forEach((it) => {
+      const defaultChair = tk.seatNumber || tk.items?.[0]?.seatNumber || 1;
+      (tk.items || []).forEach((it) => {
+        if (!it) return;
         list.push({
-          id: `${tk.id}-${it.id}`,
+          id: `${tk.id}-${it.id || Math.random()}`,
           ticketId: tk.id,
-          itemId: it.id,
-          tableNumber: tk.tableNumber,
+          itemId: it.id || '',
+          tableNumber: tk.tableNumber || '',
           chairNumber: it.seatNumber || defaultChair,
-          itemName: it.name,
-          quantity: it.quantity,
+          itemName: it.name || 'Unnamed Dish',
+          quantity: it.quantity || 1,
           options: it.options,
           stage: it.stage || 'PLACED',
-          timestamp: tk.timestamp,
-          serverName: tk.serverName,
+          timestamp: tk.timestamp || '',
+          serverName: tk.serverName || '',
         });
       });
     });
@@ -136,7 +137,7 @@ export function ScreenM5KitchenSpeed() {
 
   // Helper to accurately classify ticket stage category (PLACED, RECEIVED, PREPARING, READY)
   const getTicketStageCategory = (tk: SharedKDSTicket): 'PLACED' | 'RECEIVED' | 'PREPARING' | 'READY' => {
-    const itemStages = (tk.items || []).map((it) => getItemStageNormalized(it.stage, tk.status));
+    const itemStages = (tk.items || []).map((it) => getItemStageNormalized(it?.stage, tk.status));
     if (itemStages.length > 0) {
       if (itemStages.some((s) => s === 'PREPARING')) return 'PREPARING';
       if (itemStages.some((s) => s === 'RECEIVED')) return 'RECEIVED';
@@ -152,19 +153,19 @@ export function ScreenM5KitchenSpeed() {
 
   // Filter stage counts (matching tickets containing items in respective mode)
   const placedCount = React.useMemo(
-    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'PLACED')).length,
+    () => combinedPlacedOrders.filter((t) => (t.items || []).some((it) => getItemStageNormalized(it?.stage, t.status) === 'PLACED')).length,
     [combinedPlacedOrders]
   );
   const receivedCount = React.useMemo(
-    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'RECEIVED')).length,
+    () => combinedPlacedOrders.filter((t) => (t.items || []).some((it) => getItemStageNormalized(it?.stage, t.status) === 'RECEIVED')).length,
     [combinedPlacedOrders]
   );
   const preparingCount = React.useMemo(
-    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'PREPARING')).length,
+    () => combinedPlacedOrders.filter((t) => (t.items || []).some((it) => getItemStageNormalized(it?.stage, t.status) === 'PREPARING')).length,
     [combinedPlacedOrders]
   );
   const readyCount = React.useMemo(
-    () => combinedPlacedOrders.filter((t) => t.items.some((it) => getItemStageNormalized(it.stage, t.status) === 'READY')).length,
+    () => combinedPlacedOrders.filter((t) => (t.items || []).some((it) => getItemStageNormalized(it?.stage, t.status) === 'READY')).length,
     [combinedPlacedOrders]
   );
 
@@ -175,15 +176,15 @@ export function ScreenM5KitchenSpeed() {
         const term = searchTerm.trim().toLowerCase();
         const matchesSearch =
           !term ||
-          tk.tableNumber.toLowerCase().includes(term) ||
-          tk.id.toLowerCase().includes(term) ||
-          (tk.serverName && tk.serverName.toLowerCase().includes(term)) ||
-          tk.items.some((it) => it.name.toLowerCase().includes(term));
+          (tk.tableNumber || '').toLowerCase().includes(term) ||
+          (tk.id || '').toLowerCase().includes(term) ||
+          (tk.serverName && (tk.serverName || '').toLowerCase().includes(term)) ||
+          (tk.items || []).some((it) => (it?.name || '').toLowerCase().includes(term));
 
         if (!matchesSearch) return false;
         if (placedFilter === 'ALL') return true;
         // In respective order mode, only keep tickets with items in this stage
-        return tk.items.some((it) => getItemStageNormalized(it.stage, tk.status) === placedFilter);
+        return (tk.items || []).some((it) => getItemStageNormalized(it?.stage, tk.status) === placedFilter);
       })
       .sort((a, b) => {
         // Stage priority order when viewing ALL: PREPARING -> RECEIVED -> PLACED -> READY
@@ -194,8 +195,8 @@ export function ScreenM5KitchenSpeed() {
           if (pA !== pB) return pA - pB;
         }
         // Numeric sort by table number
-        const numA = parseInt(a.tableNumber.replace(/\D/g, ''), 10) || 0;
-        const numB = parseInt(b.tableNumber.replace(/\D/g, ''), 10) || 0;
+        const numA = parseInt((a.tableNumber || '').replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt((b.tableNumber || '').replace(/\D/g, ''), 10) || 0;
         if (numA !== numB) return numA - numB;
         return (b.timestamp || '').localeCompare(a.timestamp || '');
       });
@@ -208,15 +209,15 @@ export function ScreenM5KitchenSpeed() {
         const term = searchTerm.trim().toLowerCase();
         return (
           !term ||
-          bill.tableName.toLowerCase().includes(term) ||
-          bill.invoiceNumber.toLowerCase().includes(term) ||
-          bill.method.toLowerCase().includes(term) ||
-          bill.items.some((it) => it.name.toLowerCase().includes(term))
+          (bill.tableName || '').toLowerCase().includes(term) ||
+          (bill.invoiceNumber || '').toLowerCase().includes(term) ||
+          (bill.method || '').toLowerCase().includes(term) ||
+          (bill.items || []).some((it) => (it?.name || '').toLowerCase().includes(term))
         );
       })
       .sort((a, b) => {
-        const numA = parseInt(a.tableName.replace(/\D/g, ''), 10) || 0;
-        const numB = parseInt(b.tableName.replace(/\D/g, ''), 10) || 0;
+        const numA = parseInt((a.tableName || '').replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt((b.tableName || '').replace(/\D/g, ''), 10) || 0;
         if (numA !== numB) return numA - numB;
         return (b.invoiceNumber || '').localeCompare(a.invoiceNumber || '');
       });
@@ -441,25 +442,19 @@ export function ScreenM5KitchenSpeed() {
                         className="p-3.5 rounded-xl border border-[#EAE5DF] bg-white shadow-xs flex flex-col justify-between hover:border-orange-300 transition"
                       >
                         <div>
-                          {/* Ticket Header */}
-                          <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-mono text-xs sm:text-sm font-black text-white bg-[#9C3D1E] px-2.5 py-1 rounded-lg shadow-2xs">
-                                  Table {tk.tableNumber}
-                                </span>
-                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
-                                  Chair {chairNum}
-                                </span>
-                              </div>
-                              <div className="text-[10px] text-slate-400 font-bold mt-1">
-                                {tk.id} • {tk.timestamp}
-                              </div>
+                          {/* Ticket Header (No stage badge on table right side; stage badge is on item right side only) */}
+                          <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-mono text-xs sm:text-sm font-black text-white bg-[#9C3D1E] px-2.5 py-1 rounded-lg shadow-2xs">
+                                Table {tk.tableNumber}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md text-xs font-black bg-amber-100 text-amber-950 border border-amber-300">
+                                Chair {chairNum}
+                              </span>
                             </div>
-
-                            <span className={overallStage.cls}>
-                              {overallStage.text}
-                            </span>
+                            <div className="text-xs text-slate-400 font-bold">
+                              {tk.id} • {tk.timestamp}
+                            </div>
                           </div>
 
                           {/* Items List (Respective Items Matching Selected Stage Mode) */}
@@ -695,26 +690,26 @@ export function ScreenM5KitchenSpeed() {
                   {/* Top row: Table No, Chair No, Time */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-mono text-xs font-black text-white bg-[#9C3D1E] px-2.5 py-1 rounded-lg shadow-2xs">
+                      <span className="font-mono text-xs sm:text-sm font-black text-white bg-[#9C3D1E] px-2.5 py-1 rounded-lg shadow-2xs">
                         Table {notif.tableNumber}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-amber-100 text-amber-950 border border-amber-300">
                         Chair {notif.chairNumber}
                       </span>
                     </div>
 
-                    <span className="text-xs text-slate-400 font-bold flex items-center gap-1">
-                      <Clock className="h-3.5 w-3.5" />
+                    <span className="text-xs font-bold text-slate-500 flex items-center gap-1">
+                      <Clock className="h-3.5 w-3.5 text-slate-400" />
                       <span>{notif.timestamp}</span>
                     </span>
                   </div>
 
                   {/* Item Details: Quantity & Name */}
-                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-slate-200">
+                  <div className="p-3 rounded-xl bg-[#FAF8F5] border border-slate-200">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-sm sm:text-base font-black text-[#9C3D1E] shrink-0">
+                          <span className="font-mono text-base font-black text-[#9C3D1E] shrink-0">
                             {notif.quantity}x
                           </span>
                           <span className="font-mono text-sm sm:text-base font-black text-slate-900 truncate">
@@ -722,7 +717,7 @@ export function ScreenM5KitchenSpeed() {
                           </span>
                         </div>
                         {notif.options && (
-                          <div className="font-mono text-xs font-bold text-slate-500 mt-1 flex items-center gap-1.5 truncate">
+                          <div className="font-mono text-xs sm:text-sm font-bold text-slate-600 mt-1 flex items-center gap-1.5 truncate">
                             <span>•</span>
                             <span>{notif.options}</span>
                           </div>
@@ -737,8 +732,8 @@ export function ScreenM5KitchenSpeed() {
                       {stageBadge.text}
                     </span>
 
-                    <span className="text-xs font-bold text-slate-500">
-                      Pass: <strong className="text-slate-800">{notif.serverName}</strong>
+                    <span className="text-xs sm:text-sm font-bold text-slate-500">
+                      Pass: <strong className="text-slate-800 font-black">{notif.serverName}</strong>
                     </span>
                   </div>
                 </div>
@@ -775,12 +770,15 @@ export function ScreenM5KitchenSpeed() {
             {combinedCustomerPings.map((ping) => {
               const isResolved = ping.status === 'RESOLVED';
               const isPending = ping.status === 'PENDING';
+              const isFeedback = (ping.type || '').toUpperCase() === 'FEEDBACK';
 
               return (
                 <div
                   key={ping.id}
                   className={`p-3.5 rounded-xl border bg-white shadow-2xs space-y-2.5 transition-all hover:shadow-xs ${
-                    isResolved
+                    isFeedback
+                      ? 'border-amber-300 bg-amber-50/25'
+                      : isResolved
                       ? 'border-slate-200 bg-slate-50/50 opacity-70'
                       : isPending
                       ? 'border-red-200 bg-red-50/15'
@@ -790,42 +788,49 @@ export function ScreenM5KitchenSpeed() {
                   {/* Top row: Icon, Table, Chair, Time */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <div className="p-1 rounded-md bg-[#FAF8F5] border border-slate-200 shrink-0">
+                      <div className="p-1.5 rounded-lg bg-[#FAF8F5] border border-slate-200 shrink-0">
                         {getPingIcon(ping.type)}
                       </div>
-                      <span className="font-mono text-xs font-black text-rose-950 bg-rose-100 border border-rose-300 px-2.5 py-1 rounded-lg shadow-2xs">
+                      <span className="font-mono text-xs sm:text-sm font-black text-rose-950 bg-rose-100 border border-rose-300 px-2.5 py-1 rounded-lg shadow-2xs">
                         Table {ping.tableNumber}
                       </span>
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="px-2.5 py-1 rounded-lg text-xs font-black bg-slate-100 text-slate-800 border border-slate-200">
                         {typeof ping.seatNumber === 'number'
                           ? `Chair ${ping.seatNumber}`
                           : 'Table'}
                       </span>
                     </div>
 
-                    <span className="text-xs text-slate-400 font-bold">
+                    <span className="text-xs font-bold text-slate-500">
                       {ping.timestamp}
                     </span>
                   </div>
 
-                  {/* Message & Type */}
-                  <div className="p-2.5 rounded-xl bg-[#FAF8F5] border border-slate-200">
+                  {/* Message & Type (Feedback Fully Visible) */}
+                  <div className={`p-3 rounded-xl border ${isFeedback ? 'bg-amber-50/50 border-amber-200' : 'bg-[#FAF8F5] border border-slate-200'}`}>
                     <div className="flex items-center justify-between gap-1 text-xs">
-                      <span className="font-black text-slate-800 uppercase text-xs">
-                        {ping.type} REQUEST
-                      </span>
-                      <span className="text-xs text-slate-500 font-bold">
+                      {isFeedback ? (
+                        <span className="font-mono text-xs sm:text-sm font-black text-amber-900 flex items-center gap-1 uppercase tracking-wide">
+                          <Star className="h-4 w-4 text-amber-500 fill-amber-400" />
+                          <span>GUEST FEEDBACK</span>
+                        </span>
+                      ) : (
+                        <span className="font-mono text-xs sm:text-sm font-black text-slate-800 uppercase tracking-wide">
+                          {ping.type} REQUEST
+                        </span>
+                      )}
+                      <span className="text-xs sm:text-sm font-bold text-slate-600">
                         {ping.guestName || 'Guest'}
                       </span>
                     </div>
                     {ping.message && (
-                      <p className="text-xs font-bold text-slate-700 mt-1.5 line-clamp-2">
+                      <p className="text-xs sm:text-sm font-bold text-slate-900 mt-2 whitespace-pre-wrap leading-relaxed">
                         {ping.message}
                       </p>
                     )}
                   </div>
 
-                  {/* Bottom row: Live Status badge (Clean, No Resolve Button) */}
+                  {/* Bottom row: Live Status badge */}
                   <div className="flex items-center justify-between pt-1">
                     <span
                       className={`min-w-[85px] text-center px-3 py-1 rounded-lg text-xs font-black border shadow-2xs ${
@@ -839,7 +844,7 @@ export function ScreenM5KitchenSpeed() {
                       {ping.status}
                     </span>
 
-                    <span className="text-xs font-bold text-slate-500">
+                    <span className="text-xs sm:text-sm font-bold text-slate-500">
                       {isResolved ? 'Resolved by Waiter' : 'Awaiting Floor Server'}
                     </span>
                   </div>

@@ -27,8 +27,12 @@ export function ScreenM1Login() {
   const [floatInput, setFloatInput] = useState('');
   const [localFloat, setLocalFloat] = useState(openingFloat);
 
+  // Safe defaults
+  const activeMgr = activeManager || MANAGER_PROFILES[0];
+  const activeShf = activeShift || INITIAL_SHIFTS[0];
+
   // Other staff selection state
-  const [selectedProfileId, setSelectedProfileId] = useState(activeManager.id);
+  const [selectedProfileId, setSelectedProfileId] = useState(activeMgr.id);
   const [otherStaffName, setOtherStaffName] = useState('');
   const isOtherStaff = selectedProfileId === 'other';
 
@@ -94,7 +98,7 @@ export function ScreenM1Login() {
                 key={sh.name}
                 onClick={() => setActiveShift(sh)}
                 className={`flex items-center justify-between p-2.5 rounded-lg border text-xs font-mono font-bold cursor-pointer transition ${
-                  activeShift.name === sh.name
+                  activeShf.name === sh.name
                     ? 'bg-orange-50 border-orange-500 text-orange-950 shadow-xs'
                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}

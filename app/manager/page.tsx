@@ -63,18 +63,9 @@ export default function ManagerPortalPage() {
         {/* ── ACTUAL PARTICULAR SCREEN CONTAINER (Internal Scrolling only) ── */}
         <div className="flex-1 min-h-0 w-full bg-[#FAF8F5] p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
           <div className="w-full flex justify-center pb-6">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentScreen}
-                initial={{ opacity: 0, scale: 0.99, y: 3 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.99, y: -3 }}
-                transition={{ duration: 0.1 }}
-                className="w-full flex justify-center"
-              >
-                {renderActiveScreen()}
-              </motion.div>
-            </AnimatePresence>
+            <div key={currentScreen} className="w-full flex justify-center transition-all duration-150">
+              {renderActiveScreen()}
+            </div>
           </div>
         </div>
       </div>

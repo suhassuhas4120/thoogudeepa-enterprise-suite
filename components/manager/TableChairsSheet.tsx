@@ -31,7 +31,13 @@ export function TableChairsSheet({
   isModal = false,
   onClose,
 }: Props) {
-  const { tables, kdsTickets, waiterVacatesTable } = useSharedBridge();
+  const {
+    tables,
+    kdsTickets,
+    waiterVacatesTable,
+    waiterClearsChairAfterPayment,
+    settledBills,
+  } = useSharedBridge();
   const { setSelectedTableNumber, setSelectedSeatNumber, setCurrentScreen } = useManagerStore();
 
   const [selectedSeat, setSelectedSeat] = useState<'ALL' | number>('ALL');
@@ -56,6 +62,7 @@ export function TableChairsSheet({
   const capacity = table.capacity || 4;
   const isOccupied = table.status === 'OCCUPIED';
   const isBilling = table.status === 'BILLING';
+  const isVacant = table.status === 'VACANT';
 
   // Find all active tickets for this table
   const groupPeers: string[] = table.mergeGroupPeers ?? [table.number];
@@ -178,6 +185,42 @@ export function TableChairsSheet({
   const displayedTax = Math.round(displayedSubtotal * 0.05);
   const displayedTotal = displayedSubtotal + displayedTax;
 
+  // Check whether payment is done for this table / chair from Waiter Mobile, Waiter Tablet, or Customer Side
+  const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+  const hasTableSettledBill = Boolean(
+    settledBills?.[normTable] ||
+    settledBills?.[table.number] ||
+    settledBills?.[`T-${targetNum}`]
+  );
+
+  const chairsWithOrdersList = Array.from(
+    new Set(allTableOrderedItems.map((i) => i.seatNumber).filter((s): s is number => typeof s === 'number'))
+  );
+  const allActiveChairsSettled =
+    chairsWithOrdersList.length > 0 &&
+    chairsWithOrdersList.every((seatNum) =>
+      Boolean(
+        settledBills?.[`${normTable}-CHAIR-${seatNum}`] ||
+        settledBills?.[`${table.number}-CHAIR-${seatNum}`]
+      )
+    );
+
+  const isCurrentChairSettled =
+    typeof selectedSeat === 'number' &&
+    Boolean(
+      settledBills?.[`${normTable}-CHAIR-${selectedSeat}`] ||
+      settledBills?.[`${table.number}-CHAIR-${selectedSeat}`]
+    );
+
+  // Payment is done if table is in BILLING status (set upon payment from waiter mobile, tablet, or customer)
+  // OR if a settled bill exists in the shared bridge for the table
+  const isTablePaid = isBilling || hasTableSettledBill || allActiveChairsSettled;
+  const isSelectionPaid = selectedSeat === 'ALL' ? isTablePaid : (isTablePaid || isCurrentChairSettled);
+
+  // Vacate is enabled ONLY when payment is done and the table is not already vacant
+  const isVacateEnabled = !isVacant && isSelectionPaid;
+
   const handleOpenBilling = () => {
     setSelectedTableNumber(table.number);
     setSelectedSeatNumber(selectedSeat);
@@ -190,9 +233,18 @@ export function TableChairsSheet({
   };
 
   const handleVacateTable = () => {
-    if (confirm(`Vacate Table ${table.number}? This will reset table to vacant.`)) {
-      waiterVacatesTable(table.number);
-      onClose?.();
+    if (!isVacateEnabled) return;
+
+    if (selectedSeat !== 'ALL' && !isTablePaid && isCurrentChairSettled) {
+      if (confirm(`Vacate Chair ${selectedSeat} on Table ${table.number}?`)) {
+        waiterClearsChairAfterPayment(table.number, selectedSeat as number);
+        setSelectedSeat('ALL');
+      }
+    } else {
+      if (confirm(`Vacate Table ${table.number}? This will reset table to vacant.`)) {
+        waiterVacatesTable(table.number);
+        onClose?.();
+      }
     }
   };
 
@@ -468,13 +520,26 @@ export function TableChairsSheet({
       </div>
 
       {/* Bill & Actions Footer */}
-      <div className="p-4 bg-white border-t border-[#EAE5DF] space-y-3 shrink-0">
+      <div className="p-4 bg-white border-t border-[#EAE5DF] space-y-2.5 shrink-0">
         {/* Bill Summary */}
         <div className="p-3 bg-[#FAF8F5] rounded-xl border border-slate-200 flex items-center justify-between text-xs font-mono">
           <div>
-            <span className="font-bold text-slate-500 text-[11px] block">
-              {selectedSeat === 'ALL' ? 'TOTAL TABLE BILL' : `CHAIR ${selectedSeat} BILL`} (INC. 5% GST)
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-slate-500 text-[11px] block">
+                {selectedSeat === 'ALL' ? 'TOTAL TABLE BILL' : `CHAIR ${selectedSeat} BILL`} (INC. 5% GST)
+              </span>
+              {!isVacant && (
+                <span
+                  className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
+                    isSelectionPaid
+                      ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                      : 'bg-amber-100 text-amber-800 border-amber-300'
+                  }`}
+                >
+                  {isSelectionPaid ? 'PAID' : 'PAYMENT PENDING'}
+                </span>
+              )}
+            </div>
             <span className="text-[10px] text-slate-400">
               Subtotal: ₹{displayedSubtotal} • GST: ₹{displayedTax}
             </span>
@@ -487,6 +552,7 @@ export function TableChairsSheet({
         {/* Buttons Row */}
         <div className="grid grid-cols-3 gap-2">
           <button
+            type="button"
             onClick={handleOpenBilling}
             className="col-span-1 bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black py-2.5 px-3 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
           >
@@ -494,6 +560,7 @@ export function TableChairsSheet({
             <span>POS Bill</span>
           </button>
           <button
+            type="button"
             onClick={handlePrintKOT}
             className="col-span-1 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5"
           >
@@ -501,13 +568,35 @@ export function TableChairsSheet({
             <span>Print KOT</span>
           </button>
           <button
+            type="button"
             onClick={handleVacateTable}
-            className="col-span-1 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5"
+            disabled={!isVacateEnabled}
+            title={
+              isVacant
+                ? 'Table is already vacant'
+                : isVacateEnabled
+                ? selectedSeat !== 'ALL' && !isTablePaid
+                  ? `Vacate Chair ${selectedSeat}`
+                  : `Vacate Table ${table.number}`
+                : 'Payment pending — Vacate is enabled only after payment is completed on Waiter Mobile, Tablet, or Customer side'
+            }
+            className={`col-span-1 font-mono text-xs font-bold py-2.5 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
+              isVacateEnabled
+                ? 'bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 cursor-pointer shadow-xs active:scale-95'
+                : 'bg-stone-100 border border-stone-200 text-stone-400 cursor-not-allowed opacity-60'
+            }`}
           >
             <Trash2 className="h-4 w-4" />
-            <span>Vacate</span>
+            <span>{selectedSeat !== 'ALL' && !isTablePaid && isCurrentChairSettled ? `Vacate C${selectedSeat}` : 'Vacate'}</span>
           </button>
         </div>
+
+        {/* Helper prompt if payment is pending */}
+        {!isVacateEnabled && !isVacant && (
+          <p className="text-[10px] text-amber-800 font-mono text-center font-bold bg-amber-50 py-1.5 px-2 rounded-lg border border-amber-200">
+            Payment pending • Vacate enables after payment on Waiter Mobile, Tablet, or Customer side
+          </p>
+        )}
       </div>
     </div>
   );

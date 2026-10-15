@@ -119,29 +119,94 @@ export function ScreenM5KitchenSpeed() {
     return list;
   }, [combinedPlacedOrders]);
 
-  // Filtered Placed Orders for Left Column
-  const filteredPlaced = combinedPlacedOrders.filter((tk) => {
-    const matchesSearch =
-      tk.tableNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tk.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      tk.items.some((it) => it.name.toLowerCase().includes(searchTerm.toLowerCase()));
+  // Helper to accurately classify ticket stage category (READY, PREP, PLACED)
+  const getTicketStageCategory = (tk: SharedKDSTicket): 'READY' | 'PREP' | 'PLACED' => {
+    const status = (tk.status || '').toUpperCase();
+    const itemStages = (tk.items || []).map((it) => String(it.stage || '').toUpperCase());
 
-    if (!matchesSearch) return false;
-    if (placedFilter === 'READY') return tk.status === 'READY';
-    if (placedFilter === 'PREP') return tk.status === 'PREP';
-    if (placedFilter === 'PLACED') return tk.status === 'NEW';
-    return true;
-  });
+    // 1. Ready: if ticket status or any item is READY / PLATED
+    if (status === 'READY' || status === 'PLATED' || itemStages.some((s) => s === 'READY' || s === 'PLATED')) {
+      return 'READY';
+    }
+    // 2. Prep: if ticket status or any item is PREP / PREPARING / COOKING
+    if (
+      status === 'PREP' ||
+      status === 'PREPARING' ||
+      status === 'COOKING' ||
+      itemStages.some((s) => s === 'PREP' || s === 'PREPARING' || s === 'COOKING')
+    ) {
+      return 'PREP';
+    }
+    // 3. Placed: NEW, PLACED, RECEIVED
+    return 'PLACED';
+  };
 
-  // Filtered Paid Orders for Left Column
-  const filteredPaid = combinedPaidOrders.filter((bill) => {
-    return (
-      bill.tableName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.method.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bill.items.some((it) => it.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    );
-  });
+  // Filter stage counts
+  const readyCount = React.useMemo(
+    () => combinedPlacedOrders.filter((t) => getTicketStageCategory(t) === 'READY').length,
+    [combinedPlacedOrders]
+  );
+  const prepCount = React.useMemo(
+    () => combinedPlacedOrders.filter((t) => getTicketStageCategory(t) === 'PREP').length,
+    [combinedPlacedOrders]
+  );
+  const placedCount = React.useMemo(
+    () => combinedPlacedOrders.filter((t) => getTicketStageCategory(t) === 'PLACED').length,
+    [combinedPlacedOrders]
+  );
+
+  // Filtered and Sorted Placed Orders for Left Column
+  const filteredPlaced = React.useMemo(() => {
+    return combinedPlacedOrders
+      .filter((tk) => {
+        const term = searchTerm.trim().toLowerCase();
+        const matchesSearch =
+          !term ||
+          tk.tableNumber.toLowerCase().includes(term) ||
+          tk.id.toLowerCase().includes(term) ||
+          (tk.serverName && tk.serverName.toLowerCase().includes(term)) ||
+          tk.items.some((it) => it.name.toLowerCase().includes(term));
+
+        if (!matchesSearch) return false;
+        if (placedFilter === 'ALL') return true;
+        return getTicketStageCategory(tk) === placedFilter;
+      })
+      .sort((a, b) => {
+        // Stage priority order when viewing ALL: PREP first, then PLACED, then READY
+        if (placedFilter === 'ALL') {
+          const priority: Record<string, number> = { PREP: 1, PLACED: 2, READY: 3 };
+          const pA = priority[getTicketStageCategory(a)] || 4;
+          const pB = priority[getTicketStageCategory(b)] || 4;
+          if (pA !== pB) return pA - pB;
+        }
+        // Numeric sort by table number
+        const numA = parseInt(a.tableNumber.replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt(b.tableNumber.replace(/\D/g, ''), 10) || 0;
+        if (numA !== numB) return numA - numB;
+        return (b.timestamp || '').localeCompare(a.timestamp || '');
+      });
+  }, [combinedPlacedOrders, searchTerm, placedFilter]);
+
+  // Filtered and Sorted Paid Orders for Left Column
+  const filteredPaid = React.useMemo(() => {
+    return combinedPaidOrders
+      .filter((bill) => {
+        const term = searchTerm.trim().toLowerCase();
+        return (
+          !term ||
+          bill.tableName.toLowerCase().includes(term) ||
+          bill.invoiceNumber.toLowerCase().includes(term) ||
+          bill.method.toLowerCase().includes(term) ||
+          bill.items.some((it) => it.name.toLowerCase().includes(term))
+        );
+      })
+      .sort((a, b) => {
+        const numA = parseInt(a.tableName.replace(/\D/g, ''), 10) || 0;
+        const numB = parseInt(b.tableName.replace(/\D/g, ''), 10) || 0;
+        if (numA !== numB) return numA - numB;
+        return (b.invoiceNumber || '').localeCompare(a.invoiceNumber || '');
+      });
+  }, [combinedPaidOrders, searchTerm]);
 
   // Stage Badge Formatting: PLACED, RECEIVED, PREPARING, READY, SERVED
   const getStageBadge = (stage?: string, status?: string) => {
@@ -173,37 +238,23 @@ export function ScreenM5KitchenSpeed() {
 
   return (
     <div className="w-full mx-auto p-1 space-y-4 font-mono">
-      {/* ── TOP TITLE HEADER BANNER (OVERVIEW ONLY) ── */}
+      {/* ── TOP TITLE HEADER BANNER ── */}
       <div className="bg-white border border-[#EAE5DF] rounded-xl p-4 sm:p-5 shadow-xs flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-sm">
             <ChefHat className="h-6 w-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-orange-800 bg-orange-100 rounded px-1.5 py-0.5">
-                MANAGER OVERVIEW CONSOLE
-              </span>
-              <span className="font-mono text-[10px] text-slate-400">
-                THOOGUDEEPA DONNE BIRYANI MANE
-              </span>
-            </div>
-            <h1 className="text-base sm:text-lg font-black font-mono text-slate-900 mt-0.5">
-              Kitchen orders and customer Notifications
+            <h1 className="text-base sm:text-lg font-black font-mono text-slate-900">
+              Kitchen Orders &amp; Customer Notifications
             </h1>
           </div>
         </div>
 
-        {/* Status Indicator (Pure Read-Only Overview) */}
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FAF8F5] border border-slate-200 text-xs text-slate-600">
-            <Activity className="h-4 w-4 text-emerald-600 animate-pulse" />
-            <span className="font-bold text-[11px]">LIVE SYNC ACTIVE</span>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 bg-slate-100 border border-slate-200 px-3 py-1.5 rounded-xl">
-            <ShieldCheck className="h-4 w-4 text-slate-700" />
-            <span>READ-ONLY AUDIT MODE</span>
-          </div>
+        {/* Live Active Pill */}
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FAF8F5] border border-slate-200 text-xs text-slate-700">
+          <Activity className="h-4 w-4 text-emerald-600 animate-pulse" />
+          <span className="font-bold text-xs">Live Sync</span>
         </div>
       </div>
 
@@ -236,14 +287,7 @@ export function ScreenM5KitchenSpeed() {
                   <Flame className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-black tracking-tight truncate">Placed orders</div>
-                  <div
-                    className={`text-[10px] truncate ${
-                      activeTab === 'PLACED' ? 'text-white/70' : 'text-slate-400'
-                    }`}
-                  >
-                    Active in queue
-                  </div>
+                  <div className="text-sm font-black tracking-tight truncate">Placed Orders</div>
                 </div>
               </div>
 
@@ -279,14 +323,7 @@ export function ScreenM5KitchenSpeed() {
                   <Receipt className="h-5 w-5" />
                 </div>
                 <div className="min-w-0">
-                  <div className="text-sm font-black tracking-tight truncate">Paid orders</div>
-                  <div
-                    className={`text-[10px] truncate ${
-                      activeTab === 'PAID' ? 'text-white/70' : 'text-slate-400'
-                    }`}
-                  >
-                    Settled bills
-                  </div>
+                  <div className="text-sm font-black tracking-tight truncate">Paid Orders</div>
                 </div>
               </div>
 
@@ -303,45 +340,45 @@ export function ScreenM5KitchenSpeed() {
           </div>
 
           {/* Search bar & Stage filters */}
-          <div className="bg-white border border-[#EAE5DF] rounded-xl p-2.5 shadow-xs space-y-2">
+          <div className="bg-white border border-[#EAE5DF] rounded-xl p-3 shadow-xs space-y-2.5">
             <div className="relative w-full">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <input
                 type="text"
                 placeholder={
                   activeTab === 'PLACED'
-                    ? 'Search placed orders by table (e.g. T-04), dish name...'
-                    : 'Search paid orders by invoice, table, method...'
+                    ? 'Search by table or dish...'
+                    : 'Search by table or invoice...'
                 }
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-[#FAF8F5] border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 placeholder-slate-400 focus:outline-none focus:border-orange-500"
+                className="w-full pl-9 pr-3 py-2 bg-[#FAF8F5] border border-slate-300 rounded-lg text-xs font-mono font-bold text-slate-900 placeholder:text-slate-400 focus:outline-none focus:border-orange-500"
               />
             </div>
 
             {activeTab === 'PLACED' && (
-              <div className="flex items-center gap-1.5 overflow-x-auto text-xs pt-1 border-t border-slate-100">
-                <span className="text-[10px] font-bold text-slate-400 mr-1 flex items-center gap-1 shrink-0">
-                  <Filter className="h-3 w-3" />
+              <div className="flex items-center gap-2 overflow-x-auto text-xs pt-1.5 border-t border-slate-100">
+                <span className="text-xs font-black text-slate-700 bg-slate-100 px-2.5 py-1 rounded-md border border-slate-200 flex items-center gap-1 shrink-0">
+                  <Filter className="h-3.5 w-3.5 text-slate-600" />
                   <span>FILTER:</span>
                 </span>
-                {(['ALL', 'READY', 'PREP', 'PLACED'] as const).map((st) => (
+                {(['ALL', 'PREP', 'PLACED', 'READY'] as const).map((st) => (
                   <button
                     key={st}
                     onClick={() => setPlacedFilter(st)}
-                    className={`px-2 py-0.5 rounded-md font-bold transition text-[11px] shrink-0 cursor-pointer ${
+                    className={`px-3 py-1.5 rounded-lg font-black transition text-xs shrink-0 cursor-pointer ${
                       placedFilter === st
-                        ? 'bg-[#9C3D1E] text-white'
-                        : 'bg-[#FAF8F5] text-slate-600 hover:bg-stone-200 border border-slate-200'
+                        ? 'bg-[#9C3D1E] text-white shadow-xs'
+                        : 'bg-[#FAF8F5] text-slate-700 hover:bg-stone-200 border border-slate-300'
                     }`}
                   >
                     {st === 'ALL'
                       ? `All (${combinedPlacedOrders.length})`
-                      : st === 'READY'
-                      ? `Ready (${combinedPlacedOrders.filter((t) => t.status === 'READY').length})`
                       : st === 'PREP'
-                      ? `Prep (${combinedPlacedOrders.filter((t) => t.status === 'PREP').length})`
-                      : `Placed (${combinedPlacedOrders.filter((t) => t.status === 'NEW').length})`}
+                      ? `Prep (${prepCount})`
+                      : st === 'PLACED'
+                      ? `Placed (${placedCount})`
+                      : `Ready (${readyCount})`}
                   </button>
                 ))}
               </div>
@@ -351,11 +388,10 @@ export function ScreenM5KitchenSpeed() {
           {/* 2-Column Grid of Orders (Minimum 20 orders, Clean Overview) */}
           {activeTab === 'PLACED' ? (
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-                <span className="font-bold">
-                  Showing {filteredPlaced.length} Placed Orders (Grid: 2 Columns)
+              <div className="flex items-center justify-between text-xs text-slate-700 px-1">
+                <span className="font-black text-xs text-slate-800">
+                  Placed Orders ({filteredPlaced.length})
                 </span>
-                <span className="text-[10px] text-slate-400">Min 20 orders archived</span>
               </div>
 
               {filteredPlaced.length > 0 ? (
@@ -373,11 +409,11 @@ export function ScreenM5KitchenSpeed() {
                           {/* Ticket Header */}
                           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                             <div>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-black text-slate-900 text-xs sm:text-sm">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-xs sm:text-sm font-black text-white bg-[#9C3D1E] px-2.5 py-1 rounded-lg shadow-2xs">
                                   Table {tk.tableNumber}
                                 </span>
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-amber-100 text-amber-950 border border-amber-300">
                                   Chair {chairNum}
                                 </span>
                               </div>
@@ -452,11 +488,10 @@ export function ScreenM5KitchenSpeed() {
           ) : (
             /* Paid Orders 2-Column Grid */
             <div className="space-y-3">
-              <div className="flex items-center justify-between text-xs text-slate-500 px-1">
-                <span className="font-bold">
-                  Showing {filteredPaid.length} Paid Orders (Grid: 2 Columns)
+              <div className="flex items-center justify-between text-xs text-slate-700 px-1">
+                <span className="font-black text-xs text-slate-800">
+                  Paid Orders ({filteredPaid.length})
                 </span>
-                <span className="text-[10px] text-slate-400">Min 20 settled bills</span>
               </div>
 
               {filteredPaid.length > 0 ? (
@@ -478,11 +513,11 @@ export function ScreenM5KitchenSpeed() {
                           {/* Bill Header */}
                           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                             <div>
-                              <div className="flex items-center gap-1.5 flex-wrap">
-                                <span className="font-black text-slate-900 text-xs sm:text-sm">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-mono text-xs sm:text-sm font-black text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg shadow-2xs">
                                   Table {bill.tableName}
                                 </span>
-                                <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-slate-100 text-slate-700">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-black bg-slate-100 text-slate-700 border border-slate-200">
                                   {bill.seatLabel || 'Whole Table'}
                                 </span>
                               </div>
@@ -586,9 +621,6 @@ export function ScreenM5KitchenSpeed() {
                 <h2 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
                   Kitchen Notifications
                 </h2>
-                <div className="text-[10px] text-slate-400 font-bold">
-                  Table, Chair &amp; Item Live Stages
-                </div>
               </div>
             </div>
 
@@ -624,10 +656,10 @@ export function ScreenM5KitchenSpeed() {
                   {/* Top row: Table No, Chair No, Time */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="font-black text-slate-900 text-xs">
+                      <span className="font-mono text-xs font-black text-white bg-[#9C3D1E] px-2 py-0.5 rounded-md shadow-2xs">
                         Table {notif.tableNumber}
                       </span>
-                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-amber-100 text-amber-950 border border-amber-300">
                         Chair {notif.chairNumber}
                       </span>
                     </div>
@@ -692,9 +724,6 @@ export function ScreenM5KitchenSpeed() {
                 <h2 className="text-xs sm:text-sm font-black text-slate-900 tracking-tight">
                   Customer Notifications
                 </h2>
-                <div className="text-[10px] text-slate-400 font-bold">
-                  Guest Table &amp; Chair Requests
-                </div>
               </div>
             </div>
 
@@ -726,10 +755,10 @@ export function ScreenM5KitchenSpeed() {
                       <div className="p-1 rounded-md bg-[#FAF8F5] border border-slate-200 shrink-0">
                         {getPingIcon(ping.type)}
                       </div>
-                      <span className="font-black text-slate-900 text-xs">
+                      <span className="font-mono text-xs font-black text-rose-950 bg-rose-100 border border-rose-300 px-2 py-0.5 rounded-md shadow-2xs">
                         Table {ping.tableNumber}
                       </span>
-                      <span className="px-1.5 py-0.2 rounded text-[9.5px] font-black bg-slate-100 text-slate-700 border border-slate-200">
+                      <span className="px-1.5 py-0.5 rounded text-[9.5px] font-black bg-slate-100 text-slate-700 border border-slate-200">
                         {typeof ping.seatNumber === 'number'
                           ? `Chair ${ping.seatNumber}`
                           : 'Table'}

@@ -84,14 +84,14 @@ export default function ManagerPortalPage() {
   // Local state ensures 100% synchronous reactivity in client rendering
   const [activeTab, setActiveTab] = useState<ManagerScreenId>(currentScreen || 1);
 
-  // Read URL query parameter (?screen=N or ?tab=N) on initial mount
+  // Read URL query parameter (?screen=N, ?screen-N, ?tab=N, or #N) on initial mount
   useEffect(() => {
     if (typeof window !== 'undefined') {
       try {
-        const params = new URLSearchParams(window.location.search);
-        const screenParam = params.get('screen') || params.get('tab');
-        if (screenParam) {
-          const parsed = parseInt(screenParam, 10);
+        const raw = (window.location.search || '') + ' ' + (window.location.hash || '');
+        const match = raw.match(/(?:screen|tab)[=-]?([1-8])/i) || raw.match(/[?#&]([1-8])\b/);
+        if (match && match[1]) {
+          const parsed = parseInt(match[1], 10);
           if (parsed >= 1 && parsed <= 8) {
             setActiveTab(parsed as ManagerScreenId);
             setCurrentScreen(parsed as ManagerScreenId);

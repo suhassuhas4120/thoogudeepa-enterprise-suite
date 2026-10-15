@@ -87,15 +87,15 @@ export function ScreenM2LiveOverview() {
               </h3>
             </div>
             {/* Legend */}
-            <div className="flex items-center gap-3 font-mono text-[11px] font-bold">
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-[#9C3D1E]"></span> OCCUPIED</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> BILLING</span>
-              <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-full bg-white border border-[#EAE5DF]"></span> VACANT</span>
+            <div className="flex items-center gap-3.5 font-mono text-xs font-bold">
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-[#9C3D1E]"></span> OCCUPIED</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-400"></span> BILLING</span>
+              <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-white border border-[#EAE5DF]"></span> VACANT</span>
             </div>
           </div>
 
           {/* Exactly 5 Columns Grid of Tables */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2 mt-3.5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5 sm:gap-3 mt-3.5">
             {tables.map((tbl) => {
               const isSelected = tbl.number === activeTableNum;
               const isOcc = tbl.status === 'OCCUPIED';
@@ -104,44 +104,46 @@ export function ScreenM2LiveOverview() {
                 <button
                   key={tbl.id}
                   onClick={() => handleTableClick(tbl.number)}
-                  className={`flex flex-col p-2.5 rounded-lg border-2 text-left font-mono transition relative cursor-pointer ${
+                  className={`flex flex-col justify-between p-3 sm:p-3.5 min-h-[96px] rounded-xl border-2 text-left font-mono transition-all relative cursor-pointer active:scale-[0.98] ${
                     isOcc
                       ? isSelected
-                        ? 'bg-[#9C3D1E] text-white border-yellow-400 shadow-sm z-10'
-                        : 'bg-[#9C3D1E] text-white border-[#9C3D1E] hover:border-yellow-400/50 shadow-2xs'
+                        ? 'bg-[#9C3D1E] text-white border-yellow-400 ring-2 ring-yellow-400/40 shadow-md z-10'
+                        : 'bg-[#9C3D1E] text-white border-[#9C3D1E] hover:border-yellow-400/50 shadow-xs hover:shadow-md'
                       : isBill
                       ? isSelected
-                        ? 'bg-amber-100 text-amber-950 border-amber-600 shadow-sm z-10'
-                        : 'bg-amber-100 text-amber-950 border-amber-400 hover:border-amber-500 shadow-2xs'
+                        ? 'bg-amber-100 text-amber-950 border-amber-600 ring-2 ring-amber-400/40 shadow-md z-10'
+                        : 'bg-amber-100 text-amber-950 border-amber-400 hover:border-amber-500 shadow-xs hover:shadow-md'
                       : isSelected
-                      ? 'bg-white text-slate-900 border-[#9C3D1E] shadow-sm z-10'
-                      : 'bg-white text-slate-900 border-[#EAE5DF] hover:border-[#9C3D1E] shadow-2xs'
+                      ? 'bg-white text-slate-900 border-[#9C3D1E] ring-2 ring-[#9C3D1E]/20 shadow-md z-10'
+                      : 'bg-white text-slate-900 border-[#EAE5DF] hover:border-[#9C3D1E] shadow-xs hover:shadow-md'
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className={`text-xs font-black ${isOcc ? 'text-white' : 'text-slate-900'}`}>
+                    <span className={`text-sm sm:text-base font-black tracking-tight ${isOcc ? 'text-white' : 'text-slate-900'}`}>
                       {tbl.number}
                     </span>
                     <span
-                      className={`text-[9px] px-1 py-0.5 rounded font-black ${
+                      className={`text-[11px] px-2 py-0.5 rounded-md font-black ${
                         isOcc ? 'bg-black/30 text-white' : 'bg-slate-100 text-slate-700'
                       }`}
                     >
                       {tbl.capacity}P
                     </span>
                   </div>
-                  <div
-                    className={`mt-1.5 text-xs font-black truncate ${
-                      isOcc ? 'text-white' : isBill ? 'text-amber-900' : 'text-slate-800'
-                    }`}
-                  >
-                    {isOcc || isBill ? `₹ ${tbl.currentBill}` : 'VACANT'}
-                  </div>
-                  {isOcc && (
-                    <div className="text-[10px] mt-0.5 truncate text-white/80 font-bold">
-                      {tbl.guestCount} Pax • {tbl.kotCount} KOT
+                  <div>
+                    <div
+                      className={`mt-1 text-sm sm:text-base font-black truncate tracking-tight ${
+                        isOcc ? 'text-white' : isBill ? 'text-amber-900' : 'text-slate-700'
+                      }`}
+                    >
+                      {isOcc || isBill ? `₹ ${tbl.currentBill}` : 'VACANT'}
                     </div>
-                  )}
+                    {isOcc && (
+                      <div className="text-[11px] mt-0.5 truncate text-white/90 font-bold">
+                        {tbl.guestCount} Pax • {tbl.kotCount} KOT
+                      </div>
+                    )}
+                  </div>
                 </button>
               );
             })}

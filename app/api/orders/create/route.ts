@@ -444,6 +444,33 @@ export async function POST(req: NextRequest) {
       })
       .eq('number', tableNumber);
 
+    const serverTicket = {
+      id: ticketId,
+      tableNumber,
+      orderType: 'DINE IN',
+      serverName: guestName,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false }),
+      status: 'RECEIVED' as const,
+      seatNumber,
+      items: lineItems.map((li: any) => ({
+        id: li.id,
+        name: li.name,
+        quantity: li.quantity,
+        stage: 'RECEIVED' as const,
+        options: li.options || undefined,
+        addOns: li.add_ons || undefined,
+        seatNumber: li.seat_number,
+        price: li.price,
+      })),
+    };
+
+    broadcastStateChange('orderPlaced', {
+      ticket: serverTicket,
+      tableNumber,
+      assignedSeat: seatNumber,
+      orderTotal: total,
+    });
+
     broadcastStateChange('seatOccupied', {
       tableNumber,
       seatNumber,

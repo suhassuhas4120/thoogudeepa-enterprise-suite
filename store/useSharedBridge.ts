@@ -199,6 +199,15 @@ const makeTicketId = () => {
 const nowTime = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
 
 
+export interface SharedKitchenNotification {
+  id: string;
+  ticketId: string;
+  tableNumber: string;
+  itemCount: number;
+  timestamp: string;
+  dismissed: boolean;
+}
+
 interface SharedBridgeState {
   // Shared cross-section state
   tables: SharedTable[];
@@ -211,14 +220,7 @@ interface SharedBridgeState {
   activeSettlementSessions: Record<string, ActiveSettlementSession>;
 
   // NEW kitchen notification queue — never shown to customer
-  kitchenNotifications: Array<{
-    id: string;
-    ticketId: string;
-    tableNumber: string;
-    itemCount: number;
-    timestamp: string;
-    dismissed: boolean;
-  }>;
+  kitchenNotifications: SharedKitchenNotification[];
 
   /** Customer places order */
   customerPlacesOrder: (
@@ -450,7 +452,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kitchenNotifications: [...state.kitchenNotifications, notif],
         settledBills: nextBills,
         tables: state.tables.map((t) =>
-          t.number === tableNumber
+          (cleanNum(t.number) === targetNum || t.number === tableNumber || t.number === normTable)
             ? {
                 ...t,
                 status: 'OCCUPIED',
@@ -483,6 +485,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       };
     });
 
+    broadcastStateChange('orderPlaced', {
+      ticket,
+      tableNumber,
+      assignedSeat,
+      orderTotal,
+      notif,
+    });
     broadcastStateChange('seatOccupied', {
       tableNumber,
       seatNumber: assignedSeat,
@@ -490,6 +499,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     if (typeof window !== 'undefined') {
       try {
         const bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.postMessage({
+          type: 'ORDER_PLACED',
+          payload: {
+            ticket,
+            tableNumber,
+            assignedSeat,
+            orderTotal,
+            notif,
+          },
+        });
         bc.postMessage({
           type: 'SEAT_OCCUPIED',
           tableNumber,
@@ -1173,7 +1192,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kitchenNotifications: [...state.kitchenNotifications, notif],
         settledBills: nextBills,
         tables: state.tables.map((t) =>
-        t.number === tableNumber
+        (cleanNum(t.number) === targetNum || t.number === tableNumber || t.number === normTable)
           ? {
               ...t,
               status: 'OCCUPIED',
@@ -1213,6 +1232,39 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       ),
       };
     });
+
+    broadcastStateChange('orderPlaced', {
+      ticket,
+      tableNumber,
+      assignedSeat: seatNumber || 1,
+      orderTotal: kotTotal,
+      notif,
+    });
+    broadcastStateChange('seatOccupied', {
+      tableNumber,
+      seatNumber: seatNumber || 1,
+    });
+    if (typeof window !== 'undefined') {
+      try {
+        const bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.postMessage({
+          type: 'ORDER_PLACED',
+          payload: {
+            ticket,
+            tableNumber,
+            assignedSeat: seatNumber || 1,
+            orderTotal: kotTotal,
+            notif,
+          },
+        });
+        bc.postMessage({
+          type: 'SEAT_OCCUPIED',
+          tableNumber,
+          seatNumber: seatNumber || 1,
+        });
+        bc.close();
+      } catch {}
+    }
 
     // 2. Persist to Supabase
     bridgePost(
@@ -2118,30 +2170,38 @@ if (typeof window !== 'undefined') {
   const applyPersistedState = (parsed: Record<string, unknown>, suppressBroadcast = false) => {
     if (!parsed || !Array.isArray(parsed.tables)) return;
     const cur = useSharedBridge.getState();
-
     const rawTables = parsed.tables as SharedTable[];
-    // Active tables must have running bill > 0 or active items
-    // Collect tables that have their own active bill or items
-    const tablesWithOrders = new Set(
-      rawTables
-        .filter((t) => (t.currentBill && t.currentBill > 0) || (t.activeItems && t.activeItems.length > 0))
-        .map((t) => t.number)
-    );
+
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const tablesWithOrders = new Set<string>();
+    rawTables
+      .filter((t) => (t.currentBill && t.currentBill > 0) || (t.activeItems && t.activeItems.length > 0))
+      .forEach((t) => {
+        tablesWithOrders.add(t.number);
+        const c = cleanNum(t.number);
+        tablesWithOrders.add(c);
+        tablesWithOrders.add(`T-${String(parseInt(c, 10) || 1).padStart(2, '0')}`);
+      });
 
     // Expand: if any member of a merge group has orders, ALL peers are considered active
     const activeTableNums = new Set<string>(tablesWithOrders);
     rawTables.forEach((t) => {
       if (t.mergeGroupPeers && t.mergeGroupPeers.length > 1) {
-        const groupHasOrders = t.mergeGroupPeers.some((n) => tablesWithOrders.has(n));
+        const groupHasOrders = t.mergeGroupPeers.some((n) => tablesWithOrders.has(n) || tablesWithOrders.has(cleanNum(n)));
         if (groupHasOrders) {
-          t.mergeGroupPeers.forEach((n) => activeTableNums.add(n));
+          t.mergeGroupPeers.forEach((n) => {
+            activeTableNums.add(n);
+            const c = cleanNum(n);
+            activeTableNums.add(c);
+            activeTableNums.add(`T-${String(parseInt(c, 10) || 1).padStart(2, '0')}`);
+          });
         }
       }
     });
 
     const sanitizedTables = rawTables.map((t) => {
       // A table is safe to keep if: it has its own bill/items, OR it's a member of an active merge group
-      const isMergedAndGroupActive = t.mergeGroupPeers && t.mergeGroupPeers.length > 1 && activeTableNums.has(t.number);
+      const isMergedAndGroupActive = t.mergeGroupPeers && t.mergeGroupPeers.length > 1 && (activeTableNums.has(t.number) || activeTableNums.has(cleanNum(t.number)));
       const hasBillOrItems = (t.currentBill && t.currentBill > 0) || (t.activeItems && t.activeItems.length > 0);
       if (!hasBillOrItems && !isMergedAndGroupActive) {
         // Truly vacant table — wipe any leftover state
@@ -2169,14 +2229,23 @@ if (typeof window !== 'undefined') {
     // Always filter COMPLETED tickets and orphan tickets for vacant tables
     const liveTickets = Array.isArray(parsed.kdsTickets)
       ? (parsed.kdsTickets as SharedKDSTicket[])
-          .filter((tk) => tk && tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber))
+          .filter((tk) => {
+            if (!tk || tk.status === 'COMPLETED') return false;
+            const c = cleanNum(tk.tableNumber);
+            const norm = `T-${String(parseInt(c, 10) || 1).padStart(2, '0')}`;
+            return activeTableNums.has(tk.tableNumber) || activeTableNums.has(c) || activeTableNums.has(norm);
+          })
           .map((tk, idx) => {
             if (!tk.id || typeof tk.id !== 'string' || tk.id.includes('NaN')) {
               return { ...tk, id: `KDS-${Date.now().toString().slice(-4)}-${idx + 1}-${Math.floor(100 + Math.random() * 900)}` };
             }
             return tk;
           })
-      : cur.kdsTickets.filter((tk) => activeTableNums.has(tk.tableNumber));
+      : cur.kdsTickets.filter((tk) => {
+          const c = cleanNum(tk.tableNumber);
+          const norm = `T-${String(parseInt(c, 10) || 1).padStart(2, '0')}`;
+          return activeTableNums.has(tk.tableNumber) || activeTableNums.has(c) || activeTableNums.has(norm);
+        });
 
     // Validate shiftStats shape before accepting
     const rawStats = parsed.shiftStats as Partial<typeof cur.shiftStats> | undefined;
@@ -2350,6 +2419,103 @@ if (typeof window !== 'undefined') {
     }
   } catch {}
 
+  const applyIncomingOrderPlaced = (data: {
+    ticket?: SharedKDSTicket;
+    tableNumber?: string;
+    assignedSeat?: number;
+    seatNumber?: number;
+    orderTotal?: number;
+    notif?: SharedKitchenNotification;
+  }) => {
+    if (!data || !data.ticket || !data.tableNumber) return;
+    const { ticket, tableNumber, orderTotal = 0, notif } = data;
+    const seatNum = data.assignedSeat || data.seatNumber || ticket.seatNumber || 1;
+
+    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const targetNum = cleanNum(tableNumber);
+    const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+    isBroadcasting = true;
+    useSharedBridge.setState((state) => {
+      // 1. Deduplicate KDS tickets
+      const exists = state.kdsTickets.some((tk) => tk.id === ticket.id);
+      const nextTickets = exists
+        ? state.kdsTickets.map((tk) => (tk.id === ticket.id ? { ...tk, ...ticket } : tk))
+        : [...state.kdsTickets, ticket];
+
+      // 2. Add kitchen notification if provided and not duplicated
+      const nextNotifs = notif && !state.kitchenNotifications.some((n) => n.id === notif.id)
+        ? [...state.kitchenNotifications, notif]
+        : state.kitchenNotifications;
+
+      // 3. Clear settled bills for this table/chair
+      const nextBills = { ...state.settledBills };
+      delete nextBills[normTable];
+      delete nextBills[tableNumber];
+      delete nextBills[`${normTable}-CHAIR-${seatNum}`];
+      delete nextBills[`${tableNumber}-CHAIR-${seatNum}`];
+
+      // 4. Update table status, running bill, active items, and seated time
+      const nextTables = state.tables.map((t) => {
+        const match = cleanNum(t.number) === targetNum || t.number === tableNumber || t.number === normTable;
+        if (!match) return t;
+
+        const existingSeats = new Set<number>();
+        (t.activeItems || []).forEach((it) => {
+          if (it.seatNumber) existingSeats.add(it.seatNumber);
+        });
+        existingSeats.add(seatNum);
+        const computedGuests = Math.min(t.capacity, Math.max(1, existingSeats.size));
+
+        const newActive = ticket.items.map((it) => ({
+          id: it.id,
+          name: it.name,
+          quantity: it.quantity,
+          status: 'Placed' as const,
+          seatNumber: seatNum,
+          price: it.price,
+          options: it.options,
+          addOns: it.addOns,
+        }));
+
+        const currentActiveIds = new Set((t.activeItems || []).map((i) => i.id));
+        const filteredNewActive = newActive.filter((i) => !currentActiveIds.has(i.id));
+
+        const totalToAdd = exists ? 0 : (orderTotal || ticket.items.reduce((sum, it) => sum + (it.price || 0) * (it.quantity || 1), 0));
+        const kotIncrement = exists ? 0 : 1;
+
+        return {
+          ...t,
+          status: 'OCCUPIED' as const,
+          guestCount: Math.max(t.guestCount || 1, computedGuests),
+          seatedTime: (!t.seatedTime || t.seatedTime === '--') ? nowTime() : t.seatedTime,
+          currentBill: (t.currentBill || 0) + totalToAdd,
+          kotCount: (t.kotCount || 0) + kotIncrement,
+          activeItems: [...(t.activeItems || []), ...filteredNewActive],
+        };
+      });
+
+      return {
+        kdsTickets: nextTickets,
+        kitchenNotifications: nextNotifs,
+        settledBills: nextBills,
+        tables: nextTables,
+      };
+    });
+    isBroadcasting = false;
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('seatOccupiedRealtime', {
+          detail: {
+            tableNumber,
+            seatNumber: seatNum,
+          },
+        })
+      );
+    }
+  };
+
   // 1. Native Cross-Tab Sync via BroadcastChannel (0ms latency, zero dependencies)
   let syncChannel: BroadcastChannel | null = null;
   if ('BroadcastChannel' in window) {
@@ -2371,6 +2537,9 @@ if (typeof window !== 'undefined') {
         } catch {}
         return;
       }
+      if (event.data?.type === 'ORDER_PLACED' && event.data.payload) {
+        applyIncomingOrderPlaced(event.data.payload);
+      }
       if (event.data?.type === 'SEAT_OCCUPIED' && event.data.tableNumber && event.data.seatNumber) {
         if (typeof window !== 'undefined') {
           window.dispatchEvent(
@@ -2386,6 +2555,9 @@ if (typeof window !== 'undefined') {
       if (event.data?.type === 'BROADCAST_STATE_CHANGED') {
         const reason = event.data.reason;
         const payload = event.data.payload;
+        if (reason === 'orderPlaced' && payload) {
+          applyIncomingOrderPlaced(payload);
+        }
         if (reason === 'waiterPingCreated' && payload) {
           const newPing = payload as SharedPing;
           if (newPing && newPing.tableNumber) {
@@ -2445,6 +2617,9 @@ if (typeof window !== 'undefined') {
               syncChannel?.postMessage({ type: 'VENUE_CLEAN_RESET' });
             } catch {}
             return;
+          }
+          if (reason === 'orderPlaced' && payload) {
+            applyIncomingOrderPlaced(payload);
           }
           if (reason === 'seatOccupied' && payload?.tableNumber && payload?.seatNumber) {
             if (typeof window !== 'undefined') {
@@ -2583,7 +2758,17 @@ if (typeof window !== 'undefined') {
     } catch {}
   });
 
-  // 3. localStorage polling fallback (every 3 seconds)
+  // 3. Instant storage event sync across browser tabs (0ms latency fallback)
+  window.addEventListener('storage', (event) => {
+    if (event.key === BRIDGE_STORAGE_KEY && event.newValue) {
+      try {
+        const parsed = JSON.parse(event.newValue);
+        applyPersistedState(parsed, true);
+      } catch {}
+    }
+  });
+
+  // 4. localStorage polling fallback (every 3 seconds)
   // Catches state changes from tabs where BroadcastChannel messages were dropped
   // (e.g., heavy CPU load, tab sleeping, or browser throttling)
   let lastSeenTicketsHash = '';

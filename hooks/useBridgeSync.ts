@@ -496,10 +496,15 @@ export function useBridgeSync() {
             items: newTicketItems,
           };
 
+          const ticketTotal = newTicketItems.reduce((acc, it) => acc + (it.price || 0) * (it.quantity || 1), 0);
+          const cleanTblNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+          const targetTblNum = cleanTblNum(row.table_number);
+          const normTbl = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
+
           useSharedBridge.setState((state) => {
             const nextTickets = [...state.kdsTickets, newTicket];
             const nextTables = state.tables.map((tbl) => {
-              if (tbl.number === row.table_number) {
+              if (cleanTblNum(tbl.number) === targetTblNum || tbl.number === row.table_number || tbl.number === normTbl) {
                 const additionalActive = newTicketItems.map((it) => ({
                   id: it.id,
                   name: it.name,
@@ -510,10 +515,15 @@ export function useBridgeSync() {
                   seatNumber: it.seatNumber,
                   price: it.price,
                 }));
+                const existingActiveIds = new Set((tbl.activeItems || []).map((a) => a.id));
+                const filteredNew = additionalActive.filter((a) => !existingActiveIds.has(a.id));
                 return {
                   ...tbl,
                   status: 'OCCUPIED' as const,
-                  activeItems: [...(tbl.activeItems || []), ...additionalActive],
+                  currentBill: (tbl.currentBill || 0) + ticketTotal,
+                  kotCount: (tbl.kotCount || 0) + 1,
+                  seatedTime: (!tbl.seatedTime || tbl.seatedTime === '--') ? (newTicket.timestamp !== '--' ? newTicket.timestamp : 'Just now') : tbl.seatedTime,
+                  activeItems: [...(tbl.activeItems || []), ...filteredNew],
                 };
               }
               return tbl;

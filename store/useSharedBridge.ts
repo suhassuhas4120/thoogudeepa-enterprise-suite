@@ -411,7 +411,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         prepMode: i.item.prepMode,
         options: i.selectedOption,
         addOns: i.addOns,
-        seatNumber: assignedSeat,
+        seatNumber: (i as { seatNumber?: number }).seatNumber || assignedSeat,
         price: i.item.price,
       })),
     };
@@ -496,7 +496,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                     name: it.name,
                     quantity: it.quantity,
                     status: 'Placed',
-                    seatNumber: assignedSeat,
+                    seatNumber: it.seatNumber || assignedSeat,
                     price: it.price,
                     options: it.options,
                   })),

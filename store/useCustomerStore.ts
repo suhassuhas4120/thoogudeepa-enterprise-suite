@@ -616,6 +616,47 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     );
 
     if (!hasActiveOrders) {
+      // Check if diner has an unplaced draft cart saved locally
+      let hasUnplacedDraft = false;
+      let draftCart: CartItem[] = [];
+      let draftPayment: PaymentDetails | null = null;
+      let draftScreen: ScreenId = 1;
+
+      if (typeof window !== 'undefined') {
+        try {
+          const scopedKey = `thoogudeepa_customer_session_${normTable}_s${seatNumber}`;
+          const saved = localStorage.getItem(scopedKey);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (!parsed.isSettled && parsed.currentScreen !== 8 && Array.isArray(parsed.cart)) {
+              const draftItems = parsed.cart.filter((ci: any) => !ci.isOrdered);
+              if (draftItems.length > 0) {
+                hasUnplacedDraft = true;
+                draftCart = draftItems;
+                draftPayment = parsed.payment || null;
+                draftScreen = (parsed.currentScreen && parsed.currentScreen <= 4 ? parsed.currentScreen : 2) as ScreenId;
+              }
+            }
+          }
+        } catch {}
+      }
+
+      if (hasUnplacedDraft) {
+        set((state) => ({
+          cart: draftCart,
+          currentScreen: draftScreen,
+          previousScreen: 1,
+          tableNumber: normTable,
+          seatNumber,
+          isSettled: false,
+          orderStage: 'PLACED',
+          itemTracking: [],
+          waiterNotification: null,
+          payment: draftPayment || calculatePaymentTotals(draftCart, state.payment),
+        }));
+        return;
+      }
+
       // Chair is vacant or already cleared/settled. Reset session cleanly for fresh scanning.
       if (typeof window !== 'undefined') {
         try {
@@ -721,7 +762,21 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         };
       });
 
-      const subtotal = restoredCart.reduce((s, c) => s + c.totalPrice, 0);
+      let localDrafts: CartItem[] = [];
+      if (typeof window !== 'undefined') {
+        try {
+          const saved = localStorage.getItem(`thoogudeepa_customer_session_${normTable}_s${seatNumber}`);
+          if (saved) {
+            const parsed = JSON.parse(saved);
+            if (!parsed.isSettled && parsed.currentScreen !== 8 && Array.isArray(parsed.cart)) {
+              localDrafts = parsed.cart.filter((ci: any) => !ci.isOrdered);
+            }
+          }
+        } catch {}
+      }
+
+      const combinedCart = [...restoredCart, ...localDrafts];
+      const subtotal = combinedCart.reduce((s, c) => s + c.totalPrice, 0);
       const tax = Math.round(subtotal * 0.05);
       const totalAmount = subtotal + tax;
 
@@ -731,7 +786,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       set((state) => {
         const nextScreen = state.currentScreen === 8 ? 5 : (state.currentScreen <= 4 ? 5 : state.currentScreen);
         return {
-          cart: restoredCart,
+          cart: combinedCart,
           itemTracking: restoredTracking,
           orderStage,
           currentScreen: nextScreen,

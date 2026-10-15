@@ -163,7 +163,11 @@ function CustomerJourneyContent() {
       curStoreState.isSettled;
 
     if (tableOrSeatChanged) {
-      curStoreState.resetSession();
+      if (curStoreState.isSettled) {
+        curStoreState.resetSession();
+      } else {
+        useCustomerStore.setState({ tableNumber: cleanTable, seatNumber: parsedSeat });
+      }
       hasPlacedOrderRef.current = false;
     }
 
@@ -232,6 +236,8 @@ function CustomerJourneyContent() {
               useCustomerStore.setState({
                 cart: parsed.cart,
                 currentScreen: parsed.currentScreen && parsed.currentScreen <= 4 ? parsed.currentScreen : 2,
+                tableNumber: cleanTable,
+                seatNumber: parsedSeat,
                 payment: parsed.payment || curStore.payment,
               });
             }

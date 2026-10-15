@@ -53,11 +53,12 @@ export const ScreenK1Login: React.FC = () => {
         {/* Left Card: Logo + Venue name */}
         <div className="w-full md:w-[440px] bg-white rounded-3xl border border-[#EFE6DA] p-8 shadow-sm flex flex-col items-center justify-between text-center min-h-[440px]">
           <div className="flex flex-col items-center my-auto">
-            <div className="relative flex h-28 w-28 items-center justify-center rounded-3xl border border-[#EFE6DA] bg-gradient-to-br from-[#FFF4EC] to-[#FCE4CE] shadow-xs mb-5">
-              <UtensilsCrossed className="h-12 w-12 text-[#B85A1F]" />
-              <div className="absolute -bottom-2 -right-2 rounded-full border border-[#EFE6DA] bg-[#E8722E] p-1.5 text-white shadow-xs">
-                <ChefHat className="h-4 w-4" />
-              </div>
+                 <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-white shadow-xs mb-5 overflow-hidden">
+              <img
+                src="/images/logo.png"
+                alt="Thoogudeepa Donne Biryani Mane"
+                className="h-full w-full object-cover scale-110"
+              />
             </div>
 
             <h1 className="mt-1.5 text-xl font-black text-slate-900 uppercase tracking-tight">

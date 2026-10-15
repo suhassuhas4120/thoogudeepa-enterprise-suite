@@ -321,13 +321,6 @@ export const ScreenK2Overview: React.FC = () => {
             <span className="font-mono text-[10px] font-bold text-slate-700 bg-[#FBF7F0] border border-[#EFE6DA] px-2 py-1 rounded">
               VISIBLE TABLES: {categoryFilteredTables.length}
             </span>
-            <button
-              onClick={handleCallWaiter}
-              className="flex items-center gap-1.5 rounded-lg border border-[#E8722E] bg-[#E8722E] hover:bg-[#d15f1f] px-3 py-1.5 font-mono text-[10.5px] font-black uppercase text-white transition shadow-sm whitespace-nowrap"
-            >
-              <Bell className="h-3 w-3" />
-              <span>CALL WAITER</span>
-            </button>
           </div>
         </div>
 
@@ -598,14 +591,6 @@ export const ScreenK2Overview: React.FC = () => {
                 )}
               </div>
             </div>
-
-            <button
-              onClick={handleCallWaiter}
-              className="w-full mt-4 py-2.5 rounded-xl border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] font-mono text-xs font-black uppercase text-slate-900 flex items-center justify-center gap-1.5 shadow-xs transition"
-            >
-              <Bell className="h-3.5 w-3.5 text-[#E8722E]" />
-              <span>CALL FLOOR RUNNER TO PASS</span>
-            </button>
           </div>
         </div>
       </div>

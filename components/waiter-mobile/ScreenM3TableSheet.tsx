@@ -525,7 +525,11 @@ export function ScreenM3TableSheet({
     return false;
   });
 
-  const isCustomerBillRequested = hasCustomerPaymentRequest;
+  const chairKey = `${normTable}-CHAIR-${selectedSeat}`;
+  const isCustomerBillRequested = hasCustomerPaymentRequest || Boolean(
+    activeSettlementSessions?.[chairKey]?.isUpiVerified ||
+    activeSettlementSessions?.[normTable]?.isUpiVerified
+  );
 
   const hasTableOrders = allTableOrderedItems.length > 0;
   const hasUnservedTableItems =

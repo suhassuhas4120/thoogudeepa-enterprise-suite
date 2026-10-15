@@ -5,6 +5,7 @@ export interface ActiveSettlementSession {
   method: 'UPI' | 'CASH';
   isUpiVerified?: boolean;
   initiatedAt: number;
+  billSnapshot?: SettledBillSnapshot;
 }
 
 export interface SettledBillSnapshot {

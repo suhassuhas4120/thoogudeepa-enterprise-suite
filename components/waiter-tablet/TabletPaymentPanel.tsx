@@ -42,7 +42,7 @@ export function TabletPaymentPanel({
   splitAmount,
   splitLabel,
 }: Props) {
-  const { tables, kdsTickets, pings, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill, waiterInitiatesSettlement, waiterClearsSettlementSession } = useSharedBridge();
+  const { tables, kdsTickets, pings, activeSettlementSessions, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill, waiterInitiatesSettlement, waiterClearsSettlementSession } = useSharedBridge();
   const { cart } = useCustomer();
   const table = tables.find((t) => t.number === tableNum);
 
@@ -141,15 +141,71 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     targetLabel = 'All Seats';
   }
 
-  const bill = effectiveBill;
-  const subtotal = Math.round(bill / 1.05);
-  const totalTax = Math.max(0, bill - subtotal);
-  const cgst = (totalTax / 2).toFixed(2);
-  const sgst = (totalTax / 2).toFixed(2);
-
   const splitSeatNum = typeof selectedChair === 'number'
     ? selectedChair
     : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+
+  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetNum = cleanNum(tableNum);
+  const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+  const chairKey = `${normTable}-CHAIR-${splitSeatNum || selectedChair}`;
+  const liveSession = activeSettlementSessions?.[chairKey] || activeSettlementSessions?.[normTable];
+
+  // If liveSession has an accurate bill snapshot or grandTotal from customer QR scan, synchronize bill
+  const synchronizedGrandTotal = liveSession?.billSnapshot?.grandTotal || liveSession?.grandTotal;
+  const bill = (synchronizedGrandTotal && synchronizedGrandTotal > 0) ? synchronizedGrandTotal : effectiveBill;
+
+  const synchronizedSubtotal = liveSession?.billSnapshot?.subtotal;
+  const subtotal = synchronizedSubtotal !== undefined && synchronizedSubtotal > 0
+    ? synchronizedSubtotal
+    : Math.round(bill / 1.05);
+
+  const synchronizedTax = liveSession?.billSnapshot?.totalTax;
+  const totalTax = synchronizedTax !== undefined && synchronizedTax >= 0
+    ? synchronizedTax
+    : Math.max(0, bill - subtotal);
+
+  const cgst = liveSession?.billSnapshot?.cgst !== undefined
+    ? liveSession.billSnapshot.cgst.toFixed(2)
+    : (totalTax / 2).toFixed(2);
+  const sgst = liveSession?.billSnapshot?.sgst !== undefined
+    ? liveSession.billSnapshot.sgst.toFixed(2)
+    : (totalTax / 2).toFixed(2);
+
+  // Synchronize verification when customer completes QR scan
+  useEffect(() => {
+    if (liveSession?.isUpiVerified) {
+      setIsUpiVerified(true);
+      if (liveSession.method) {
+        setMethod(liveSession.method);
+      }
+    }
+  }, [liveSession?.isUpiVerified, liveSession?.method]);
+
+  // Real-time broadcast channel listener for customer QR scan
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let bc: BroadcastChannel | null = null;
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.onmessage = (evt) => {
+          if (evt.data?.type === 'UPI_PAYMENT_SCANNED' && evt.data.payload) {
+            const pl = evt.data.payload;
+            if (cleanNum(pl.tableNumber) === targetNum && (!splitSeatNum || pl.seatNumber === splitSeatNum)) {
+              setIsUpiVerified(true);
+              setMethod('UPI');
+            }
+          }
+        };
+      }
+    } catch {}
+    return () => {
+      try {
+        bc?.close();
+      } catch {}
+    };
+  }, [targetNum, splitSeatNum]);
 
   // ── Generate real dynamic UPI QR code whenever method, table or bill changes ──
   useEffect(() => {
@@ -163,8 +219,8 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
   // Synchronize tablet payment mode (UPI / CASH) in real-time with customer portal
   useEffect(() => {
     const sessionMethod = method === 'CASH' ? 'CASH' : 'UPI';
-    waiterInitiatesSettlement(tableNum, splitSeatNum, bill, sessionMethod, true);
-  }, [tableNum, splitSeatNum, bill, method, waiterInitiatesSettlement]);
+    waiterInitiatesSettlement(tableNum, splitSeatNum, bill, sessionMethod, isUpiVerified);
+  }, [tableNum, splitSeatNum, bill, method, isUpiVerified, waiterInitiatesSettlement]);
 
   // Clean up settlement session if navigating away before settling
   useEffect(() => {
@@ -208,9 +264,6 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     relevantFired.length > 0 &&
     relevantFired.every((it) => it.stage === 'SERVED' || (it.stage as string) === 'Served');
 
-  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-  const targetNum = cleanNum(tableNum);
-
   const hasCustomerPaymentRequest = (pings || []).some((p) => {
     if (p.status !== 'PENDING') return false;
     if (cleanNum(p.tableNumber) !== targetNum) return false;
@@ -222,8 +275,8 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
   const isSettleDisabled =
     bill <= 0 ||
     (relevantFired.length > 0 && !areAllFiredServed) ||
-    !hasCustomerPaymentRequest ||
-    (method === 'UPI' && !isUpiVerified) ||
+    (!hasCustomerPaymentRequest && !isUpiVerified && !liveSession?.isUpiVerified) ||
+    (method === 'UPI' && !isUpiVerified && !liveSession?.isUpiVerified) ||
     (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
   const handleSettle = () => {
@@ -236,7 +289,9 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     const relevantItems = (allFiredItems.length > 0 ? allFiredItems : allDraftItems)
       .filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
 
-    const snapshotItems = relevantItems.length > 0
+    const snapshotItems = liveSession?.billSnapshot?.items && liveSession.billSnapshot.items.length > 0
+      ? liveSession.billSnapshot.items
+      : relevantItems.length > 0
       ? relevantItems.map((it: any, idx: number) => ({
           id: it.id || `item-${idx}`,
           name: it.name || it.menuItem?.name || 'Item',

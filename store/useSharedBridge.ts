@@ -128,6 +128,7 @@ export interface ActiveSettlementSession {
   method?: 'UPI' | 'CASH';
   isUpiVerified?: boolean;
   initiatedAt: number;
+  billSnapshot?: SettledBillSnapshot;
 }
 
 
@@ -316,7 +317,8 @@ interface SharedBridgeState {
     seatNumber?: number,
     grandTotal?: number,
     method?: 'UPI' | 'CASH',
-    isUpiVerified?: boolean
+    isUpiVerified?: boolean,
+    billSnapshot?: SettledBillSnapshot
   ) => void;
 
   /** Waiter clears settlement session at table/chair */
@@ -2182,7 +2184,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
   },
 
-  waiterInitiatesSettlement: (tableNumber, seatNumber, grandTotal, method, isUpiVerified) => {
+  waiterInitiatesSettlement: (tableNumber, seatNumber, grandTotal, method, isUpiVerified, billSnapshot) => {
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
     const tNum = cleanNum(tableNumber);
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
@@ -2193,6 +2195,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       method: method || 'UPI',
       isUpiVerified: Boolean(isUpiVerified),
       initiatedAt: Date.now(),
+      billSnapshot,
     };
 
     set((state) => {
@@ -2803,6 +2806,31 @@ if (typeof window !== 'undefined') {
             })
           );
         }
+      }
+      if (event.data?.type === 'UPI_PAYMENT_SCANNED' && event.data.payload) {
+        const pl = event.data.payload;
+        const normTable = pl.tableNumber;
+        const session: ActiveSettlementSession = {
+          tableNumber: normTable,
+          seatNumber: pl.seatNumber,
+          grandTotal: pl.grandTotal,
+          method: 'UPI',
+          isUpiVerified: true,
+          initiatedAt: Date.now(),
+          billSnapshot: pl.snapshot,
+        };
+        useSharedBridge.setState((state) => {
+          const nextSessions = { ...state.activeSettlementSessions };
+          nextSessions[normTable] = session;
+          if (typeof pl.seatNumber === 'number') {
+            nextSessions[`${normTable}-CHAIR-${pl.seatNumber}`] = session;
+          } else {
+            for (let s = 1; s <= 6; s++) {
+              nextSessions[`${normTable}-CHAIR-${s}`] = session;
+            }
+          }
+          return { activeSettlementSessions: nextSessions };
+        });
       }
       if (event.data?.type === 'BROADCAST_STATE_CHANGED') {
         const reason = event.data.reason;

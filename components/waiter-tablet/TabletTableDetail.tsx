@@ -307,7 +307,11 @@ export function TabletTableDetail({
     return false;
   });
 
-  const isCustomerBillRequested = hasCustomerPaymentRequest;
+  const chairKey = `${normTable}-CHAIR-${selectedChair}`;
+  const isCustomerBillRequested = hasCustomerPaymentRequest || Boolean(
+    activeSettlementSessions?.[chairKey]?.isUpiVerified ||
+    activeSettlementSessions?.[normTable]?.isUpiVerified
+  );
 
   // Food is only considered served if ordered items exist and ALL of them have reached 'SERVED' stage
   const hasItemsToSettle = relevantItems.length > 0;

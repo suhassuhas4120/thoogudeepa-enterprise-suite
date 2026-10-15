@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../store/useCustomerStore';
+import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 
 // SVG brand icons for UPI payment providers
 const GooglePayLogo: React.FC = () => (
@@ -619,6 +620,54 @@ export const Screen5LiveTracking: React.FC = () => {
       itemCount: itemCount || trackedDishes.length || 0,
     };
   }, [tables, effectiveTable, effectiveSeat, cart, currentBillAmount, trackedDishes]);
+
+  const getDishPrice = (dish: { id?: string; name: string; cartItemId?: string }): number => {
+    if (dish.cartItemId) {
+      const cartMatch = (cart || []).find((c) => c && c.cartItemId === dish.cartItemId);
+      if (cartMatch) {
+        if (cartMatch.menuItem?.price) return cartMatch.menuItem.price;
+        if (cartMatch.totalPrice && cartMatch.quantity) {
+          return Math.round(cartMatch.totalPrice / cartMatch.quantity);
+        }
+      }
+    }
+    const cNameClean = getCleanName(dish.name).toLowerCase();
+    const cartNameMatch = (cart || []).find((c) => {
+      if (!c) return false;
+      const cName = getCleanName(c.menuItem?.name || (c as any).name || '').toLowerCase();
+      return cName === cNameClean || cName.includes(cNameClean) || cNameClean.includes(cName);
+    });
+    if (cartNameMatch?.menuItem?.price) return cartNameMatch.menuItem.price;
+
+    const tableItemMatch = currentTbl?.activeItems?.find((ai) => {
+      if (!ai) return false;
+      if (dish.id && ai.id === dish.id) return true;
+      const aiName = getCleanName(ai.name).toLowerCase();
+      return aiName === cNameClean || aiName.includes(cNameClean) || cNameClean.includes(aiName);
+    });
+    if (tableItemMatch?.price && tableItemMatch.price > 0) return tableItemMatch.price;
+
+    for (const tk of bridgeTickets) {
+      const tkItem = tk.items?.find((i) => {
+        if (dish.id && i.id === dish.id) return true;
+        const iName = getCleanName(i.name).toLowerCase();
+        return iName === cNameClean || iName.includes(cNameClean) || cNameClean.includes(iName);
+      });
+      if (tkItem?.price && tkItem.price > 0) return tkItem.price;
+    }
+
+    const menuItem = INITIAL_MENU_ITEMS.find((m) => {
+      const mName = m.name.toLowerCase();
+      return mName === cNameClean || mName.includes(cNameClean) || cNameClean.includes(mName);
+    });
+    if (menuItem?.price) return menuItem.price;
+
+    if (ordersSummary.subtotal > 0 && trackedDishes.length > 0) {
+      return Math.round(ordersSummary.subtotal / Math.max(1, trackedDishes.reduce((sum, d) => sum + (d.quantity || 1), 0)));
+    }
+
+    return 120;
+  };
 
   // Setup camera stream when QR scanner opens
   useEffect(() => {
@@ -1549,40 +1598,99 @@ export const Screen5LiveTracking: React.FC = () => {
                   const normTbl = `T-${String(parseInt(effectiveTable.replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
                   const key = `${normTbl}-CHAIR-${effectiveSeat}`;
                   const candidate = settledBills[key];
-                  const snapshot = candidate && candidate.timestamp && candidate.timestamp > orderPlacedAt + 500
+                  const existingSnapshot = candidate && candidate.timestamp && candidate.timestamp > orderPlacedAt + 500
                     ? candidate
                     : null;
-                  if (snapshot) {
-                    useCustomerStore.getState().handleBillSettledByWaiter(snapshot);
-                  } else {
-                    useCustomerStore.getState().handleBillSettledByWaiter({
-                      invoiceNumber: `INV-${normTbl.replace(/[^0-9]/g, '')}-${Date.now().toString().slice(-4)}`,
-                      items: trackedDishes.map((td) => ({
-                        id: td.id,
-                        name: td.name,
-                        quantity: td.quantity,
-                        price: 220,
-                        totalPrice: td.quantity * 220,
-                        options: td.options,
-                        addOns: td.addOns,
-                        ticketNumber: 'LIVE',
-                      })),
-                      subtotal: Math.round(currentBillAmount / 1.05),
-                      totalTax: currentBillAmount - Math.round(currentBillAmount / 1.05),
-                      cgst: Math.round((currentBillAmount - Math.round(currentBillAmount / 1.05)) / 2),
-                      sgst: currentBillAmount - Math.round(currentBillAmount / 1.05) - Math.round((currentBillAmount - Math.round(currentBillAmount / 1.05)) / 2),
-                      grandTotal: currentBillAmount,
-                      method: 'UPI',
-                      seatLabel: `Chair ${effectiveSeat}`,
-                      captainName: 'Floor Captain Suresh',
-                      tableName: effectiveTable,
-                      section: 'Main Dining Hall',
-                      guestCount: 1,
-                      formattedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-                      formattedTime: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-                      timestamp: Date.now(),
+
+                  const calculatedItems = trackedDishes.map((td) => {
+                    const unitPrice = getDishPrice(td);
+                    const qty = td.quantity || 1;
+                    return {
+                      id: td.id,
+                      name: td.name,
+                      quantity: qty,
+                      price: unitPrice,
+                      totalPrice: unitPrice * qty,
+                      options: td.options,
+                      addOns: td.addOns,
+                      seatNumber: effectiveSeat,
+                      ticketNumber: (td as any).ticketId ? (td as any).ticketId.slice(-4) : 'LIVE',
+                    };
+                  });
+
+                  const itemsSubtotal = calculatedItems.reduce((acc, it) => acc + it.totalPrice, 0);
+                  const finalSubtotal = itemsSubtotal > 0
+                    ? itemsSubtotal
+                    : ordersSummary.subtotal > 0
+                    ? ordersSummary.subtotal
+                    : Math.round(currentBillAmount / 1.05);
+
+                  if (itemsSubtotal === 0 && calculatedItems.length > 0 && finalSubtotal > 0) {
+                    const perItemPrice = Math.round(finalSubtotal / calculatedItems.reduce((acc, it) => acc + it.quantity, 0));
+                    calculatedItems.forEach((it) => {
+                      it.price = perItemPrice;
+                      it.totalPrice = perItemPrice * it.quantity;
                     });
                   }
+
+                  const cgst = Math.round(finalSubtotal * 0.025);
+                  const sgst = Math.round(finalSubtotal * 0.025);
+                  const totalTax = cgst + sgst;
+                  const finalGrandTotal = finalSubtotal + totalTax;
+
+                  const now = new Date();
+                  const snapshot: SettledBillSnapshot = existingSnapshot || {
+                    invoiceNumber: `INV-${normTbl.replace(/[^0-9]/g, '')}-${Date.now().toString().slice(-4)}`,
+                    items: calculatedItems,
+                    subtotal: finalSubtotal,
+                    totalTax: totalTax,
+                    cgst: cgst,
+                    sgst: sgst,
+                    grandTotal: finalGrandTotal,
+                    method: 'UPI',
+                    seatLabel: `Chair ${effectiveSeat}`,
+                    seatNumber: effectiveSeat,
+                    captainName: 'Floor Captain Suresh',
+                    tableName: effectiveTable,
+                    section: 'Main Dining Hall',
+                    guestCount: 1,
+                    formattedDate: now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    formattedTime: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                    timestamp: Date.now(),
+                  };
+
+                  // 1. Immediately apply to Customer Store (transitions to Screen 8 / Screen 9)
+                  useCustomerStore.getState().handleBillSettledByWaiter(snapshot);
+
+                  // 2. Synchronize to Shared Bridge with verified UPI session and bill snapshot
+                  useSharedBridge.getState().waiterInitiatesSettlement(
+                    effectiveTable,
+                    effectiveSeat,
+                    snapshot.grandTotal,
+                    'UPI',
+                    true,
+                    snapshot
+                  );
+
+                  // 3. Instant BroadcastChannel dispatch across all browser tabs / devices
+                  if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+                    try {
+                      const bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+                      bc.postMessage({
+                        type: 'UPI_PAYMENT_SCANNED',
+                        payload: {
+                          tableNumber: normTbl,
+                          seatNumber: effectiveSeat,
+                          grandTotal: snapshot.grandTotal,
+                          method: 'UPI',
+                          isUpiVerified: true,
+                          snapshot,
+                        },
+                      });
+                      bc.close();
+                    } catch {}
+                  }
+
                   setIsScannerOpen(false);
                 }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition shadow-lg cursor-pointer"

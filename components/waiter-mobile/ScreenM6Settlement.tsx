@@ -79,6 +79,7 @@ export function ScreenM6Settlement({
   const {
     tables,
     kdsTickets,
+    activeSettlementSessions,
     waiterRecordsPayment,
     waiterVacatesTable,
     waiterClearsChairAfterPayment,
@@ -217,6 +218,44 @@ export function ScreenM6Settlement({
     return m ? Number(m[1]) : null;
   }, [splitLabel]);
 
+  const targetNum = cleanTableNum(tableNum);
+  const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+  const chairKey = `${normTable}-CHAIR-${splitSeatNumber ?? 1}`;
+  const liveSession = activeSettlementSessions?.[chairKey] || activeSettlementSessions?.[normTable];
+
+  useEffect(() => {
+    if (liveSession?.isUpiVerified) {
+      setIsUpiVerified(true);
+      if (liveSession.method) {
+        setMethod(liveSession.method);
+      }
+    }
+  }, [liveSession?.isUpiVerified, liveSession?.method]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    let bc: BroadcastChannel | null = null;
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('thoogudeepa_bridge_sync');
+        bc.onmessage = (evt) => {
+          if (evt.data?.type === 'UPI_PAYMENT_SCANNED' && evt.data.payload) {
+            const pl = evt.data.payload;
+            if (cleanTableNum(pl.tableNumber) === targetNum && (splitSeatNumber === null || pl.seatNumber === splitSeatNumber)) {
+              setIsUpiVerified(true);
+              setMethod('UPI');
+            }
+          }
+        };
+      }
+    } catch {}
+    return () => {
+      try {
+        bc?.close();
+      } catch {}
+    };
+  }, [targetNum, splitSeatNumber]);
+
   // When settling a specific chair, show that chair's items
   const displayedItems = useMemo(() => {
     if (splitSeatNumber !== null) {
@@ -231,6 +270,16 @@ export function ScreenM6Settlement({
 
   // Subtotal and tax calculations
   const { subtotal, totalTax, grandTotal, cgst, sgst } = useMemo(() => {
+    if (liveSession?.billSnapshot) {
+      return {
+        subtotal: liveSession.billSnapshot.subtotal,
+        totalTax: liveSession.billSnapshot.totalTax,
+        grandTotal: liveSession.billSnapshot.grandTotal,
+        cgst: liveSession.billSnapshot.cgst,
+        sgst: liveSession.billSnapshot.sgst,
+      };
+    }
+
     if (splitAmount && splitAmount > 0) {
       const calcSub = Math.round(splitAmount / 1.05);
       const calcTax = splitAmount - calcSub;
@@ -278,7 +327,7 @@ export function ScreenM6Settlement({
       cgst: 0,
       sgst: 0,
     };
-  }, [splitAmount, displayedItemsSum, table?.currentBill, splitSeatNumber]);
+  }, [liveSession?.billSnapshot, splitAmount, displayedItemsSum, table?.currentBill, splitSeatNumber]);
 
   const hasUnservedDishes =
     displayedItems.length > 0 &&
@@ -359,7 +408,9 @@ export function ScreenM6Settlement({
   };
 
   const handleSettle = () => {
-    const itemsToRecord = displayedItems.length > 0 ? displayedItems : allOrderedItems;
+    const itemsToRecord = liveSession?.billSnapshot?.items && liveSession.billSnapshot.items.length > 0
+      ? liveSession.billSnapshot.items
+      : displayedItems.length > 0 ? displayedItems : allOrderedItems;
     const finalSubtotal = subtotal > 0 ? subtotal : itemsToRecord.reduce((sum, it) => sum + it.totalPrice, 0);
     const finalTax = totalTax > 0 ? totalTax : Math.round(finalSubtotal * 0.05);
     const finalGrandTotal = grandTotal > 0 ? grandTotal : finalSubtotal + finalTax;
@@ -385,7 +436,7 @@ export function ScreenM6Settlement({
 
     const snapshot: SettledBillSnapshot = {
       invoiceNumber,
-      items: itemsToRecord,
+      items: itemsToRecord as any,
       subtotal: finalSubtotal,
       totalTax: finalTax,
       cgst: finalTax / 2,

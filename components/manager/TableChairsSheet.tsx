@@ -338,16 +338,16 @@ export function TableChairsSheet({
       {/* Table Identity Header */}
       <div className="p-4 bg-white border-b border-[#EAE5DF] flex items-center justify-between gap-3 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#9C3D1E] text-white flex items-center justify-center font-black shadow-xs">
-            <Armchair className="h-5 w-5" />
+          <div className="w-11 h-11 rounded-xl bg-[#9C3D1E] text-white flex items-center justify-center font-black shadow-xs">
+            <Armchair className="h-6 w-6" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg md:text-xl font-black text-slate-900 tracking-tight">
+            <div className="flex items-center gap-2.5">
+              <h2 className="text-xl md:text-2xl font-black text-slate-900 tracking-tight">
                 Table {table.number}
               </h2>
               <span
-                className={`text-[10px] font-black px-2 py-0.5 rounded border uppercase ${
+                className={`text-xs font-black px-2.5 py-0.5 rounded-md border uppercase ${
                   isOccupied
                     ? "bg-[#9C3D1E] text-white border-[#9C3D1E]"
                     : isBilling
@@ -358,7 +358,7 @@ export function TableChairsSheet({
                 {table.status}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 font-bold">
+            <p className="text-xs md:text-sm text-slate-600 font-bold mt-0.5">
               {section} • {occupiedGuests}/{capacity} Chairs • {captain}
             </p>
           </div>
@@ -368,7 +368,7 @@ export function TableChairsSheet({
           {isModal && onClose && (
             <button
               onClick={onClose}
-              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95"
+              className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 transition active:scale-95 cursor-pointer"
               title="Close"
             >
               <X className="h-5 w-5" />
@@ -378,13 +378,13 @@ export function TableChairsSheet({
       </div>
 
       {/* ── INTERACTIVE CHAIR NAVIGATION (IDENTICAL TO WAITER MOBILE) ── */}
-      <div className="p-3 bg-white border-b border-[#EAE5DF] shrink-0">
+      <div className="p-3.5 bg-white border-b border-[#EAE5DF] shrink-0">
         <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+          <span className="text-xs font-black text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
             <Armchair className="h-4 w-4 text-[#9C3D1E]" />
             <span>Select Chair:</span>
           </span>
-          <span className="text-[10px] font-bold text-slate-400">
+          <span className="text-xs font-bold text-slate-500">
             {capacity} Total Chairs
           </span>
         </div>
@@ -477,27 +477,27 @@ export function TableChairsSheet({
       </div>
 
       {/* Selected Chair / All Table Breakdown Header */}
-      <div className="px-4 py-2.5 bg-stone-100 border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
+      <div className="px-4 py-3 bg-stone-100 border-b border-[#EAE5DF] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-black text-slate-900 uppercase">
+          <span className="text-sm font-black text-slate-900 uppercase tracking-wide">
             {selectedSeat === "ALL"
               ? `Table Orders (${tickets.length || (allTableOrderedItems.length > 0 ? 1 : 0)} KOT)`
               : `Chair ${selectedSeat} Breakdown`}
           </span>
-          <span className="text-[11px] font-bold text-slate-500">
+          <span className="text-xs font-bold text-slate-600">
             • {displayedItems.reduce((s, i) => s + i.quantity, 0)} Items
           </span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2.5">
           <button
             onClick={handleOpenBilling}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#9C3D1E] hover:bg-orange-700 text-white font-mono text-xs font-black transition shadow-xs hover:shadow-sm active:scale-95 cursor-pointer"
           >
             <PlusCircle className="h-4 w-4" />
             <span>Add Items</span>
           </button>
           <span
-            className={`text-[10px] md:text-[11px] font-black uppercase px-2.5 py-1 rounded-lg border ${
+            className={`text-xs font-black uppercase px-2.5 py-1 rounded-lg border ${
               selectedSeat === "ALL"
                 ? isBilling || (table.currentBill === 0 && !isOccupied)
                   ? "bg-emerald-100 text-emerald-800 border-emerald-300"
@@ -527,36 +527,36 @@ export function TableChairsSheet({
       </div>
 
       {/* Dishes List */}
-      <div className="flex-1 p-4 overflow-y-auto space-y-2 min-h-0">
+      <div className="flex-1 p-4 overflow-y-auto space-y-2.5 min-h-0">
         {displayedItems.length > 0 ? (
           displayedItems.map((item, idx) => {
             const badge = getStageBadge(item.stage);
             return (
               <div
                 key={item.id || idx}
-                className="p-3 rounded-xl bg-white border border-slate-200/90 shadow-2xs flex items-center justify-between gap-3"
+                className="p-3.5 rounded-xl bg-white border border-slate-200 shadow-2xs flex items-center justify-between gap-3"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-black text-orange-600 text-xs shrink-0">
+                    <span className="font-black text-orange-700 text-sm shrink-0">
                       {item.quantity}x
                     </span>
-                    <span className="font-bold text-slate-900 text-xs truncate">
+                    <span className="font-bold text-slate-900 text-sm truncate">
                       {item.name}
                     </span>
                     {item.seatNumber && (
-                      <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 shrink-0">
                         Chair {item.seatNumber}
                       </span>
                     )}
                   </div>
                   {item.options && (
-                    <div className="text-[10px] text-slate-400 mt-0.5 truncate">
+                    <div className="text-xs text-slate-600 mt-1 truncate">
                       Choice: {item.options}
                     </div>
                   )}
                   {item.addOns && item.addOns.length > 0 && (
-                    <div className="text-[10px] text-slate-400 truncate">
+                    <div className="text-xs text-slate-600 truncate">
                       Add-ons: {item.addOns.join(", ")}
                     </div>
                   )}
@@ -564,11 +564,11 @@ export function TableChairsSheet({
 
                 <div className="flex items-center gap-3 shrink-0">
                   <span
-                    className={`text-[10px] font-black px-2 py-0.5 rounded border ${badge.cls}`}
+                    className={`text-xs font-black px-2.5 py-1 rounded-md border ${badge.cls}`}
                   >
                     {badge.text}
                   </span>
-                  <span className="font-mono text-xs font-black text-slate-900 min-w-[55px] text-right">
+                  <span className="font-mono text-sm font-black text-slate-900 min-w-[65px] text-right">
                     ₹ {item.totalPrice}
                   </span>
                 </div>
@@ -578,7 +578,7 @@ export function TableChairsSheet({
         ) : (
           <div className="p-8 text-center bg-white rounded-xl border border-dashed border-slate-200 flex flex-col items-center justify-center gap-3 text-slate-400">
             <Armchair className="h-9 w-9 text-slate-300" />
-            <p className="font-bold text-xs text-slate-500">
+            <p className="font-bold text-sm text-slate-600">
               {selectedSeat === "ALL"
                 ? "No items ordered"
                 : `No active orders for Chair ${selectedSeat}`}
@@ -597,22 +597,54 @@ export function TableChairsSheet({
       {/* Bill & Actions Footer */}
       <div className="p-4 bg-white border-t border-[#EAE5DF] space-y-3 shrink-0">
         {/* Bill Summary */}
-        <div className="p-3 bg-[#FAF8F5] rounded-xl border border-slate-200 flex items-center justify-between text-xs font-mono">
-          <div>
-            <span className="font-bold text-slate-500 text-[11px] block">
-              {selectedSeat === "ALL"
-                ? "TOTAL TABLE BILL"
-                : `CHAIR ${selectedSeat} BILL`}{" "}
-              (INC. 5% GST)
-            </span>
-            <span className="text-[10px] text-slate-400">
-              Subtotal: ₹{displayedSubtotal} • GST: ₹{displayedTax}
-            </span>
+        {selectedSeat === "ALL" ? (
+          <div className="p-3.5 bg-white rounded-xl border border-slate-300 shadow-xs flex items-center justify-between font-mono">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-black text-slate-900 tracking-wide">
+                  TOTAL TABLE BILL
+                </span>
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                  INC. 5% GST
+                </span>
+              </div>
+              <div className="text-xs font-bold text-slate-600 mt-1 flex items-center gap-2">
+                <span>Subtotal: ₹{displayedSubtotal}</span>
+                <span>•</span>
+                <span>GST (5%): ₹{displayedTax}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-slate-900 block tracking-tight">
+                ₹ {displayedTotal}.00
+              </span>
+            </div>
           </div>
-          <span className="text-xl font-black text-slate-900">
-            ₹ {displayedTotal}.00
-          </span>
-        </div>
+        ) : (
+          <div className="p-3.5 bg-orange-50/80 rounded-xl border-2 border-orange-300 shadow-xs flex items-center justify-between font-mono ring-2 ring-orange-300/30">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs sm:text-sm font-black text-orange-950 tracking-wide flex items-center gap-1.5">
+                  <Armchair className="h-4 w-4 text-[#9C3D1E]" />
+                  CHAIR {selectedSeat} BILL
+                </span>
+                <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-orange-200 text-orange-900 border border-orange-300">
+                  INC. 5% GST
+                </span>
+              </div>
+              <div className="text-xs font-bold text-orange-900/80 mt-1 flex items-center gap-2">
+                <span>Subtotal: ₹{displayedSubtotal}</span>
+                <span>•</span>
+                <span>GST (5%): ₹{displayedTax}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <span className="text-2xl font-black text-orange-950 block tracking-tight">
+                ₹ {displayedTotal}.00
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Buttons Row */}
         <div className="grid grid-cols-3 gap-2">

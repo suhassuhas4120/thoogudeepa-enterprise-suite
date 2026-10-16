@@ -34,7 +34,7 @@ import {
   Receipt,
   Info,
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from "../../store/useCustomerStore";
 import { INITIAL_MENU_ITEMS } from "../../data/menuItems";
 

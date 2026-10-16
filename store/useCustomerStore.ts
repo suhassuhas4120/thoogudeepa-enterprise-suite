@@ -908,5 +908,52 @@ if (typeof window !== 'undefined') {
       }
     } catch {}
   });
+
+  const purgeCustomerLocalState = () => {
+    try {
+      useCustomerStore.getState().resetSession();
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (
+            k &&
+            (k.startsWith('thoogudeepa_customer_session_') ||
+              k === 'thoogudeepa_last_active_table_seat' ||
+              k === 'thoogudeepa_verified_session')
+          ) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
+      }
+    } catch {}
+  };
+
+  window.addEventListener('venueCleanReset', purgeCustomerLocalState);
+  window.addEventListener('tableVacated', (event: any) => {
+    try {
+      const cur = useCustomerStore.getState();
+      const target = event.detail?.tableNumber;
+      if (target === 'ALL' || (target && target === cur.tableNumber)) {
+        purgeCustomerLocalState();
+      }
+    } catch {}
+  });
+
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const syncBc = new BroadcastChannel('thoogudeepa_bridge_sync');
+      syncBc.onmessage = (event) => {
+        if (
+          event.data?.type === 'VENUE_CLEAN_RESET' ||
+          event.data?.type === 'VENUE_FRESH_RESET' ||
+          event.data?.type === 'RESET_ALL'
+        ) {
+          purgeCustomerLocalState();
+        }
+      };
+    } catch {}
+  }
 }
 

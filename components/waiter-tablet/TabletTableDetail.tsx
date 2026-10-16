@@ -174,16 +174,25 @@ export function TabletTableDetail({
         if (res.ok && !isCancelled) {
           const data = await res.json();
           if (data?.sessions !== undefined || data?.settledBills !== undefined) {
-            useSharedBridge.setState((prev) => ({
-              activeSettlementSessions: {
-                ...(prev.activeSettlementSessions || {}),
-                ...(data.sessions || {}),
-              },
-              settledBills: {
-                ...(prev.settledBills || {}),
-                ...(data.settledBills || {}),
-              },
-            }));
+            useSharedBridge.setState((prev) => {
+              const updatedSessions = { ...(prev.activeSettlementSessions || {}) };
+              if (data?.sessions) {
+                Object.entries(data.sessions).forEach(([key, val]: [string, any]) => {
+                  const existing = updatedSessions[key];
+                  updatedSessions[key] = {
+                    ...val,
+                    isUpiVerified: Boolean(val?.isUpiVerified || existing?.isUpiVerified),
+                  };
+                });
+              }
+              return {
+                activeSettlementSessions: updatedSessions,
+                settledBills: {
+                  ...(prev.settledBills || {}),
+                  ...(data.settledBills || {}),
+                },
+              };
+            });
           }
         }
       } catch {}
@@ -207,7 +216,36 @@ export function TabletTableDetail({
     );
   }
 
-  const isVacant = table.status === "VACANT";
+  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetNum = cleanNum(tableNum);
+  const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+
+  const chairKey = `${normTable}-CHAIR-${selectedChair}`;
+  const hasTableVerifiedUpi = Object.entries(activeSettlementSessions || {}).some(
+    ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
+  );
+  const hasChairVerifiedUpi = Boolean(
+    activeSettlementSessions?.[chairKey]?.isUpiVerified ||
+    activeSettlementSessions?.[normTable]?.isUpiVerified
+  );
+
+  const hasSettledBill = Boolean(
+    settledBills?.[chairKey] ||
+    settledBills?.[normTable] ||
+    Object.entries(settledBills || {}).some(
+      ([k, b]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`))
+    )
+  );
+
+  const isPaymentDoneViaUpi = Boolean(
+    hasTableVerifiedUpi ||
+    hasChairVerifiedUpi ||
+    hasSettledBill ||
+    Object.entries(activeSettlementSessions || {}).some(
+      ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
+    )
+  );
+
   const elapsed = getElapsed(table.seatedTime);
   const groupPeers =
     table.mergeGroupPeers ||
@@ -216,13 +254,31 @@ export function TabletTableDetail({
     (s, p) => s + (tables.find((t) => t.number === p)?.capacity || 2),
     0,
   );
-  const tickets = isVacant
-    ? []
-    : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
 
-  const allItems = tickets.flatMap((tk) =>
+  // Scoped draft items from live cart for this table
+  const allTableDraftItems = cart.filter(
+    (c) => !c.tableNumber || groupPeers.includes(c.tableNumber),
+  );
+  const allTableDraftSubtotal = allTableDraftItems.reduce(
+    (s, it) => s + it.totalPrice,
+    0,
+  );
+
+  const rawTickets = kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const rawItems = rawTickets.flatMap((tk) =>
     tk.items.map((item) => ({ ...item, tableNum: tk.tableNumber })),
   );
+
+  const isVacant =
+    table.status === "VACANT" &&
+    rawTickets.length === 0 &&
+    (table.activeItems || []).length === 0 &&
+    (table.currentBill || 0) === 0 &&
+    allTableDraftItems.length === 0 &&
+    !isPaymentDoneViaUpi;
+
+  const tickets = isVacant ? [] : rawTickets;
+  const allItems = isVacant ? [] : rawItems;
 
   const allFiredItems = allItems;
   const hasFiredItems = allFiredItems.length > 0;
@@ -240,15 +296,6 @@ export function TabletTableDetail({
   const chairs = Array.from(
     { length: Math.max(totalCapacity, table.guestCount || 1) },
     (_, i) => i + 1,
-  );
-
-  // Scoped draft items from live cart for this table
-  const allTableDraftItems = cart.filter(
-    (c) => !c.tableNumber || groupPeers.includes(c.tableNumber),
-  );
-  const allTableDraftSubtotal = allTableDraftItems.reduce(
-    (s, it) => s + it.totalPrice,
-    0,
   );
 
   // Table total bill
@@ -321,11 +368,6 @@ export function TabletTableDetail({
   const billToSettle =
     selectedChair === "ALL" ? totalTableBill : targetChairBill;
 
-  // Check if customer requested bill / payment settlement (serving food alone does NOT enable settle)
-  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-  const targetNum = cleanNum(tableNum);
-  const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
-
   const hasCustomerPaymentRequest = (pings || []).some((p) => {
     if (p.status !== 'PENDING') return false;
     if (cleanNum(p.tableNumber) !== targetNum) return false;
@@ -343,14 +385,6 @@ export function TabletTableDetail({
     return false;
   });
 
-  const chairKey = `${normTable}-CHAIR-${selectedChair}`;
-  const hasTableVerifiedUpi = Object.entries(activeSettlementSessions || {}).some(
-    ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
-  );
-  const hasChairVerifiedUpi = Boolean(
-    activeSettlementSessions?.[chairKey]?.isUpiVerified ||
-    activeSettlementSessions?.[normTable]?.isUpiVerified
-  );
   const isCustomerBillRequested = hasCustomerPaymentRequest || hasTableVerifiedUpi || hasChairVerifiedUpi;
 
   const liveSessionSnapshot =
@@ -363,23 +397,6 @@ export function TabletTableDetail({
   const effectiveBillToSettle = billToSettle > 0
     ? billToSettle
     : (liveSessionSnapshot?.grandTotal || 0);
-
-  const hasSettledBill = Boolean(
-    settledBills?.[chairKey] ||
-    settledBills?.[normTable] ||
-    Object.entries(settledBills || {}).some(
-      ([k, b]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`))
-    )
-  );
-
-  const isPaymentDoneViaUpi = Boolean(
-    hasTableVerifiedUpi ||
-    hasChairVerifiedUpi ||
-    hasSettledBill ||
-    Object.entries(activeSettlementSessions || {}).some(
-      ([k, sess]) => (k === normTable || k.startsWith(`${normTable}-CHAIR-`)) && sess?.isUpiVerified
-    )
-  );
 
   const activeChairsWithOrders = Array.from(
     new Set(

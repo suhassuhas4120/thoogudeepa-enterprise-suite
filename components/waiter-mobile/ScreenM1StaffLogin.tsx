@@ -42,12 +42,16 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleDigit = (digit: string) => {
-    if (pin.length >= 4 || pinSuccess) return;
-    const next = pin + digit;
-    setPin(next);
-    if (next.length === 4) {
-      verifyPin(next);
-    }
+    if (pinSuccess) return;
+    if (pin.length >= 4) return;
+    setPin((prev) => {
+      if (prev.length >= 4) return prev;
+      const next = prev + digit;
+      if (next.length === 4) {
+        setTimeout(() => verifyPin(next), 0);
+      }
+      return next;
+    });
   };
 
   const verifyPin = (code: string) => {

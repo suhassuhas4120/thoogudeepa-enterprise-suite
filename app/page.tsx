@@ -138,6 +138,19 @@ function CustomerJourneyContent() {
       sigParam = storedSession.sig;
     }
 
+    if (!tblParam) {
+      try {
+        const lastSession = localStorage.getItem('thoogudeepa_last_active_table_seat');
+        if (lastSession) {
+          const parsed = JSON.parse(lastSession);
+          if (parsed?.table) {
+            tblParam = parsed.table;
+            seatParam = String(parsed.seat || 1);
+          }
+        }
+      } catch {}
+    }
+
     let cleanTable = 'T-01';
     let parsedSeat = 1;
 
@@ -152,6 +165,22 @@ function CustomerJourneyContent() {
         setSeatNumber(s);
       }
     }
+
+    try {
+      sessionStorage.setItem(
+        'thoogudeepa_verified_session',
+        JSON.stringify({
+          table: cleanTable,
+          seat: parsedSeat,
+          sig: sigParam || storedSession?.sig,
+          timestamp: Date.now(),
+        })
+      );
+      localStorage.setItem(
+        'thoogudeepa_last_active_table_seat',
+        JSON.stringify({ table: cleanTable, seat: parsedSeat })
+      );
+    } catch {}
 
     tableRef.current = cleanTable;
     seatRef.current = parsedSeat;

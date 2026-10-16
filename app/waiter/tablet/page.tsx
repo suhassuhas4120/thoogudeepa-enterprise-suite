@@ -137,7 +137,17 @@ export default function WaiterTabletPage() {
   const { activeCaptain, setActiveCaptain } = useWaiterStore();
 
   // ── App state ──────────────────────────────────────────────────────────
-  const [view, setView] = useState<AppView>("login");
+  const [view, setView] = useState<AppView>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("thoogudeepa_tablet_session");
+        return Boolean(saved && JSON.parse(saved)?.activeCaptain) ? "floor" : "login";
+      } catch {
+        return "login";
+      }
+    }
+    return "login";
+  });
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>("menu");
   const [selectedTableNum, setSelectedTableNum] = useState<string>(
     tables[0]?.number ?? "T-01",
@@ -303,6 +313,9 @@ export default function WaiterTabletPage() {
     setShiftOpen(false);
     setSeatOpen(false);
     setConfirmVacate(false);
+    try {
+      sessionStorage.removeItem("thoogudeepa_tablet_session");
+    } catch {}
     setView("login");
   };
 
@@ -317,6 +330,9 @@ export default function WaiterTabletPage() {
       setSectionFilter("ALL");
       setSelectedSection("ALL");
     }
+    try {
+      sessionStorage.setItem("thoogudeepa_tablet_session", JSON.stringify({ activeCaptain: captainName, assignedSection: sec }));
+    } catch {}
     setView("floor");
     showToast(
       `Welcome ${captainName}! Shift active on ${sec === "ALL" ? "All Sections" : sec}`,

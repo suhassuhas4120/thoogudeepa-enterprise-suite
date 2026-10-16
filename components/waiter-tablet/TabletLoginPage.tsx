@@ -58,9 +58,11 @@ export function TabletLoginPage({ onLogin }: Props) {
   };
 
   const handleDigit = (d: string) => {
-    if (pin.length >= 4 || success) return;
-    const nextPin = pin + d;
-    setPin(nextPin);
+    if (success) return;
+    setPin((prev) => {
+      if (prev.length >= 4) return prev;
+      return prev + d;
+    });
     setError("");
   };
 

@@ -537,16 +537,25 @@ export function ScreenM3TableSheet({
         if (res.ok && !isCancelled) {
           const data = await res.json();
           if (data?.sessions !== undefined || data?.settledBills !== undefined) {
-            useSharedBridge.setState((prev) => ({
-              activeSettlementSessions: {
-                ...(prev.activeSettlementSessions || {}),
-                ...(data.sessions || {}),
-              },
-              settledBills: {
-                ...(prev.settledBills || {}),
-                ...(data.settledBills || {}),
-              },
-            }));
+            useSharedBridge.setState((prev) => {
+              const updatedSessions = { ...(prev.activeSettlementSessions || {}) };
+              if (data?.sessions) {
+                Object.entries(data.sessions).forEach(([key, val]: [string, any]) => {
+                  const existing = updatedSessions[key];
+                  updatedSessions[key] = {
+                    ...val,
+                    isUpiVerified: Boolean(val?.isUpiVerified || existing?.isUpiVerified),
+                  };
+                });
+              }
+              return {
+                activeSettlementSessions: updatedSessions,
+                settledBills: {
+                  ...(prev.settledBills || {}),
+                  ...(data.settledBills || {}),
+                },
+              };
+            });
           }
         }
       } catch {}

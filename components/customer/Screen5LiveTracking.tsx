@@ -2033,6 +2033,23 @@ export const Screen5LiveTracking: React.FC = () => {
                     } catch {}
                   }
 
+                  // 4. Synchronize session to backend settlement API
+                  fetch('/api/settlement/session', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      action: 'INITIATE',
+                      session: {
+                        tableNumber: normTbl,
+                        seatNumber: effectiveSeat,
+                        grandTotal: snapshot.grandTotal,
+                        method: 'UPI',
+                        isUpiVerified: true,
+                        billSnapshot: snapshot,
+                      },
+                    }),
+                  }).catch(() => {});
+
                   setIsScannerOpen(false);
                 }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition shadow-lg cursor-pointer"

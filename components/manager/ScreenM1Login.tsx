@@ -174,8 +174,12 @@ export function ScreenM1Login() {
       <div className="md:col-span-7 bg-white border border-[#EAE5DF] rounded-xl p-6 shadow-sm flex flex-col justify-between">
         <div>
           <div className="text-center pb-4 border-b border-slate-200">
-            <div className="inline-flex p-2.5 rounded-full bg-orange-100 text-orange-600 mb-2">
-              <KeyRound className="h-6 w-6" />
+            <div className="flex justify-center mb-3.5">
+              <img
+                src="/assets/thoogudeepa-logo.png"
+                alt="Thoogudeepa Donne Biryani Mane"
+                className="h-28 w-28 rounded-full object-cover shadow-xl border-4 border-[#D28835]/60"
+              />
             </div>
             <h3 className="text-base font-black font-mono text-slate-900">
               MANAGER / CASHIER AUTHENTICATION

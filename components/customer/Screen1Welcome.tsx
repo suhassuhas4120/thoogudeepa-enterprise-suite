@@ -141,26 +141,12 @@ export const Screen1Welcome: React.FC = () => {
           }}
         >
           {/* Row 1: Dedicated Hotel Logo Icon */}
-          <div className="relative mb-2">
-            <div
-              className="relative flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-md ring-2"
-              style={{
-                backgroundColor: currentTheme.colors.primary,
-                boxShadow: currentTheme.colors.primaryShadow,
-                borderColor: currentTheme.colors.primaryBorder,
-              }}
-            >
-              <CookingPot className="h-7 w-7 stroke-[2]" />
-              <div
-                className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full shadow-xs ring-2 ring-white"
-                style={{
-                  backgroundColor: currentTheme.colors.accent,
-                  color: currentTheme.colors.accentFg,
-                }}
-              >
-                <Crown className="h-3 w-3 fill-current stroke-[2.2]" />
-              </div>
-            </div>
+          <div className="relative mb-2 flex justify-center">
+            <img
+              src="/assets/thoogudeepa-logo.png"
+              alt="Thoogudeepa Donne Biryani Mane"
+              className="h-28 w-28 sm:h-32 sm:w-32 rounded-full object-cover shadow-xl ring-4 ring-[#D28835]/70"
+            />
           </div>
 
           {/* Row 2: Human Time Greeting, Hotel Name & Tagline */}

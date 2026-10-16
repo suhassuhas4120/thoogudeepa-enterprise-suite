@@ -101,9 +101,11 @@ export default function KitchenKDSPage() {
       {/* Top Console Header */}
       <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-slate-200/80 bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-sm shadow-orange-500/30">
-            <Flame className="h-5 w-5 fill-white" />
-          </div>
+          <img
+            src="/assets/thoogudeepa-logo.png"
+            alt="Thoogudeepa Donne Biryani Mane"
+            className="h-9 w-9 rounded-full object-cover shadow-sm border border-orange-400/50"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-mono text-[10px] font-black uppercase tracking-wider text-orange-600 bg-orange-50 border border-orange-200 rounded-md px-1.5 py-0.5">

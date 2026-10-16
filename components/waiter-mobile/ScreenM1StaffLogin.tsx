@@ -113,10 +113,12 @@ export function ScreenM1StaffLogin({ onLogin }: Props) {
       <div className="shrink-0 space-y-4">
 
         {/* Brand header */}
-        <div className="flex items-center gap-3 pb-3 border-b border-[#EAE5DF]">
-          <div className="h-11 w-11 rounded-2xl bg-gradient-to-br from-[#9C3D1E] to-[#7B2E15] flex items-center justify-center text-white shadow-md shadow-[#9C3D1E]/20 shrink-0 border border-[#D28835]/40">
-            <Utensils className="h-5 w-5 text-amber-200" />
-          </div>
+        <div className="flex items-center gap-3.5 pb-3 border-b border-[#EAE5DF]">
+          <img
+            src="/assets/thoogudeepa-logo.png"
+            alt="Thoogudeepa Donne Biryani Mane"
+            className="h-16 w-16 rounded-full object-cover shadow-md shrink-0 border-2 border-[#D28835]/60"
+          />
           <div className="min-w-0 flex-1">
             <h1 className="text-stone-900 text-sm font-black tracking-tight uppercase truncate">
               Thoogudeepa Donne Biryani Mane

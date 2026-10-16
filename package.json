@@ -28,6 +28,11 @@
     "test:phase4": "npx tsx scripts/test-phase4-comprehensive.ts",
     "test:schema": "npx tsx scripts/test-db-schema-validation.ts",
     "test:env": "npx tsx scripts/test-env-validation.ts",
+    "test:e2e:playwright": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:sync": "playwright test e2e/06-full-multi-persona-live-sync.spec.ts --headed",
+    "test:report": "playwright show-report",
     "generate-qrs": "node scripts/generate-qr-assets.js"
   },
   "dependencies": {
@@ -46,6 +51,7 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.13.9",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",

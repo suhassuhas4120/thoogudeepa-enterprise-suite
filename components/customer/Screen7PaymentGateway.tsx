@@ -114,6 +114,61 @@ export const Screen7PaymentGateway: React.FC = () => {
     merchantName
   )}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
 
+// Authentic Vector Brand Logos for Supported UPI Apps
+const PhonePeLogo: React.FC = () => (
+  <div className="h-9 w-9 rounded-2xl bg-[#5F259F] flex items-center justify-center shadow-xs shrink-0 border border-[#5F259F]">
+    <span className="text-white font-black text-xl leading-none select-none font-sans">
+      पे
+    </span>
+  </div>
+);
+
+const GooglePayLogo: React.FC = () => (
+  <div className="h-9 w-9 rounded-2xl bg-white border border-stone-200 flex items-center justify-center shadow-xs shrink-0">
+    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none">
+      <path
+        d="M23.5 12.3c0-.8-.1-1.7-.2-2.3H12v4.5h6.5c-.3 1.5-1.1 2.8-2.4 3.7v3.1h3.9c2.3-2.1 3.5-5.2 3.5-9z"
+        fill="#4285F4"
+      />
+      <path
+        d="M12 24c3.2 0 6-1.1 8-3l-3.9-3.1c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.2v3.2C3.2 21.3 7.3 24 12 24z"
+        fill="#34A853"
+      />
+      <path
+        d="M5.3 14.1c-.2-.7-.4-1.5-.4-2.1s.2-1.4.4-2.1V6.7H1.2C.4 8.3 0 10.1 0 12s.4 3.7 1.2 5.3l4.1-3.2z"
+        fill="#FBBC05"
+      />
+      <path
+        d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4C17.9 1.2 15.2 0 12 0 7.3 0 3.2 2.7 1.2 6.7l4.1 3.2c.9-2.9 3.6-5.1 6.7-5.1z"
+        fill="#EA4335"
+      />
+    </svg>
+  </div>
+);
+
+const PaytmLogo: React.FC = () => (
+  <div className="h-9 w-9 rounded-2xl bg-[#002E6E] flex items-center justify-center shadow-xs shrink-0 border border-[#002E6E]">
+    <span className="font-black text-xs tracking-tight text-white select-none">
+      <span className="text-[#00BAF2]">Pay</span>tm
+    </span>
+  </div>
+);
+
+const GenericUpiLogo: React.FC = () => (
+  <div className="h-9 w-9 rounded-2xl bg-white border border-stone-200 flex items-center justify-center shadow-xs shrink-0 p-1">
+    <div className="flex flex-col items-center justify-center leading-none">
+      <div className="flex items-center">
+        <span className="font-black text-[12px] tracking-tight text-[#097939]">U</span>
+        <span className="font-black text-[12px] tracking-tight text-[#4A4A4A]">P</span>
+        <span className="font-black text-[12px] tracking-tight text-[#E25C22]">I</span>
+      </div>
+      <span className="text-[6.5px] font-black uppercase text-stone-500 tracking-wider">
+        BHIM
+      </span>
+    </div>
+  </div>
+);
+
   // Supported UPI Payment Applications on Diner's Device
   const supportedApps = useMemo(() => [
     {
@@ -122,7 +177,7 @@ export const Screen7PaymentGateway: React.FC = () => {
       subtitle: 'Instant UPI Transfer',
       uri: `phonepe://upi/pay?pa=${merchantVpa}&pn=${encodeURIComponent(merchantName)}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`,
       badge: 'RECOMMENDED',
-      color: '#5f259f',
+      icon: <PhonePeLogo />,
     },
     {
       id: 'UPI_GPAY' as const,
@@ -130,7 +185,7 @@ export const Screen7PaymentGateway: React.FC = () => {
       subtitle: 'GPay Quick UPI',
       uri: `tez://upi/pay?pa=${merchantVpa}&pn=${encodeURIComponent(merchantName)}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`,
       badge: 'FAST',
-      color: '#1a73e8',
+      icon: <GooglePayLogo />,
     },
     {
       id: 'UPI_PAYTM' as const,
@@ -138,7 +193,7 @@ export const Screen7PaymentGateway: React.FC = () => {
       subtitle: 'Paytm Wallet & Bank',
       uri: `paytmmp://upi/pay?pa=${merchantVpa}&pn=${encodeURIComponent(merchantName)}&am=${grandTotal.toFixed(2)}&cu=INR&tn=${encodeURIComponent(transactionNote)}`,
       badge: null,
-      color: '#00b9f5',
+      icon: <PaytmLogo />,
     },
     {
       id: 'UPI_GENERIC' as const,
@@ -146,9 +201,9 @@ export const Screen7PaymentGateway: React.FC = () => {
       subtitle: 'BHIM, CRED, Navi & Banking Apps',
       uri: upiUri,
       badge: null,
-      color: '#8A4228',
+      icon: <GenericUpiLogo />,
     },
-  ], [grandTotal, effectiveTable, effectiveSeat, upiUri]);
+  ], [grandTotal, merchantVpa, merchantName, transactionNote, upiUri]);
 
   // 1. Instant Bulletproof QR Generation on Mount (0-Second Display)
   useEffect(() => {
@@ -563,12 +618,7 @@ export const Screen7PaymentGateway: React.FC = () => {
                         }
                       >
                         <div className="flex items-center gap-3">
-                          <div
-                            className="h-9 w-9 rounded-xl flex items-center justify-center font-black text-white text-xs shadow-xs"
-                            style={{ backgroundColor: app.color }}
-                          >
-                            {app.name.slice(0, 2).toUpperCase()}
-                          </div>
+                          {app.icon}
                           <div>
                             <div className="text-xs font-black flex items-center gap-1.5">
                               <span>{app.name}</span>

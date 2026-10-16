@@ -83,14 +83,14 @@ export const Screen1Welcome: React.FC = () => {
           className="flex flex-col items-center text-center pt-1 w-full shrink-0"
         >
           {/* Authentic Metallic Gold Monogram Crest with Wreath */}
-          <div className="relative w-32 h-20 mb-0.5 flex items-center justify-center">
+          <div className="relative w-32 h-32 sm:w-36 sm:h-36 mb-2 flex items-center justify-center">
             <Image
-              src="/images/thoogudeepa_crest_transparent.png"
-              alt="Thoogudeepa Monogram"
+              src="/assets/thoogudeepa-logo.png"
+              alt="Thoogudeepa Donne Biryani Mane"
               width={140}
-              height={85}
+              height={140}
               priority
-              className="object-contain drop-shadow-[0_4px_14px_rgba(217,119,6,0.35)]"
+              className="rounded-full object-cover drop-shadow-[0_6px_20px_rgba(217,119,6,0.45)] ring-4 ring-[#D28835]/70"
             />
           </div>
 

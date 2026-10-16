@@ -160,8 +160,18 @@ export default function ManagerPortalPage() {
         <nav
           role="tablist"
           aria-label="Manager Portal Navigation"
-          className="shrink-0 w-full border-b border-[#EAE5DF] bg-[#FAF8F5] px-3 sm:px-4 py-2 flex items-center gap-1.5 overflow-x-auto scrollbar-none font-mono text-slate-900"
+          className="shrink-0 w-full border-b border-[#EAE5DF] bg-[#FAF8F5] px-3 sm:px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none font-mono text-slate-900"
         >
+          <div className="flex items-center gap-2 pr-2 border-r border-[#EAE5DF] shrink-0">
+            <img
+              src="/assets/thoogudeepa-logo.png"
+              alt="Thoogudeepa Manager"
+              className="h-7 w-7 rounded-full object-cover border border-[#9C3D1E]/40"
+            />
+            <span className="text-[11px] font-black tracking-wider text-slate-900 uppercase hidden sm:inline">
+              Manager
+            </span>
+          </div>
           {TAB_ITEMS.map((sc) => {
             const isActive = activeTab === sc.id;
             return (

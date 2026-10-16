@@ -89,12 +89,11 @@ export function ScreenT1CaptainLogin({ onLogin }: Props) {
       <div className="w-full max-w-md bg-white border border-[#EAE5DF] rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
         {/* ── 1. Top: Proper Hotel Logo in 1 Row ── */}
         <div className="flex justify-center pt-1">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-[#9C3D1E] to-[#7B2E15] border-2 border-[#D28835]/40 flex flex-col items-center justify-center shadow-md shadow-[#9C3D1E]/20 text-white">
-            <Crown className="h-7 w-7 text-amber-200 stroke-[1.8]" />
-            <span className="text-[7.5px] font-black uppercase tracking-widest text-amber-200 mt-0.5">
-              ESTD 1994
-            </span>
-          </div>
+          <img
+            src="/assets/thoogudeepa-logo.png"
+            alt="Thoogudeepa Donne Biryani Mane"
+            className="h-28 w-28 rounded-full object-cover shadow-xl border-4 border-[#D28835]/60"
+          />
         </div>
 
         {/* ── 2. Below Logo: Hotel Name & Subtitle ── */}

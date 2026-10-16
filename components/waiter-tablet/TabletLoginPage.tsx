@@ -164,7 +164,7 @@ export function TabletLoginPage({ onLogin }: Props) {
             <img
               src="/assets/thoogudeepa-logo.png"
               alt="Thoogudeepa Donne Biryani Mane"
-              className="h-20 w-20 rounded-full object-cover shadow-2xl border-2 border-[#D28835]/50"
+              className="h-32 w-32 rounded-full object-cover shadow-2xl border-4 border-[#D28835]/60"
             />
           </div>
 

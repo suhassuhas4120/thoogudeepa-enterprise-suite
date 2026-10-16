@@ -41,8 +41,12 @@ export const KitchenTabletHousing: React.FC<KitchenTabletHousingProps> = ({
 
         <header className="h-12 bg-white border-b border-[#EFE6DA] px-5 flex items-center justify-between text-xs font-bold select-none shrink-0 z-30">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 text-[#E8722E] font-black font-mono">
-              <Flame className="h-4 w-4 text-[#E8722E] fill-[#E8722E]" />
+            <div className="flex items-center gap-2 text-[#E8722E] font-black font-mono">
+              <img
+                src="/assets/thoogudeepa-logo.png"
+                alt="Thoogudeepa KDS"
+                className="h-5 w-5 rounded-full object-cover border border-[#E8722E]/40"
+              />
               <span>THOOGUDEEPA KDS</span>
             </div>
           </div>

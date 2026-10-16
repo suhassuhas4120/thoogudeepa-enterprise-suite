@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
   try {
     const { data: dbRows } = await supabase
       .from('pings')
-      .select('*')
+      .select('id, table_number, message, type')
       .in('type', ['SETTLEMENT_SESSION', 'SETTLED_BILL']);
 
     if (dbRows && dbRows.length > 0) {
@@ -100,16 +100,20 @@ export async function GET(req: NextRequest) {
       }
     });
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       sessions: filteredSessions,
       settledBills: filteredBills,
     });
+    res.headers.set('Cache-Control', 'public, s-maxage=2, stale-while-revalidate=4');
+    return res;
   }
 
-  return NextResponse.json({
+  const res = NextResponse.json({
     sessions: sessionsObj,
     settledBills: billsObj,
   });
+  res.headers.set('Cache-Control', 'public, s-maxage=2, stale-while-revalidate=4');
+  return res;
 }
 
 export async function POST(req: NextRequest) {

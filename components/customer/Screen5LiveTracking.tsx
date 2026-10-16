@@ -670,7 +670,7 @@ export const Screen5LiveTracking: React.FC = () => {
     };
 
     fetchSession();
-    const interval = setInterval(fetchSession, 1200);
+    const interval = setInterval(fetchSession, 6000);
     return () => {
       isCancelled = true;
       clearInterval(interval);

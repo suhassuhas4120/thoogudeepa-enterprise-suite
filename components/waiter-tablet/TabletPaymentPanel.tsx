@@ -177,7 +177,7 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
     };
 
     fetchSession();
-    const interval = setInterval(fetchSession, 1000);
+    const interval = setInterval(fetchSession, 6000);
     return () => {
       isCancelled = true;
       clearInterval(interval);

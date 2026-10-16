@@ -199,7 +199,7 @@ export function TabletTableDetail({
     };
 
     fetchSession();
-    const interval = setInterval(fetchSession, 1000);
+    const interval = setInterval(fetchSession, 6000);
     return () => {
       isCancelled = true;
       clearInterval(interval);

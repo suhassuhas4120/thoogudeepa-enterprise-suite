@@ -400,8 +400,8 @@ export function TabletTableCockpit({
           )}
         </div>
 
-        {/* Secondary Operations: Split Bill & Merge Table */}
-        <div className="grid grid-cols-2 gap-2">
+        {/* Secondary Operations: Split Bill & Merge Table commented out */}
+        {/* <div className="grid grid-cols-2 gap-2">
           {grandTotal > 0 && !isVacant ? (
             <button
               type="button"
@@ -434,7 +434,7 @@ export function TabletTableCockpit({
             <Link2 className="h-3.5 w-3.5 text-purple-700" />
             <span>{isMerged ? 'Manage Merge' : 'Merge Table'}</span>
           </button>
-        </div>
+        </div> */}
 
         {/* Two-step Vacate & Reset */}
         {!confirmVacate ? (

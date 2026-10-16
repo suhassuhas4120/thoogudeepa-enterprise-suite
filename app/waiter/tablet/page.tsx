@@ -136,18 +136,23 @@ export default function WaiterTabletPage() {
     useSharedBridge();
   const { activeCaptain, setActiveCaptain } = useWaiterStore();
 
-  // ── App state ──────────────────────────────────────────────────────────
-  const [view, setView] = useState<AppView>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = sessionStorage.getItem("thoogudeepa_tablet_session");
-        return Boolean(saved && JSON.parse(saved)?.activeCaptain) ? "floor" : "login";
-      } catch {
-        return "login";
+  const [view, setView] = useState<AppView>("login");
+
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem("thoogudeepa_tablet_session");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.activeCaptain) {
+          setView("floor");
+          setActiveCaptain(parsed.activeCaptain);
+          if (parsed.assignedSection) {
+            setAssignedSection(parsed.assignedSection);
+          }
+        }
       }
-    }
-    return "login";
-  });
+    } catch {}
+  }, [setActiveCaptain]);
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>("menu");
   const [selectedTableNum, setSelectedTableNum] = useState<string>(
     tables[0]?.number ?? "T-01",

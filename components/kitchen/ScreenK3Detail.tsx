@@ -220,21 +220,22 @@ export const ScreenK3Detail: React.FC = () => {
                                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : it.stage === 'PREP'
                                 ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                : it.stage === 'RECEIVED'
+                                : it.stage === 'RECEIVED' || it.stage === 'PLACED'
                                 ? 'bg-sky-50 text-sky-700 border-sky-200'
                                 : 'bg-[#FBF7F0] text-slate-600 border-[#EFE6DA]'
                             }`}
                           >
-                            {it.stage}
+                            {it.stage === 'PLACED' ? 'RECEIVED' : it.stage}
                           </span>
                         </div>
 
                         {/* 3-stage stepper */}
                         <div className="grid grid-cols-3 gap-1.5 font-mono text-[10px] font-black">
                           {stageOrder.map((stg) => {
-                            const isActive = it.stage === stg;
+                            const curStage = it.stage === 'PLACED' ? 'RECEIVED' : it.stage;
+                            const isActive = curStage === stg;
                             const idx = stageOrder.indexOf(stg);
-                            const curIdx = stageOrder.indexOf(it.stage);
+                            const curIdx = stageOrder.indexOf(curStage as OrderStage);
                             const isPast = idx < curIdx;
                             return (
                               <button

@@ -39,6 +39,18 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/favicon.ico',
+        destination: '/assets/thoogudeepa-logo.png',
+      },
+      {
+        source: '/icon.png',
+        destination: '/assets/thoogudeepa-logo.png',
+      },
+    ];
+  },
   async headers() {
     return [
       {

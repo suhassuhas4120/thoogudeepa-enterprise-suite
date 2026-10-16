@@ -60,7 +60,8 @@ export const useKitchenStore = create<KitchenStoreState>((set) => ({
         if (t.id !== ticketId) return t;
         const newItems = t.items.map((it) => {
           if (it.id !== itemId) return it;
-          const curIdx = stageOrder.indexOf(it.stage);
+          const curStage = it.stage === 'RECEIVED' ? 'PLACED' : it.stage;
+          const curIdx = stageOrder.indexOf(curStage as OrderStage);
           const nextStage =
             curIdx < stageOrder.length - 1
               ? stageOrder[curIdx + 1]

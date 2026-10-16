@@ -979,8 +979,8 @@ export function ScreenM3TableSheet({
         {/* ── INTERACTIVE CHAIR NAVIGATION (LARGE, PROMINENT CHAIRS) ── */}
         <div className="shrink-0 space-y-1.5">
 
-          {/* Merge action bar — slides in when ≥1 chair is selected, providing immediate cancel option */}
-          <AnimatePresence>
+          {/* Merge action bar commented out */}
+          {/* <AnimatePresence>
             {selectedChairsForMerge.length >= 1 && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -1020,7 +1020,7 @@ export function ScreenM3TableSheet({
                 </div>
               </motion.div>
             )}
-          </AnimatePresence>
+          </AnimatePresence> */}
 
           {/* Horizontal Grid of Large Interactive Chair Cards */}
           <div className={`flex items-center gap-2 pt-2 pb-0.5 px-0.5 ${isCompactRail ? 'w-full' : 'overflow-x-auto scrollbar-none'}`}>
@@ -1706,8 +1706,8 @@ export function ScreenM3TableSheet({
 
         {/* Quick Operations: Merge Seats / Split Back & Serve Food */}
         <div className="shrink-0 space-y-2 px-4">
-          <div className="grid grid-cols-2 gap-2.5 font-mono text-xs">
-            {Object.keys(mergedSeatGroups).length > 0 ? (
+          <div className="grid grid-cols-1 gap-2.5 font-mono text-xs">
+            {/* {Object.keys(mergedSeatGroups).length > 0 ? (
               <button
                 type="button"
                 onClick={() => {
@@ -1728,7 +1728,7 @@ export function ScreenM3TableSheet({
                 <Users className="h-4 w-4 text-indigo-700" />
                 <span>Merge Seats</span>
               </button>
-            )}
+            )} */}
 
             {isAllSelectionServed ? (
               <button

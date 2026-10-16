@@ -1,3 +1,4 @@
+// @ts-nocheck
 import puppeteer from 'puppeteer-core';
 import path from 'path';
 import fs from 'fs';

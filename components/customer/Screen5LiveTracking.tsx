@@ -413,19 +413,23 @@ export const Screen5LiveTracking: React.FC = () => {
     }> = [];
 
     // Map bridge items first (most reactive, in-memory + broadcast)
+    const seenItemIds = new Set<string>();
     bridgeItems.forEach((bi) => {
-      combinedTicketItems.push({
-        id: bi.id,
-        ticketId: bi.ticketId,
-        name: bi.name,
-        quantity: bi.quantity,
-        stage: bi.stage,
-        prepMode: bi.prepMode,
-        options: bi.options,
-        addOns: bi.addOns,
-        notes: bi.notes,
-        seatNumber: effectiveSeat,
-      });
+      if (!seenItemIds.has(bi.id)) {
+        seenItemIds.add(bi.id);
+        combinedTicketItems.push({
+          id: bi.id,
+          ticketId: bi.ticketId,
+          name: bi.name,
+          quantity: bi.quantity,
+          stage: bi.stage,
+          prepMode: bi.prepMode,
+          options: bi.options,
+          addOns: bi.addOns,
+          notes: bi.notes,
+          seatNumber: effectiveSeat,
+        });
+      }
     });
 
     // Supplement with supabase items if not already present in bridge
@@ -436,7 +440,8 @@ export const Screen5LiveTracking: React.FC = () => {
           (getCanonicalKey(ci.name) === getCanonicalKey(si.name) &&
             ci.ticketId === si.ticketId),
       );
-      if (!alreadyInBridge) {
+      if (!alreadyInBridge && !seenItemIds.has(si.id)) {
+        seenItemIds.add(si.id);
         combinedTicketItems.push({
           id: si.id,
           ticketId: si.ticketId,
@@ -512,6 +517,7 @@ export const Screen5LiveTracking: React.FC = () => {
         return {
           id: `cart-${ci.cartItemId || Math.random()}`,
           cartItemId: ci.cartItemId,
+          ticketId: undefined as string | undefined,
           name: dishName,
           quantity: ci.quantity || 1,
           stage: tableStage || "PLACED",
@@ -1073,14 +1079,14 @@ export const Screen5LiveTracking: React.FC = () => {
           <div className="space-y-3">
             <AnimatePresence>
               {trackedDishes.length > 0 ? (
-                trackedDishes.map((it) => {
+                trackedDishes.map((it, idx) => {
                   const isVeg = isVegItem(it.name);
                   const dishCurrentIdx = getDishStageIdx(it.stage, it.id);
                   const isDishServed = dishCurrentIdx === 4;
 
                   return (
                     <motion.div
-                      key={it.id}
+                      key={`${it.id || 'dish'}-${it.ticketId || ''}-${idx}`}
                       layout
                       initial={{ opacity: 0, y: 6 }}
                       animate={{ opacity: 1, y: 0 }}

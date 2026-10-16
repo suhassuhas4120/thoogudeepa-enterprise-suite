@@ -647,7 +647,8 @@ export function TabletTableDetail({
             Select Chair · {totalCapacity} Seats Available
           </p>
 
-          <button
+          {/* Merge Chairs option commented out */}
+          {/* <button
             type="button"
             onClick={() => {
               setMergeChairMode(!mergeChairMode);
@@ -661,11 +662,11 @@ export function TabletTableDetail({
           >
             <Link2 className="h-3 w-3" />
             <span>{mergeChairMode ? "Cancel Merge" : "Merge Chairs"}</span>
-          </button>
+          </button> */}
         </div>
 
         {/* Merge Chair Action Banner */}
-        {mergeChairMode && (
+        {/* {mergeChairMode && (
           <div className="mb-2.5 p-2.5 bg-purple-50 border-2 border-purple-300 rounded-2xl flex items-center justify-between font-mono text-xs">
             <span className="text-purple-950 font-bold">
               {chairsSelectedForMerge.length === 0
@@ -691,7 +692,7 @@ export function TabletTableDetail({
               </button>
             </div>
           </div>
-        )}
+        )} */}
 
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar pt-2.5 pb-2 px-1.5 -mt-1.5">
           {/* ALL Seats Button — supports dropping menu dish */}
@@ -1348,8 +1349,8 @@ export function TabletTableDetail({
           </div>
 
           {/* Secondary Action Buttons */}
-          {/* <div className="grid grid-cols-3 gap-2 font-mono text-xs">
-            <button
+          <div className="grid grid-cols-1 gap-2 font-mono text-xs">
+            {/* <button
               type="button"
               onClick={onSplit}
               disabled={table.currentBill === 0}
@@ -1365,7 +1366,7 @@ export function TabletTableDetail({
             >
               <Link2 className="h-3.5 w-3.5" />
               <span>{table.mergedWith ? 'Unmerge' : 'Merge'}</span>
-            </button>
+            </button> */}
             <button
               type="button"
               onClick={onVacate}
@@ -1374,7 +1375,7 @@ export function TabletTableDetail({
               <UserX className="h-3.5 w-3.5" />
               <span>Vacate</span>
             </button>
-          </div> */}
+          </div>
         </div>
       )}
     </div>

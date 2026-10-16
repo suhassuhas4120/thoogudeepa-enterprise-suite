@@ -718,7 +718,8 @@ export function TabletFloorMap({
                                 View
                               </span>
                             </button>
-                            <button
+                            {/* Merge & Unmerge commented out */}
+                            {/* <button
                               type="button"
                               onClick={() => {
                                 setBubbleTable(null);
@@ -745,7 +746,7 @@ export function TabletFloorMap({
                                   Unmerge
                                 </span>
                               </button>
-                            )}
+                            )} */}
                           </>
                         )}
                         {!isOccupied && (
@@ -764,7 +765,8 @@ export function TabletFloorMap({
                                 Seat
                               </span>
                             </button>
-                            <button
+                            {/* Merge option commented out */}
+                            {/* <button
                               type="button"
                               onClick={() => {
                                 setBubbleTable(null);
@@ -776,7 +778,7 @@ export function TabletFloorMap({
                               <span className="text-[10px] font-black font-mono whitespace-nowrap">
                                 Merge
                               </span>
-                            </button>
+                            </button> */}
                           </>
                         )}
                       </motion.div>

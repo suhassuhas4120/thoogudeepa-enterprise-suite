@@ -131,13 +131,21 @@ async function reconcileAllState(): Promise<void> {
         if (res.ok) {
           const sessionData = await res.json();
           if (sessionData) {
-            useSharedBridge.setState((prev) => ({
-              activeSettlementSessions: sessionData.sessions || {},
-              settledBills: {
-                ...(prev.settledBills || {}),
-                ...(sessionData.settledBills || {}),
-              },
-            }));
+            const curBridge = useSharedBridge.getState();
+            const nextSessions = sessionData.sessions || {};
+            const nextBills = {
+              ...(curBridge.settledBills || {}),
+              ...(sessionData.settledBills || {}),
+            };
+            if (
+              JSON.stringify(curBridge.activeSettlementSessions) !== JSON.stringify(nextSessions) ||
+              JSON.stringify(curBridge.settledBills) !== JSON.stringify(nextBills)
+            ) {
+              useSharedBridge.setState({
+                activeSettlementSessions: nextSessions,
+                settledBills: nextBills,
+              });
+            }
           }
         }
       } catch {}

@@ -198,10 +198,9 @@ export function TabletActionPanel({
               <ArrowRight className="h-4 w-4 text-stone-400" />
             </motion.button>
 
-            {/* Secondary row */}
-            <div className="grid grid-cols-2 gap-2">
+            {/* Secondary row — Split Bill & Merge Tables commented out */}
+            {/* <div className="grid grid-cols-2 gap-2">
 
-              {/* Split Bill */}
               <button
                 type="button"
                 onClick={onSplitBill}
@@ -218,7 +217,6 @@ export function TabletActionPanel({
                 <p className="font-mono font-black text-[11px] text-stone-800">Split Bill</p>
               </button>
 
-              {/* Merge Tables */}
               <button
                 type="button"
                 onClick={onMerge}
@@ -231,7 +229,7 @@ export function TabletActionPanel({
                   {table.mergedWith ? 'Unmerge' : 'Merge'}
                 </p>
               </button>
-            </div>
+            </div> */}
 
             {/* Vacate table */}
             <button

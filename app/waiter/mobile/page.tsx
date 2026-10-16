@@ -24,69 +24,41 @@ type ActiveView =
 export default function WaiterMobilePage() {
   const { pings, kdsTickets, tables } = useSharedBridge();
 
-  // Persist session across page reloads without kicking waiter back to login
-  const [loggedIn, setLoggedIn] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
-        return Boolean(saved && JSON.parse(saved)?.waiterName);
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  });
+  // Track mount status to guarantee zero SSR hydration mismatch with client sessionStorage
+  const [mounted, setMounted] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [waiterName, setWaiterName] = useState('');
+  const [assignedSection, setAssignedSection] = useState('ALL');
+  const [mainTab, setMainTab] = useState<MainTab>('TABLES');
+  const [view, setView] = useState<ActiveView>({ type: 'FLOOR' });
 
-  const [waiterName, setWaiterName] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
-        return saved ? (JSON.parse(saved)?.waiterName || '') : '';
-      } catch {
-        return '';
-      }
-    }
-    return '';
-  });
-
-  const [assignedSection, setAssignedSection] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
-        return saved ? (JSON.parse(saved)?.assignedSection || 'ALL') : 'ALL';
-      } catch {
-        return 'ALL';
-      }
-    }
-    return 'ALL';
-  });
-
-  const [mainTab, setMainTab] = useState<MainTab>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedTab = sessionStorage.getItem('thoogudeepa_waiter_tab');
-        if (savedTab === 'TABLES' || savedTab === 'CALLS' || savedTab === 'READY') {
-          return savedTab as MainTab;
+  // Restore session from sessionStorage on client mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.waiterName) {
+          setLoggedIn(true);
+          setWaiterName(parsed.waiterName || '');
+          setAssignedSection(parsed.assignedSection || 'ALL');
+          useWaiterStore.getState().setActiveCaptain(parsed.waiterName || '');
         }
-      } catch {}
-    }
-    return 'TABLES';
-  });
-
-  const [view, setView] = useState<ActiveView>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedView = sessionStorage.getItem('thoogudeepa_waiter_view');
-        if (savedView) {
-          const parsed = JSON.parse(savedView);
-          if (parsed && typeof parsed === 'object' && parsed.type) {
-            return parsed as ActiveView;
-          }
+      }
+      const savedTab = sessionStorage.getItem('thoogudeepa_waiter_tab');
+      if (savedTab === 'TABLES' || savedTab === 'CALLS' || savedTab === 'READY') {
+        setMainTab(savedTab as MainTab);
+      }
+      const savedView = sessionStorage.getItem('thoogudeepa_waiter_view');
+      if (savedView) {
+        const parsed = JSON.parse(savedView);
+        if (parsed && typeof parsed === 'object' && parsed.type) {
+          setView(parsed as ActiveView);
         }
-      } catch {}
-    }
-    return { type: 'FLOOR' };
-  });
+      }
+    } catch {}
+    setMounted(true);
+  }, []);
 
   const [toast, setToast] = useState<string | null>(null);
   const [outboxPendingCount, setOutboxPendingCount] = useState<number>(0);
@@ -154,30 +126,30 @@ export default function WaiterMobilePage() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Ensure history stack is populated without blowing away restored view
-      if (!window.history.state?.view) {
-        window.history.replaceState({ view }, '');
-      }
+    if (!mounted || typeof window === 'undefined') return;
 
-      const handlePopState = (e: PopStateEvent) => {
-        if (e.state && e.state.view) {
-          setView(e.state.view);
-          try {
-            sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify(e.state.view));
-          } catch {}
-        } else {
-          setView({ type: 'FLOOR' });
-          try {
-            sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify({ type: 'FLOOR' }));
-          } catch {}
-        }
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
+    // Ensure history stack is populated without blowing away restored view
+    if (!window.history.state?.view) {
+      window.history.replaceState({ view }, '');
     }
-  }, [view]);
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.view) {
+        setView(e.state.view);
+        try {
+          sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify(e.state.view));
+        } catch {}
+      } else {
+        setView({ type: 'FLOOR' });
+        try {
+          sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify({ type: 'FLOOR' }));
+        } catch {}
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [view, mounted]);
 
   const activePings = pings.filter((p) => p.status === 'PENDING');
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
@@ -248,8 +220,8 @@ export default function WaiterMobilePage() {
     navigateView({ type: 'FLOOR' }, true);
   };
 
-  // ── Not logged in ─────────────────────────────────────────────────────────
-  if (!loggedIn) {
+  // ── Not logged in or waiting for client hydration ─────────────────────────
+  if (!mounted || !loggedIn) {
     return <ScreenM1StaffLogin onLogin={handleLogin} />;
   }
 

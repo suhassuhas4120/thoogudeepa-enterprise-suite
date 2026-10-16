@@ -1,25 +1,25 @@
-'use client';
+"use client";
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useKitchenStore } from '../../store/useKitchenStore';
-import { useSharedBridge } from '../../store/useSharedBridge';
-import { KitchenTabletHousing } from './KitchenTabletHousing';
+import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useKitchenStore } from "../../store/useKitchenStore";
+import { useSharedBridge } from "../../store/useSharedBridge";
+import { KitchenTabletHousing } from "./KitchenTabletHousing";
 import {
   MenuCategory,
   ALL_CATEGORIES,
   getCategoryForItem,
-} from '../../types/kitchen';
-import { OrderStage } from '../../types/customer';
-import { Clock, Bell } from 'lucide-react';
+} from "../../types/kitchen";
+import { OrderStage } from "../../types/customer";
+import { Clock, Bell } from "lucide-react";
 
 interface K2TableItem {
   id: string;
   name: string;
   quantity: number;
-  stage: 'RECEIVED' | 'PREPARING' | 'READY' | 'PLACED';
-  notes?: string;       
-  options?: string;     
-  addOns?: string[];    
+  stage: "RECEIVED" | "PREPARING" | "READY" | "PLACED";
+  notes?: string;
+  options?: string;
+  addOns?: string[];
   seatNumber?: number;
 }
 
@@ -34,9 +34,8 @@ interface K2Table {
   items: K2TableItem[];
 }
 
-
-const STAGE_STEPS = ['RECEIVED', 'PREPARING', 'READY'] as const;
-const STAGE_LABELS = ['1.REC', '2.PREP', '3.READY'];
+const STAGE_STEPS = ["RECEIVED", "PREPARING", "READY"] as const;
+const STAGE_LABELS = ["1.REC", "2.PREP", "3.READY"];
 
 const hasSpecialInstruction = (it: K2TableItem): boolean => {
   return !!(
@@ -53,15 +52,15 @@ const buildInstructionTooltip = (items: K2TableItem[]): string => {
       const parts: string[] = [];
       if (it.options) parts.push(`Choice: ${it.options}`);
       if (it.addOns && it.addOns.length > 0)
-        parts.push(`Add-ons: ${it.addOns.join(', ')}`);
+        parts.push(`Add-ons: ${it.addOns.join(", ")}`);
       if (it.notes) parts.push(`Note: ${it.notes}`);
-      return `${it.quantity}x ${it.name} → ${parts.join(' | ')}`;
+      return `${it.quantity}x ${it.name} → ${parts.join(" | ")}`;
     })
-    .join('  •  ');
+    .join("  •  ");
 };
 
 const getShortKot = (raw: string): string => {
-  const tail = raw.split('-').pop();
+  const tail = raw.split("-").pop();
   return tail || raw;
 };
 
@@ -80,14 +79,15 @@ export const ScreenK2Overview: React.FC = () => {
     callFloorWaiter: bridgeCallFloorWaiter,
   } = useSharedBridge();
 
-  const [selectedCategory, setSelectedCategory] = useState<MenuCategory>('ALL CATEGORIES');
+  const [selectedCategory, setSelectedCategory] =
+    useState<MenuCategory>("ALL CATEGORIES");
 
   const [bulkStages, setBulkStages] = useState<
-    Record<string, 'RECEIVED' | 'PREPARING' | 'READY'>
+    Record<string, "RECEIVED" | "PREPARING" | "READY">
   >({});
 
   const [itemStageOverride, setItemStageOverride] = useState<
-    Record<string, 'RECEIVED' | 'PREPARING' | 'READY'>
+    Record<string, "RECEIVED" | "PREPARING" | "READY">
   >({});
 
   const prevTicketCountRef = useRef(bridgeTickets.length);
@@ -95,14 +95,18 @@ export const ScreenK2Overview: React.FC = () => {
   useEffect(() => {
     if (bridgeTickets.length > prevTicketCountRef.current) {
       try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        const AudioCtx =
+          window.AudioContext || (window as any).webkitAudioContext;
         if (AudioCtx) {
           const ctx = new AudioCtx();
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.type = 'sine';
+          osc.type = "sine";
           osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+          osc.frequency.exponentialRampToValueAtTime(
+            880,
+            ctx.currentTime + 0.15,
+          );
           gain.gain.setValueAtTime(0.3, ctx.currentTime);
           gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
           osc.connect(gain);
@@ -116,43 +120,48 @@ export const ScreenK2Overview: React.FC = () => {
   }, [bridgeTickets.length]);
 
   const formatKdsTableNumber = (num: string): string => {
-    if (!num) return 'TABLE --';
-    if (num.startsWith('TABLE')) return num;
-    if (num.startsWith('T-')) return `TABLE ${num.replace('T-', '')}`;
+    if (!num) return "TABLE --";
+    if (num.startsWith("TABLE")) return num;
+    if (num.startsWith("T-")) return `TABLE ${num.replace("T-", "")}`;
     return `TABLE ${num}`;
   };
 
   const activeBridgeTables: K2Table[] = useMemo(() => {
     return bridgeTickets
-      .filter((tk) => tk.status !== 'COMPLETED' && tk.status !== 'SERVED')
+      .filter((tk) => tk.status !== "COMPLETED" && tk.status !== "SERVED")
       .map((tk) => {
         const unservedItems = tk.items.filter(
-          (it) => it.stage !== 'SERVED' && (it.stage as string) !== 'Served'
+          (it) => it.stage !== "SERVED" && (it.stage as string) !== "Served",
         );
         return {
           id: tk.id,
           tableNumber: formatKdsTableNumber(tk.tableNumber),
-          kotNumber: tk.id.replace('KDS-', ''),
+          kotNumber: tk.id.replace("KDS-", ""),
           elapsedMinutes: tk.elapsedMinutes || 1,
-          serverName: tk.serverName || 'Floor Captain',
-          isVip: tk.source === 'CUSTOMER',
+          serverName: tk.serverName || "Floor Captain",
+          isVip: tk.source === "CUSTOMER",
           seatNumber: tk.seatNumber,
           items: unservedItems.map((it) => {
             const key = `${tk.id}-${it.id}`;
             const override = itemStageOverride[key];
+            const rawStage = it.stage;
             const resolvedStage =
-              it.stage === 'RECEIVED'
-                ? 'RECEIVED'
-                : it.stage === 'PREP'
-                ? 'PREPARING'
-                : it.stage === 'PLATED'
-                ? 'READY'
-                : override || 'PLACED';
+              rawStage === "PREP"
+                ? "PREPARING"
+                : rawStage === "PLATED"
+                  ? "READY"
+                  : rawStage === "RECEIVED" || rawStage === "PLACED"
+                    ? "RECEIVED"
+                    : override || "RECEIVED";
             return {
               id: it.id,
               name: it.name,
               quantity: it.quantity,
-              stage: resolvedStage as 'RECEIVED' | 'PREPARING' | 'READY' | 'PLACED',
+              stage: resolvedStage as
+                | "RECEIVED"
+                | "PREPARING"
+                | "READY"
+                | "PLACED",
               notes: it.notes,
               options: it.options,
               addOns: it.addOns,
@@ -173,7 +182,7 @@ export const ScreenK2Overview: React.FC = () => {
       .map((tbl) => ({
         ...tbl,
         items: tbl.items.filter((it) => {
-          return selectedCategory === 'ALL CATEGORIES'
+          return selectedCategory === "ALL CATEGORIES"
             ? true
             : getCategoryForItem(it.name) === selectedCategory;
         }),
@@ -190,8 +199,11 @@ export const ScreenK2Overview: React.FC = () => {
     categoryFilteredTables.forEach((tbl) => {
       tbl.items.forEach((it) => {
         const key = it.name;
-        const existing =
-          map.get(key) || { total: 0, sources: [], stages: new Set<string>() };
+        const existing = map.get(key) || {
+          total: 0,
+          sources: [],
+          stages: new Set<string>(),
+        };
         existing.total += it.quantity;
         existing.sources.push(`${tbl.tableNumber} (x${it.quantity})`);
         existing.stages.add(it.stage);
@@ -201,36 +213,39 @@ export const ScreenK2Overview: React.FC = () => {
 
     return Array.from(map.entries()).map(([name, data]) => {
       const stageArr = Array.from(data.stages);
-      let status = '';
-      let currentStage: 'RECEIVED' | 'PREPARING' | 'READY' = 'PREPARING';
+      let status = "";
+      let currentStage: "RECEIVED" | "PREPARING" | "READY" = "PREPARING";
 
       if (stageArr.length === 1) {
         currentStage = stageArr[0] as any;
         status = `ALL ${data.total} ${
-          currentStage === 'RECEIVED'
-            ? 'PENDING'
-            : currentStage === 'PREPARING'
-            ? 'COOKING'
-            : 'READY'
+          currentStage === "RECEIVED"
+            ? "PENDING"
+            : currentStage === "PREPARING"
+              ? "COOKING"
+              : "READY"
         }`;
       } else {
-        if (stageArr.includes('READY')) currentStage = 'READY';
-        else if (stageArr.includes('PREPARING')) currentStage = 'PREPARING';
-        else currentStage = 'RECEIVED';
+        if (stageArr.includes("READY")) currentStage = "READY";
+        else if (stageArr.includes("PREPARING")) currentStage = "PREPARING";
+        else currentStage = "RECEIVED";
 
-        const counts = stageArr.reduce((acc, s) => {
-          acc[s] = (acc[s] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+        const counts = stageArr.reduce(
+          (acc, s) => {
+            acc[s] = (acc[s] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>,
+        );
         status = Object.entries(counts)
           .map(([s, c]) => `${c} ${s}`)
-          .join(', ');
+          .join(", ");
       }
 
       return {
         name,
         total: data.total,
-        sources: data.sources.join(', '),
+        sources: data.sources.join(", "),
         status,
         currentStage,
       };
@@ -240,57 +255,64 @@ export const ScreenK2Overview: React.FC = () => {
   const handleSetStage = (
     tableId: string,
     itemId: string,
-    newStage: 'RECEIVED' | 'PREPARING' | 'READY'
+    newStage: "RECEIVED" | "PREPARING" | "READY",
   ) => {
     const key = `${tableId}-${itemId}`;
     setItemStageOverride((prev) => ({ ...prev, [key]: newStage }));
 
     const bridgeStage: OrderStage =
-      newStage === 'PREPARING'
-        ? 'PREP'
-        : newStage === 'READY'
-        ? 'PLATED'
-        : 'RECEIVED';
+      newStage === "PREPARING"
+        ? "PREP"
+        : newStage === "READY"
+          ? "PLATED"
+          : "RECEIVED";
 
     const bridgeTicket = bridgeTickets.find(
-      (tk) => tk.id === tableId || tk.items.some((i) => i.id === itemId)
+      (tk) => tk.id === tableId || tk.items.some((i) => i.id === itemId),
     );
     if (bridgeTicket) {
       kitchenSetItemStage(bridgeTicket.id, itemId, bridgeStage);
     }
   };
 
-
-  const handleOpenTable = (ticketIdOrTableNum: string, maybeTableNum?: string) => {
+  const handleOpenTable = (
+    ticketIdOrTableNum: string,
+    maybeTableNum?: string,
+  ) => {
     if (maybeTableNum) {
       setSelectedTicketId(ticketIdOrTableNum);
-      setSelectedTableNumber(maybeTableNum.replace('TABLE ', ''));
+      setSelectedTableNumber(maybeTableNum.replace("TABLE ", ""));
     } else {
-      setSelectedTicketId('');
-      setSelectedTableNumber(ticketIdOrTableNum.replace('TABLE ', ''));
+      setSelectedTicketId("");
+      setSelectedTableNumber(ticketIdOrTableNum.replace("TABLE ", ""));
     }
     setCurrentScreen(3);
   };
 
   const handleCallWaiter = () => {
-    bridgeCallFloorWaiter('ALL', 'Kitchen calls Floor Captain to Pass');
-    localCallFloorWaiter('ALL', 'Kitchen calls Floor Captain to Pass');
+    localCallFloorWaiter("ALL", "Kitchen calls Floor Captain to Pass");
   };
 
   const timeQueueTickets = useMemo(() => {
     return bridgeTickets
-      .filter((tk) => tk.status !== 'COMPLETED' && tk.items.some((it) => it.stage !== 'SERVED'))
+      .filter(
+        (tk) =>
+          tk.status !== "COMPLETED" &&
+          tk.items.some((it) => it.stage !== "SERVED"),
+      )
       .map((tk) => ({
         ticketId: tk.id,
-        ticketNum: tk.id.replace('KDS-', ''),
-        table: `${formatKdsTableNumber(tk.tableNumber)}${tk.seatNumber ? ` • Chair ${tk.seatNumber}` : ''}`,
+        ticketNum: tk.id.replace("KDS-", ""),
+        table: `${formatKdsTableNumber(tk.tableNumber)}${tk.seatNumber ? ` • Chair ${tk.seatNumber}` : ""}`,
         time: ` (${tk.elapsedMinutes || 1}m)`,
         items: tk.items
-          .filter((it) => it.stage !== 'SERVED')
-          .map((it) => `${it.quantity}x ${it.name}${it.seatNumber ? ` [Chair ${it.seatNumber}]` : ''}`),
+          .filter((it) => it.stage !== "SERVED")
+          .map(
+            (it) =>
+              `${it.quantity}x ${it.name}${it.seatNumber ? ` [Chair ${it.seatNumber}]` : ""}`,
+          ),
       }));
   }, [bridgeTickets]);
-
 
   return (
     <KitchenTabletHousing
@@ -310,8 +332,8 @@ export const ScreenK2Overview: React.FC = () => {
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-2.5 py-1 rounded border font-mono text-[10.5px] font-black transition whitespace-nowrap ${
                   selectedCategory === cat
-                    ? 'bg-[#E8722E] text-white border-[#E8722E]'
-                    : 'bg-[#FBF7F0] text-slate-700 border-[#EFE6DA] hover:bg-[#FFF4EC]'
+                    ? "bg-[#E8722E] text-white border-[#E8722E]"
+                    : "bg-[#FBF7F0] text-slate-700 border-[#EFE6DA] hover:bg-[#FFF4EC]"
                 }`}
               >
                 {cat}
@@ -348,7 +370,7 @@ export const ScreenK2Overview: React.FC = () => {
           ) : (
             <div
               className="flex gap-2.5 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-400 scrollbar-track-slate-200"
-              style={{ scrollbarWidth: 'thin' }}
+              style={{ scrollbarWidth: "thin" }}
             >
               {bulkAggregation.map((b, idx) => {
                 return (
@@ -378,6 +400,40 @@ export const ScreenK2Overview: React.FC = () => {
                         </span>
                       </div>
                     </div>
+
+                    {/* Quick Bulk Stage Advance Stepper */}
+                    {/* <div className="grid grid-cols-3 gap-1 pt-1.5 border-t border-[#EFE6DA] font-mono text-[8.5px] font-black">
+                      <button
+                        onClick={() => kitchenSetBulkItemStage(b.name, 'RECEIVED')}
+                        className={`py-1 rounded text-center transition border ${
+                          b.currentStage === 'RECEIVED'
+                            ? 'bg-[#E8722E] text-white border-[#E8722E]'
+                            : 'bg-[#FBF7F0] text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
+                        }`}
+                      >
+                        1. REC
+                      </button>
+                      <button
+                        onClick={() => kitchenSetBulkItemStage(b.name, 'PREP')}
+                        className={`py-1 rounded text-center transition border ${
+                          b.currentStage === 'PREPARING'
+                            ? 'bg-[#E8722E] text-white border-[#E8722E]'
+                            : 'bg-[#FBF7F0] text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
+                        }`}
+                      >
+                        2. COOK
+                      </button>
+                      <button
+                        onClick={() => kitchenSetBulkItemStage(b.name, 'PLATED')}
+                        className={`py-1 rounded text-center transition border ${
+                          b.currentStage === 'READY'
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-[#FBF7F0] text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
+                        }`}
+                      >
+                        3. READY
+                      </button>
+                    </div> */}
                   </div>
                 );
               })}
@@ -400,7 +456,8 @@ export const ScreenK2Overview: React.FC = () => {
                   ALL ORDERS CLEARED • KITCHEN PASS READY
                 </span>
                 <span className="font-mono text-[11px] text-slate-400">
-                  Live orders from Waiter Mobile or tables will appear here in real time
+                  Live orders from Waiter Mobile or tables will appear here in
+                  real time
                 </span>
               </div>
             ) : (
@@ -416,10 +473,10 @@ export const ScreenK2Overview: React.FC = () => {
                       onClick={() => handleOpenTable(tbl.id, tbl.tableNumber)}
                       className={`border-2 rounded-xl p-3 cursor-pointer transition flex flex-col justify-between shadow-xs hover:shadow-sm min-w-0 ${
                         isAging
-                          ? 'bg-rose-50/40 border-rose-400 ring-1 ring-rose-300'
+                          ? "bg-rose-50/40 border-rose-400 ring-1 ring-rose-300"
                           : isWarning
-                          ? 'bg-amber-50/40 border-amber-400'
-                          : 'bg-white border-[#EFE6DA]'
+                            ? "bg-amber-50/40 border-amber-400"
+                            : "bg-white border-[#EFE6DA]"
                       }`}
                     >
                       <div className="min-w-0">
@@ -430,13 +487,15 @@ export const ScreenK2Overview: React.FC = () => {
                           <span
                             className={`font-mono text-[10px] font-bold flex items-center gap-1 whitespace-nowrap shrink-0 px-1.5 py-0.5 rounded ${
                               isAging
-                                ? 'bg-rose-600 text-white animate-pulse'
+                                ? "bg-rose-600 text-white animate-pulse"
                                 : isWarning
-                                ? 'bg-amber-100 text-amber-900 border border-amber-300'
-                                : 'text-slate-700'
+                                  ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                  : "text-slate-700"
                             }`}
                           >
-                            <Clock className={`h-3 w-3 shrink-0 ${isAging ? 'text-white' : 'text-[#E8722E]'}`} />
+                            <Clock
+                              className={`h-3 w-3 shrink-0 ${isAging ? "text-white" : "text-[#E8722E]"}`}
+                            />
                             <span>
                               {tbl.elapsedMinutes}m (KOT #{shortKot})
                             </span>
@@ -467,14 +526,14 @@ export const ScreenK2Overview: React.FC = () => {
                                   )}
                                 </div>
                                 <span className="font-mono text-[8.5px] font-bold bg-white border border-[#EFE6DA] px-1.5 py-0.5 rounded text-slate-800 shrink-0">
-                                  STAGE{' '}
-                                  {it.stage === 'RECEIVED'
-                                    ? '1: RECEIVED'
-                                    : it.stage === 'PREPARING'
-                                    ? '2: PREPARING'
-                                    : it.stage === 'READY'
-                                    ? '3: READY'
-                                    : 'NEW ORDER'}
+                                  STAGE{" "}
+                                  {it.stage === "RECEIVED"
+                                    ? "1: RECEIVED"
+                                    : it.stage === "PREPARING"
+                                      ? "2: PREPARING"
+                                      : it.stage === "READY"
+                                        ? "3: READY"
+                                        : "NEW ORDER"}
                                 </span>
                               </div>
                               {it.options && (
@@ -503,13 +562,12 @@ export const ScreenK2Overview: React.FC = () => {
                                 </div>
                               )}
 
-
                               <div className="grid grid-cols-3 gap-1 pt-0.5 font-mono text-[9px] font-black">
                                 {STAGE_STEPS.map((stg, sIdx) => {
                                   const isActive = it.stage === stg;
                                   const stgIdx = STAGE_STEPS.indexOf(stg);
                                   const curIdx = STAGE_STEPS.indexOf(
-                                    it.stage as any
+                                    it.stage as any,
                                   );
                                   const isPast = stgIdx < curIdx;
                                   return (
@@ -521,10 +579,10 @@ export const ScreenK2Overview: React.FC = () => {
                                       }}
                                       className={`py-1.5 rounded text-center transition border ${
                                         isActive
-                                          ? 'bg-[#E8722E] text-white border-[#E8722E] shadow-2xs'
+                                          ? "bg-[#E8722E] text-white border-[#E8722E] shadow-2xs"
                                           : isPast
-                                          ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                                          : 'bg-white text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]'
+                                            ? "bg-emerald-100 text-emerald-700 border-emerald-300"
+                                            : "bg-white text-slate-600 border-[#EFE6DA] hover:bg-[#FFF4EC]"
                                       }`}
                                     >
                                       {STAGE_LABELS[sIdx]}
@@ -569,33 +627,37 @@ export const ScreenK2Overview: React.FC = () => {
                 {timeQueueTickets.length === 0 ? (
                   <div className="py-12 flex flex-col items-center justify-center text-slate-400 text-center gap-1 font-mono text-[11px]">
                     <Clock className="h-6 w-6 text-slate-300" />
-                    <span className="font-bold text-slate-500">NO TIMED ORDERS</span>
-                    <span className="text-[10px] text-slate-400">All table tickets completed</span>
+                    <span className="font-bold text-slate-500">
+                      NO TIMED ORDERS
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      All table tickets completed
+                    </span>
                   </div>
                 ) : (
                   timeQueueTickets.map((tq, idx) => (
-                  <div
-                    key={idx}
-                    onClick={() => handleOpenTable(tq.ticketId, tq.table)}
-                    className="p-2.5 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] cursor-pointer transition shadow-xs"
-                  >
-                    <div className="flex items-center justify-between mb-1 gap-2">
-                      <span className="font-mono text-xs font-black text-slate-900 whitespace-nowrap">
-                        #{getShortKot(tq.ticketNum)} • {tq.table}
-                      </span>
-                      <span className="font-mono text-[10px] font-bold text-slate-500 whitespace-nowrap shrink-0">
-                        {tq.time}
-                      </span>
-                    </div>
+                    <div
+                      key={idx}
+                      onClick={() => handleOpenTable(tq.ticketId, tq.table)}
+                      className="p-2.5 rounded-lg border border-[#EFE6DA] bg-[#FBF7F0] hover:bg-[#FFF4EC] cursor-pointer transition shadow-xs"
+                    >
+                      <div className="flex items-center justify-between mb-1 gap-2">
+                        <span className="font-mono text-xs font-black text-slate-900 whitespace-nowrap">
+                          #{getShortKot(tq.ticketNum)} • {tq.table}
+                        </span>
+                        <span className="font-mono text-[10px] font-bold text-slate-500 whitespace-nowrap shrink-0">
+                          {tq.time}
+                        </span>
+                      </div>
 
-                    <div className="space-y-0.5 font-mono text-[10px] text-slate-700">
-                      {tq.items.map((itLine, i) => (
-                        <div key={i} className="truncate">
-                          • {itLine}
-                        </div>
-                      ))}
+                      <div className="space-y-0.5 font-mono text-[10px] text-slate-700">
+                        {tq.items.map((itLine, i) => (
+                          <div key={i} className="truncate">
+                            • {itLine}
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
                   ))
                 )}
               </div>

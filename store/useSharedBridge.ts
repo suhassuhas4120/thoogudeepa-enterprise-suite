@@ -797,8 +797,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     set((state) => {
       const newTickets = state.kdsTickets.map((t) => {
         if (t.id !== ticketId) return t;
-        const newItems = t.items.map((it) => {
-          if (it.id !== itemId) return it;
+        const newItems = t.items.map((rawIt) => {
+          if (rawIt.id !== itemId) return rawIt;
+          const it = (rawIt.stage as string) === 'RECEIVED' ? { ...rawIt, stage: 'PLACED' as OrderStage } : rawIt;
           const curIdx = stageOrder.indexOf(it.stage);
           const nextStage = curIdx < stageOrder.length - 1 ? stageOrder[curIdx + 1] : stageOrder[curIdx];
           return { ...it, stage: nextStage };
@@ -815,9 +816,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       // Update waiter table's activeItems stages without erasing other tickets' items
       const targetTicket = newTickets.find((tk) => tk.id === ticketId);
+      const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
       const updatedTables = targetTicket
         ? state.tables.map((tbl) => {
-            if (tbl.number !== targetTicket.tableNumber) return tbl;
+            const isMatch = cleanTbl(tbl.number) === cleanTbl(targetTicket.tableNumber) || tbl.number === targetTicket.tableNumber;
+            if (!isMatch) return tbl;
             return {
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
@@ -883,9 +886,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       // Update waiter table's activeItems stages without erasing other tickets' items
       const targetTicket = newTickets.find((tk) => tk.id === ticketId || tk.items.some((i) => i.id === itemId));
+      const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
       const updatedTables = targetTicket
         ? state.tables.map((tbl) => {
-            if (tbl.number !== targetTicket.tableNumber) return tbl;
+            const isMatch = cleanTbl(tbl.number) === cleanTbl(targetTicket.tableNumber) || tbl.number === targetTicket.tableNumber;
+            if (!isMatch) return tbl;
             return {
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
@@ -955,8 +960,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       });
 
       // Update activeItems on all matching tables without erasing other tickets' items
+      const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
       const updatedTables = state.tables.map((tbl) => {
-        const tableTickets = newTickets.filter((tk) => tk.tableNumber === tbl.number);
+        const tableTickets = newTickets.filter((tk) => cleanTbl(tk.tableNumber) === cleanTbl(tbl.number) || tk.tableNumber === tbl.number);
         if (tableTickets.length === 0) return tbl;
         const allTicketItems = tableTickets.flatMap((tk) => tk.items);
         return {
@@ -1009,9 +1015,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const prevTables = get().tables;
 
     set((state) => {
-      const targetTicket = state.kdsTickets.find((t) => t.id === ticketId);
+      const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const targetTicket = state.kdsTickets.find((t) => t.id === ticketId || cleanTbl(t.tableNumber) === cleanTbl(ticketId));
+      const targetId = targetTicket ? targetTicket.id : ticketId;
       const newTickets = state.kdsTickets.map((t) => {
-        if (t.id !== ticketId) return t;
+        if (t.id !== targetId && t.id !== ticketId) return t;
         return {
           ...t,
           status: 'READY' as const, // status: 'READY',
@@ -1021,7 +1029,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       const updatedTables = targetTicket
         ? state.tables.map((tbl) => {
-            if (tbl.number !== targetTicket.tableNumber) return tbl;
+            const isMatch = cleanTbl(tbl.number) === cleanTbl(targetTicket.tableNumber) || tbl.number === targetTicket.tableNumber;
+            if (!isMatch) return tbl;
             return {
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
@@ -2415,26 +2424,23 @@ if (typeof window !== 'undefined') {
       return t;
     });
 
-    // Always filter COMPLETED tickets and orphan tickets for vacant tables
-    const liveTickets = Array.isArray(parsed.kdsTickets)
-      ? (parsed.kdsTickets as SharedKDSTicket[])
-          .filter((tk) => {
-            if (!tk || tk.status === 'COMPLETED') return false;
-            const c = cleanNum(tk.tableNumber);
-            const norm = `T-${String(parseInt(c, 10) || 1).padStart(2, '0')}`;
-            return activeTableNums.has(tk.tableNumber) || activeTableNums.has(c) || activeTableNums.has(norm);
-          })
-          .map((tk, idx) => {
-            if (!tk.id || typeof tk.id !== 'string' || tk.id.includes('NaN')) {
-              return { ...tk, id: `KDS-${Date.now().toString().slice(-4)}-${idx + 1}-${Math.floor(100 + Math.random() * 900)}` };
-            }
-            return tk;
-          })
-      : cur.kdsTickets.filter((tk) => {
-          const c = cleanNum(tk.tableNumber);
-          const norm = `T-${String(parseInt(c, 10) || 1).padStart(2, '0')}`;
-          return activeTableNums.has(tk.tableNumber) || activeTableNums.has(c) || activeTableNums.has(norm);
-        });
+    // Always filter COMPLETED tickets and orphan tickets for vacant tables; deduplicate by ticket ID
+    const seenTicketIds = new Set<string>();
+    const liveTickets = (Array.isArray(parsed.kdsTickets) ? (parsed.kdsTickets as SharedKDSTicket[]) : cur.kdsTickets)
+      .filter((tk) => {
+        if (!tk || tk.status === 'COMPLETED') return false;
+        if (tk.id && seenTicketIds.has(tk.id)) return false;
+        if (tk.id) seenTicketIds.add(tk.id);
+        const c = cleanNum(tk.tableNumber);
+        const norm = `T-${String(parseInt(c, 10) || 1).padStart(2, '0')}`;
+        return activeTableNums.has(tk.tableNumber) || activeTableNums.has(c) || activeTableNums.has(norm);
+      })
+      .map((tk, idx) => {
+        if (!tk.id || typeof tk.id !== 'string' || tk.id.includes('NaN')) {
+          return { ...tk, id: `KDS-${Date.now().toString().slice(-4)}-${idx + 1}-${Math.floor(100 + Math.random() * 900)}` };
+        }
+        return tk;
+      });
 
     // Validate shiftStats shape before accepting
     const rawStats = parsed.shiftStats as Partial<typeof cur.shiftStats> | undefined;
@@ -2464,10 +2470,36 @@ if (typeof window !== 'undefined') {
         ? (parsed.kitchenNotifications as typeof cur.kitchenNotifications)
         : cur.kitchenNotifications,
     };
+
+    // Prevent recursive setState loops and "Maximum update depth exceeded":
+    // If incoming state is completely identical to in-memory state, skip calling setState
+    const tablesUnchanged = JSON.stringify(cur.tables) === JSON.stringify(sanitizedTables);
+    const ticketsUnchanged = JSON.stringify(cur.kdsTickets) === JSON.stringify(liveTickets);
+    const pingsUnchanged = JSON.stringify(cur.pings) === JSON.stringify(incoming.pings);
+    const invUnchanged = JSON.stringify(cur.inventory86) === JSON.stringify(incoming.inventory86);
+    const statsUnchanged = JSON.stringify(cur.shiftStats) === JSON.stringify(incoming.shiftStats);
+    const billsUnchanged = JSON.stringify(cur.settledBills) === JSON.stringify(incoming.settledBills);
+    const sessionsUnchanged = JSON.stringify(cur.activeSettlementSessions) === JSON.stringify(incoming.activeSettlementSessions);
+
+    if (
+      tablesUnchanged &&
+      ticketsUnchanged &&
+      pingsUnchanged &&
+      invUnchanged &&
+      statsUnchanged &&
+      billsUnchanged &&
+      sessionsUnchanged
+    ) {
+      return;
+    }
+
     if (suppressBroadcast) {
       isBroadcasting = true;
-      useSharedBridge.setState(incoming);
-      isBroadcasting = false;
+      try {
+        useSharedBridge.setState(incoming);
+      } finally {
+        isBroadcasting = false;
+      }
     } else {
       useSharedBridge.setState(incoming);
     }
@@ -3046,26 +3078,30 @@ if (typeof window !== 'undefined') {
         .subscribe();
     } catch {}
 
+    let lastSavedJson = '';
     useSharedBridge.subscribe((state) => {
-      // Save state to localStorage on every change (persistence + cross-device fallback)
-      try {
-        localStorage.setItem(
-          BRIDGE_STORAGE_KEY,
-          JSON.stringify({
-            tables: state.tables,
-            kdsTickets: state.kdsTickets,
-            pings: state.pings,
-            inventory86: state.inventory86,
-            shiftStats: state.shiftStats,
-            settledBills: state.settledBills,
-            activeSettlementSessions: state.activeSettlementSessions,
-            // kitchenNotifications intentionally NOT persisted (session-only)
-          })
-        );
-      } catch {}
-
-      // Only broadcast if this change was NOT caused by an incoming broadcast
+      // Only broadcast and sync to storage if this change was NOT caused by an incoming broadcast
       if (isBroadcasting) return;
+
+      const stateJson = JSON.stringify({
+        tables: state.tables,
+        kdsTickets: state.kdsTickets,
+        pings: state.pings,
+        inventory86: state.inventory86,
+        shiftStats: state.shiftStats,
+        settledBills: state.settledBills,
+        activeSettlementSessions: state.activeSettlementSessions,
+        // kitchenNotifications intentionally NOT persisted (session-only)
+      });
+
+      // Avoid redundant disk writes to localStorage
+      if (stateJson !== lastSavedJson) {
+        lastSavedJson = stateJson;
+        try {
+          localStorage.setItem(BRIDGE_STORAGE_KEY, stateJson);
+        } catch {}
+      }
+
       try {
         syncChannel?.postMessage({
           type: 'SYNC_STATE',

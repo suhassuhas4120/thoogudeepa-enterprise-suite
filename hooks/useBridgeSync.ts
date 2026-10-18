@@ -31,6 +31,8 @@ import { supabase, getSyncBroadcastChannel } from '../lib/supabase';
 import { useSharedBridge, type SharedTable } from '../store/useSharedBridge';
 import { useCustomerStore } from '../store/useCustomerStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
+import { isPingLocallyResolved, markPingLocallyResolved } from '../lib/settlementStore';
+export { markPingLocallyResolved, isPingLocallyResolved };
 
 // ── Supabase row shapes (only fields we need) ────────────────────────
 
@@ -317,6 +319,14 @@ async function reconcileAllState(): Promise<void> {
           }
         } catch {}
       } else if (row.status === 'PENDING') {
+        const cleanT = (row.table_number || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+        const normTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+        const compositeKey = `${normTable}-S${row.seat_number || 1}-${row.type}`;
+        if (isPingLocallyResolved(row.id) || isPingLocallyResolved(compositeKey)) {
+          // This ping was recently resolved locally; do not resurrect it from DB read lag
+          return;
+        }
+
         nextPings.push({
           id: row.id,
           tableNumber: row.table_number,
@@ -337,9 +347,24 @@ async function reconcileAllState(): Promise<void> {
 
     useSharedBridge.setState((prev) => ({
       tables: mappedTables,
-      kdsTickets: mappedTickets,
+      kdsTickets: (() => {
+        const dbIds = new Set((mappedTickets || []).map((t) => t.id));
+        // Retain optimistic in-memory tickets created in the last 20 seconds that haven't hit DB yet
+        const pendingOptimistic = (prev.kdsTickets || []).filter((tk) => {
+          if (!tk || tk.status === 'COMPLETED') return false;
+          if (dbIds.has(tk.id)) return false;
+          return true;
+        });
+        return [...mappedTickets, ...pendingOptimistic];
+      })(),
       inventory86: nextInventory,
-      pings: nextPings,
+      pings: (() => {
+        const dbPingIds = new Set(nextPings.map((p) => p.id));
+        const pendingLocal = (prev.pings || []).filter(
+          (p) => p && p.status === 'PENDING' && !dbPingIds.has(p.id)
+        );
+        return [...nextPings, ...pendingLocal];
+      })(),
       activeSettlementSessions: {
         ...(prev.activeSettlementSessions || {}),
         ...activeSessionsFromDb,

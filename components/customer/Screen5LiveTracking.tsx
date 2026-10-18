@@ -331,11 +331,17 @@ export const Screen5LiveTracking: React.FC = () => {
     });
 
     // Supplement with supabase items and reconcile stages
+    const matchedBridgeIds = new Set<string>();
+
     supabaseItems.forEach((si) => {
       const existing = combinedTicketItems.find(
-        (ci) => ci.id === si.id || (getCanonicalKey(ci.name) === getCanonicalKey(si.name) && (!ci.ticketId || !si.ticketId || ci.ticketId === si.ticketId))
+        (ci) =>
+          !matchedBridgeIds.has(ci.id) &&
+          (ci.id === si.id ||
+            getCanonicalKey(ci.name) === getCanonicalKey(si.name))
       );
       if (existing) {
+        matchedBridgeIds.add(existing.id);
         // Reconcile: advance to the furthest stage reported
         const existingIdx = getDishStageIdx(existing.stage, existing.id);
         const supabaseIdx = getDishStageIdx(si.stage, si.id);
@@ -343,18 +349,27 @@ export const Screen5LiveTracking: React.FC = () => {
           existing.stage = si.stage;
         }
       } else {
-        combinedTicketItems.push({
-          id: si.id,
-          ticketId: si.ticketId,
-          name: si.name,
-          quantity: si.quantity,
-          stage: si.stage,
-          prepMode: 'Military Dum Handi',
-          options: si.options,
-          addOns: si.addOns,
-          notes: si.notes,
-          seatNumber: effectiveSeat,
-        });
+        const alreadyCoveredCount = combinedTicketItems.filter(
+          (ci) => getCanonicalKey(ci.name) === getCanonicalKey(si.name)
+        ).length;
+        const supabaseMatchingCount = supabaseItems.filter(
+          (i) => getCanonicalKey(i.name) === getCanonicalKey(si.name)
+        ).length;
+
+        if (alreadyCoveredCount < supabaseMatchingCount) {
+          combinedTicketItems.push({
+            id: si.id,
+            ticketId: si.ticketId,
+            name: si.name,
+            quantity: si.quantity,
+            stage: si.stage,
+            prepMode: 'Military Dum Handi',
+            options: si.options,
+            addOns: si.addOns,
+            notes: si.notes,
+            seatNumber: effectiveSeat,
+          });
+        }
       }
     });
 
@@ -459,12 +474,12 @@ export const Screen5LiveTracking: React.FC = () => {
       }
     }
 
-    // Must be fresh and generated within current session
+    // Must be fresh and generated within current session after this order was placed
     if (candidate && candidate.timestamp) {
       const now = Date.now();
       const isRecent = Math.abs(now - candidate.timestamp) < 1800000;
       const effectiveOrderTime = orderPlacedAt && orderPlacedAt > 0 ? orderPlacedAt : 0;
-      const isAfterOrder = effectiveOrderTime > 0 ? candidate.timestamp >= effectiveOrderTime - 5000 : isRecent;
+      const isAfterOrder = effectiveOrderTime > 0 ? candidate.timestamp >= effectiveOrderTime - 2000 : false;
       if (isRecent && isAfterOrder) {
         return candidate;
       }
@@ -500,9 +515,18 @@ export const Screen5LiveTracking: React.FC = () => {
             const sessionsChanged = JSON.stringify(currentBridge.activeSettlementSessions) !== JSON.stringify(data.sessions || {});
             const billsChanged = JSON.stringify(currentBridge.settledBills) !== JSON.stringify(data.settledBills || {});
             if (sessionsChanged || billsChanged) {
+              const cleanedBills = { ...(data.settledBills || {}) };
+              const custState = useCustomerStore.getState();
+              if (custState.orderPlacedAt && custState.orderPlacedAt > 0) {
+                Object.keys(cleanedBills).forEach((k) => {
+                  if (cleanedBills[k]?.timestamp && cleanedBills[k].timestamp < custState.orderPlacedAt - 2000) {
+                    delete cleanedBills[k];
+                  }
+                });
+              }
               useSharedBridge.setState({
                 activeSettlementSessions: data.sessions || {},
-                settledBills: data.settledBills || {},
+                settledBills: cleanedBills,
               });
             }
           }

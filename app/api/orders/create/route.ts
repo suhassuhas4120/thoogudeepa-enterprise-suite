@@ -328,7 +328,7 @@ export async function POST(req: NextRequest) {
       const timestamp = Date.now();
       const cleanTable = tableNumber.replace(/[^a-zA-Z0-9]/g, '');
       const orderId = `ORD-${cleanTable}-S${seatNumber}-${timestamp.toString().slice(-6)}`;
-      const ticketId = `KOT-${cleanTable}-${timestamp.toString().slice(-4)}`;
+      const ticketId = body.clientOrderId || body.idempotencyKey || `KOT-${cleanTable}-${timestamp.toString().slice(-4)}`;
 
       const nowIso = new Date().toISOString();
 

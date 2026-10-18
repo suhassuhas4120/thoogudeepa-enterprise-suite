@@ -76,3 +76,16 @@ export function clearSettledBillInMemory(tableNumber: string, seatNumber?: numbe
     }
   }
 }
+
+// Global in-memory map of locally resolved ping IDs and composite keys
+const resolvedPingsMap = new Map<string, number>();
+
+export function markPingLocallyResolved(pingIdOrKey: string) {
+  resolvedPingsMap.set(pingIdOrKey, Date.now());
+}
+
+export function isPingLocallyResolved(pingIdOrKey: string): boolean {
+  const at = resolvedPingsMap.get(pingIdOrKey);
+  if (!at) return false;
+  return Math.abs(Date.now() - at) < 20000;
+}

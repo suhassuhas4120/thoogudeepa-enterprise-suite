@@ -188,9 +188,18 @@ export default function WaiterMobilePage() {
   const audioCtxRef = useRef<any>(null);
 
   useEffect(() => {
-    const unchimedPings = activePings.filter((p) => !chimedPingIdsRef.current.has(p.id));
+    const cleanT = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const unchimedPings = activePings.filter((p) => {
+      const semanticKey = `${cleanT(p.tableNumber)}-S${p.seatNumber || 1}-${p.type}`;
+      return !chimedPingIdsRef.current.has(p.id) && !chimedPingIdsRef.current.has(semanticKey);
+    });
+
     if (unchimedPings.length > 0 && activePings.length > prevPingCountRef.current) {
-      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
+      unchimedPings.forEach((p) => {
+        chimedPingIdsRef.current.add(p.id);
+        const semanticKey = `${cleanT(p.tableNumber)}-S${p.seatNumber || 1}-${p.type}`;
+        chimedPingIdsRef.current.add(semanticKey);
+      });
       try {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         if (AudioCtx) {
@@ -215,7 +224,11 @@ export default function WaiterMobilePage() {
         }
       } catch {}
     } else {
-      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
+      unchimedPings.forEach((p) => {
+        chimedPingIdsRef.current.add(p.id);
+        const semanticKey = `${cleanT(p.tableNumber)}-S${p.seatNumber || 1}-${p.type}`;
+        chimedPingIdsRef.current.add(semanticKey);
+      });
     }
     prevPingCountRef.current = activePings.length;
   }, [activePings]);

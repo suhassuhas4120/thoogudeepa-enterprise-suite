@@ -6,6 +6,7 @@ import { OrderStage } from '../types/customer';
 import { broadcastStateChange, supabase } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
 import { useManagerStore } from './useManagerStore';
+import { markPingLocallyResolved } from '../lib/settlementStore';
 
 
 export interface SharedKDSItem {
@@ -590,7 +591,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     // 3. Persist to Supabase
     bridgePost(
       '/api/pings/create',
-      { tableNumber: normalizedTable, seatNumber: seatNumber || 1, type, guestName, message: msg || '' },
+      { pingId: ping.id, id: ping.id, tableNumber: normalizedTable, seatNumber: seatNumber || 1, type, guestName, message: msg || '' },
       () => {
         console.error('[Bridge] customerPingsWaiter rollback');
         useSharedBridge.setState({ pings: prevPings });
@@ -653,6 +654,11 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       tableNumber: normTable,
       seatNumber: snapshot.seatNumber,
     });
+
+    markPingLocallyResolved(`${normTable}-S${snapshot.seatNumber || 1}-PAYMENT`);
+    markPingLocallyResolved(`${normTable}-S${snapshot.seatNumber || 1}-BILL`);
+    markPingLocallyResolved(`${normTable}-PAYMENT`);
+    markPingLocallyResolved(`${normTable}-BILL`);
 
     bridgePost('/api/settlement/session', {
       action: 'RECORD_BILL',
@@ -1556,6 +1562,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const targetPing = prevPings.find((p) => p.id === pingId);
 
     // 1. Optimistic: remove ping immediately from UI
+    markPingLocallyResolved(pingId);
     set((state) => ({ pings: state.pings.filter((p) => p.id !== pingId) }));
 
     const resolvedPayload = {
@@ -1673,8 +1680,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       }
     }
 
+    const normTblKey = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+    markPingLocallyResolved(`${normTblKey}-S${seatNumber || 1}-PAYMENT`);
+    markPingLocallyResolved(`${normTblKey}-S${seatNumber || 1}-BILL`);
+    markPingLocallyResolved(`${normTblKey}-PAYMENT`);
+    markPingLocallyResolved(`${normTblKey}-BILL`);
+
     broadcastStateChange('paymentPingsResolved', {
-      tableNumber: `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`,
+      tableNumber: normTblKey,
       seatNumber,
     });
   },

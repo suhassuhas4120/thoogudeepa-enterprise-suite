@@ -205,15 +205,23 @@ export default function WaiterTabletPage() {
       return;
     }
 
-    const unchimedPings = activePings.filter(
-      (p) => !chimedPingIdsRef.current.has(p.id)
-    );
+    const cleanT = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+
+    // Check by both ping.id AND semantic key (table + seat + type) to prevent duplicate chimes
+    const unchimedPings = activePings.filter((p) => {
+      const semanticKey = `${cleanT(p.tableNumber)}-S${p.seatNumber || 1}-${p.type}`;
+      return !chimedPingIdsRef.current.has(p.id) && !chimedPingIdsRef.current.has(semanticKey);
+    });
 
     if (unchimedPings.length > 0 && activePings.length > prevPingRef.current) {
-      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
+      unchimedPings.forEach((p) => {
+        chimedPingIdsRef.current.add(p.id);
+        const semanticKey = `${cleanT(p.tableNumber)}-S${p.seatNumber || 1}-${p.type}`;
+        chimedPingIdsRef.current.add(semanticKey);
+      });
 
-      // Do not interrupt with sliding drawer if waiter is actively processing payment
-      if (rightPanelTab !== "payment") {
+      // Do not interrupt with sliding drawer if waiter is actively processing payment or viewing table detail
+      if (rightPanelTab !== "payment" && view === "floor") {
         setCallsOpen(true);
       }
 
@@ -239,7 +247,11 @@ export default function WaiterTabletPage() {
         }
       } catch {}
     } else {
-      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
+      unchimedPings.forEach((p) => {
+        chimedPingIdsRef.current.add(p.id);
+        const semanticKey = `${cleanT(p.tableNumber)}-S${p.seatNumber || 1}-${p.type}`;
+        chimedPingIdsRef.current.add(semanticKey);
+      });
     }
     prevPingRef.current = activePings.length;
   }, [activePings, view, rightPanelTab]);

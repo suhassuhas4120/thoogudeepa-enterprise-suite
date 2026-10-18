@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     const timestamp = Date.now();
     const cleanTable = tableNumber.replace(/[^a-zA-Z0-9]/g, '');
     const randSuffix = Math.random().toString(36).slice(2, 6);
-    const pingId = `PING-${cleanTable}-S${seatNumber}-${timestamp}-${randSuffix}`;
+    const pingId = body.pingId || body.id || `PING-${cleanTable}-S${seatNumber}-${timestamp}-${randSuffix}`;
 
     const { error: insertErr } = await supabase.from('pings').insert({
       id: pingId,

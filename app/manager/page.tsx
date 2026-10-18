@@ -1,269 +1,209 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import Link from 'next/link';
+import React, { useState, useEffect } from 'react';
 import { useManagerStore } from '../../store/useManagerStore';
 import { ManagerScreenId } from '../../types/manager';
 
 // Screens
 import { ScreenM1Login } from '../../components/manager/ScreenM1Login';
 import { ScreenM2LiveOverview } from '../../components/manager/ScreenM2LiveOverview';
-import { ScreenM3FloorPlan } from '../../components/manager/ScreenM3FloorPlan';
 import { ScreenM4BillingPOS } from '../../components/manager/ScreenM4BillingPOS';
 import { ScreenM5KitchenSpeed } from '../../components/manager/ScreenM5KitchenSpeed';
-import { ScreenM6WaitingQueue } from '../../components/manager/ScreenM6WaitingQueue';
-import { ScreenM7StaffRoster } from '../../components/manager/ScreenM7StaffRoster';
-import { ScreenM8CallsAlerts } from '../../components/manager/ScreenM8CallsAlerts';
 import { ScreenM9WaiterCash } from '../../components/manager/ScreenM9WaiterCash';
 import { ScreenM10Menu86Stock } from '../../components/manager/ScreenM10Menu86Stock';
 import { ScreenM11SalesReport } from '../../components/manager/ScreenM11SalesReport';
-import { ScreenM12OffersRules } from '../../components/manager/ScreenM12OffersRules';
 import { ScreenM13PettyExpenses } from '../../components/manager/ScreenM13PettyExpenses';
-import { ScreenM14AttendanceTips } from '../../components/manager/ScreenM14AttendanceTips';
-import { ScreenM15PrinterHealth } from '../../components/manager/ScreenM15PrinterHealth';
-import { ScreenM16DayCloseZReport } from '../../components/manager/ScreenM16DayCloseZReport';
-import { ScreenMAudit1000 } from '../../components/manager/ScreenMAudit1000';
 
-import {
-  Briefcase,
-  LayoutGrid,
-  Tablet,
-  Users,
-  Utensils,
-  Flame,
-  UserCheck,
-  Clock,
-  ShieldCheck,
-  CheckCircle2,
-  Lock,
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+  resetKey: number | string;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class ManagerScreenErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('Manager Screen error caught:', error, errorInfo);
+  }
+
+  componentDidUpdate(prevProps: ErrorBoundaryProps) {
+    if (prevProps.resetKey !== this.props.resetKey && this.state.hasError) {
+      this.setState({ hasError: false, error: undefined });
+    }
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="w-full max-w-md mx-auto my-12 p-6 bg-white border border-rose-300 rounded-xl shadow-sm text-center font-mono">
+          <div className="text-rose-600 text-sm font-bold mb-2">⚠️ Screen Display Notice</div>
+          <p className="text-xs text-slate-600 mb-4">
+            {this.state.error?.message || 'An unexpected rendering issue occurred on this screen.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => this.setState({ hasError: false, error: undefined })}
+            className="px-4 py-2 bg-[#9C3D1E] text-white text-xs font-bold rounded-lg hover:bg-orange-700 transition"
+          >
+            Retry Screen
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const TAB_ITEMS: { id: ManagerScreenId; name: string }[] = [
+  { id: 1, name: '01. Login & Float' },
+  { id: 2, name: '02. Live Overview' },
+  { id: 3, name: '03. Billing & POS' },
+  { id: 4, name: '04. Kitchen & Notifications' },
+  { id: 5, name: '05. Waiter Cash & Tips' },
+  { id: 6, name: '06. Menu Stocks & Offers' },
+  { id: 7, name: '07. Sales Report' },
+  { id: 8, name: '08. Petty Expenses & Cash Counter' },
+];
 
 export default function ManagerPortalPage() {
-  const {
-    currentScreen,
-    setCurrentScreen,
-    viewMode,
-    setViewMode,
-    activeManager,
-    activeShift,
-    logout,
-  } = useManagerStore();
+  const currentScreen = useManagerStore((s) => s.currentScreen);
+  const setCurrentScreen = useManagerStore((s) => s.setCurrentScreen);
 
-  const [timeString, setTimeString] = useState('');
+  // Local state ensures 100% synchronous reactivity in client rendering
+  const [activeTab, setActiveTab] = useState<ManagerScreenId>(currentScreen || 1);
 
+  // Read URL query parameter (?screen=N, ?screen-N, ?tab=N, or #N) on initial mount
   useEffect(() => {
-    const updateTime = () => {
-      setTimeString(
-        new Date().toLocaleTimeString('en-IN', {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      );
-    };
-    updateTime();
-    const interval = setInterval(updateTime, 1000);
-    return () => clearInterval(interval);
+    if (typeof window !== 'undefined') {
+      try {
+        const raw = (window.location.search || '') + ' ' + (window.location.hash || '');
+        const match = raw.match(/(?:screen|tab)[=-]?([1-8])/i) || raw.match(/[?#&]([1-8])\b/);
+        if (match && match[1]) {
+          const parsed = parseInt(match[1], 10);
+          if (parsed >= 1 && parsed <= 8) {
+            setActiveTab(parsed as ManagerScreenId);
+            setCurrentScreen(parsed as ManagerScreenId);
+            return;
+          }
+        }
+      } catch {
+        // ignore in SSR / non-browser environments
+      }
+    }
+    if (currentScreen >= 1 && currentScreen <= 8) {
+      setActiveTab(currentScreen);
+    }
   }, []);
 
-  const screens = [
-    { id: 1 as ManagerScreenId, name: '01. Login & Float', comp: <ScreenM1Login /> },
-    { id: 2 as ManagerScreenId, name: '02. Live Overview', comp: <ScreenM2LiveOverview /> },
-    { id: 3 as ManagerScreenId, name: '03. Floor Plan', comp: <ScreenM3FloorPlan /> },
-    { id: 4 as ManagerScreenId, name: '04. Billing & POS', comp: <ScreenM4BillingPOS /> },
-    { id: 5 as ManagerScreenId, name: '05. Kitchen Speed', comp: <ScreenM5KitchenSpeed /> },
-    { id: 6 as ManagerScreenId, name: '06. Waiting Queue', comp: <ScreenM6WaitingQueue /> },
-    { id: 7 as ManagerScreenId, name: '07. Staff Roster', comp: <ScreenM7StaffRoster /> },
-    { id: 8 as ManagerScreenId, name: '08. Calls & Alerts', comp: <ScreenM8CallsAlerts /> },
-    { id: 9 as ManagerScreenId, name: '09. Waiter Cash', comp: <ScreenM9WaiterCash /> },
-    { id: 10 as ManagerScreenId, name: '10. Menu 86 Stock', comp: <ScreenM10Menu86Stock /> },
-    { id: 11 as ManagerScreenId, name: '11. Sales Report', comp: <ScreenM11SalesReport /> },
-    { id: 12 as ManagerScreenId, name: '12. Offers & Rules', comp: <ScreenM12OffersRules /> },
-    { id: 13 as ManagerScreenId, name: '13. Petty Expenses', comp: <ScreenM13PettyExpenses /> },
-    { id: 14 as ManagerScreenId, name: '14. Attendance & Tips', comp: <ScreenM14AttendanceTips /> },
-    { id: 15 as ManagerScreenId, name: '15. Printer Health', comp: <ScreenM15PrinterHealth /> },
-    { id: 16 as ManagerScreenId, name: '16. Day Close Z-Report', comp: <ScreenM16DayCloseZReport /> },
-    { id: 17 as ManagerScreenId, name: '17. Resilience Deck (1,000)', comp: <ScreenMAudit1000 /> },
-  ];
+  // Sync activeTab whenever store currentScreen changes from sub-components
+  useEffect(() => {
+    if (currentScreen && currentScreen !== activeTab) {
+      setActiveTab(currentScreen);
+    }
+  }, [currentScreen]);
 
-  const renderActiveScreen = () => {
-    const s = screens.find((item) => item.id === currentScreen);
-    return s ? s.comp : <ScreenM1Login />;
+  const handleTabClick = (id: ManagerScreenId) => {
+    setActiveTab(id);
+    setCurrentScreen(id);
+    if (typeof window !== 'undefined') {
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('screen', id.toString());
+        window.history.replaceState(null, '', url.toString());
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const renderActiveScreen = (screenId: ManagerScreenId) => {
+    switch (screenId) {
+      case 1:
+        return <ScreenM1Login />;
+      case 2:
+        return <ScreenM2LiveOverview />;
+      case 3:
+        return <ScreenM4BillingPOS />;
+      case 4:
+        return <ScreenM5KitchenSpeed />;
+      case 5:
+        return <ScreenM9WaiterCash />;
+      case 6:
+        return <ScreenM10Menu86Stock />;
+      case 7:
+        return <ScreenM11SalesReport />;
+      case 8:
+        return <ScreenM13PettyExpenses />;
+      default:
+        return <ScreenM1Login />;
+    }
   };
 
   return (
-    <main className="manager-portal min-h-screen w-full overflow-x-hidden bg-[#FAF8F5] flex flex-col font-sans">
-      {/* Top Header Console */}
-      <header className="sticky top-0 z-40 flex flex-wrap items-center justify-between gap-4 border-b border-[#EAE5DF] bg-white/95 px-6 py-3 shadow-xs backdrop-blur-md">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#9C3D1E] text-white shadow-sm shadow-[#9C3D1E]/25">
-            <Briefcase className="h-5 w-5 fill-white" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-mono text-[10px] font-black uppercase tracking-wider text-slate-900 bg-[#FAF8F5] border border-slate-300 rounded-md px-1.5 py-0.5">
-                MANAGER PORTAL • OPERATIONS
-              </span>
-              <span className="font-mono text-[10px] font-bold text-slate-400">
-                THOOGUDEEPA DONNE BIRYANI MANE
-              </span>
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <h1 className="text-sm font-black tracking-tight text-slate-900 font-mono">
-                {activeManager.name}
-              </h1>
-              <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded">
-                [{activeShift.name}]
-              </span>
-              <span className="text-[10px] font-mono text-slate-400">
-                • {timeString} IST
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Global Multi-Portal Switcher */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs font-mono text-xs font-bold">
-            <Link
-              href="/"
-              className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-slate-600 hover:text-slate-900 transition"
-            >
-              <Utensils className="h-3.5 w-3.5" />
-              <span>CUSTOMER (10)</span>
-            </Link>
-            <Link
-              href="/kitchen"
-              className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-slate-600 hover:text-slate-900 transition"
-            >
-              <Flame className="h-3.5 w-3.5 text-orange-500" />
-              <span>KITCHEN (3)</span>
-            </Link>
-            <Link
-              href="/waiter"
-              className="flex items-center gap-1 rounded-xl px-3 py-1.5 text-slate-600 hover:text-slate-900 transition"
-            >
-              <UserCheck className="h-3.5 w-3.5 text-emerald-600" />
-              <span>WAITER (10)</span>
-            </Link>
-            <span className="rounded-xl bg-[#9C3D1E] text-white px-3 py-1.5 shadow-xs flex items-center gap-1">
-              <Briefcase className="h-3.5 w-3.5 fill-white" />
-              <span>MANAGER (17)</span>
+    <div className="manager-portal h-screen w-screen max-h-screen max-w-screen bg-[#EFECE6] text-slate-900 p-2.5 sm:p-3 md:p-4 box-border flex flex-col overflow-hidden font-sans">
+      {/* ── MASTER FRAMED APPLICATION SHELL (Matching Sketch: gap 1cm all sides, burnt orange border) ── */}
+      <div className="h-full w-full max-h-full bg-white text-slate-900 border-2 border-[#9C3D1E] rounded-2xl shadow-sm flex flex-col overflow-hidden">
+        
+        {/* ── SCREEN NAVIGATION TABS (Top of Frame matching sketch) ── */}
+        <nav
+          role="tablist"
+          aria-label="Manager Portal Navigation"
+          className="shrink-0 w-full border-b border-[#EAE5DF] bg-[#FAF8F5] px-3 sm:px-4 py-2 flex items-center gap-2 overflow-x-auto scrollbar-none font-mono text-slate-900"
+        >
+          <div className="flex items-center gap-2 pr-2 border-r border-[#EAE5DF] shrink-0">
+            <img
+              src="/assets/thoogudeepa-logo.png"
+              alt="Thoogudeepa Manager"
+              className="h-7 w-7 rounded-full object-cover border border-[#9C3D1E]/40"
+            />
+            <span className="text-[11px] font-black tracking-wider text-slate-900 uppercase hidden sm:inline">
+              Manager
             </span>
           </div>
+          {TAB_ITEMS.map((sc) => {
+            const isActive = activeTab === sc.id;
+            return (
+              <button
+                key={sc.id}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => handleTabClick(sc.id)}
+                className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-3 py-1.5 text-xs font-bold transition shrink-0 cursor-pointer select-none ${
+                  isActive
+                    ? 'border-[#9C3D1E] bg-[#9C3D1E] text-white shadow-xs'
+                    : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400 hover:bg-[#FAF8F5]'
+                }`}
+              >
+                <span>{sc.name}</span>
+              </button>
+            );
+          })}
+        </nav>
 
-          {/* Resilience Deck Quick Access */}
-          <button
-            onClick={() => {
-              setViewMode('single');
-              setCurrentScreen(17 as ManagerScreenId);
-            }}
-            className={`flex items-center gap-1.5 rounded-2xl px-3 py-1.5 text-xs font-mono font-bold transition border shadow-xs ${
-              currentScreen === 17
-                ? 'bg-emerald-800 text-white border-emerald-900'
-                : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-            }`}
-          >
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-            <span>RESILIENCE DECK (1,000)</span>
-          </button>
-
-          {/* View Mode Switcher */}
-          <div className="flex items-center gap-1 rounded-2xl border border-slate-200 bg-[#FAF8F5] p-1 shadow-xs">
-            <button
-              onClick={() => setViewMode('single')}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-mono font-bold transition ${
-                viewMode === 'single'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Tablet className="h-3.5 w-3.5" />
-              <span>STAGE FLOW</span>
-            </button>
-            <button
-              onClick={() => setViewMode('all')}
-              className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-mono font-bold transition ${
-                viewMode === 'all'
-                  ? 'bg-[#9C3D1E] text-white shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>ALL 17 SCREENS</span>
-            </button>
+        {/* ── ACTUAL PARTICULAR SCREEN CONTAINER (Internal Scrolling only) ── */}
+        <div className="flex-1 min-h-0 w-full bg-[#FAF8F5] p-2 sm:p-4 overflow-y-auto overflow-x-hidden">
+          <div className="w-full flex justify-center pb-6">
+            <div key={activeTab} className="w-full flex justify-center transition-all duration-150">
+              <ManagerScreenErrorBoundary resetKey={activeTab}>
+                {renderActiveScreen(activeTab)}
+              </ManagerScreenErrorBoundary>
+            </div>
           </div>
         </div>
-      </header>
-
-      {/* Screen Tabs Bar (1 to 16) */}
-      <nav className="w-full max-w-[1600px] mx-auto flex gap-1.5 overflow-x-auto px-6 xl:px-8 py-2.5 scrollbar-none font-mono">
-        {screens.map((sc) => {
-          const isActive = viewMode === 'single' && currentScreen === sc.id;
-          return (
-            <button
-              key={sc.id}
-              onClick={() => {
-                setCurrentScreen(sc.id);
-                if (viewMode !== 'single') setViewMode('single');
-              }}
-              className={`flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-1.5 text-xs font-bold transition ${
-                isActive
-                  ? 'border-[#9C3D1E] bg-[#9C3D1E] text-white shadow-xs'
-                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-[#FAF8F5]'
-              }`}
-            >
-              <span>{sc.name}</span>
-            </button>
-          );
-        })}
-      </nav>
-
-      {/* Main Viewport */}
-      <div className="flex-1 w-full py-4 px-2 sm:px-4 xl:px-8">
-        {viewMode === 'single' ? (
-          <div className="flex justify-center pb-12">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentScreen}
-                initial={{ opacity: 0, scale: 0.99, y: 6 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.99, y: -6 }}
-                transition={{ duration: 0.15 }}
-                className="w-full flex justify-center"
-              >
-                {renderActiveScreen()}
-              </motion.div>
-            </AnimatePresence>
-          </div>
-        ) : (
-          <div className="mx-auto w-full max-w-[1600px] px-0 sm:px-2 space-y-12 pb-24">
-            {screens.map((sc) => (
-              <div
-                key={sc.id}
-                className="bg-white border border-[#EAE5DF] rounded-2xl shadow-md overflow-hidden"
-              >
-                <div className="bg-[#1C1917] text-white px-5 py-3 flex items-center justify-between font-mono">
-                  <span className="font-bold text-sm">SCREEN {sc.name.toUpperCase()}</span>
-                  <button
-                    onClick={() => {
-                      setCurrentScreen(sc.id);
-                      setViewMode('single');
-                    }}
-                    className="bg-white text-slate-900 px-3 py-1 rounded text-xs font-bold hover:bg-[#FAF8F5] transition"
-                  >
-                    OPEN STAGE
-                  </button>
-                </div>
-                <div className="p-4 bg-[#FAF8F5]">
-                  {sc.comp}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
       </div>
-    </main>
+    </div>
   );
 }

@@ -8,6 +8,10 @@ export const metadata: Metadata = {
   title: 'Thoogudeepa Donne Biryani Mane',
   description: 'Authentic Donne Biryani - Dine-in, Takeaway & Table Ordering',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/assets/thoogudeepa-logo.png',
+    apple: '/assets/thoogudeepa-logo.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',

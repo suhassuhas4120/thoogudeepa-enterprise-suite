@@ -9,7 +9,12 @@ export default function WaiterIndexPage() {
     <main className="min-h-screen bg-[#FAF8F5] text-stone-900 flex flex-col items-center justify-center p-6 font-sans select-none">
       <div className="w-full max-w-md space-y-6">
         {/* Brand Header */}
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <img
+            src="/assets/thoogudeepa-logo.png"
+            alt="Thoogudeepa Donne Biryani Mane"
+            className="h-28 w-28 rounded-full object-cover shadow-xl border-4 border-[#D28835]/60 mb-2"
+          />
           <div className="inline-block px-3.5 py-1 bg-orange-50 border border-orange-200 text-[#9C3D1E] font-mono text-[10px] font-black uppercase tracking-widest rounded-full shadow-2xs">
             Floor Operations
           </div>

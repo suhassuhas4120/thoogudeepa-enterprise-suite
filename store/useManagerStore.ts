@@ -15,11 +15,12 @@ export const INITIAL_SHIFTS: ShiftInfo[] = [
 
 export const INITIAL_STAFF_ROSTER: StaffRosterMember[] = [
   { id: 'st-1', name: 'Captain Ramesh', role: 'Floor Captain', assignedSection: 'SECTION A (Ground AC)', tablesCount: 4, status: 'ACTIVE', phone: '+91 98450 11223', cashCollected: 3850, cashHandedOver: 3850 },
-  { id: 'st-2', name: 'Captain Suresh', role: 'Floor Captain', assignedSection: 'SECTION B (Family AC)', tablesCount: 3, status: 'ACTIVE', phone: '+91 98450 22334', cashCollected: 2450, cashHandedOver: 2000 },
+  { id: 'st-2', name: 'Captain Suresh', role: 'Floor Captain', assignedSection: 'SECTION B (Family AC)', tablesCount: 3, status: 'ACTIVE', phone: '+91 98450 22334', cashCollected: 3000, cashHandedOver: 2000 },
   { id: 'st-3', name: 'Captain Vijay', role: 'Floor Captain', assignedSection: 'SECTION C (Terrace VIP)', tablesCount: 1, status: 'ACTIVE', phone: '+91 98450 33445', cashCollected: 5200, cashHandedOver: 5200 },
-  { id: 'st-4', name: 'Kiran K.', role: 'Senior Waiter', assignedSection: 'SECTION A', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 44556', cashCollected: 1200, cashHandedOver: 1200 },
-  { id: 'st-5', name: 'Anand R.', role: 'Waiter', assignedSection: 'SECTION B', tablesCount: 2, status: 'ON BREAK', phone: '+91 98450 55667', cashCollected: 850, cashHandedOver: 850 },
-  { id: 'st-6', name: 'Sunil G.', role: 'Busboy', assignedSection: 'ALL SECTIONS', tablesCount: 8, status: 'ACTIVE', phone: '+91 98450 66778', cashCollected: 0, cashHandedOver: 0 },
+  { id: 'st-4', name: 'Captain Nayana', role: 'Floor Captain', assignedSection: 'SECTION C (Terrace VIP)', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 77889', cashCollected: 0, cashHandedOver: 0 },
+  { id: 'st-5', name: 'Kiran K.', role: 'Senior Waiter', assignedSection: 'SECTION A', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 44556', cashCollected: 1200, cashHandedOver: 1200 },
+  { id: 'st-6', name: 'Anand R.', role: 'Waiter', assignedSection: 'SECTION B', tablesCount: 2, status: 'ON BREAK', phone: '+91 98450 55667', cashCollected: 850, cashHandedOver: 850 },
+  { id: 'st-7', name: 'Sunil G.', role: 'Busboy', assignedSection: 'ALL SECTIONS', tablesCount: 8, status: 'ACTIVE', phone: '+91 98450 66778', cashCollected: 0, cashHandedOver: 0 },
 ];
 
 export const INITIAL_HARDWARE: HardwareDevice[] = [
@@ -32,9 +33,10 @@ export const INITIAL_HARDWARE: HardwareDevice[] = [
 ];
 
 export const INITIAL_PROMOS: PromoRule[] = [
-  { id: 'pr-1', code: 'HAPPYHOUR10', title: 'Happy Hours (4 PM - 7 PM)', discountPercent: 10, minBillAmount: 500, isActive: true, description: '10% Flat on Dine-in Orders' },
-  { id: 'pr-2', code: 'WEEKENDCOMBO', title: 'Weekend Family Feast', discountPercent: 15, minBillAmount: 1500, isActive: true, description: '15% on Biryani Pots & Starters' },
-  { id: 'pr-3', code: 'CORP10', title: 'Corporate Tech Park Badge', discountPercent: 10, minBillAmount: 800, isActive: true, description: '10% with verified Corporate ID' },
+  { id: 'pr-0', code: 'B1G1', title: 'Sunday Special', discountPercent: 50, minBillAmount: 1500, isActive: true, description: 'Buy 1 Get 1 Free', timing: '5 AM - 12 PM', dateRange: '15 Oct 2026 - 16 Oct 2026' },
+  { id: 'pr-1', code: 'HAPPYHOUR10', title: 'Happy Hours (4 PM - 7 PM)', discountPercent: 10, minBillAmount: 500, isActive: true, description: '10% Flat on Dine-in Orders', timing: '4 PM - 7 PM', dateRange: 'Daily' },
+  { id: 'pr-2', code: 'WEEKENDCOMBO', title: 'Weekend Family Feast', discountPercent: 15, minBillAmount: 1500, isActive: true, description: '15% on Biryani Pots & Starters', timing: 'All Day', dateRange: 'Sat - Sun' },
+  { id: 'pr-3', code: 'CORP10', title: 'Corporate Tech Park Badge', discountPercent: 10, minBillAmount: 800, isActive: false, description: '10% with verified Corporate ID', timing: '12 PM - 4 PM', dateRange: 'Mon - Fri' },
   { id: 'pr-4', code: 'MGROVERRIDE', title: 'Manager Goodwill / Apology', discountPercent: 20, minBillAmount: 0, isActive: true, description: 'Manager Auth Required for food delay or guest issue' },
 ];
 
@@ -47,6 +49,7 @@ interface ManagerStoreState {
   pinInput: string;
   openingFloat: number;
   selectedTableNumber: string;
+  selectedSeatNumber: 'ALL' | number;
   
   // Dynamic lists
   queueTokens: QueueToken[];
@@ -66,6 +69,7 @@ interface ManagerStoreState {
   verifyPin: () => boolean;
   logout: () => void;
   setSelectedTableNumber: (num: string) => void;
+  setSelectedSeatNumber: (seat: 'ALL' | number) => void;
   
   // Queue actions
   addQueueToken: (guestName: string, phone: string, pax: number, section: string) => void;
@@ -84,6 +88,7 @@ interface ManagerStoreState {
   
   // Promo actions
   togglePromo: (id: string) => void;
+  addPromo: (promo: Omit<PromoRule, 'id'>) => void;
 }
 
 export const useManagerStore = create<ManagerStoreState>((set, get) => ({
@@ -94,7 +99,8 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
   isAuthenticated: true, // Default unlocked for ease of testing all screens
   pinInput: '1234',
   openingFloat: 5000,
-  selectedTableNumber: 'A-01',
+  selectedTableNumber: 'T-01',
+  selectedSeatNumber: 'ALL',
   
   queueTokens: [
     { id: 'q-101', tokenNumber: 'T-101', guestName: 'Santhosh Kumar', phone: '+91 98450 99881', pax: 4, section: 'Family AC', waitTimeMins: 12, status: 'WAITING', timestamp: '20:45' },
@@ -102,9 +108,11 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
     { id: 'q-103', tokenNumber: 'T-103', guestName: 'Meenakshi Iyer', phone: '+91 98450 44332', pax: 6, section: 'Terrace VIP', waitTimeMins: 18, status: 'WAITING', timestamp: '20:39' },
   ],
   pettyExpenses: [
-    { id: 'pe-1', voucherNumber: 'V-801', description: 'Fresh Curd & Nandini Milk (Emergency 10L)', category: 'Dairy & Fresh', amount: 540, paidTo: 'Nandini Dairy Booth', paidBy: 'Ramesh', time: '17:30' },
+    { id: 'pe-1', voucherNumber: 'V-801', description: 'Fresh Curd & Nandini Milk (Emergency 10L)', category: 'Dairy & Fresh', amount: 540, paidTo: 'Nandini Dairy Booth', paidBy: 'Manjunath', time: '17:30' },
     { id: 'pe-2', voucherNumber: 'V-802', description: 'Fresh Banana Leaves Bundle (100 leaves)', category: 'Kitchen Supplies', amount: 350, paidTo: 'Gandhi Bazaar Mandi', paidBy: 'Manjunath', time: '18:15' },
     { id: 'pe-3', voucherNumber: 'V-803', description: 'Commercial Gas Cylinder Refill Delivery', category: 'Fuel/Gas', amount: 1850, paidTo: 'Indane Gas Agency', paidBy: 'Manjunath', time: '19:00' },
+    { id: 'pe-4', voucherNumber: 'V-804', description: 'Guntur Dry Red Chillies & Whole Spices', category: 'Kitchen Supplies', amount: 1500, paidTo: 'APMC Spice Yard', paidBy: 'Manjunath', time: '19:45' },
+    { id: 'pe-5', voucherNumber: 'V-805', description: 'Kitchen Dishwash Gel & Deep Clean Mops', category: 'Emergency Maintenance', amount: 760, paidTo: 'Metro Cash & Carry', paidBy: 'Ramesh', time: '20:15' },
   ],
   staffRoster: INITIAL_STAFF_ROSTER,
   hardwareDevices: INITIAL_HARDWARE,
@@ -128,6 +136,7 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
   },
   logout: () => set({ isAuthenticated: false, pinInput: '', currentScreen: 1 }),
   setSelectedTableNumber: (num) => set({ selectedTableNumber: num }),
+  setSelectedSeatNumber: (seat) => set({ selectedSeatNumber: seat }),
   
   addQueueToken: (guestName, phone, pax, section) => {
     const tokenNum = `T-${Math.floor(100 + Math.random() * 900)}`;
@@ -201,5 +210,15 @@ export const useManagerStore = create<ManagerStoreState>((set, get) => ({
   
   togglePromo: (id) => set((s) => ({
     promos: s.promos.map((p) => (p.id === id ? { ...p, isActive: !p.isActive } : p)),
+  })),
+  
+  addPromo: (promo) => set((s) => ({
+    promos: [
+      {
+        ...promo,
+        id: `pr-${Date.now()}`,
+      },
+      ...s.promos,
+    ],
   })),
 }));

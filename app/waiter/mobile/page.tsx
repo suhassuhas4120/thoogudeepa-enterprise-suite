@@ -428,9 +428,11 @@ export default function WaiterMobilePage() {
         {/* Header */}
         <header className="border-b border-[#EAE5DF] px-4 py-3.5 flex items-center justify-between shadow-2xs">
           <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-2xl bg-[#9C3D1E] flex items-center justify-center text-white shadow-xs">
-              <Smartphone className="h-4.5 w-4.5" />
-            </div>
+            <img
+              src="/assets/thoogudeepa-logo.png"
+              alt="Thoogudeepa Donne Biryani"
+              className="h-9 w-9 rounded-full object-cover shadow-xs border border-[#D28835]/40"
+            />
             <div>
               <p className="font-mono text-[10px] font-black uppercase tracking-wider text-[#9C3D1E]">
                 {waiterName}

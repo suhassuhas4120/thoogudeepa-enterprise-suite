@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { INITIAL_MENU_ITEMS } from '../data/menuItems';
+import { INITIAL_PAID_ORDERS } from '../data/seedOrdersHistory';
 import { MenuItem } from '../types/customer';
 import { OrderStage } from '../types/customer';
 import { broadcastStateChange, supabase } from '../lib/supabase';
@@ -206,6 +207,7 @@ interface SharedBridgeState {
   inventory86: SharedMenuItem86[];
   shiftStats: SharedShiftStats;
   settledBills: Record<string, SettledBillSnapshot>;
+  paidBillsHistory: SettledBillSnapshot[];
   activeSettlementSessions: Record<string, ActiveSettlementSession>;
 
   // NEW kitchen notification queue — never shown to customer
@@ -376,6 +378,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     avgTurnaroundMinutes: 38,
   },
   settledBills: {},
+  paidBillsHistory: INITIAL_PAID_ORDERS,
   activeSettlementSessions: {},
   kitchenNotifications: [],
 
@@ -639,6 +642,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return {
         settledBills: nextBills,
+        paidBillsHistory: [timestampedSnapshot, ...(state.paidBillsHistory || INITIAL_PAID_ORDERS)].slice(0, 50),
         activeSettlementSessions: nextSessions,
         pings: cleanedPings,
       };
@@ -2047,6 +2051,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       inventory86: freshInventory86,
       kitchenNotifications: [],
       settledBills: {},
+      paidBillsHistory: INITIAL_PAID_ORDERS,
       activeSettlementSessions: {},
       shiftStats: {
         tablesServed: 0,
@@ -2153,6 +2158,9 @@ if (typeof window !== 'undefined') {
       settledBills: parsed.settledBills && typeof parsed.settledBills === 'object'
         ? (parsed.settledBills as typeof cur.settledBills)
         : cur.settledBills,
+      paidBillsHistory: Array.isArray(parsed.paidBillsHistory)
+        ? (parsed.paidBillsHistory as typeof cur.paidBillsHistory)
+        : (cur.paidBillsHistory || INITIAL_PAID_ORDERS),
       activeSettlementSessions: parsed.activeSettlementSessions && typeof parsed.activeSettlementSessions === 'object'
         ? (parsed.activeSettlementSessions as typeof cur.activeSettlementSessions)
         : cur.activeSettlementSessions,
@@ -2449,6 +2457,7 @@ if (typeof window !== 'undefined') {
             inventory86: state.inventory86,
             shiftStats: state.shiftStats,
             settledBills: state.settledBills,
+            paidBillsHistory: state.paidBillsHistory,
             activeSettlementSessions: state.activeSettlementSessions,
             // kitchenNotifications intentionally NOT persisted (session-only)
           })
@@ -2467,6 +2476,7 @@ if (typeof window !== 'undefined') {
             inventory86: state.inventory86,
             shiftStats: state.shiftStats,
             settledBills: state.settledBills,
+            paidBillsHistory: state.paidBillsHistory,
             activeSettlementSessions: state.activeSettlementSessions,
             kitchenNotifications: state.kitchenNotifications,
           },

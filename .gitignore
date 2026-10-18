@@ -40,3 +40,11 @@ CHECKLIST.md
 
 # Local AI assistant rules (private)
 .clinerules
+
+# Playwright / testing
+playwright-report/
+test-results/
+e2e/
+playwright.config.ts
+
+*.log

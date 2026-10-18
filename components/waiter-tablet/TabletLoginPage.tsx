@@ -160,8 +160,12 @@ export function TabletLoginPage({ onLogin }: Props) {
 
         {/* Center Hotel Identity */}
         <div className="relative z-10 space-y-4 my-auto">
-          <div className="h-20 w-20 rounded-3xl bg-gradient-to-br from-[#9C3D1E] to-[#7B2E15] flex items-center justify-center shadow-2xl border-2 border-[#D28835]/50">
-            <Utensils className="h-10 w-10 text-amber-200 stroke-[2.2]" />
+          <div className="h-20 w-20 rounded-full flex items-center justify-center shadow-2xl border-2 border-[#D28835]/50 overflow-hidden">
+            <img
+              src="/assets/thoogudeepa-logo.png"
+              alt="Thoogudeepa Donne Biryani Mane"
+              className="h-full w-full object-cover"
+            />
           </div>
 
           <div>

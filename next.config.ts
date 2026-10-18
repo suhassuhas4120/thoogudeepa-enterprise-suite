@@ -28,11 +28,28 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    '192.168.0.4',
+    '192.168.0.4:3001',
+    'localhost:3001',
+  ],
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
   images: {
     unoptimized: true,
+  },
+  async rewrites() {
+    return [
+      {
+        source: '/favicon.ico',
+        destination: '/assets/thoogudeepa-logo.png',
+      },
+      {
+        source: '/icon.png',
+        destination: '/assets/thoogudeepa-logo.png',
+      },
+    ];
   },
   async headers() {
     return [

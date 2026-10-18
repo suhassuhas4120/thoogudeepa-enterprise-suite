@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCustomerStore } from '../../store/useCustomerStore';
+import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 
 // SVG brand icons for UPI payment providers
 const GooglePayLogo: React.FC = () => (
@@ -187,13 +188,19 @@ export const Screen5LiveTracking: React.FC = () => {
 
     const tableCandidate = sessions[normTable];
     if (isValid(tableCandidate)) {
-      if (typeof tableCandidate.seatNumber !== 'number' || Number(tableCandidate.seatNumber) === effectiveSeat) {
+      if (Number(tableCandidate.seatNumber) === effectiveSeat) {
         return tableCandidate;
+      }
+      if (typeof tableCandidate.seatNumber !== 'number') {
+        const otherChairsHaveItems = currentTbl?.activeItems?.some((ai) => ai.seatNumber && ai.seatNumber !== effectiveSeat);
+        if (!otherChairsHaveItems) {
+          return tableCandidate;
+        }
       }
     }
 
     return null;
-  }, [activeSettlementSessions, chairKey, normTable, effectiveSeat]);
+  }, [activeSettlementSessions, chairKey, normTable, effectiveSeat, currentTbl]);
 
   const isCaptainArrived = Boolean(activeSession);
 
@@ -250,6 +257,7 @@ export const Screen5LiveTracking: React.FC = () => {
           ticketId: tk.id,
           name: getCleanName(it.name),
           quantity: it.quantity,
+          price: Number(it.price || (it as any).unitPrice || (it as any).unit_price || 0),
           stage: it.stage as OrderStage,
           prepMode: it.prepMode,
           options: it.options,
@@ -291,6 +299,7 @@ export const Screen5LiveTracking: React.FC = () => {
           ticketId: tk.id,
           name: getCleanName(it.name),
           quantity: it.quantity,
+          price: Number((it as any).price || (it as any).unit_price || (it as any).unitPrice || 0),
           stage: it.stage as OrderStage,
           prepMode: '',
           options: '',
@@ -306,6 +315,7 @@ export const Screen5LiveTracking: React.FC = () => {
       ticketId?: string;
       name: string;
       quantity: number;
+      price: number;
       stage: OrderStage;
       prepMode?: string;
       options?: string;
@@ -321,6 +331,7 @@ export const Screen5LiveTracking: React.FC = () => {
         ticketId: bi.ticketId,
         name: bi.name,
         quantity: bi.quantity,
+        price: bi.price,
         stage: bi.stage,
         prepMode: bi.prepMode,
         options: bi.options,
@@ -362,6 +373,7 @@ export const Screen5LiveTracking: React.FC = () => {
             ticketId: si.ticketId,
             name: si.name,
             quantity: si.quantity,
+            price: si.price,
             stage: si.stage,
             prepMode: 'Military Dum Handi',
             options: si.options,
@@ -398,12 +410,20 @@ export const Screen5LiveTracking: React.FC = () => {
         const tblIdx = tableStage ? getDishStageIdx(tableStage, ti.id) : 0;
         const liveStage: OrderStage = tblIdx > tiIdx && tableStage ? tableStage : (ti.stage || 'PLACED');
 
+        const itemPrice = ti.price > 0
+          ? ti.price
+          : cartMatch?.menuItem?.price ||
+            tableActiveItem?.price ||
+            INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === key)?.price ||
+            0;
+
         return {
           id: ti.id,
           cartItemId: cartMatch?.cartItemId,
           ticketId: ti.ticketId,
           name: ti.name,
           quantity: ti.quantity,
+          price: itemPrice,
           stage: liveStage,
           prepMode: ti.prepMode || cartMatch?.prepMode || 'Military Dum Handi',
           options: ti.options || cartMatch?.selectedOption || '',
@@ -426,16 +446,18 @@ export const Screen5LiveTracking: React.FC = () => {
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
 
+        const itemPrice = ci.menuItem?.price || (ci.totalPrice ? Math.round(ci.totalPrice / (ci.quantity || 1)) : 0);
+
         return {
           id: `cart-${ci.cartItemId || Math.random()}`,
           cartItemId: ci.cartItemId,
           name: dishName,
           quantity: ci.quantity || 1,
+          price: itemPrice,
           stage: tableStage || 'PLACED',
           prepMode: ci.prepMode || ci.menuItem?.prepMode || 'Military Dum Handi',
           options: ci.selectedOption,
           addOns: ci.selectedAddOns || [],
-          notes: '',
           seatNumber: effectiveSeat,
         };
       });
@@ -546,23 +568,42 @@ export const Screen5LiveTracking: React.FC = () => {
   const currentBillAmount = useMemo(() => {
     const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
     let chairItemsTotal = 0;
+
+    // 1. Primary: table activeItems strictly for this chair with authentic prices
     if (currentTableObj?.activeItems && currentTableObj.activeItems.length > 0) {
       const myChairItems = currentTableObj.activeItems.filter((ai) => ai.seatNumber === effectiveSeat);
       if (myChairItems.length > 0) {
-        const chairSub = myChairItems.reduce((sum, it) => sum + (it.price || 220) * it.quantity, 0);
-        chairItemsTotal = Math.round(chairSub * 1.05);
+        const chairSub = myChairItems.reduce((sum, it) => {
+          const p = it.price && it.price > 0
+            ? it.price
+            : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(it.name))?.price || 0;
+          return sum + p * (it.quantity || 1);
+        }, 0);
+        if (chairSub > 0) {
+          chairItemsTotal = Math.round(chairSub * 1.05);
+        }
       }
     }
-    if (chairItemsTotal === 0) {
-      const cartSub = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat).reduce((sum, it) => sum + it.totalPrice, 0);
-      if (cartSub > 0) {
-        chairItemsTotal = Math.round(cartSub * 1.05);
-      }
-    }
+
+    // 2. Secondary: tracked dishes strictly for this chair
     if (chairItemsTotal === 0 && trackedDishes.length > 0) {
-      const dishSub = trackedDishes.reduce((sum, d) => sum + ((d as any).price || 220) * (d.quantity || 1), 0);
+      const dishSub = trackedDishes.reduce((sum, d) => {
+        const p = (d as any).price && (d as any).price > 0
+          ? (d as any).price
+          : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(d.name))?.price || 0;
+        return sum + p * (d.quantity || 1);
+      }, 0);
       if (dishSub > 0) {
         chairItemsTotal = Math.round(dishSub * 1.05);
+      }
+    }
+
+    // 3. Tertiary: local ordered cart strictly for this chair
+    if (chairItemsTotal === 0 && cart && cart.length > 0) {
+      const chairCart = cart.filter((ci) => ci.seatNumber === effectiveSeat);
+      const cartSub = chairCart.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
+      if (cartSub > 0) {
+        chairItemsTotal = Math.round(cartSub * 1.05);
       }
     }
 
@@ -571,17 +612,20 @@ export const Screen5LiveTracking: React.FC = () => {
       if (Number(activeSession.seatNumber) === effectiveSeat) {
         return activeSession.grandTotal;
       }
-      // Table-wide session: only use if no other chairs have orders or this chair has no item total
+      // Table-wide session ONLY if there are NO other chairs on the table
       if (typeof activeSession.seatNumber !== 'number') {
         const otherChairsHaveItems = currentTableObj?.activeItems?.some((ai) => ai.seatNumber && ai.seatNumber !== effectiveSeat);
-        if (!otherChairsHaveItems || chairItemsTotal === 0) {
+        const otherChairsHaveTickets = bridgeTickets?.some(
+          (tk) => isTableMatch(tk.tableNumber, effectiveTable) && tk.seatNumber && tk.seatNumber !== effectiveSeat
+        );
+        if (!otherChairsHaveItems && !otherChairsHaveTickets && chairItemsTotal === 0) {
           return activeSession.grandTotal;
         }
       }
     }
 
     return chairItemsTotal;
-  }, [activeSession, tables, effectiveTable, effectiveSeat, cart, trackedDishes]);
+  }, [activeSession, tables, bridgeTickets, effectiveTable, effectiveSeat, cart, trackedDishes]);
 
   // Detailed bill breakdown for placed orders with proper calculation
   const ordersSummary = useMemo(() => {
@@ -591,29 +635,41 @@ export const Screen5LiveTracking: React.FC = () => {
     ) || [];
 
     const chairOrderedCart = (cart || []).filter(
-      (ci) => ci.isOrdered && (!ci.seatNumber || ci.seatNumber === effectiveSeat)
+      (ci) => ci.isOrdered && ci.seatNumber === effectiveSeat
     );
 
     let subtotal = 0;
     let itemCount = 0;
 
-    if (chairOrderedCart.length > 0) {
+    if (tableChairItems.length > 0) {
+      subtotal = tableChairItems.reduce((sum, ai) => {
+        const p = ai.price && ai.price > 0
+          ? ai.price
+          : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(ai.name))?.price || 0;
+        return sum + p * (ai.quantity || 1);
+      }, 0);
+      itemCount = tableChairItems.reduce((sum, ai) => sum + (ai.quantity || 1), 0);
+    } else if (trackedDishes.length > 0) {
+      subtotal = trackedDishes.reduce((sum, d) => {
+        const p = (d as any).price && (d as any).price > 0
+          ? (d as any).price
+          : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(d.name))?.price || 0;
+        return sum + p * (d.quantity || 1);
+      }, 0);
+      itemCount = trackedDishes.reduce((sum, d) => sum + (d.quantity || 1), 0);
+    } else if (chairOrderedCart.length > 0) {
       subtotal = chairOrderedCart.reduce((sum, ci) => sum + (ci.totalPrice || 0), 0);
       itemCount = chairOrderedCart.reduce((sum, ci) => sum + (ci.quantity || 1), 0);
-    } else if (tableChairItems.length > 0) {
-      subtotal = tableChairItems.reduce((sum, ai) => sum + ((ai.price || 220) * (ai.quantity || 1)), 0);
-      itemCount = tableChairItems.reduce((sum, ai) => sum + (ai.quantity || 1), 0);
-    } else if (cart && cart.length > 0) {
-      const myCart = cart.filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat);
-      subtotal = myCart.reduce((sum, ci) => sum + (ci.totalPrice || 0), 0);
-      itemCount = myCart.reduce((sum, ci) => sum + (ci.quantity || 1), 0);
     } else if (currentBillAmount > 0) {
       subtotal = Math.round(currentBillAmount / 1.05);
-      itemCount = trackedDishes.reduce((sum, d) => sum + (d.quantity || 1), 0);
+      itemCount = 1;
     }
 
     const gst = Math.round(subtotal * 0.05);
-    const grandTotal = currentBillAmount > 0 ? currentBillAmount : subtotal + gst;
+    const calculatedGrand = subtotal + gst;
+    const grandTotal = (activeSession?.grandTotal && Number(activeSession.seatNumber) === effectiveSeat)
+      ? activeSession.grandTotal
+      : (currentBillAmount > 0 ? currentBillAmount : calculatedGrand);
 
     return {
       subtotal,
@@ -621,7 +677,7 @@ export const Screen5LiveTracking: React.FC = () => {
       grandTotal,
       itemCount: itemCount || trackedDishes.length || 0,
     };
-  }, [tables, effectiveTable, effectiveSeat, cart, currentBillAmount, trackedDishes]);
+  }, [tables, effectiveTable, effectiveSeat, cart, currentBillAmount, trackedDishes, activeSession]);
 
   // Setup camera stream when QR scanner opens
   useEffect(() => {

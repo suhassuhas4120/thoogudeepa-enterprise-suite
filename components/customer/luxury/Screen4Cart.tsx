@@ -54,8 +54,14 @@ export const Screen4Cart: React.FC = () => {
     }
   };
 
-  const unplacedCount = cart.filter((c) => !c.isOrdered).length;
-  const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const effectiveSeat = seatNumber || 1;
+  const chairCart = (cart || []).filter((ci) => ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1));
+
+  const unplacedCount = chairCart.filter((c) => !c.isOrdered).length;
+  const totalItemCount = chairCart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartSubtotal = chairCart.reduce((sum, item) => sum + item.totalPrice, 0);
+  const cartGst = Math.round(cartSubtotal * 0.05);
+  const cartGrandTotal = Math.round(cartSubtotal * 1.05);
 
   // Helper for Indian FSSAI Veg / Non-Veg diet indicator
   const isVegItem = (name: string, category?: string) => {
@@ -102,7 +108,7 @@ export const Screen4Cart: React.FC = () => {
         </AnimatePresence>
 
         {/* Exquisite Minimal Summary Card with Delicate Gold Borders */}
-        {cart.length > 0 && (
+        {chairCart.length > 0 && (
           <div className="rounded-[28px] p-5 border border-amber-500/30 bg-gradient-to-r from-stone-900/90 to-black/90 shadow-[0_12px_30px_rgba(0,0,0,0.6)] backdrop-blur-xl">
             <div className="flex items-center justify-between">
               <div>
@@ -132,7 +138,7 @@ export const Screen4Cart: React.FC = () => {
         )}
 
         {/* Dish Order List Header */}
-        {cart.length > 0 && (
+        {chairCart.length > 0 && (
           <div className="flex items-center justify-between px-1 pt-1">
             <span className="text-sm font-bold font-serif-luxury text-amber-200 tracking-wide">
               Dish Order List
@@ -144,7 +150,7 @@ export const Screen4Cart: React.FC = () => {
         )}
 
         {/* Cart Items List */}
-        {cart.length === 0 ? (
+        {chairCart.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-14 text-center my-auto space-y-3">
             <div className="flex h-16 w-16 items-center justify-center rounded-3xl bg-amber-500/10 text-amber-400 border border-amber-400/20 shadow-inner">
               <ShoppingBag className="h-8 w-8 stroke-[1.8]" />
@@ -168,7 +174,7 @@ export const Screen4Cart: React.FC = () => {
         ) : (
           <div className="space-y-3">
             <AnimatePresence>
-              {cart.map((ci) => {
+              {chairCart.map((ci) => {
                 const isOrdered = ci.isOrdered;
                 const isVeg = isVegItem(ci.menuItem.name, ci.menuItem.category);
 
@@ -287,17 +293,17 @@ export const Screen4Cart: React.FC = () => {
             <div className="rounded-[28px] p-5 border border-amber-500/30 bg-black/75 shadow-xl backdrop-blur-md space-y-3">
               <div className="flex items-center justify-between text-xs text-stone-300">
                 <span className="font-medium">
-                  Subtotal ({cart.reduce((sum, item) => sum + item.quantity, 0)} {cart.reduce((sum, item) => sum + item.quantity, 0) === 1 ? 'dish' : 'dishes'})
+                  Subtotal ({totalItemCount} {totalItemCount === 1 ? 'dish' : 'dishes'})
                 </span>
                 <span className="font-mono font-bold text-stone-100">
-                  ₹{cart.reduce((sum, item) => sum + item.totalPrice, 0)}
+                  ₹{cartSubtotal}
                 </span>
               </div>
               <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-amber-500/25 to-transparent" />
               <div className="flex items-center justify-between text-xs text-stone-300">
                 <span className="font-medium">Taxes & Service (GST 5%)</span>
                 <span className="font-mono font-bold text-stone-100">
-                  ₹{Math.round(cart.reduce((sum, item) => sum + item.totalPrice, 0) * 0.05)}
+                  ₹{cartGst}
                 </span>
               </div>
 
@@ -321,7 +327,7 @@ export const Screen4Cart: React.FC = () => {
                     To Pay
                   </div>
                   <div className="font-mono text-xl font-black text-amber-300 tracking-tight leading-none mt-0.5 drop-shadow-[0_2px_8px_rgba(245,158,11,0.5)]">
-                    ₹{Math.round(cart.reduce((sum, item) => sum + item.totalPrice, 0) * 1.05)}
+                    ₹{cartGrandTotal}
                   </div>
                 </div>
               </div>
@@ -341,7 +347,7 @@ export const Screen4Cart: React.FC = () => {
       </div>
 
       {/* Sticky Bottom Bar: Expansive Glowing Terracotta-Gold CTA Bar */}
-      {cart.length > 0 && (
+      {chairCart.length > 0 && (
         <StickyBottomBar>
           <motion.button
             whileTap={!isSubmitting ? { scale: 0.98 } : undefined}

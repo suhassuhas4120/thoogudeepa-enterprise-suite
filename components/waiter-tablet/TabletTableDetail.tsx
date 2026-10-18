@@ -20,6 +20,7 @@ import {
   X
 } from 'lucide-react';
 import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
+import { OrderStage } from '../../types/customer';
 import { useCustomer } from '../../context/CustomerContext';
 import { formatSectionName } from './TabletFloorMap';
 
@@ -169,9 +170,26 @@ export function TabletTableDetail({
     ? []
     : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
 
-  const allItems = tickets.flatMap((tk) =>
-    tk.items.map((item) => ({ ...item, tableNum: tk.tableNumber }))
+  const firedFromTickets = tickets.flatMap((tk) =>
+    tk.items.map((item) => ({
+      ...item,
+      seatNumber: item.seatNumber || (item as any).seat_number || tk.seatNumber,
+      price: item.price || (item as any).unitPrice || 0,
+      tableNum: tk.tableNumber,
+    }))
   );
+  const firedFromActive = (table.activeItems || []).map((item) => ({
+    id: item.id || `active-${item.name}`,
+    name: item.name,
+    quantity: item.quantity,
+    stage: ((item as any).stage || (item.status === 'Served' ? 'SERVED' : 'PREP')) as OrderStage,
+    prepMode: (item as any).prepMode || 'Standard',
+    options: item.options,
+    seatNumber: item.seatNumber || (item as any).seat_number || 1,
+    price: item.price || (item as any).unitPrice || 0,
+    tableNum: tableNum,
+  }));
+  const allItems = firedFromTickets.length > 0 ? firedFromTickets : firedFromActive;
 
   const allFiredItems = allItems;
   const hasFiredItems = allFiredItems.length > 0;

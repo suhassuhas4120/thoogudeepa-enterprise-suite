@@ -8,6 +8,7 @@ import { useCustomerStore } from '../../../store/useCustomerStore';
 import { ScreenHousing } from '../../ui/ScreenHousing';
 import { WireHeader } from '../../ui/WireHeader';
 import { StickyBottomBar } from '../../ui/StickyBottomBar';
+import { INITIAL_MENU_ITEMS } from '../../../data/menuItems';
 import QRCode from 'qrcode';
 import {
   Banknote,
@@ -46,7 +47,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     orderPlacedAt,
   } = useCustomer();
 
-  const { waiterRecordsPayment, settledBills, recordSettledBill, waiterClearsChairAfterPayment, tables } = useSharedBridge();
+  const { waiterRecordsPayment, settledBills, recordSettledBill, waiterClearsChairAfterPayment, tables, kdsTickets } = useSharedBridge();
 
   // Tab State: 'UPI' | 'CASH'
   type PaymentTab = 'UPI' | 'CASH';
@@ -115,9 +116,74 @@ export const Screen7PaymentGateway: React.FC = () => {
     }
   }, [effectiveTable, effectiveSeat]);
 
+  // Resolved chair items for breakdown & final settlement
+  const chairCart = useMemo(() => {
+    return (cart || []).filter((ci) => ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1));
+  }, [cart, effectiveSeat]);
+
+  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const currentTbl = tables.find((t) => cleanNum(t.number) === cleanNum(effectiveTable));
+
+  const chairResolvedItems = useMemo(() => {
+    if (chairCart.length > 0) {
+      return chairCart.map((ci) => ({
+        id: ci.cartItemId,
+        name: ci.menuItem.name,
+        quantity: ci.quantity,
+        price: ci.totalPrice / (ci.quantity || 1),
+        totalPrice: ci.totalPrice,
+        seatNumber: ci.seatNumber || effectiveSeat,
+      }));
+    }
+    const myTickets = (kdsTickets || []).filter(
+      (tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) &&
+              tk.status !== 'COMPLETED' &&
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+    );
+    if (myTickets.length > 0) {
+      const items = myTickets.flatMap((tk) =>
+        tk.items
+          .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+          .map((it) => {
+            const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
+            const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
+            return {
+              id: it.id,
+              name: it.name,
+              quantity: it.quantity,
+              price: verifiedPrice,
+              totalPrice: verifiedPrice * it.quantity,
+              seatNumber: effectiveSeat,
+            };
+          })
+      );
+      if (items.length > 0) return items;
+    }
+    if (currentTbl?.activeItems && currentTbl.activeItems.length > 0) {
+      const chairTableItems = currentTbl.activeItems.filter(
+        (it: any) => it.seatNumber === effectiveSeat || (!it.seatNumber && effectiveSeat === 1)
+      );
+      if (chairTableItems.length > 0) {
+        return chairTableItems.map((it: any) => {
+          const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
+          const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
+          return {
+            id: it.id || `active-${it.name}`,
+            name: it.name,
+            quantity: it.quantity || 1,
+            price: verifiedPrice,
+            totalPrice: verifiedPrice * (it.quantity || 1),
+            seatNumber: effectiveSeat,
+          };
+        });
+      }
+    }
+    return [];
+  }, [chairCart, kdsTickets, currentTbl, effectiveTable, effectiveSeat]);
+
   // Money Calculations
-  const subtotal = cart.length > 0
-    ? cart.reduce((s, i) => s + i.totalPrice, 0)
+  const subtotal = chairResolvedItems.length > 0
+    ? chairResolvedItems.reduce((s, i) => s + i.totalPrice, 0)
     : (payment.subtotal > 0 ? payment.subtotal : 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
@@ -239,14 +305,18 @@ export const Screen7PaymentGateway: React.FC = () => {
     setPaymentMethod(activeTab);
 
     const finalMethod = activeTab === 'UPI' ? 'UPI' : 'CASH';
-    const finalItems = cart.map((ci) => ({
-      id: ci.cartItemId,
-      name: ci.menuItem.name,
-      quantity: ci.quantity,
-      price: ci.totalPrice / (ci.quantity || 1),
-      totalPrice: ci.totalPrice,
-      seatNumber: ci.seatNumber || effectiveSeat,
-    }));
+    const finalItems = chairResolvedItems.length > 0
+      ? chairResolvedItems
+      : [
+          {
+            id: `item-${Date.now()}`,
+            name: `${effectiveTable} Chair ${effectiveSeat} Food Service`,
+            quantity: 1,
+            price: subtotal,
+            totalPrice: subtotal,
+            seatNumber: effectiveSeat,
+          },
+        ];
 
     const now = new Date();
     const formattedDate = now.toLocaleDateString('en-IN', {

@@ -105,7 +105,21 @@ export function TabletPaymentPanel({
   // ── Group peers & unified orders computation ──
   const groupPeers = table?.mergeGroupPeers || (table?.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
   const tickets = kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
-  const allFiredItems = tickets.flatMap((tk) => tk.items.map((it) => ({ ...it, tableNum: tk.tableNumber })));
+  const firedFromTickets = tickets.flatMap((tk) =>
+    tk.items.map((it) => ({
+      ...it,
+      seatNumber: it.seatNumber || (it as any).seat_number || tk.seatNumber,
+      price: it.price || (it as any).unitPrice || 0,
+      tableNum: tk.tableNumber,
+    }))
+  );
+  const firedFromActive = (table?.activeItems || []).map((it) => ({
+    ...it,
+    seatNumber: it.seatNumber || (it as any).seat_number || 1,
+    price: it.price || (it as any).unitPrice || 0,
+    tableNum: tableNum,
+  }));
+  const allFiredItems = firedFromTickets.length > 0 ? firedFromTickets : firedFromActive;
   const allDraftItems = cart.filter((c) => !c.tableNumber || groupPeers.includes(c.tableNumber));
 
   const isVacant = table?.status === 'VACANT';

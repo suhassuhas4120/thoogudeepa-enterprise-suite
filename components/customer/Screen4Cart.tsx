@@ -54,9 +54,12 @@ export const Screen4Cart: React.FC = () => {
     }
   };
 
-  const unplacedCount = cart.filter((c) => !c.isOrdered).length;
-  const totalItemCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const cartSubtotal = cart.reduce(
+  const effectiveSeat = seatNumber || 1;
+  const chairCart = (cart || []).filter((ci) => ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1));
+
+  const unplacedCount = chairCart.filter((c) => !c.isOrdered).length;
+  const totalItemCount = chairCart.reduce((sum, item) => sum + item.quantity, 0);
+  const cartSubtotal = chairCart.reduce(
     (sum, item) => sum + (item.totalPrice || 0),
     0,
   );
@@ -125,7 +128,7 @@ export const Screen4Cart: React.FC = () => {
         </AnimatePresence>
 
         {/* Dine-In Order Context Banner */}
-        {cart.length > 0 && (
+        {chairCart.length > 0 && (
           <div
             className="flex items-center justify-between rounded-2xl border p-3 shadow-2xs"
             style={{
@@ -174,7 +177,7 @@ export const Screen4Cart: React.FC = () => {
         )}
 
         {/* Cart Items List */}
-        {cart.length === 0 ? (
+        {chairCart.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 text-center my-auto space-y-3">
             <div
               className="flex h-16 w-16 items-center justify-center rounded-3xl"
@@ -211,7 +214,8 @@ export const Screen4Cart: React.FC = () => {
           </div>
         ) : (
           <AnimatePresence>
-            {cart.map((ci) => {
+            {/* cart.map render item list */}
+            {chairCart.map((ci) => {
               const isOrdered = ci.isOrdered;
               const isVeg = isVegItem(ci.menuItem.name, ci.menuItem.category);
 
@@ -403,7 +407,7 @@ export const Screen4Cart: React.FC = () => {
         )}
 
         {/* Itemized Subtotal Breakdown & Highlighted Grand Total (Matching Dark Theme Perfection) */}
-        {cart.length > 0 && (
+        {chairCart.length > 0 && (
           <div
             className="rounded-[28px] border p-5 shadow-sm space-y-3 transition-colors duration-200"
             style={{
@@ -504,7 +508,7 @@ export const Screen4Cart: React.FC = () => {
         )}
 
         {/* Add More Items Button */}
-        {cart.length > 0 && (
+        {chairCart.length > 0 && (
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={() => setCurrentScreen(2)}
@@ -522,7 +526,7 @@ export const Screen4Cart: React.FC = () => {
       </div>
 
       {/* Sticky Bottom Bar */}
-      {cart.length > 0 && (
+      {chairCart.length > 0 && (
         <StickyBottomBar>
           <motion.button
             whileTap={!isSubmitting ? { scale: 0.98 } : undefined}

@@ -101,8 +101,20 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
     const matchingTickets = (kdsTickets || []).filter(
       (tk) => cleanNum(tk.tableNumber) === cleanNum(tableNum)
     );
-    const allItems = matchingTickets.flatMap((tk) => tk.items || []);
-    const relevantItems = allItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
+    const allItems = matchingTickets.flatMap((tk) =>
+      (tk.items || []).map((it) => ({
+        ...it,
+        seatNumber: it.seatNumber || (it as any).seat_number || tk.seatNumber,
+        price: it.price || (it as any).unitPrice || 0,
+      }))
+    );
+    const tableActive = (table?.activeItems || []).map((it) => ({
+      ...it,
+      seatNumber: it.seatNumber || (it as any).seat_number || 1,
+      price: it.price || (it as any).unitPrice || 0,
+    }));
+    const combinedItems = allItems.length > 0 ? allItems : tableActive;
+    const relevantItems = combinedItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
 
     const snapshotItems = relevantItems.length > 0
       ? relevantItems.map((it: any, idx: number) => ({

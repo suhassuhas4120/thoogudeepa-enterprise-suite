@@ -64,9 +64,13 @@ interface CustomerStoreState {
 
 // Calculate payment details dynamically based on items currently in cart
 const calculatePaymentTotals = (
-  cart: CartItem[],
-  prevPayment: PaymentDetails
+  rawCart: CartItem[],
+  prevPayment: PaymentDetails,
+  targetSeat?: number
 ): PaymentDetails => {
+  const cart = targetSeat
+    ? rawCart.filter((c) => !c.seatNumber || c.seatNumber === targetSeat)
+    : rawCart;
   const subtotal = cart.length > 0 ? cart.reduce((s, i) => s + i.totalPrice, 0) : 0;
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
   const discount = prevPayment.redeemPoints ? Math.min(50, subtotal + tax) : 0;
@@ -145,9 +149,11 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     });
 
     set((state) => {
+      const currentSeat = state.seatNumber || 1;
       const existingIndex = state.cart.findIndex(
         (ci) =>
           !ci.isOrdered &&
+          (ci.seatNumber || 1) === currentSeat &&
           ci.menuItem.id === item.id &&
           ci.selectedOption === selectedOption &&
           JSON.stringify([...ci.selectedAddOns].sort()) ===
@@ -176,14 +182,14 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           quantity,
           totalPrice: unitPrice * quantity,
           prepMode: item.prepMode,
-          seatNumber: state.seatNumber || 1,
+          seatNumber: currentSeat,
         };
         newCart = [...state.cart, newCartItem];
       }
 
       return {
         cart: newCart,
-        payment: calculatePaymentTotals(newCart, state.payment),
+        payment: calculatePaymentTotals(newCart, state.payment, currentSeat),
       };
     });
   },
@@ -317,6 +323,11 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         tableId = `T-${String(parseInt(match[1], 10)).padStart(2, '0')}`;
       }
 
+      const chairNewItems = newlyAddedItems.filter(
+        (c) => c.seatNumber === seatNumber || (!c.seatNumber && seatNumber === 1)
+      );
+      const itemsToFire = chairNewItems.length > 0 ? chairNewItems : newlyAddedItems;
+
       // Build a stable ticket ID
       const ts = Date.now();
       const tblTag = tableId.replace('-', '');
@@ -330,7 +341,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
           tableId,
           state.guestName || `Guest (Chair ${seatNumber})`,
           seatNumber,
-          newlyAddedItems.map((c) => ({
+          itemsToFire.map((c) => ({
             item: c.menuItem,
             selectedOption: c.selectedOption,
             addOns: c.selectedAddOns,
@@ -342,7 +353,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       }
 
       const nowTs = Date.now();
-      const newTracking: IndividualItemTracking[] = newlyAddedItems.map((c) => ({
+      const newTracking: IndividualItemTracking[] = itemsToFire.map((c) => ({
         id: 'track-' + c.cartItemId,
         name: `${c.menuItem.name} × ${c.quantity}`,
         prepMode: c.prepMode,
@@ -352,7 +363,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
       const updatedCart = state.cart.map((c) => ({
         ...c,
-        isOrdered: true,
+        isOrdered: (c.seatNumber === seatNumber || (!c.seatNumber && seatNumber === 1)) ? true : c.isOrdered,
         seatNumber: c.seatNumber || seatNumber,
       }));
 
@@ -610,9 +621,10 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     });
 
     const hasActiveOrders = Boolean(
-      (currentTbl && currentTbl.status !== 'VACANT' && ((currentTbl.currentBill || 0) > 0 || (currentTbl.activeItems || []).length > 0)) ||
       seatActiveItems.length > 0 ||
-      seatTickets.length > 0
+      seatTickets.length > 0 ||
+      (seatNumber === 1 && currentTbl && currentTbl.status !== 'VACANT' && ((currentTbl.currentBill || 0) > 0 || (currentTbl.activeItems || []).length > 0) &&
+        !(currentTbl.activeItems || []).some((ai) => ai.seatNumber && ai.seatNumber > 1))
     );
 
     if (!hasActiveOrders) {

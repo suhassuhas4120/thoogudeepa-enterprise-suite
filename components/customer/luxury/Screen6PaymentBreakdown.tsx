@@ -8,6 +8,7 @@ import { useCustomerStore } from '../../../store/useCustomerStore';
 import { ScreenHousing } from '../../ui/ScreenHousing';
 import { WireHeader } from '../../ui/WireHeader';
 import { StickyBottomBar } from '../../ui/StickyBottomBar';
+import { INITIAL_MENU_ITEMS } from '../../../data/menuItems';
 import { Receipt, Heart, Users, ArrowRight, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 
@@ -91,7 +92,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
 
   // Authentic items from cart, bridge tickets, or settled items (no fake/random data)
   const activeCart = useMemo(() => {
-    const chairCart = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat);
+    const chairCart = (cart || []).filter((ci) => ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1));
     if (chairCart.length > 0) return chairCart;
 
     // Check if table has items in bridge tickets strictly for this chair
@@ -102,25 +103,54 @@ export const Screen6PaymentBreakdown: React.FC = () => {
               (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
     );
     if (myTickets.length > 0) {
-      return myTickets.flatMap((tk) =>
+      const items = myTickets.flatMap((tk) =>
         tk.items
           .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
-          .map((it) => ({
-            cartItemId: it.id,
-            menuItem: { id: it.id, name: it.name, price: it.price || 0 } as any,
+          .map((it) => {
+            const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
+            const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
+            return {
+              cartItemId: it.id,
+              menuItem: { id: it.id, name: it.name, price: verifiedPrice } as any,
+              selectedOption: it.options || '',
+              selectedAddOns: it.addOns || [],
+              quantity: it.quantity,
+              totalPrice: verifiedPrice * it.quantity,
+              prepMode: it.prepMode || '',
+              isOrdered: true,
+              seatNumber: effectiveSeat,
+            };
+          })
+      );
+      if (items.length > 0) return items;
+    }
+
+    const currentTbl = tables.find((t) => cleanNum(t.number) === cleanNum(effectiveTable));
+    if (currentTbl?.activeItems && currentTbl.activeItems.length > 0) {
+      const chairTableItems = currentTbl.activeItems.filter(
+        (it: any) => it.seatNumber === effectiveSeat || (!it.seatNumber && effectiveSeat === 1)
+      );
+      if (chairTableItems.length > 0) {
+        return chairTableItems.map((it: any) => {
+          const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
+          const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
+          return {
+            cartItemId: it.id || `active-${it.name}`,
+            menuItem: { id: it.id, name: it.name, price: verifiedPrice } as any,
             selectedOption: it.options || '',
             selectedAddOns: it.addOns || [],
-            quantity: it.quantity,
-            totalPrice: (it.price || 0) * it.quantity,
+            quantity: it.quantity || 1,
+            totalPrice: verifiedPrice * (it.quantity || 1),
             prepMode: it.prepMode || '',
             isOrdered: true,
             seatNumber: effectiveSeat,
-          }))
-      );
+          };
+        });
+      }
     }
 
     return [];
-  }, [cart, kdsTickets, effectiveTable, effectiveSeat]);
+  }, [cart, kdsTickets, tables, effectiveTable, effectiveSeat]);
 
   const subtotal = activeCart.reduce((s, i) => s + i.totalPrice, 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)

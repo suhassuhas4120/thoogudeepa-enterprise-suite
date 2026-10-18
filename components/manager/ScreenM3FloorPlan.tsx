@@ -87,7 +87,7 @@ export function ScreenM3FloorPlan() {
                   </span>
                 </div>
                 <div className="mt-3 text-sm font-black">
-                  {isOcc || isBill ? `₹ ${tbl.currentBill}` : 'VACANT'}
+                  {isOcc || isBill ? `₹ ${Math.round(tbl.currentBill * 1.05)}` : 'VACANT'}
                 </div>
                 {tbl.kotCount > 0 && (
                   <div className="mt-2 inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-500/20 text-orange-400">
@@ -170,7 +170,7 @@ export function ScreenM3FloorPlan() {
           <div className="mt-4 p-3 bg-[#FAF8F5] rounded-lg border border-slate-300 flex justify-between items-center font-mono">
             <span className="text-xs font-bold text-slate-600">CURRENT RUNNING BILL:</span>
             <span className="text-lg font-black text-slate-900">
-              ₹ {selectedTable?.currentBill.toLocaleString('en-IN')}.00
+              ₹ {Math.round((selectedTable?.currentBill || 0) * 1.05).toLocaleString('en-IN')}.00
             </span>
           </div>
         </div>

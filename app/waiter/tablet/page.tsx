@@ -197,10 +197,26 @@ export default function WaiterTabletPage() {
   const shiftRevenue = shiftStats?.totalRevenue || 0;
 
   // Chime + auto-open calls drawer on new customer assistance ping (only when logged in)
+  const chimedPingIdsRef = useRef<Set<string>>(new Set());
   const prevPingRef = useRef(activePings.length);
   useEffect(() => {
-    if (view !== "login" && activePings.length > prevPingRef.current) {
-      setCallsOpen(true);
+    if (view === "login") {
+      prevPingRef.current = activePings.length;
+      return;
+    }
+
+    const unchimedPings = activePings.filter(
+      (p) => !chimedPingIdsRef.current.has(p.id)
+    );
+
+    if (unchimedPings.length > 0 && activePings.length > prevPingRef.current) {
+      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
+
+      // Do not interrupt with sliding drawer if waiter is actively processing payment
+      if (rightPanelTab !== "payment") {
+        setCallsOpen(true);
+      }
+
       try {
         const Ctx = window.AudioContext || (window as any).webkitAudioContext;
         if (Ctx) {
@@ -222,9 +238,11 @@ export default function WaiterTabletPage() {
           });
         }
       } catch {}
+    } else {
+      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
     }
     prevPingRef.current = activePings.length;
-  }, [activePings.length, view]);
+  }, [activePings, view, rightPanelTab]);
 
   // Right-edge swipe to open notif drawer (opens calls if calls exist, else kitchen)
   const touchStartX = useRef(0);

@@ -197,7 +197,7 @@ export function TabletTableDetail({
 
   // Table total bill
   const firedSubtotal = allItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
-  const totalTableBill = Math.max(table.currentBill || 0, firedSubtotal) + allTableDraftSubtotal;
+  const totalTableBill = Math.max(table.currentBill || 0, Math.round(firedSubtotal * 1.05)) + Math.round(allTableDraftSubtotal * 1.05);
 
   // Selected chair's target seats
   const targetSeats: number[] =
@@ -220,7 +220,7 @@ export function TabletTableDetail({
       : allTableDraftItems.filter((c) => c.seatNumber && targetSeats.includes(c.seatNumber));
   const draftSubtotal = draftItems.reduce((s, it) => s + it.totalPrice, 0);
 
-  // Target chair bill
+  // Target chair bill (inclusive of 5% GST to match customer & manager views)
   let targetChairBill = 0;
   let chairLabel = 'Total Bill Due';
   if (selectedChair === 'ALL') {
@@ -232,7 +232,8 @@ export function TabletTableDetail({
         ? `Chair ${selectedChair} Bill`
         : `${selectedChair} Bill`;
     const chairFiredSub = displayItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
-    const chairTotal = chairFiredSub + draftSubtotal;
+    const chairSubtotal = chairFiredSub + draftSubtotal;
+    const chairTotal = Math.round(chairSubtotal * 1.05);
     if (chairTotal > 0) {
       targetChairBill = chairTotal;
     } else if (totalTableBill > 0 && allItems.length === 0 && allTableDraftSubtotal === 0) {

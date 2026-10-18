@@ -110,9 +110,9 @@ export function TabletPaymentPanel({
 
   const isVacant = table?.status === 'VACANT';
 
-const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+  const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
   const totalTableDraftSubtotal = allDraftItems.reduce((s, it) => s + it.totalPrice, 0);
-  const totalTableBill = Math.max(table?.currentBill || 0, totalTableFiredSubtotal) + totalTableDraftSubtotal;
+  const totalTableBill = Math.max(table?.currentBill || 0, Math.round(totalTableFiredSubtotal * 1.05)) + Math.round(totalTableDraftSubtotal * 1.05);
 
   let effectiveBill = 0;
   let targetLabel = 'All Seats';
@@ -135,7 +135,8 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
 
     const chairFiredSub = chairFired.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
     const chairDraftSub = chairDraft.reduce((s, it) => s + it.totalPrice, 0);
-    const chairTotal = chairFiredSub + chairDraftSub;
+    const chairSubtotal = chairFiredSub + chairDraftSub;
+    const chairTotal = Math.round(chairSubtotal * 1.05);
 
     if (chairTotal > 0) {
       effectiveBill = chairTotal;

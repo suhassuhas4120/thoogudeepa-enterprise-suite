@@ -663,7 +663,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       let pingQuery = supabase
         .from('pings')
         .update({ status: 'RESOLVED' })
-        .eq('table_number', normTable)
+        .or(`table_number.eq.${normTable},table_number.eq.${tNum},table_number.eq.Table ${tNum},table_number.eq.TABLE ${tNum}`)
         .in('type', ['PAYMENT', 'BILL']);
       if (typeof snapshot.seatNumber === 'number') {
         pingQuery = pingQuery.eq('seat_number', snapshot.seatNumber);
@@ -1620,7 +1620,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         tables: state.tables.map((t) => {
           if (!groupNums.has(t.number) && cleanNum(t.number) !== targetNum) return t;
           if (isChairSettle) {
-            // Recompute currentBill strictly as raw subtotal of remaining activeItems
+            // Recompute currentBill as GST-inclusive total of remaining activeItems
             const remainingActiveItems = (t.activeItems || []).filter(
               (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
             );
@@ -1654,7 +1654,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       let pQuery = supabase
         .from('pings')
         .update({ status: 'RESOLVED' })
-        .eq('table_number', normTbl)
+        .or(`table_number.eq.${normTbl},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
         .in('type', ['PAYMENT', 'BILL']);
       if (typeof seatNumber === 'number') {
         pQuery = pQuery.eq('seat_number', seatNumber);

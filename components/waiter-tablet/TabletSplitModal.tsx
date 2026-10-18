@@ -68,9 +68,9 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
   }
 
   const itemsSubtotal = allOrderedItems.reduce((acc, it) => acc + it.totalPrice, 0);
-  const subtotal = Math.max(table.currentBill || 0, itemsSubtotal);
-  const tax = Math.round(subtotal * 0.05);
-  const grandTotal = isVacant ? 0 : subtotal + tax;
+  const grandTotal = isVacant ? 0 : (table.currentBill > 0 ? table.currentBill : Math.round(itemsSubtotal * 1.05));
+  const subtotal = Math.round(grandTotal / 1.05);
+  const tax = Math.max(0, grandTotal - subtotal);
 
   const totalChairs = table.capacity || 4;
   const occupiedChairsCount = Math.max(table.guestCount || 0, allOrderedItems.length > 0 ? 1 : 0);

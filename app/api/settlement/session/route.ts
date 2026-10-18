@@ -269,6 +269,18 @@ export async function POST(req: NextRequest) {
             .delete()
             .or(`id.eq.${sessId},id.eq.SETTLE-SESSION-${normTable}`);
         }
+
+        // Also mark any customer PAYMENT / BILL assistance pings as RESOLVED
+        const cleanT = (snapshot.tableName || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+        let pingResolveQuery = supabase
+          .from('pings')
+          .update({ status: 'RESOLVED' })
+          .or(`table_number.eq.${normTable},table_number.eq.${cleanT},table_number.eq.Table ${cleanT}`)
+          .in('type', ['PAYMENT', 'BILL']);
+        if (typeof seatNumber === 'number') {
+          pingResolveQuery = pingResolveQuery.eq('seat_number', seatNumber);
+        }
+        await pingResolveQuery;
       } catch {}
 
       return NextResponse.json({ success: true, snapshot: enrichedSnapshot });

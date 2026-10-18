@@ -430,7 +430,7 @@ export async function POST(req: NextRequest) {
       .eq('seat_number', seatNumber);
 
     // 5. Update table status and running bill
-    const newBill = Number(tableRecord.current_bill || 0) + total;
+    const newBill = Number(tableRecord.current_bill || 0) + subtotal;
     const newKotCount = Number(tableRecord.kot_count || 0) + 1;
 
     await supabase

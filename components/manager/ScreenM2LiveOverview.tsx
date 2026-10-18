@@ -32,7 +32,7 @@ export function ScreenM2LiveOverview() {
     return !isSettled && t.currentBill > 0;
   });
 
-  const currentLiveBillSum = pendingPaymentTables.reduce((acc, t) => acc + t.currentBill, 0);
+  const currentLiveBillSum = pendingPaymentTables.reduce((acc, t) => acc + Math.round(t.currentBill * 1.05), 0);
 
   // Today's total realized/settled sales of that particular day
   const todaySettledSales = shiftStats.totalRevenue;
@@ -195,7 +195,7 @@ export function ScreenM2LiveOverview() {
                       isOcc ? 'text-white' : isBill ? 'text-amber-900' : 'text-slate-800'
                     }`}
                   >
-                    {isOcc || isBill ? `₹ ${tbl.currentBill}` : 'VACANT'}
+                    {isOcc || isBill ? `₹ ${Math.round(tbl.currentBill * 1.05)}` : 'VACANT'}
                   </div>
                   {isOcc && (
                     <div className="text-[10px] mt-0.5 truncate text-white/80 font-bold">

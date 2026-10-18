@@ -242,7 +242,7 @@ async function reconcileAllState(): Promise<void> {
       mappedTables = tables.map((row: DbTableRow) => {
         const tableActiveItems = itemsByTable.get(row.number) || [];
         const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
-        const computedBill = Math.round(activeItemsSum * 1.05);
+        const computedBill = activeItemsSum;
         const dbBill = Number(row.current_bill || 0);
         const effectiveBill = dbBill > 0 ? dbBill : computedBill;
         const hasRunningBill = effectiveBill > 0;

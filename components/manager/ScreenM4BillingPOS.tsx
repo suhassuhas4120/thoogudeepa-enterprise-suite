@@ -495,7 +495,7 @@ export function ScreenM4BillingPOS() {
                   Tax Invoice &amp; Kitchen KOT Desk
                 </h3>
                 <span className="text-[11px] font-mono text-slate-500">
-                  Running KOTs: {selectedTable.kotCount} • Bill Total: ₹{selectedTable.currentBill}
+                  Running KOTs: {selectedTable.kotCount} • Bill Total: ₹{Math.round(selectedTable.currentBill * 1.05)}
                 </span>
               </div>
 

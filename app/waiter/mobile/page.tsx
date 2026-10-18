@@ -183,11 +183,14 @@ export default function WaiterMobilePage() {
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
 
   // Audio chime on new ping — reuse AudioContext singleton
+  const chimedPingIdsRef = useRef<Set<string>>(new Set());
   const prevPingCountRef = useRef(activePings.length);
   const audioCtxRef = useRef<any>(null);
 
   useEffect(() => {
-    if (activePings.length > prevPingCountRef.current) {
+    const unchimedPings = activePings.filter((p) => !chimedPingIdsRef.current.has(p.id));
+    if (unchimedPings.length > 0 && activePings.length > prevPingCountRef.current) {
+      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
       try {
         const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
         if (AudioCtx) {
@@ -211,9 +214,11 @@ export default function WaiterMobilePage() {
           osc.stop(ctx.currentTime + 0.5);
         }
       } catch {}
+    } else {
+      unchimedPings.forEach((p) => chimedPingIdsRef.current.add(p.id));
     }
     prevPingCountRef.current = activePings.length;
-  }, [activePings.length]);
+  }, [activePings]);
 
   const showToast = (msg: string) => {
     setToast(msg);

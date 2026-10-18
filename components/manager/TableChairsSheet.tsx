@@ -181,9 +181,9 @@ export function TableChairsSheet({
     itemsSubtotal > 0
       ? itemsSubtotal
       : selectedSeat === 'ALL'
-      ? Math.round(table.currentBill / 1.05)
+      ? table.currentBill
       : occupiedGuests > 0 && (isOccupied || isBilling)
-      ? Math.round((table.currentBill / 1.05) / Math.max(1, occupiedGuests))
+      ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
       : 0;
 
   const displayedTax = Math.round(displayedSubtotal * 0.05);
@@ -362,7 +362,7 @@ export function TableChairsSheet({
             <FileText className="h-4 w-4 mb-0.5 shrink-0" />
             <span className="truncate w-full text-center">All Table</span>
             <span className="text-[10px] opacity-80 shrink-0 font-bold">
-              ₹ {table.currentBill}
+              ₹ {Math.round(table.currentBill * 1.05)}
             </span>
           </button>
 
@@ -378,7 +378,7 @@ export function TableChairsSheet({
               chairSub > 0
                 ? Math.round(chairSub * 1.05)
                 : isSeated && table.currentBill > 0
-                ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
+                ? Math.round((table.currentBill * 1.05) / Math.max(1, occupiedGuests))
                 : 0;
 
             const hasReadyItem = chairItems.some((i) => i.stage === 'READY');

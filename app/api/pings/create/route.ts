@@ -6,13 +6,15 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const tableNumber = (body.tableNumber || body.table || '').toUpperCase();
+    const rawTable = (body.tableNumber || body.table || '').toString();
+    const cleanT = rawTable.replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const tableNumber = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
     const seatNumber = parseInt(body.seatNumber || body.seat || '1', 10);
     const type = (body.type || 'WATER').toUpperCase();
     const guestName = body.guestName || `Seat ${seatNumber}`;
     const message = body.message || null;
 
-    if (!tableNumber) {
+    if (!cleanT) {
       return NextResponse.json({ error: 'tableNumber is required' }, { status: 400 });
     }
 

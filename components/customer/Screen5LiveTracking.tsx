@@ -429,24 +429,10 @@ export const Screen5LiveTracking: React.FC = () => {
     return [];
   }, [bridgeTickets, effectiveTable, supabaseTickets, cart, effectiveSeat, currentTbl]);
 
-  // Latch served status so transient reconciliation frames never cause payment buttons to flicker
-  const [hasEverBeenFullyServed, setHasEverBeenFullyServed] = useState(false);
-
-  const rawAllDishesServed = useMemo(() => {
+  const allDishesServed = useMemo(() => {
     if (!trackedDishes.length) return false;
     return trackedDishes.every((d) => d.stage === 'SERVED' || getDishStageIdx(d.stage, d.id) === 4);
   }, [trackedDishes, currentTbl]);
-
-  useEffect(() => {
-    if (rawAllDishesServed) {
-      setHasEverBeenFullyServed(true);
-    } else if (trackedDishes.some((d) => d.stage !== 'SERVED' && getDishStageIdx(d.stage, d.id) !== 4)) {
-      // Reset latch if any newly placed/cooking item is currently pending in kitchen
-      setHasEverBeenFullyServed(false);
-    }
-  }, [rawAllDishesServed, trackedDishes, currentTbl]);
-
-  const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
   // Auto-transition to Screen 8 immediately when waiter confirms payment
   const matchingSnapshot = useMemo(() => {
@@ -489,6 +475,10 @@ export const Screen5LiveTracking: React.FC = () => {
 
   useEffect(() => {
     if (matchingSnapshot && trackedDishes.length > 0) {
+      const currentCustState = useCustomerStore.getState();
+      if (currentCustState.payment.transactionId === matchingSnapshot.invoiceNumber && currentCustState.isSettled) {
+        return;
+      }
       const now = Date.now();
       if (!matchingSnapshot.timestamp || Math.abs(now - matchingSnapshot.timestamp) < 1800000) {
         setIsScannerOpen(false);
@@ -530,25 +520,44 @@ export const Screen5LiveTracking: React.FC = () => {
 
   // Total payable amount strictly scoped to this chair
   const currentBillAmount = useMemo(() => {
-    if (activeSession?.grandTotal && activeSession.grandTotal > 0) {
-      if (typeof activeSession.seatNumber !== 'number' || Number(activeSession.seatNumber) === effectiveSeat) {
-        return activeSession.grandTotal;
-      }
-    }
     const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
+    let chairItemsTotal = 0;
     if (currentTableObj?.activeItems && currentTableObj.activeItems.length > 0) {
       const myChairItems = currentTableObj.activeItems.filter((ai) => ai.seatNumber === effectiveSeat);
       if (myChairItems.length > 0) {
         const chairSub = myChairItems.reduce((sum, it) => sum + (it.price || 220) * it.quantity, 0);
-        return Math.round(chairSub * 1.05);
+        chairItemsTotal = Math.round(chairSub * 1.05);
       }
     }
-    const cartSub = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat).reduce((sum, it) => sum + it.totalPrice, 0);
-    if (cartSub > 0) {
-      return Math.round(cartSub * 1.05);
+    if (chairItemsTotal === 0) {
+      const cartSub = (cart || []).filter((ci) => !ci.seatNumber || ci.seatNumber === effectiveSeat).reduce((sum, it) => sum + it.totalPrice, 0);
+      if (cartSub > 0) {
+        chairItemsTotal = Math.round(cartSub * 1.05);
+      }
     }
-    return 0;
-  }, [activeSession, tables, effectiveTable, effectiveSeat, cart]);
+    if (chairItemsTotal === 0 && trackedDishes.length > 0) {
+      const dishSub = trackedDishes.reduce((sum, d) => sum + ((d as any).price || 220) * (d.quantity || 1), 0);
+      if (dishSub > 0) {
+        chairItemsTotal = Math.round(dishSub * 1.05);
+      }
+    }
+
+    // Explicit chair session takes highest precedence
+    if (activeSession?.grandTotal && activeSession.grandTotal > 0) {
+      if (Number(activeSession.seatNumber) === effectiveSeat) {
+        return activeSession.grandTotal;
+      }
+      // Table-wide session: only use if no other chairs have orders or this chair has no item total
+      if (typeof activeSession.seatNumber !== 'number') {
+        const otherChairsHaveItems = currentTableObj?.activeItems?.some((ai) => ai.seatNumber && ai.seatNumber !== effectiveSeat);
+        if (!otherChairsHaveItems || chairItemsTotal === 0) {
+          return activeSession.grandTotal;
+        }
+      }
+    }
+
+    return chairItemsTotal;
+  }, [activeSession, tables, effectiveTable, effectiveSeat, cart, trackedDishes]);
 
   // Detailed bill breakdown for placed orders with proper calculation
   const ordersSummary = useMemo(() => {

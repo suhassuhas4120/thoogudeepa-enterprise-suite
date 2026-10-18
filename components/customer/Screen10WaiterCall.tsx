@@ -39,10 +39,7 @@ export const Screen10WaiterCall: React.FC = () => {
   const tableTickets = kdsTickets.filter((tk) => isTableMatch(tk.tableNumber, effectiveTable));
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
 
-  // Latch served status so transient reconciliation frames never cause payment options to flicker
-  const [hasEverBeenFullyServed, setHasEverBeenFullyServed] = useState(false);
-
-  const rawAllDishesServed = useMemo(() => {
+  const allDishesServed = useMemo(() => {
     const chairTickets = kdsTickets.filter(
       (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
               (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
@@ -65,25 +62,6 @@ export const Screen10WaiterCall: React.FC = () => {
       return matched?.status === 'Served';
     });
   }, [kdsTickets, effectiveTable, effectiveSeat, currentTbl]);
-
-  useEffect(() => {
-    if (rawAllDishesServed) {
-      setHasEverBeenFullyServed(true);
-    } else {
-      const chairTickets = kdsTickets.filter(
-        (tk) => isTableMatch(tk.tableNumber, effectiveTable) &&
-                (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
-      );
-      const chairItems = chairTickets.flatMap((t) => t.items).filter(
-        (it) => it.seatNumber === effectiveSeat || !it.seatNumber
-      );
-      if (chairItems.some((it) => it.stage !== 'SERVED')) {
-        setHasEverBeenFullyServed(false);
-      }
-    }
-  }, [rawAllDishesServed, kdsTickets, effectiveTable, effectiveSeat]);
-
-  const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
   // Check if payment ping is active for this chair to prevent spamming
   const hasActivePaymentPing = useMemo(() => {

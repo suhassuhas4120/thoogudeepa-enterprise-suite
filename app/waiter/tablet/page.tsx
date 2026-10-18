@@ -275,14 +275,8 @@ export default function WaiterTabletPage() {
     setCallsOpen(false);
     setPickupOpen(false);
 
-    const targetTable = tables.find((t) => t.number === num);
-    if (!targetTable || targetTable.status === "VACANT") {
-      // 2. When empty table clicked: right side should be menu page by default!
-      setRightPanelTab("menu");
-    } else {
-      // 5. When non-vacant table clicked: right side should be payment page by default!
-      setRightPanelTab("payment");
-    }
+    // Keep right side on menu page by default for taking orders / managing dishes
+    setRightPanelTab("menu");
     setView("table-detail");
   };
 
@@ -909,7 +903,6 @@ export default function WaiterTabletPage() {
                             onBack={() => setView("floor")}
                             onKOTFired={() => {
                               showToast(`KOT fired for ${selectedTableNum}!`);
-                              setRightPanelTab("payment");
                             }}
                             onSwitchToPayment={() =>
                               setRightPanelTab("payment")

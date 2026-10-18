@@ -920,9 +920,16 @@ export function TabletTableDetail({
         <div className="shrink-0 bg-white border-t-2 border-stone-200 px-5 py-3.5 space-y-3 shadow-sm">
           {/* Bill Summary Row */}
           <div className="flex items-center justify-between font-mono">
-            <span className="text-stone-700 font-black text-xs uppercase tracking-wider">
-              {chairLabel}
-            </span>
+            <div>
+              <span className="text-stone-700 font-black text-xs uppercase tracking-wider block">
+                {chairLabel}
+              </span>
+              {selectedChair !== 'ALL' && (
+                <span className="text-[11px] font-bold text-stone-500 block">
+                  Table Total: ₹{totalTableBill.toLocaleString()}
+                </span>
+              )}
+            </div>
             <span className="font-black text-stone-950 text-2xl">
               ₹{targetChairBill.toLocaleString()}
             </span>

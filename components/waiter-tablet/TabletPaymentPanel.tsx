@@ -167,6 +167,7 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
 
   // Synchronize settlement session so customer devices see captain arrival & QR status
   useEffect(() => {
+    if (bill <= 0) return;
     const splitSeatNum = typeof selectedChair === 'number'
       ? selectedChair
       : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);

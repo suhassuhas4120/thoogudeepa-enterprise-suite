@@ -62,21 +62,37 @@ export const Screen7PaymentGateway: React.FC = () => {
 
   // Auto-transition to Screen 8 only if waiter just settled this specific chair right now
   useEffect(() => {
-    if (!settledBills || !orderPlacedAt || orderPlacedAt <= 0) return;
+    if (!settledBills) return;
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
     const tNum = cleanNum(effectiveTable);
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
     const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
 
-    const matchingSnapshot = settledBills[chairKey];
+    let matchingSnapshot: SettledBillSnapshot | null = null;
+    if (settledBills[chairKey]) {
+      const b = settledBills[chairKey];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === undefined || seatNum === effectiveSeat) {
+        matchingSnapshot = b;
+      }
+    } else if (settledBills[normTable]) {
+      const b = settledBills[normTable];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === undefined || seatNum === effectiveSeat) {
+        matchingSnapshot = b;
+      }
+    }
+
     if (matchingSnapshot && matchingSnapshot.timestamp) {
-      const seatNum = typeof matchingSnapshot.seatNumber === 'number'
-        ? matchingSnapshot.seatNumber
-        : (matchingSnapshot.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(matchingSnapshot.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
       const now = Date.now();
       const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
-      const isAfterOrder = matchingSnapshot.timestamp > orderPlacedAt + 500;
-      if (seatNum === effectiveSeat && isRecent && isAfterOrder) {
+      const effectiveOrderTime = orderPlacedAt && orderPlacedAt > 0 ? orderPlacedAt : 0;
+      const isAfterOrder = effectiveOrderTime > 0 ? matchingSnapshot.timestamp >= effectiveOrderTime - 5000 : isRecent;
+      if (isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }

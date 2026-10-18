@@ -701,13 +701,19 @@ function CustomerJourneyContent() {
         reason !== 'settledBillRecorded'
       ) return;
 
-      // Only act if the customer has already placed an order
-      // (pre-order browsing must never be disrupted by unrelated events)
-      if (!hasPlacedOrderRef.current) return;
-
       const curStore = useCustomerStore.getState();
       const tableId = curStore.tableNumber || tableRef.current;
       const seatId = curStore.seatNumber || seatRef.current;
+
+      // Only act if the customer has already placed an order or is currently on tracking/payment
+      // (pre-order browsing must never be disrupted by unrelated events)
+      if (!hasPlacedOrderRef.current) {
+        if (curStore.currentScreen >= 5 && curStore.currentScreen <= 7) {
+          hasPlacedOrderRef.current = true;
+        } else {
+          return;
+        }
+      }
 
       // Extract inner payload defensively across direct and wrapped structures
       const inner = (event?.payload?.payload || event?.payload || {}) as Record<string, any>;

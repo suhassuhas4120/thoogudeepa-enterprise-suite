@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, CreditCard, QrCode, Banknote, CheckCircle2, ShieldCheck, Printer, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge } from '../../store/useSharedBridge';
@@ -18,7 +18,16 @@ interface Props {
 type PayMethod = 'CASH' | 'UPI' | 'CARD';
 
 export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount, splitLabel }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill } = useSharedBridge();
+  const {
+    tables,
+    kdsTickets,
+    waiterRecordsPayment,
+    waiterVacatesTable,
+    waiterClearsChairAfterPayment,
+    recordSettledBill,
+    waiterInitiatesSettlement,
+    waiterClearsSettlementSession,
+  } = useSharedBridge();
   const table = tables.find((t) => t.number === tableNum);
 
   const [method, setMethod] = useState<PayMethod>('UPI');
@@ -26,6 +35,19 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
   const [isUpiVerified, setIsUpiVerified] = useState(false);
   const [vacateAfter, setVacateAfter] = useState(!splitAmount);
   const [settled, setSettled] = useState(false);
+
+  // Synchronize settlement session so customer devices see captain arrival & QR status
+  useEffect(() => {
+    if (!open) return;
+    const splitSeatNum = splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i)
+      ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1])
+      : undefined;
+    const currentBill = splitAmount ? splitAmount : (table?.currentBill || 0);
+    waiterInitiatesSettlement(tableNum, splitSeatNum, currentBill, method === 'CARD' ? 'UPI' : method, isUpiVerified);
+    return () => {
+      waiterClearsSettlementSession(tableNum, splitSeatNum);
+    };
+  }, [open, tableNum, splitLabel, splitAmount, table?.currentBill, method, isUpiVerified, waiterInitiatesSettlement, waiterClearsSettlementSession]);
 
   if (!table) return null;
 

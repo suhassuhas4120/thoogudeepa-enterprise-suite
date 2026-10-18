@@ -42,7 +42,16 @@ export function TabletPaymentPanel({
   splitAmount,
   splitLabel,
 }: Props) {
-  const { tables, kdsTickets, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill } = useSharedBridge();
+  const {
+    tables,
+    kdsTickets,
+    waiterRecordsPayment,
+    waiterVacatesTable,
+    waiterClearsChairAfterPayment,
+    recordSettledBill,
+    waiterInitiatesSettlement,
+    waiterClearsSettlementSession,
+  } = useSharedBridge();
   const { cart } = useCustomer();
   const table = tables.find((t) => t.number === tableNum);
 
@@ -155,6 +164,17 @@ const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price ||
       .then((url) => setQrCodeUrl(url))
       .catch((err) => console.error('Failed to generate UPI QR code:', err));
   }, [method, table, tableNum, bill]);
+
+  // Synchronize settlement session so customer devices see captain arrival & QR status
+  useEffect(() => {
+    const splitSeatNum = typeof selectedChair === 'number'
+      ? selectedChair
+      : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+    waiterInitiatesSettlement(tableNum, splitSeatNum, bill, method === 'CARD' ? 'UPI' : method, isUpiVerified);
+    return () => {
+      waiterClearsSettlementSession(tableNum, splitSeatNum);
+    };
+  }, [tableNum, selectedChair, splitLabel, bill, method, isUpiVerified, waiterInitiatesSettlement, waiterClearsSettlementSession]);
 
   if (!table) return null;
 

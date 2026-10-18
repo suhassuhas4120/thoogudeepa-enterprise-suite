@@ -51,9 +51,21 @@ export const Screen10WaiterCall: React.FC = () => {
     const chairItems = chairTickets.flatMap((t) => t.items).filter(
       (it) => it.seatNumber === effectiveSeat || !it.seatNumber
     );
-    if (!chairItems.length) return false;
-    return chairItems.every((it) => it.stage === 'SERVED');
-  }, [kdsTickets, effectiveTable, effectiveSeat]);
+    if (!chairItems.length) {
+      const seatActiveItems = (currentTbl?.activeItems || []).filter(
+        (ai) => ai.seatNumber === effectiveSeat || !ai.seatNumber
+      );
+      if (seatActiveItems.length > 0) {
+        return seatActiveItems.every((ai) => ai.status === 'Served');
+      }
+      return false;
+    }
+    return chairItems.every((it) => {
+      if (it.stage === 'SERVED') return true;
+      const matched = currentTbl?.activeItems?.find((ai) => ai.id === it.id);
+      return matched?.status === 'Served';
+    });
+  }, [kdsTickets, effectiveTable, effectiveSeat, currentTbl]);
 
   useEffect(() => {
     if (rawAllDishesServed) {

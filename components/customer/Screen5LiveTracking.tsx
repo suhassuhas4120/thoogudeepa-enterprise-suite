@@ -165,7 +165,7 @@ export const Screen5LiveTracking: React.FC = () => {
 
     const tableCandidate = sessions[normTable];
     if (isValid(tableCandidate)) {
-      if (typeof tableCandidate.seatNumber === 'number' && Number(tableCandidate.seatNumber) === effectiveSeat) {
+      if (typeof tableCandidate.seatNumber !== 'number' || Number(tableCandidate.seatNumber) === effectiveSeat) {
         return tableCandidate;
       }
     }
@@ -177,15 +177,14 @@ export const Screen5LiveTracking: React.FC = () => {
 
   // Check if waiter was called for payment strictly for this chair
   const hasActivePaymentPing = useMemo(() => {
-    if (!orderPlacedAt || orderPlacedAt <= 0) return false;
     return pings.some(
       (p) =>
         isTableMatch(p.tableNumber, effectiveTable) &&
         p.type === 'PAYMENT' &&
         p.status === 'PENDING' &&
-        p.seatNumber === effectiveSeat
+        (!p.seatNumber || p.seatNumber === effectiveSeat)
     );
-  }, [pings, effectiveTable, effectiveSeat, orderPlacedAt]);
+  }, [pings, effectiveTable, effectiveSeat]);
 
   const isSummoned = isWaitingForCaptain || hasActivePaymentPing || (waiterNotification?.active && waiterNotification.type === 'PAYMENT');
 
@@ -344,8 +343,11 @@ export const Screen5LiveTracking: React.FC = () => {
         const tableStage: OrderStage | undefined =
           tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
 
-        // Authoritative stage: specific ticket item stage, fallback to specific active item stage, fallback to PLACED
-        const liveStage: OrderStage = ti.stage || tableStage || 'PLACED';
+        // Authoritative stage: if either ticket item is SERVED or table active item is Served, it is SERVED
+        const liveStage: OrderStage =
+          ti.stage === 'SERVED' || tableStage === 'SERVED'
+            ? 'SERVED'
+            : ti.stage || tableStage || 'PLACED';
 
         return {
           id: ti.id,
@@ -398,24 +400,22 @@ export const Screen5LiveTracking: React.FC = () => {
 
   const rawAllDishesServed = useMemo(() => {
     if (!trackedDishes.length) return false;
-    return trackedDishes.every((d) => d.stage === 'SERVED');
-  }, [trackedDishes]);
+    return trackedDishes.every((d) => d.stage === 'SERVED' || getDishStageIdx(d.stage, d.id) === 4);
+  }, [trackedDishes, currentTbl]);
 
   useEffect(() => {
     if (rawAllDishesServed) {
       setHasEverBeenFullyServed(true);
-    } else if (trackedDishes.some((d) => d.stage !== 'SERVED')) {
+    } else if (trackedDishes.some((d) => d.stage !== 'SERVED' && getDishStageIdx(d.stage, d.id) !== 4)) {
       // Reset latch if any newly placed/cooking item is currently pending in kitchen
       setHasEverBeenFullyServed(false);
     }
-  }, [rawAllDishesServed, trackedDishes]);
+  }, [rawAllDishesServed, trackedDishes, currentTbl]);
 
   const allDishesServed = rawAllDishesServed || hasEverBeenFullyServed;
 
   // Auto-transition to Screen 8 immediately when waiter confirms payment
   const matchingSnapshot = useMemo(() => {
-    // A customer MUST have placed an order in this current session to match a settled bill
-    if (!orderPlacedAt || orderPlacedAt <= 0) return null;
     if (!trackedDishes || trackedDishes.length === 0) return null;
 
     const bills = settledBills || {};
@@ -426,33 +426,42 @@ export const Screen5LiveTracking: React.FC = () => {
       const seatNum = typeof b.seatNumber === 'number'
         ? b.seatNumber
         : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-      if (seatNum === effectiveSeat) {
+      if (seatNum === undefined || seatNum === effectiveSeat) {
+        candidate = b;
+      }
+    } else if (bills[normTable]) {
+      const b = bills[normTable];
+      const seatNum = typeof b.seatNumber === 'number'
+        ? b.seatNumber
+        : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+      if (seatNum === undefined || seatNum === effectiveSeat) {
         candidate = b;
       }
     }
 
-    // Must be fresh and generated strictly AFTER the current customer placed order
+    // Must be fresh and generated within current session
     if (candidate && candidate.timestamp) {
       const now = Date.now();
       const isRecent = Math.abs(now - candidate.timestamp) < 1800000;
-      const isAfterOrder = candidate.timestamp > orderPlacedAt + 500;
+      const effectiveOrderTime = orderPlacedAt && orderPlacedAt > 0 ? orderPlacedAt : 0;
+      const isAfterOrder = effectiveOrderTime > 0 ? candidate.timestamp >= effectiveOrderTime - 5000 : isRecent;
       if (isRecent && isAfterOrder) {
         return candidate;
       }
     }
 
     return null;
-  }, [settledBills, chairKey, effectiveSeat, orderPlacedAt, trackedDishes]);
+  }, [settledBills, chairKey, normTable, effectiveSeat, orderPlacedAt, trackedDishes]);
 
   useEffect(() => {
-    if (matchingSnapshot && trackedDishes.length > 0 && orderPlacedAt > 0) {
+    if (matchingSnapshot && trackedDishes.length > 0) {
       const now = Date.now();
       if (!matchingSnapshot.timestamp || Math.abs(now - matchingSnapshot.timestamp) < 1800000) {
         setIsScannerOpen(false);
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }
     }
-  }, [matchingSnapshot, trackedDishes, orderPlacedAt]);
+  }, [matchingSnapshot, trackedDishes]);
 
   // Synchronize settlement session without causing broadcast loops across tabs
   useEffect(() => {
@@ -1430,8 +1439,9 @@ export const Screen5LiveTracking: React.FC = () => {
                 onClick={() => {
                   const normTbl = `T-${String(parseInt(effectiveTable.replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
                   const key = `${normTbl}-CHAIR-${effectiveSeat}`;
-                  const candidate = settledBills[key];
-                  const snapshot = candidate && candidate.timestamp && candidate.timestamp > orderPlacedAt + 500
+                  const candidate = settledBills[key] || settledBills[normTbl];
+                  const now = Date.now();
+                  const snapshot = candidate && candidate.timestamp && Math.abs(now - candidate.timestamp) < 1800000
                     ? candidate
                     : null;
                   if (snapshot) {

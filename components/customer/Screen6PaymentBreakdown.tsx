@@ -36,7 +36,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
 
   // Auto-transition to Screen 8 only if waiter just settled this specific chair right now
   useEffect(() => {
-    if (!settledBills || !orderPlacedAt || orderPlacedAt <= 0) return;
+    if (!settledBills) return;
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
     const tNum = cleanNum(effectiveTable);
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
@@ -48,7 +48,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
       const seatNum = typeof b.seatNumber === 'number'
         ? b.seatNumber
         : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-      if (seatNum === effectiveSeat) {
+      if (seatNum === undefined || seatNum === effectiveSeat) {
         matchingSnapshot = b;
       }
     } else if (settledBills[normTable]) {
@@ -56,7 +56,7 @@ export const Screen6PaymentBreakdown: React.FC = () => {
       const seatNum = typeof b.seatNumber === 'number'
         ? b.seatNumber
         : (b.seatLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(b.seatLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-      if (seatNum === effectiveSeat) {
+      if (seatNum === undefined || seatNum === effectiveSeat) {
         matchingSnapshot = b;
       }
     }
@@ -64,7 +64,8 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     if (matchingSnapshot && matchingSnapshot.timestamp) {
       const now = Date.now();
       const isRecent = Math.abs(now - matchingSnapshot.timestamp) < 1800000;
-      const isAfterOrder = matchingSnapshot.timestamp > orderPlacedAt + 500;
+      const effectiveOrderTime = orderPlacedAt && orderPlacedAt > 0 ? orderPlacedAt : 0;
+      const isAfterOrder = effectiveOrderTime > 0 ? matchingSnapshot.timestamp >= effectiveOrderTime - 5000 : isRecent;
       if (isRecent && isAfterOrder) {
         useCustomerStore.getState().handleBillSettledByWaiter(matchingSnapshot);
       }

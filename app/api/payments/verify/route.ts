@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase, broadcastStateChange } from '../../../../lib/supabase';
+import { settledBills, normalizeTable, SettledBillSnapshot } from '../../../../lib/settlementStore';
 
 export const dynamic = 'force-dynamic';
 
@@ -303,6 +304,40 @@ export async function POST(req: NextRequest) {
         tableNumber: resolvedTableNumber,
         seatNumber: resolvedSeatNumber,
       });
+
+      // 7. Record settled bill snapshot and broadcast to auto-transition customer screens
+      if (resolvedTableNumber) {
+        const normTable = normalizeTable(resolvedTableNumber);
+        const seatNum = typeof resolvedSeatNumber === 'number' ? resolvedSeatNumber : undefined;
+        const invNumber = `INV-${normTable.replace(/[^0-9]/g, '')}-${Date.now().toString().slice(-4)}`;
+        const snapshot: SettledBillSnapshot = {
+          invoiceNumber: invNumber,
+          tableName: normTable,
+          seatNumber: seatNum,
+          seatLabel: seatNum ? `Chair ${seatNum}` : 'All Seats',
+          items: [],
+          subtotal: Math.round(resolvedAmount / 1.05),
+          totalTax: resolvedAmount - Math.round(resolvedAmount / 1.05),
+          cgst: Math.round((resolvedAmount - Math.round(resolvedAmount / 1.05)) / 2),
+          sgst: resolvedAmount - Math.round(resolvedAmount / 1.05) - Math.round((resolvedAmount - Math.round(resolvedAmount / 1.05)) / 2),
+          grandTotal: resolvedAmount,
+          method: body.paymentMethod || 'UPI',
+          captainName: 'Floor Captain',
+          section: 'Main Dining Hall',
+          guestCount: 1,
+          formattedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+          formattedTime: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+          timestamp: Date.now(),
+        };
+
+        if (typeof seatNum === 'number') {
+          settledBills.set(`${normTable}-CHAIR-${seatNum}`, snapshot);
+        } else {
+          settledBills.set(normTable, snapshot);
+        }
+        broadcastStateChange('billSettled', snapshot);
+        broadcastStateChange('settledBillRecorded', snapshot);
+      }
     }
 
     return NextResponse.json({

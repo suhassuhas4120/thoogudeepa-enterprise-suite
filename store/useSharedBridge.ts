@@ -1835,10 +1835,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       seatNumber,
     });
 
-    // Clear server settlement session & settled bills for this chair
+    // Clear server settlement session for this chair (keeping settled bill snapshot for receipt)
     bridgePost('/api/settlement/session', {
-      action: 'CLEAR_BILL',
-      tableNumber,
+      action: 'CLEAR',
+      tableNumber: normTable,
       seatNumber,
     });
 
@@ -1846,7 +1846,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       supabase
         .from('pings')
         .delete()
-        .or(`id.eq.SETTLE-SESSION-${normTable}-S${seatNumber},id.eq.SETTLED-BILL-${normTable}-S${seatNumber}`)
+        .eq('id', `SETTLE-SESSION-${normTable}-S${seatNumber}`)
         .then(() => {}, () => {});
     }
 

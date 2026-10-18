@@ -153,6 +153,20 @@ export const Screen5LiveTracking: React.FC = () => {
   const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
 
+  const getDishStageIdx = (stage: string | OrderStage, dishItemId?: string): number => {
+    const s = String(stage || '').toUpperCase();
+    if (s === 'SERVED') return 4;
+    // Check if table activeItems says Served for this exact item ID
+    if (dishItemId && currentTbl?.activeItems) {
+      const matched = currentTbl.activeItems.find((ai) => ai.id === dishItemId);
+      if (matched?.status === 'Served') return 4;
+    }
+    if (s === 'PLATED' || s === 'READY') return 3;
+    if (s === 'PREP' || s === 'PREPARING') return 2;
+    if (s === 'RECEIVED') return 1;
+    return 0; // PLACED
+  };
+
   // Check if floor captain has arrived and initiated settlement for this specific chair
   const activeSession = useMemo(() => {
     const sessions = activeSettlementSessions || {};
@@ -583,20 +597,6 @@ export const Screen5LiveTracking: React.FC = () => {
       }
     };
   }, [isScannerOpen]);
-
-  const getDishStageIdx = (stage: string | OrderStage, dishItemId?: string): number => {
-    const s = String(stage || '').toUpperCase();
-    if (s === 'SERVED') return 4;
-    // Check if table activeItems says Served for this exact item ID
-    if (dishItemId && currentTbl?.activeItems) {
-      const matched = currentTbl.activeItems.find((ai) => ai.id === dishItemId);
-      if (matched?.status === 'Served') return 4;
-    }
-    if (s === 'PLATED' || s === 'READY') return 3;
-    if (s === 'PREP' || s === 'PREPARING') return 2;
-    if (s === 'RECEIVED') return 1;
-    return 0; // PLACED
-  };
 
   // Reset any transient waiter call state when mounting Screen 5
   useEffect(() => {

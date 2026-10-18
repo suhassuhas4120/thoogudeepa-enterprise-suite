@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft,
@@ -130,6 +130,8 @@ export function TabletTableDetail({
   const {
     tables,
     kdsTickets,
+    pings,
+    activeSettlementSessions,
     waiterMergeChairs,
     waiterMergeSeatGroup,
     waiterUnmergeSeatGroup,
@@ -243,6 +245,42 @@ export function TabletTableDetail({
       targetChairBill = 0;
     }
   }
+
+  // Check if customer has requested payment via captain
+  const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetTblNum = cleanTbl(tableNum);
+  const normTable = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
+  const peerNums = new Set((table.mergeGroupPeers || [tableNum]).map(cleanTbl));
+
+  const isPaymentRequested = useMemo(() => {
+    const hasPendingPaymentPing = (pings || []).some((p) => {
+      if (!peerNums.has(cleanTbl(p.tableNumber))) return false;
+      if (p.status !== 'PENDING') return false;
+      if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
+
+      if (selectedChair === 'ALL') {
+        return true;
+      }
+      if (typeof selectedChair === 'number') {
+        return !p.seatNumber || p.seatNumber === selectedChair;
+      }
+      if (typeof selectedChair === 'string' && mergedSeatGroups[selectedChair]) {
+        return !p.seatNumber || mergedSeatGroups[selectedChair].includes(p.seatNumber);
+      }
+      return true;
+    });
+
+    const hasActiveSession = Boolean(
+      activeSettlementSessions?.[normTable] ||
+      (typeof selectedChair === 'number' && activeSettlementSessions?.[`${normTable}-CHAIR-${selectedChair}`]) ||
+      (selectedChair === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => k.startsWith(`${normTable}-CHAIR-`)))
+    );
+
+    return hasPendingPaymentPing || hasActiveSession || table.status === 'BILLING';
+  }, [pings, activeSettlementSessions, peerNums, normTable, selectedChair, mergedSeatGroups, table.status]);
+
+  const hasBillAmount = targetChairBill > 0 || (selectedChair === 'ALL' && totalTableBill > 0);
+  const isSettleDisabled = !hasBillAmount || !isPaymentRequested;
 
   const handleConfirmMergeSelectedChairs = () => {
     if (chairsSelectedForMerge.length < 2) return;
@@ -949,15 +987,26 @@ export function TabletTableDetail({
             <button
               type="button"
               onClick={onSettle}
-              disabled={targetChairBill === 0 && totalTableBill === 0}
+              disabled={isSettleDisabled}
+              title={
+                !hasBillAmount
+                  ? 'No orders to settle'
+                  : !isPaymentRequested
+                  ? 'Payment disabled: Customer must tap "Call Captain for Bill/Payment" on their device first'
+                  : `Settle ${selectedChair === 'ALL' ? 'Bill' : chairLabel}`
+              }
               className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
-                targetChairBill === 0 && totalTableBill === 0
+                isSettleDisabled
                   ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs animate-pulse'
               }`}
             >
               <CreditCard className="h-4 w-4 stroke-[2.4]" />
-              <span>Settle {selectedChair === 'ALL' ? 'Bill' : chairLabel}</span>
+              <span>
+                {hasBillAmount && !isPaymentRequested
+                  ? 'Awaiting Payment Call'
+                  : `Settle ${selectedChair === 'ALL' ? 'Bill' : chairLabel}`}
+              </span>
             </button>
           </div>
 

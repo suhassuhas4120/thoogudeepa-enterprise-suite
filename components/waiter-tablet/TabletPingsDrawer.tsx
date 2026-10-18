@@ -192,7 +192,6 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                               whileTap={{ scale: 0.95 }}
                               type="button"
                               onClick={() => {
-                                handleResolvePing(p.id, p.tableNumber);
                                 handleFocusTable(p.tableNumber);
                               }}
                               className="w-full h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer active:scale-98"

@@ -99,6 +99,7 @@ export function ScreenM3TableSheet({
     tables,
     pings,
     kdsTickets,
+    activeSettlementSessions,
     waiterVacatesTable,
     waiterMergeTables,
     waiterUnmergeTable,
@@ -444,9 +445,40 @@ export function ScreenM3TableSheet({
     setTimeout(() => setNotice(null), 2000);
   };
 
-  // ── Settle Button Validation (Require all dishes to be SERVED) ──
+  // ── Settle Button Validation (Require all dishes to be SERVED & Customer to call captain) ──
   const hasTableOrders = allTableOrderedItems.length > 0;
   const hasUnservedTableItems = !hasTableOrders || allTableOrderedItems.some((it) => it.stage !== 'Served');
+
+  // Check if customer has requested payment via captain
+  const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetTblNum = cleanTbl(tableNum);
+  const normTbl = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
+  const peerNums = new Set(groupTables.map((t) => cleanTbl(t.number)));
+
+  const isPaymentRequestedForSelection = (() => {
+    const hasPendingPaymentPing = (pings || []).some((p) => {
+      if (!peerNums.has(cleanTbl(p.tableNumber))) return false;
+      if (p.status !== 'PENDING') return false;
+      if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
+
+      if (selectedSeat === 'ALL') return true;
+      if (typeof selectedSeat === 'number') {
+        return !p.seatNumber || p.seatNumber === selectedSeat;
+      }
+      if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+        return !p.seatNumber || mergedSeatGroups[selectedSeat].includes(p.seatNumber);
+      }
+      return true;
+    });
+
+    const hasActiveSession = Boolean(
+      activeSettlementSessions?.[normTbl] ||
+      (typeof selectedSeat === 'number' && activeSettlementSessions?.[`${normTbl}-CHAIR-${selectedSeat}`]) ||
+      (selectedSeat === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => k.startsWith(`${normTbl}-CHAIR-`)))
+    );
+
+    return hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';
+  })();
 
   let isCurrentSelectionSettleDisabled = false;
   let currentSelectionSettleReason = '';
@@ -459,11 +491,13 @@ export function ScreenM3TableSheet({
       isCurrentSelectionSettleDisabled = true;
       currentSelectionSettleReason = 'Select an individual chair tab above to settle its bill';
     } else {
-      isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems;
+      isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems || !isPaymentRequestedForSelection;
       currentSelectionSettleReason = !hasTableOrders
         ? 'No orders placed'
         : hasUnservedTableItems
         ? 'Serve all table items to settle'
+        : !isPaymentRequestedForSelection
+        ? 'Awaiting customer to call captain for payment'
         : '';
     }
   } else if (typeof selectedSeat === 'number') {
@@ -473,11 +507,13 @@ export function ScreenM3TableSheet({
     const hasChairItems = chairTargetItems.length > 0;
     const hasUnservedChair = !hasChairItems || chairTargetItems.some((i) => i.stage !== 'Served');
     const chairBreakdown = getChairBillBreakdown(selectedSeat);
-    isCurrentSelectionSettleDisabled = isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || hasUnservedChair;
+    isCurrentSelectionSettleDisabled = isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || hasUnservedChair || !isPaymentRequestedForSelection;
     currentSelectionSettleReason = !hasChairItems
       ? 'No orders for this chair'
       : hasUnservedChair
       ? `Serve all items for Chair ${selectedSeat} to settle`
+      : !isPaymentRequestedForSelection
+      ? `Awaiting Chair ${selectedSeat} to call captain for payment`
       : '';
   } else if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
     const groupSeats = mergedSeatGroups[selectedSeat];
@@ -487,11 +523,13 @@ export function ScreenM3TableSheet({
     const hasGroupItems = groupTargetItems.length > 0;
     const hasUnservedGroup = !hasGroupItems || groupTargetItems.some((i) => i.stage !== 'Served');
     const groupBreakdown = getChairBillBreakdown(selectedSeat);
-    isCurrentSelectionSettleDisabled = isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || hasUnservedGroup;
+    isCurrentSelectionSettleDisabled = isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || hasUnservedGroup || !isPaymentRequestedForSelection;
     currentSelectionSettleReason = !hasGroupItems
       ? 'No orders for this group'
       : hasUnservedGroup
       ? 'Serve all group items to settle'
+      : !isPaymentRequestedForSelection
+      ? 'Awaiting customer to call captain for payment'
       : '';
   }
 
@@ -1582,6 +1620,8 @@ export function ScreenM3TableSheet({
               {isCurrentSelectionSettleDisabled && hasTableOrders
                 ? currentSelectionSettleReason.startsWith('Select an individual')
                   ? 'Select Chair'
+                  : currentSelectionSettleReason.includes('call') || currentSelectionSettleReason.includes('Awaiting')
+                  ? 'Awaiting Call'
                   : 'Serve to Settle'
                 : 'Settle'}
             </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Users,
   Utensils,
@@ -52,7 +52,7 @@ export function TabletTableCockpit({
   onOpenMergeModal,
   onVacated,
 }: Props) {
-  const { tables, kdsTickets, waiterVacatesTable, waiterUnmergeTable, waiterMarkKitchenItemServed } = useSharedBridge();
+  const { tables, pings, activeSettlementSessions, kdsTickets, waiterVacatesTable, waiterUnmergeTable, waiterMarkKitchenItemServed } = useSharedBridge();
   const [selectedChair, setSelectedChair] = useState<'ALL' | number>('ALL');
 
   const table = tables.find((t) => t.number === selectedTableNum);
@@ -124,6 +124,27 @@ export function TabletTableCockpit({
   const subtotal = Math.max(table.currentBill || 0, itemsSubtotal);
   const tax = Math.round(subtotal * 0.05);
   const grandTotal = isVacant ? 0 : subtotal + tax;
+
+  const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const targetTblNum = cleanTbl(selectedTableNum);
+  const normTable = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
+  const peerNums = new Set(groupPeers.map(cleanTbl));
+
+  const isPaymentRequested = useMemo(() => {
+    const hasPendingPaymentPing = (pings || []).some((p) => {
+      if (!peerNums.has(cleanTbl(p.tableNumber))) return false;
+      if (p.status !== 'PENDING') return false;
+      if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
+      return true;
+    });
+
+    const hasActiveSession = Boolean(
+      activeSettlementSessions?.[normTable] ||
+      Object.keys(activeSettlementSessions || {}).some((k) => k.startsWith(`${normTable}-CHAIR-`))
+    );
+
+    return hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';
+  }, [pings, activeSettlementSessions, peerNums, normTable, table?.status]);
 
   const totalChairs = table.capacity || 4;
   const occupiedChairsCount = Math.max(table.guestCount || 0, allOrderedItems.length > 0 ? 1 : 0);
@@ -380,14 +401,26 @@ export function TabletTableCockpit({
           </motion.button>
 
           {grandTotal > 0 && !isVacant ? (
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => onGoToSettle()}
-              className="py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
-            >
-              <CreditCard className="h-4 w-4 text-emerald-400" />
-              <span>Settle Full Bill</span>
-            </motion.button>
+            isPaymentRequested ? (
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => onGoToSettle()}
+                className="py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+              >
+                <CreditCard className="h-4 w-4 text-emerald-400" />
+                <span>Settle Full Bill</span>
+              </motion.button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                title="Payment disabled: Customer must tap 'Call Captain for Bill/Payment' on their device first"
+                className="py-3 bg-stone-100 text-stone-400 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-stone-200 cursor-not-allowed"
+              >
+                <CreditCard className="h-4 w-4 text-stone-400" />
+                <span>Awaiting Payment Call</span>
+              </button>
+            )
           ) : (
             <button
               type="button"

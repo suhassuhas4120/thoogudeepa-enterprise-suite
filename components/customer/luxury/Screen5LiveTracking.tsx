@@ -156,10 +156,18 @@ export const Screen5LiveTracking: React.FC = () => {
   const getDishStageIdx = (stage: string | OrderStage, dishItemId?: string): number => {
     const s = String(stage || '').toUpperCase();
     if (s === 'SERVED') return 4;
-    // Check if table activeItems says Served for this exact item ID
+    // Check if table activeItems says Served or further stage for this item
     if (dishItemId && currentTbl?.activeItems) {
-      const matched = currentTbl.activeItems.find((ai) => ai.id === dishItemId);
-      if (matched?.status === 'Served') return 4;
+      const matched = currentTbl.activeItems.find(
+        (ai) => ai.id === dishItemId || (ai.name && getCanonicalKey(ai.name) === getCanonicalKey(dishItemId))
+      );
+      if (matched?.status) {
+        const ms = String(matched.status).toUpperCase();
+        if (ms === 'SERVED') return 4;
+        if (ms === 'READY' || ms === 'PLATED') return 3;
+        if (ms === 'COOKING' || ms === 'PREP' || ms === 'PREPARING') return 2;
+        if (ms === 'RECEIVED') return 1;
+      }
     }
     if (s === 'PLATED' || s === 'READY') return 3;
     if (s === 'PREP' || s === 'PREPARING') return 2;
@@ -325,12 +333,19 @@ export const Screen5LiveTracking: React.FC = () => {
       });
     });
 
-    // Supplement with supabase items if not already present in bridge
+    // Supplement with supabase items and reconcile stages
     supabaseItems.forEach((si) => {
-      const alreadyInBridge = combinedTicketItems.some(
-        (ci) => ci.id === si.id || (getCanonicalKey(ci.name) === getCanonicalKey(si.name) && ci.ticketId === si.ticketId)
+      const existing = combinedTicketItems.find(
+        (ci) => ci.id === si.id || (getCanonicalKey(ci.name) === getCanonicalKey(si.name) && (!ci.ticketId || !si.ticketId || ci.ticketId === si.ticketId))
       );
-      if (!alreadyInBridge) {
+      if (existing) {
+        // Reconcile: advance to the furthest stage reported
+        const existingIdx = getDishStageIdx(existing.stage, existing.id);
+        const supabaseIdx = getDishStageIdx(si.stage, si.id);
+        if (supabaseIdx > existingIdx) {
+          existing.stage = si.stage;
+        }
+      } else {
         combinedTicketItems.push({
           id: si.id,
           ticketId: si.ticketId,
@@ -355,16 +370,21 @@ export const Screen5LiveTracking: React.FC = () => {
           (c) => c && c.isOrdered && c.seatNumber === effectiveSeat && getCanonicalKey(c.menuItem?.name || '') === key
         );
 
-        // Check if this specific ticket item was marked Served strictly by its unique item ID
-        const tableActiveItem = currentTbl?.activeItems?.find((ai) => ai && ai.id === ti.id);
+        // Check if table activeItems has a stage update for this item
+        const tableActiveItem = currentTbl?.activeItems?.find(
+          (ai) => ai && (ai.id === ti.id || (getCanonicalKey(ai.name) === key && (!ai.seatNumber || ai.seatNumber === effectiveSeat)))
+        );
+        const rawTblStatus = String(tableActiveItem?.status || '').toUpperCase();
         const tableStage: OrderStage | undefined =
-          tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
+          rawTblStatus === 'SERVED' ? 'SERVED' :
+          rawTblStatus === 'READY' ? 'PLATED' :
+          rawTblStatus === 'COOKING' ? 'PREP' :
+          rawTblStatus === 'RECEIVED' ? 'RECEIVED' :
+          undefined;
 
-        // Authoritative stage: if either ticket item is SERVED or table active item is Served, it is SERVED
-        const liveStage: OrderStage =
-          ti.stage === 'SERVED' || tableStage === 'SERVED'
-            ? 'SERVED'
-            : ti.stage || tableStage || 'PLACED';
+        const tiIdx = getDishStageIdx(ti.stage, ti.id);
+        const tblIdx = tableStage ? getDishStageIdx(tableStage, ti.id) : 0;
+        const liveStage: OrderStage = tblIdx > tiIdx && tableStage ? tableStage : (ti.stage || 'PLACED');
 
         return {
           id: ti.id,
@@ -789,7 +809,7 @@ export const Screen5LiveTracking: React.FC = () => {
                               <CheckCircle2 className="h-3 w-3 text-teal-400" />
                               <span>Received</span>
                             </span>
-                          ) : it.stage === 'PREP' ? (
+                          ) : it.stage === 'PREP' || it.stage === 'PREPARING' ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/40 bg-amber-950/60 px-2.5 py-0.5 text-[9.5px] font-bold text-amber-300 font-mono animate-pulse">
                               <Flame className="h-3 w-3 text-amber-400" />
                               <span>Preparing</span>

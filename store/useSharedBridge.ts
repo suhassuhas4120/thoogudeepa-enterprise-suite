@@ -816,14 +816,17 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   kitchenSetItemStage: (ticketId, itemId, stage) => {
-    const prevTickets = get().kdsTickets;
-    const prevTables = get().tables;
+    const currentTicket = get().kdsTickets.find(
+      (tk) => tk.id === ticketId || tk.items.some((i) => i.id === itemId)
+    );
+    const targetItem = currentTicket?.items.find((i) => i.id === itemId);
+    const itemName = targetItem?.name;
 
     set((state) => {
       const newTickets = state.kdsTickets.map((t) => {
         if (t.id !== ticketId && !t.items.some((it) => it.id === itemId)) return t;
         const newItems = t.items.map((it) => {
-          if (it.id !== itemId) return it;
+          if (it.id !== itemId && !(itemName && it.name === itemName && it.seatNumber === targetItem?.seatNumber)) return it;
           return { ...it, stage };
         });
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
@@ -838,14 +841,15 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       // Update waiter table's activeItems stages without erasing other tickets' items
       const targetTicket = newTickets.find((tk) => tk.id === ticketId || tk.items.some((i) => i.id === itemId));
+      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
       const updatedTables = targetTicket
         ? state.tables.map((tbl) => {
-            if (tbl.number !== targetTicket.tableNumber) return tbl;
+            if (cleanNum(tbl.number) !== cleanNum(targetTicket.tableNumber)) return tbl;
             return {
               ...tbl,
               activeItems: (tbl.activeItems || []).map((ai) => {
                 const matchedTicketItem = targetTicket.items.find(
-                  (ti) => ti.id === ai.id
+                  (ti) => ti.id === ai.id || (ti.name === ai.name && (ti.seatNumber === undefined || ai.seatNumber === undefined || ti.seatNumber === ai.seatNumber))
                 );
                 if (!matchedTicketItem) return ai;
                 return {
@@ -869,13 +873,27 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       return { kdsTickets: newTickets, tables: updatedTables };
     });
 
-    // Persist to Supabase
+    // Persist to Supabase with full metadata to avoid cross-device desync
     bridgePost(
       '/api/kds/bump-item',
-      { ticketId, itemId, stage },
+      {
+        ticketId,
+        itemId,
+        itemName,
+        tableNumber: currentTicket?.tableNumber,
+        stage,
+      },
+      (err) => {
+        console.warn('[Bridge] kitchenSetItemStage background sync notice:', err);
+      },
       () => {
-        console.error('[Bridge] kitchenSetItemStage rollback');
-        useSharedBridge.setState({ kdsTickets: prevTickets, tables: prevTables });
+        try {
+          broadcastStateChange('KDS_ITEM_BUMPED', {
+            ticketId,
+            itemId,
+            stage,
+          });
+        } catch {}
       }
     );
   },

@@ -137,13 +137,14 @@ export const ScreenK2Overview: React.FC = () => {
           seatNumber: tk.seatNumber,
           items: unservedItems.map((it) => {
             const key = `${tk.id}-${it.id}`;
-            const override = itemStageOverride[key];
+            const override = itemStageOverride[it.id] || itemStageOverride[key];
+            const s = String(it.stage || '').toUpperCase();
             const resolvedStage =
-              it.stage === 'RECEIVED'
+              s === 'RECEIVED'
                 ? 'RECEIVED'
-                : it.stage === 'PREP'
+                : s === 'PREP' || s === 'PREPARING'
                 ? 'PREPARING'
-                : it.stage === 'PLATED'
+                : s === 'PLATED' || s === 'READY'
                 ? 'READY'
                 : override || 'PLACED';
             return {
@@ -241,7 +242,11 @@ export const ScreenK2Overview: React.FC = () => {
     newStage: 'RECEIVED' | 'PREPARING' | 'READY'
   ) => {
     const key = `${tableId}-${itemId}`;
-    setItemStageOverride((prev) => ({ ...prev, [key]: newStage }));
+    setItemStageOverride((prev) => ({
+      ...prev,
+      [key]: newStage,
+      [itemId]: newStage,
+    }));
 
     const bridgeStage: OrderStage =
       newStage === 'PREPARING'

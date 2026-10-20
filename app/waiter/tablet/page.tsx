@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useSharedBridge } from "../../../store/useSharedBridge";
+import { useSharedBridge, cleanTableNum } from "../../../store/useSharedBridge";
+import { isPingLocallyResolved } from "../../../lib/settlementStore";
 import { useWaiterStore } from "../../../store/useWaiterStore";
 import {
   Bell,
@@ -192,7 +193,18 @@ export default function WaiterTabletPage() {
     return () => window.removeEventListener("resize", recalc);
   }, []);
 
-  const activePings = pings.filter((p) => p.status === "PENDING");
+  const activePings = pings.filter((p) => {
+    if (p.status !== "PENDING") return false;
+    const cleanT = cleanTableNum(p.tableNumber);
+    const normTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, "0")}`;
+    const compositeKey = `${normTable}-S${p.seatNumber || 1}-${p.type}`;
+    const tableKey = `${normTable}-${p.type}`;
+    return (
+      !isPingLocallyResolved(p.id) &&
+      !isPingLocallyResolved(compositeKey) &&
+      !isPingLocallyResolved(tableKey)
+    );
+  });
   const readyTickets = kdsTickets.filter((tk) => tk.status === "READY");
   const shiftRevenue = shiftStats?.totalRevenue || 0;
 
@@ -205,7 +217,7 @@ export default function WaiterTabletPage() {
       return;
     }
 
-    const cleanT = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const cleanT = cleanTableNum;
 
     // Check by both ping.id AND semantic key (table + seat + type) to prevent duplicate chimes
     const unchimedPings = activePings.filter((p) => {
@@ -297,16 +309,23 @@ export default function WaiterTabletPage() {
   };
 
   // ── Navigation helpers ─────────────────────────────────────────────────
-  const selectTable = (num: string) => {
-    setSelectedTableNum(num);
-    setSelectedChair("ALL");
+  const selectTable = (
+    num: string,
+    chair?: number | string | "ALL",
+    panelTab?: RightPanelTab,
+  ) => {
+    const clean = cleanTableNum(num);
+    const matchedTable = tables.find((t) => cleanTableNum(t.number) === clean);
+    const resolvedTableNum = matchedTable ? matchedTable.number : num;
+
+    setSelectedTableNum(resolvedTableNum);
+    setSelectedChair(chair ?? "ALL");
     setConfirmVacate(false);
     setSplitInfo(null);
     setCallsOpen(false);
     setPickupOpen(false);
 
-    // Keep right side on menu page by default for taking orders / managing dishes
-    setRightPanelTab("menu");
+    setRightPanelTab(panelTab ?? "menu");
     setView("table-detail");
   };
 
@@ -958,7 +977,27 @@ export default function WaiterTabletPage() {
                               showToast(
                                 `Settlement completed for ${selectedTableNum}`,
                               );
-                              setView("floor");
+                              const currentTbl = tables.find(
+                                (t) => cleanTableNum(t.number) === cleanTableNum(selectedTableNum)
+                              );
+                              const isStillOccupied =
+                                Boolean(splitInfo || (selectedChair && selectedChair !== "ALL")) &&
+                                currentTbl &&
+                                currentTbl.status === "OCCUPIED" &&
+                                (currentTbl.currentBill > 0 || (currentTbl.activeItems && currentTbl.activeItems.length > 0));
+
+                              if (isStillOccupied) {
+                                setSelectedChair("ALL");
+                                setSplitInfo(null);
+                                setRightPanelTab("menu");
+                              } else {
+                                setSelectedChair("ALL");
+                                setSplitInfo(null);
+                                setView("floor");
+                                setTimeout(() => {
+                                  setRightPanelTab("menu");
+                                }, 250);
+                              }
                             }}
                             onOpenSplit={() => setSplitOpen(true)}
                             splitAmount={splitInfo?.amount}
@@ -1012,8 +1051,8 @@ export default function WaiterTabletPage() {
             <TabletPingsDrawer
               open={callsOpen}
               onClose={() => setCallsOpen(false)}
-              onSelectTable={(num) => {
-                selectTable(num);
+              onSelectTable={(num, chair, panelTab) => {
+                selectTable(num, chair, panelTab);
               }}
             />
 

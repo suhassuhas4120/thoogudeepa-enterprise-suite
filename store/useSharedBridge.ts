@@ -6,8 +6,17 @@ import { OrderStage } from '../types/customer';
 import { broadcastStateChange, supabase } from '../lib/supabase';
 import { getOrCreateDeviceToken } from '../lib/device-fingerprint';
 import { useManagerStore } from './useManagerStore';
-import { markPingLocallyResolved } from '../lib/settlementStore';
+import { markPingLocallyResolved, isPingLocallyResolved } from '../lib/settlementStore';
 
+/**
+ * Universal table number normalizer: converts 'T-01', 'T-1', 'TABLE 1', 'tbl-01', '1'
+ * to canonical numerical string '1'. Non-numeric table IDs are preserved in uppercase.
+ */
+export const cleanTableNum = (s: string): string => {
+  const raw = (s || '').trim().toUpperCase().replace(/^(TABLE\s*|TBL-?|T-?)/i, '').trim();
+  const n = parseInt(raw, 10);
+  return !isNaN(n) && n > 0 ? String(n) : raw;
+};
 
 export interface SharedKDSItem {
   id: string;
@@ -600,8 +609,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   recordSettledBill: (snapshot) => {
-    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-    const tNum = cleanNum(snapshot.tableName);
+    const tNum = cleanTableNum(snapshot.tableName);
     const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
     const timestampedSnapshot = { ...snapshot, tableName: normTable, timestamp: Date.now() };
 
@@ -635,9 +643,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const cleanedPings = state.pings.filter(
         (p) =>
           !(
-            cleanNum(p.tableNumber) === tNum &&
+            cleanTableNum(p.tableNumber) === tNum &&
             (p.type === 'PAYMENT' || p.type === 'BILL') &&
-            (typeof snapshot.seatNumber !== 'number' || p.seatNumber === snapshot.seatNumber)
+            (typeof snapshot.seatNumber !== 'number' || p.seatNumber === undefined || Number(p.seatNumber) === Number(snapshot.seatNumber))
           )
       );
 
@@ -659,6 +667,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     markPingLocallyResolved(`${normTable}-S${snapshot.seatNumber || 1}-BILL`);
     markPingLocallyResolved(`${normTable}-PAYMENT`);
     markPingLocallyResolved(`${normTable}-BILL`);
+    markPingLocallyResolved(`T-${tNum}-PAYMENT`);
+    markPingLocallyResolved(`T-${tNum}-BILL`);
+    markPingLocallyResolved(`T-${tNum}-S${snapshot.seatNumber || 1}-PAYMENT`);
+    markPingLocallyResolved(`T-${tNum}-S${snapshot.seatNumber || 1}-BILL`);
+
+    const matchingPings = get().pings.filter(
+      (p) =>
+        cleanTableNum(p.tableNumber) === tNum &&
+        (p.type === 'PAYMENT' || p.type === 'BILL') &&
+        (typeof snapshot.seatNumber !== 'number' || p.seatNumber === undefined || Number(p.seatNumber) === Number(snapshot.seatNumber))
+    );
+    matchingPings.forEach((p) => {
+      markPingLocallyResolved(p.id);
+      bridgePost('/api/pings/resolve', { pingId: p.id });
+    });
 
     bridgePost('/api/settlement/session', {
       action: 'RECORD_BILL',
@@ -672,7 +695,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         .or(`table_number.eq.${normTable},table_number.eq.${tNum},table_number.eq.Table ${tNum},table_number.eq.TABLE ${tNum}`)
         .in('type', ['PAYMENT', 'BILL']);
       if (typeof snapshot.seatNumber === 'number') {
-        pingQuery = pingQuery.eq('seat_number', snapshot.seatNumber);
+        pingQuery = pingQuery.or(`seat_number.eq.${snapshot.seatNumber},seat_number.is.null`);
       }
       pingQuery.then(() => {}, () => {});
 
@@ -1599,20 +1622,18 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
   
   waiterRecordsPayment: (tableNumber, method, amount, seatNumber) => {
-    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-    const targetNum = cleanNum(tableNumber);
+    const targetNum = cleanTableNum(tableNumber);
+    const isChairSettle = typeof seatNumber === 'number';
 
     set((state) => {
-      const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
+      const targetTbl = state.tables.find((t) => cleanTableNum(t.number) === targetNum);
       const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
 
       // For single-chair settle: keep table OCCUPIED, reduce its bill by that chair's share.
       // For full-table settle: mark entire group as BILLING (pre-vacate status).
-      const isChairSettle = typeof seatNumber === 'number';
-
       const newTickets = isChairSettle
         ? state.kdsTickets.map((tk) => {
-            if (cleanNum(tk.tableNumber) !== targetNum) return tk;
+            if (cleanTableNum(tk.tableNumber) !== targetNum) return tk;
             const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
             const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
             if (seatItems.length === 0) return tk;
@@ -1625,7 +1646,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       return {
         tables: state.tables.map((t) => {
-          if (!groupNums.has(t.number) && cleanNum(t.number) !== targetNum) return t;
+          if (!groupNums.has(t.number) && cleanTableNum(t.number) !== targetNum) return t;
           if (isChairSettle) {
             // Recompute currentBill as GST-inclusive total of remaining activeItems
             const remainingActiveItems = (t.activeItems || []).filter(
@@ -1643,9 +1664,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         pings: state.pings.filter(
           (p) =>
             !(
-              cleanNum(p.tableNumber) === targetNum &&
+              cleanTableNum(p.tableNumber) === targetNum &&
               (p.type === 'PAYMENT' || p.type === 'BILL') &&
-              (!isChairSettle || p.seatNumber === seatNumber)
+              (!isChairSettle || p.seatNumber === undefined || Number(p.seatNumber) === Number(seatNumber))
             )
         ),
         shiftStats: {
@@ -1656,6 +1677,17 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       };
     });
 
+    const matchingPings = get().pings.filter(
+      (p) =>
+        cleanTableNum(p.tableNumber) === targetNum &&
+        (p.type === 'PAYMENT' || p.type === 'BILL') &&
+        (!isChairSettle || p.seatNumber === undefined || Number(p.seatNumber) === Number(seatNumber))
+    );
+    matchingPings.forEach((p) => {
+      markPingLocallyResolved(p.id);
+      bridgePost('/api/pings/resolve', { pingId: p.id });
+    });
+
     if (typeof window !== 'undefined') {
       const normTbl = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
       let pQuery = supabase
@@ -1664,7 +1696,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         .or(`table_number.eq.${normTbl},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
         .in('type', ['PAYMENT', 'BILL']);
       if (typeof seatNumber === 'number') {
-        pQuery = pQuery.eq('seat_number', seatNumber);
+        pQuery = pQuery.or(`seat_number.eq.${seatNumber},seat_number.is.null`);
       }
       pQuery.then(() => {}, () => {});
     }
@@ -1672,7 +1704,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     // Automatically sync cash collection into Manager Staff Roster (M9 Waiter Cash Handover)
     if (String(method).toUpperCase() === 'CASH' && amount > 0) {
       try {
-        const targetTbl = get().tables.find((t) => cleanNum(t.number) === targetNum);
+        const targetTbl = get().tables.find((t) => cleanTableNum(t.number) === targetNum);
         const serverRef = targetTbl?.serverName || targetTbl?.section || 'Floor Captain';
         useManagerStore.getState().recordStaffCashCollection(serverRef, amount);
       } catch (err) {
@@ -1685,6 +1717,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     markPingLocallyResolved(`${normTblKey}-S${seatNumber || 1}-BILL`);
     markPingLocallyResolved(`${normTblKey}-PAYMENT`);
     markPingLocallyResolved(`${normTblKey}-BILL`);
+    markPingLocallyResolved(`T-${targetNum}-PAYMENT`);
+    markPingLocallyResolved(`T-${targetNum}-BILL`);
+    markPingLocallyResolved(`T-${targetNum}-S${seatNumber || 1}-PAYMENT`);
+    markPingLocallyResolved(`T-${targetNum}-S${seatNumber || 1}-BILL`);
 
     broadcastStateChange('paymentPingsResolved', {
       tableNumber: normTblKey,
@@ -1692,30 +1728,25 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
   },
 
-
   waiterVacatesTable: (tableNumber) => {
-    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-    const targetNum = cleanNum(tableNumber);
+    const targetNum = cleanTableNum(tableNumber);
     const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
     // Snapshot for rollback (vacate is destructive — save full state)
     const prevTables = get().tables;
     const prevTickets = get().kdsTickets;
 
     set((state) => {
-      const targetTbl = state.tables.find((t) => cleanNum(t.number) === targetNum);
+      const targetTbl = state.tables.find((t) => cleanTableNum(t.number) === targetNum);
       const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
       const nextSessions = { ...state.activeSettlementSessions };
-      const nextBills = { ...state.settledBills };
       delete nextSessions[normTable];
-      delete nextBills[normTable];
       for (let s = 1; s <= 12; s++) {
         delete nextSessions[`${normTable}-CHAIR-${s}`];
-        delete nextBills[`${normTable}-CHAIR-${s}`];
       }
 
       return {
         tables: state.tables.map((t) =>
-          groupNums.has(t.number) || cleanNum(t.number) === targetNum
+          groupNums.has(t.number) || cleanTableNum(t.number) === targetNum
             ? {
                 ...t,
                 status: 'VACANT' as const,
@@ -1734,16 +1765,17 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         ),
         // Remove ALL KDS tickets for every table in this group
         kdsTickets: state.kdsTickets.filter(
-          (tk) => !groupNums.has(tk.tableNumber) && cleanNum(tk.tableNumber) !== targetNum
+          (tk) => !groupNums.has(tk.tableNumber) && cleanTableNum(tk.tableNumber) !== targetNum
         ),
+        // Clear all pings for the table
+        pings: state.pings.filter((p) => cleanTableNum(p.tableNumber) !== targetNum),
         activeSettlementSessions: nextSessions,
-        settledBills: nextBills,
       };
     });
 
     broadcastStateChange('tableVacated');
 
-    // Clear server settlement session & settled bills
+    // Clear server settlement session
     bridgePost('/api/settlement/session', {
       action: 'VACATE',
       tableNumber,
@@ -1753,7 +1785,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       supabase
         .from('pings')
         .delete()
-        .or(`id.ilike.SETTLE-SESSION-${normTable}%,id.ilike.SETTLED-BILL-${normTable}%`)
+        .or(`id.ilike.SETTLE-SESSION-${normTable}%`)
         .then(() => {}, () => {});
     }
 
@@ -1769,8 +1801,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   },
 
   waiterClearsChairAfterPayment: (tableNumber, seatNumber) => {
-    const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-    const targetNum = cleanNum(tableNumber);
+    const targetNum = cleanTableNum(tableNumber);
     const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
 
     set((state) => {
@@ -1778,7 +1809,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const newTickets: SharedKDSTicket[] = [];
 
       for (const tk of state.kdsTickets) {
-        if (cleanNum(tk.tableNumber) !== targetNum) {
+        if (cleanTableNum(tk.tableNumber) !== targetNum) {
           newTickets.push(tk);
           continue;
         }
@@ -1814,7 +1845,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       // 2. Update table activeItems and remaining bill:
       const newTables = state.tables.map((t) => {
-        if (cleanNum(t.number) !== targetNum) return t;
+        if (cleanTableNum(t.number) !== targetNum) return t;
 
         const remainingActiveItems = (t.activeItems || []).filter(
           (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
@@ -1822,7 +1853,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
         // Sum remaining items from active tickets and activeItems
         const remainingTicketItems = newTickets
-          .filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED')
+          .filter((tk) => cleanTableNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED')
           .flatMap((tk) => tk.items);
 
         const remainingTotal = remainingTicketItems.length > 0
@@ -1831,7 +1862,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
         const newBill = remainingTotal;
         const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
-        const activeKotCount = newTickets.filter((tk) => cleanNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED').length;
+        const activeKotCount = newTickets.filter((tk) => cleanTableNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED').length;
 
         const hasOtherGuests = (t.guestCount || 1) > 1 || hasRemainingOrders;
         const nextStatus = hasOtherGuests ? ('OCCUPIED' as const) : ('VACANT' as const);
@@ -1848,18 +1879,35 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       const nextSessions = { ...state.activeSettlementSessions };
       const nextBills = { ...state.settledBills };
-      const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
       delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
       // Keep chair settled bill snapshot so the customer receives and views their receipt
 
-      const tblRemaining = newTables.find((t) => cleanNum(t.number) === targetNum);
+      const tblRemaining = newTables.find((t) => cleanTableNum(t.number) === targetNum);
       if (!tblRemaining || tblRemaining.currentBill === 0 || tblRemaining.status === 'VACANT') {
         delete nextBills[normTable];
         delete nextSessions[normTable];
       }
 
-      return { kdsTickets: newTickets, tables: newTables, activeSettlementSessions: nextSessions, settledBills: nextBills };
+      const nextPings = state.pings.filter(
+        (p) =>
+          !(
+            cleanTableNum(p.tableNumber) === targetNum &&
+            (p.type === 'PAYMENT' || p.type === 'BILL') &&
+            (p.seatNumber === undefined || Number(p.seatNumber) === Number(seatNumber))
+          )
+      );
+
+      return {
+        kdsTickets: newTickets,
+        tables: newTables,
+        activeSettlementSessions: nextSessions,
+        settledBills: nextBills,
+        pings: nextPings,
+      };
     });
+
+    markPingLocallyResolved(`${normTable}-S${seatNumber}-PAYMENT`);
+    markPingLocallyResolved(`${normTable}-S${seatNumber}-BILL`);
 
     broadcastStateChange('chairCleared', {
       tableNumber: normTable,
@@ -2157,7 +2205,7 @@ if (typeof window !== 'undefined') {
       return t;
     });
 
-    // Always filter COMPLETED tickets and orphan tickets for vacant tables
+    // Filter COMPLETED tickets and orphan tickets for vacant tables from incoming
     const liveTickets = Array.isArray(parsed.kdsTickets)
       ? (parsed.kdsTickets as SharedKDSTicket[])
           .filter((tk) => tk && tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber))
@@ -2178,10 +2226,37 @@ if (typeof window !== 'undefined') {
         ? (rawStats as typeof cur.shiftStats)
         : cur.shiftStats;
 
+    // Merge tickets non-destructively so one tab's broadcast never purges another tab's fresh tickets
+    const ticketMergeMap = new Map<string, SharedKDSTicket>();
+    // Start with current tickets (preserves freshly placed tickets this tab knows about)
+    (cur.kdsTickets || []).forEach((tk) => {
+      if (tk?.id && tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber)) {
+        ticketMergeMap.set(tk.id, tk);
+      }
+    });
+    // Overlay incoming tickets (updates status, items, etc. from other tabs)
+    liveTickets.forEach((tk) => {
+      if (tk?.id) ticketMergeMap.set(tk.id, tk);
+    });
+    const mergedTickets = Array.from(ticketMergeMap.values());
+
     const incoming: Partial<typeof cur> = {
       tables: sanitizedTables,
-      kdsTickets: liveTickets,
-      pings: Array.isArray(parsed.pings) ? (parsed.pings as typeof cur.pings) : cur.pings,
+      kdsTickets: mergedTickets,
+      pings: Array.isArray(parsed.pings)
+        ? (parsed.pings as typeof cur.pings).filter((p) => {
+            if (!p || p.status !== 'PENDING') return false;
+            const cleanT = cleanTableNum(p.tableNumber);
+            const normTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+            const compositeKey = `${normTable}-S${p.seatNumber || 1}-${p.type}`;
+            const tableKey = `${normTable}-${p.type}`;
+            return (
+              !isPingLocallyResolved(p.id) &&
+              !isPingLocallyResolved(compositeKey) &&
+              !isPingLocallyResolved(tableKey)
+            );
+          })
+        : cur.pings,
       inventory86: Array.isArray(parsed.inventory86)
         ? (parsed.inventory86 as typeof cur.inventory86)
         : cur.inventory86,
@@ -2434,16 +2509,15 @@ if (typeof window !== 'undefined') {
             }));
           }
           if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
-            const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-            const targetTbl = cleanNum(payload.tableNumber);
+            const targetTbl = cleanTableNum(payload.tableNumber);
             const targetSeat = payload.seatNumber;
             useSharedBridge.setState((state) => ({
               pings: state.pings.filter(
                 (p) =>
                   !(
-                    cleanNum(p.tableNumber) === targetTbl &&
+                    cleanTableNum(p.tableNumber) === targetTbl &&
                     (p.type === 'PAYMENT' || p.type === 'BILL') &&
-                    (!targetSeat || p.seatNumber === targetSeat)
+                    (!targetSeat || p.seatNumber === undefined || Number(p.seatNumber) === Number(targetSeat))
                   )
               ),
             }));

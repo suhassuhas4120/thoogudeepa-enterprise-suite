@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable, cleanTableNum } from '../../store/useSharedBridge';
 import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
@@ -55,7 +55,7 @@ export function TabletTableCockpit({
   const { tables, pings, activeSettlementSessions, kdsTickets, waiterVacatesTable, waiterUnmergeTable, waiterMarkKitchenItemServed } = useSharedBridge();
   const [selectedChair, setSelectedChair] = useState<'ALL' | number>('ALL');
 
-  const table = tables.find((t) => t.number === selectedTableNum);
+  const table = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(selectedTableNum)) || tables.find((t) => t.number === selectedTableNum);
   if (!table) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-stone-400 font-mono text-xs space-y-2">
@@ -69,8 +69,9 @@ export function TabletTableCockpit({
   const groupPeers = table.mergeGroupPeers || (table.mergedWith ? [selectedTableNum, table.mergedWith] : [selectedTableNum]);
   const isMerged = Boolean(table.mergedWith);
 
+  const cleanPeers = new Set(groupPeers.map(cleanTableNum));
   // Tickets for table — strictly empty if vacant
-  const tickets = isVacant ? [] : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const tickets = isVacant ? [] : kdsTickets.filter((tk) => cleanPeers.has(cleanTableNum(tk.tableNumber)));
 
   // Consolidated items
   const allOrderedItems: {
@@ -125,14 +126,13 @@ export function TabletTableCockpit({
   const tax = Math.round(subtotal * 0.05);
   const grandTotal = isVacant ? 0 : subtotal + tax;
 
-  const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-  const targetTblNum = cleanTbl(selectedTableNum);
+  const targetTblNum = cleanTableNum(selectedTableNum);
   const normTable = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
-  const peerNums = new Set(groupPeers.map(cleanTbl));
+  const peerNums = new Set(groupPeers.map(cleanTableNum));
 
   const isPaymentRequested = useMemo(() => {
     const hasPendingPaymentPing = (pings || []).some((p) => {
-      if (!peerNums.has(cleanTbl(p.tableNumber))) return false;
+      if (!peerNums.has(cleanTableNum(p.tableNumber))) return false;
       if (p.status !== 'PENDING') return false;
       if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
       return true;
@@ -140,11 +140,11 @@ export function TabletTableCockpit({
 
     const hasActiveSession = Boolean(
       activeSettlementSessions?.[normTable] ||
-      Object.keys(activeSettlementSessions || {}).some((k) => k.startsWith(`${normTable}-CHAIR-`))
+      Object.keys(activeSettlementSessions || {}).some((k) => cleanTableNum(k.split('-CHAIR-')[0]) === targetTblNum)
     );
 
     return hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';
-  }, [pings, activeSettlementSessions, peerNums, normTable, table?.status]);
+  }, [pings, activeSettlementSessions, peerNums, normTable, targetTblNum, table?.status]);
 
   const totalChairs = table.capacity || 4;
   const occupiedChairsCount = Math.max(table.guestCount || 0, allOrderedItems.length > 0 ? 1 : 0);

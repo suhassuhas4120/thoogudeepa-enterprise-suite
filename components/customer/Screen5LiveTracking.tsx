@@ -106,6 +106,10 @@ export const Screen5LiveTracking: React.FC = () => {
     activeSettlementSessions,
     pings,
     tables,
+    recordSettledBill,
+    waiterRecordsPayment,
+    waiterClearsChairAfterPayment,
+    waiterClearsSettlementSession,
   } = useSharedBridge();
 
   const { tickets: supabaseTickets } = useOrderTrackingQuery();
@@ -557,7 +561,7 @@ export const Screen5LiveTracking: React.FC = () => {
     };
 
     fetchSession();
-    const interval = setInterval(fetchSession, 1200);
+    const interval = setInterval(fetchSession, 5000);
     return () => {
       isCancelled = true;
       clearInterval(interval);
@@ -1553,37 +1557,43 @@ export const Screen5LiveTracking: React.FC = () => {
                   const snapshot = candidate && candidate.timestamp && Math.abs(now - candidate.timestamp) < 1800000
                     ? candidate
                     : null;
-                  if (snapshot) {
-                    useCustomerStore.getState().handleBillSettledByWaiter(snapshot);
-                  } else {
-                    useCustomerStore.getState().handleBillSettledByWaiter({
-                      invoiceNumber: `INV-${normTbl.replace(/[^0-9]/g, '')}-${Date.now().toString().slice(-4)}`,
-                      items: trackedDishes.map((td) => ({
-                        id: td.id,
-                        name: td.name,
-                        quantity: td.quantity,
-                        price: 220,
-                        totalPrice: td.quantity * 220,
-                        options: td.options,
-                        addOns: td.addOns,
-                        ticketNumber: 'LIVE',
-                      })),
-                      subtotal: Math.round(currentBillAmount / 1.05),
-                      totalTax: currentBillAmount - Math.round(currentBillAmount / 1.05),
-                      cgst: Math.round((currentBillAmount - Math.round(currentBillAmount / 1.05)) / 2),
-                      sgst: currentBillAmount - Math.round(currentBillAmount / 1.05) - Math.round((currentBillAmount - Math.round(currentBillAmount / 1.05)) / 2),
-                      grandTotal: currentBillAmount,
-                      method: 'UPI',
-                      seatLabel: `Chair ${effectiveSeat}`,
-                      captainName: 'Floor Captain Suresh',
-                      tableName: effectiveTable,
-                      section: 'Main Dining Hall',
-                      guestCount: 1,
-                      formattedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-                      formattedTime: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
-                      timestamp: Date.now(),
-                    });
-                  }
+                  const finalSnapshot: SettledBillSnapshot = snapshot || {
+                    invoiceNumber: `INV-${normTbl.replace(/[^0-9]/g, '')}-${Date.now().toString().slice(-4)}`,
+                    items: trackedDishes.map((td) => ({
+                      id: td.id,
+                      name: td.name,
+                      quantity: td.quantity,
+                      price: 220,
+                      totalPrice: td.quantity * 220,
+                      options: td.options,
+                      addOns: td.addOns,
+                      ticketNumber: 'LIVE',
+                    })),
+                    subtotal: Math.round(currentBillAmount / 1.05),
+                    totalTax: currentBillAmount - Math.round(currentBillAmount / 1.05),
+                    cgst: Math.round((currentBillAmount - Math.round(currentBillAmount / 1.05)) / 2),
+                    sgst: currentBillAmount - Math.round(currentBillAmount / 1.05) - Math.round((currentBillAmount - Math.round(currentBillAmount / 1.05)) / 2),
+                    grandTotal: currentBillAmount,
+                    method: 'UPI',
+                    seatLabel: `Chair ${effectiveSeat}`,
+                    seatNumber: effectiveSeat,
+                    captainName: 'Floor Captain Suresh',
+                    tableName: effectiveTable,
+                    section: 'Main Dining Hall',
+                    guestCount: 1,
+                    formattedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+                    formattedTime: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }),
+                    timestamp: Date.now(),
+                  };
+
+                  useCustomerStore.getState().handleBillSettledByWaiter(finalSnapshot);
+
+                  // Real-time synchronization to waiter interface
+                  recordSettledBill(finalSnapshot);
+                  waiterRecordsPayment(normTbl, 'UPI', finalSnapshot.grandTotal, effectiveSeat);
+                  waiterClearsChairAfterPayment(normTbl, effectiveSeat);
+                  waiterClearsSettlementSession(normTbl, effectiveSeat);
+
                   setIsScannerOpen(false);
                 }}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-500 transition shadow-lg cursor-pointer"

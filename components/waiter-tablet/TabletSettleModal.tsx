@@ -3,7 +3,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { X, CreditCard, QrCode, Banknote, CheckCircle2, ShieldCheck, Printer, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, cleanTableNum } from '../../store/useSharedBridge';
 import { formatSectionName } from './TabletFloorMap';
 
 interface Props {
@@ -28,13 +28,14 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
     waiterInitiatesSettlement,
     waiterClearsSettlementSession,
   } = useSharedBridge();
-  const table = tables.find((t) => t.number === tableNum);
+  const table = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(tableNum)) || tables.find((t) => t.number === tableNum);
 
   const [method, setMethod] = useState<PayMethod>('UPI');
   const [cashTendered, setCashTendered] = useState<number | ''>('');
   const [isUpiVerified, setIsUpiVerified] = useState(false);
   const [vacateAfter, setVacateAfter] = useState(!splitAmount);
   const [settled, setSettled] = useState(false);
+  const [settledAmount, setSettledAmount] = useState<number | null>(null);
 
   // Synchronize settlement session so customer devices see captain arrival & QR status
   useEffect(() => {
@@ -44,10 +45,18 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
       : undefined;
     const currentBill = splitAmount ? splitAmount : (table?.currentBill || 0);
     waiterInitiatesSettlement(tableNum, splitSeatNum, currentBill, method === 'CARD' ? 'UPI' : method, isUpiVerified);
+  }, [open, tableNum, splitLabel, splitAmount, table?.currentBill, method, isUpiVerified, waiterInitiatesSettlement]);
+
+  useEffect(() => {
     return () => {
-      waiterClearsSettlementSession(tableNum, splitSeatNum);
+      if (open) {
+        const splitSeatNum = splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i)
+          ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1])
+          : undefined;
+        waiterClearsSettlementSession(tableNum, splitSeatNum);
+      }
     };
-  }, [open, tableNum, splitLabel, splitAmount, table?.currentBill, method, isUpiVerified, waiterInitiatesSettlement, waiterClearsSettlementSession]);
+  }, [open, tableNum, splitLabel, waiterClearsSettlementSession]);
 
   if (!table) return null;
 
@@ -160,23 +169,19 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
       seatLabel: splitLabel || 'All Seats',
     });
 
-    waiterRecordsPayment(tableNum, method, bill, splitSeatNum);
-
+    const finalBill = bill;
+    setSettledAmount(finalBill);
     setSettled(true);
+
     setTimeout(() => {
-      if (vacateAfter) {
-        if (splitSeatNum) {
-          waiterClearsChairAfterPayment(tableNum, splitSeatNum);
-        } else if (!splitAmount) {
-          waiterVacatesTable(tableNum);
-        }
+      waiterRecordsPayment(tableNum, method, finalBill, splitSeatNum);
+      if (splitSeatNum) {
+        waiterClearsChairAfterPayment(tableNum, splitSeatNum);
+      } else if (vacateAfter || !splitAmount) {
+        waiterVacatesTable(tableNum);
       }
-      setSettled(false);
-      setCashTendered('');
-      setIsUpiVerified(false);
-      setMethod('UPI');
       onDone();
-    }, 1500);
+    }, 1200);
   };
 
   return (
@@ -213,7 +218,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
                   </p>
                   <h3 className="text-2xl font-black text-stone-900 mt-1">{tableNum}</h3>
                   <p className="font-mono text-lg font-bold text-stone-700 mt-1">
-                    ₹{bill.toFixed(2)} via {method}
+                    ₹{(settledAmount ?? bill).toFixed(2)} via {method}
                   </p>
                   {splitLabel && (
                     <span className="inline-block mt-2 font-mono text-[11px] font-bold bg-amber-100 text-amber-900 px-3 py-1 rounded-full border border-amber-300">

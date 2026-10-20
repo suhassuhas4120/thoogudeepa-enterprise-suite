@@ -3,7 +3,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Bell, ChefHat, CheckCheck, AlertCircle, Clock, UtensilsCrossed } from 'lucide-react';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, cleanTableNum } from '../../store/useSharedBridge';
+import { isPingLocallyResolved } from '../../lib/settlementStore';
 
 interface Props {
   open: boolean;
@@ -22,7 +23,18 @@ export function TabletNotifDrawer({
 }: Props) {
   const { pings, kdsTickets, waiterResolvePing, waiterMarkKitchenItemServed } = useSharedBridge();
 
-  const activePings = pings.filter((p) => p.status === 'PENDING');
+  const activePings = pings.filter((p) => {
+    if (p.status !== 'PENDING') return false;
+    const cleanT = cleanTableNum(p.tableNumber);
+    const normTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+    const compositeKey = `${normTable}-S${p.seatNumber || 1}-${p.type}`;
+    const tableKey = `${normTable}-${p.type}`;
+    return (
+      !isPingLocallyResolved(p.id) &&
+      !isPingLocallyResolved(compositeKey) &&
+      !isPingLocallyResolved(tableKey)
+    );
+  });
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
 
   const pingTypeColor = (type: string) => {

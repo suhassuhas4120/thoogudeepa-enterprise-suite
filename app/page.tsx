@@ -307,12 +307,16 @@ function CustomerJourneyContent() {
         } catch {}
 
         // Mask address bar: remove raw query params so URL cannot be tampered in browser
+        // On localhost, preserve table/seat params for multi-tab development
         if (typeof window !== 'undefined' && window.history?.replaceState) {
-          window.history.replaceState(
-            { screen: useCustomerStore.getState().currentScreen || 1 },
-            document.title,
-            window.location.pathname || '/'
-          );
+          const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+          if (!isLocalDev) {
+            window.history.replaceState(
+              { screen: useCustomerStore.getState().currentScreen || 1 },
+              document.title,
+              window.location.pathname || '/'
+            );
+          }
         }
       })
       .catch(() => {});

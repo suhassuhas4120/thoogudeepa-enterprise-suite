@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useState, useCallback } from 'react';
 
@@ -15,8 +15,20 @@ export function useTableSeat() {
     if (typeof window === 'undefined') return;
 
     const params = new URLSearchParams(window.location.search);
-    const tbl = params.get('table');
-    const seat = params.get('seat');
+    let tbl = params.get('table');
+    let seat = params.get('seat');
+
+    // Fallback to sessionStorage when URL params were masked by app/page.tsx
+    if (!tbl && !seat) {
+      try {
+        const stored = sessionStorage.getItem('thoogudeepa_verified_session');
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (parsed.table) tbl = parsed.table;
+          if (parsed.seat) seat = String(parsed.seat);
+        }
+      } catch {}
+    }
 
     if (tbl) setTableId(tbl.toUpperCase());
     if (seat) setSeatNumber(parseInt(seat, 10) || 1);

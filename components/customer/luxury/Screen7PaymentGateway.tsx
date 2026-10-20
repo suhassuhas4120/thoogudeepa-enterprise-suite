@@ -47,7 +47,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     orderPlacedAt,
   } = useCustomer();
 
-  const { waiterRecordsPayment, settledBills, recordSettledBill, waiterClearsChairAfterPayment, tables, kdsTickets } = useSharedBridge();
+  const { waiterRecordsPayment, settledBills, recordSettledBill, waiterClearsChairAfterPayment, waiterClearsSettlementSession, tables, kdsTickets } = useSharedBridge();
 
   // Tab State: 'UPI' | 'CASH'
   type PaymentTab = 'UPI' | 'CASH';
@@ -358,6 +358,7 @@ export const Screen7PaymentGateway: React.FC = () => {
       waiterRecordsPayment(effectiveTable, finalMethod, grandTotal, effectiveSeat);
       recordSettledBill(snapshot);
       waiterClearsChairAfterPayment(effectiveTable, effectiveSeat);
+      waiterClearsSettlementSession(effectiveTable, effectiveSeat);
     } catch (e) {
       console.warn('payment bridge error', e);
     }

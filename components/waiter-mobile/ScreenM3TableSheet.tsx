@@ -19,7 +19,7 @@ import {
   Bell,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, cleanTableNum } from '../../store/useSharedBridge';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
 
 interface Props {
@@ -450,14 +450,13 @@ export function ScreenM3TableSheet({
   const hasUnservedTableItems = !hasTableOrders || allTableOrderedItems.some((it) => it.stage !== 'Served');
 
   // Check if customer has requested payment via captain
-  const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-  const targetTblNum = cleanTbl(tableNum);
+  const targetTblNum = cleanTableNum(tableNum);
   const normTbl = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
-  const peerNums = new Set(groupTables.map((t) => cleanTbl(t.number)));
+  const peerNums = new Set(groupTables.map((t) => cleanTableNum(t.number)));
 
   const isPaymentRequestedForSelection = (() => {
     const hasPendingPaymentPing = (pings || []).some((p) => {
-      if (!peerNums.has(cleanTbl(p.tableNumber))) return false;
+      if (!peerNums.has(cleanTableNum(p.tableNumber))) return false;
       if (p.status !== 'PENDING') return false;
       if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
 
@@ -473,8 +472,8 @@ export function ScreenM3TableSheet({
 
     const hasActiveSession = Boolean(
       activeSettlementSessions?.[normTbl] ||
-      (typeof selectedSeat === 'number' && activeSettlementSessions?.[`${normTbl}-CHAIR-${selectedSeat}`]) ||
-      (selectedSeat === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => k.startsWith(`${normTbl}-CHAIR-`)))
+      (typeof selectedSeat === 'number' && (activeSettlementSessions?.[`${normTbl}-CHAIR-${selectedSeat}`] || activeSettlementSessions?.[`T-${targetTblNum}-CHAIR-${selectedSeat}`])) ||
+      (selectedSeat === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => cleanTableNum(k.split('-CHAIR-')[0]) === targetTblNum))
     );
 
     return hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';

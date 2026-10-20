@@ -16,7 +16,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, cleanTableNum } from '../../store/useSharedBridge';
 import { useCustomer } from '../../context/CustomerContext';
 import { formatSectionName } from './TabletFloorMap';
 import QRCode from 'qrcode';
@@ -45,6 +45,7 @@ export function TabletPaymentPanel({
   const {
     tables,
     kdsTickets,
+    settledBills,
     waiterRecordsPayment,
     waiterVacatesTable,
     waiterClearsChairAfterPayment,
@@ -53,13 +54,14 @@ export function TabletPaymentPanel({
     waiterClearsSettlementSession,
   } = useSharedBridge();
   const { cart } = useCustomer();
-  const table = tables.find((t) => t.number === tableNum);
+  const table = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(tableNum)) || tables.find((t) => t.number === tableNum);
 
   const [method, setMethod] = useState<PayMethod>('UPI');
   const [cashTendered, setCashTendered] = useState<number | ''>('');
   const [isUpiVerified, setIsUpiVerified] = useState(false);
   const [vacateAfter, setVacateAfter] = useState(!splitAmount);
   const [settled, setSettled] = useState(false);
+  const [settledAmount, setSettledAmount] = useState<number | null>(null);
   const [printed, setPrinted] = useState(false);
   const [qrEnlarged, setQrEnlarged] = useState(false);
   const [qrScale, setQrScale] = useState(1);
@@ -120,7 +122,7 @@ export function TabletPaymentPanel({
     tableNum: tableNum,
   }));
   const allFiredItems = firedFromTickets.length > 0 ? firedFromTickets : firedFromActive;
-  const allDraftItems = cart.filter((c) => !c.tableNumber || groupPeers.includes(c.tableNumber));
+  const allDraftItems = cart.filter((c) => !c.isOrdered && (!c.tableNumber || groupPeers.includes(c.tableNumber)));
 
   const isVacant = table?.status === 'VACANT';
 
@@ -165,7 +167,7 @@ export function TabletPaymentPanel({
     targetLabel = 'All Seats';
   }
 
-  const bill = effectiveBill;
+  const bill = settled && settledAmount !== null ? settledAmount : effectiveBill;
   const subtotal = Math.round(bill / 1.05);
   const totalTax = Math.max(0, bill - subtotal);
   const cgst = (totalTax / 2).toFixed(2);
@@ -180,17 +182,59 @@ export function TabletPaymentPanel({
       .catch((err) => console.error('Failed to generate UPI QR code:', err));
   }, [method, table, tableNum, bill]);
 
-  // Synchronize settlement session so customer devices see captain arrival & QR status
+  // ── Listen for remote settlements (e.g. customer completed UPI/online payment on diner phone) ──
   useEffect(() => {
-    if (bill <= 0) return;
+    if (settled) return;
     const splitSeatNum = typeof selectedChair === 'number'
       ? selectedChair
       : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
-    waiterInitiatesSettlement(tableNum, splitSeatNum, bill, method === 'CARD' ? 'UPI' : method, isUpiVerified);
+    const tNum = cleanTableNum(tableNum);
+    const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+
+    const remoteBill =
+      (typeof splitSeatNum === 'number' ? settledBills?.[`${normTable}-CHAIR-${splitSeatNum}`] : null) ||
+      settledBills?.[normTable] ||
+      Object.values(settledBills || {}).find(
+        (sb) =>
+          cleanTableNum(sb.tableName) === tNum &&
+          (typeof splitSeatNum !== 'number' || sb.seatNumber === splitSeatNum) &&
+          sb.timestamp &&
+          Date.now() - sb.timestamp < 120000
+      );
+
+    if (remoteBill && remoteBill.grandTotal > 0) {
+      setSettledAmount(remoteBill.grandTotal);
+      setSettled(true);
+      const timer = setTimeout(() => {
+        onDone();
+      }, 1400);
+      return () => clearTimeout(timer);
+    }
+  }, [settledBills, tableNum, selectedChair, splitLabel, settled, onDone]);
+
+  // Synchronize settlement session so customer devices see captain arrival & QR status
+  useEffect(() => {
+    if (settled || bill <= 0) return;
+    const splitSeatNum = typeof selectedChair === 'number'
+      ? selectedChair
+      : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+    const timer = setTimeout(() => {
+      waiterInitiatesSettlement(tableNum, splitSeatNum, bill, method === 'CARD' ? 'UPI' : method, isUpiVerified);
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [tableNum, selectedChair, splitLabel, bill, method, isUpiVerified, waiterInitiatesSettlement, settled]);
+
+  // Clean up settlement session only when unmounting the payment panel
+  useEffect(() => {
+    const splitSeatNum = typeof selectedChair === 'number'
+      ? selectedChair
+      : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
     return () => {
       waiterClearsSettlementSession(tableNum, splitSeatNum);
     };
-  }, [tableNum, selectedChair, splitLabel, bill, method, isUpiVerified, waiterInitiatesSettlement, waiterClearsSettlementSession]);
+  }, [tableNum, selectedChair, splitLabel, waiterClearsSettlementSession]);
 
   if (!table) return null;
 
@@ -226,7 +270,7 @@ export function TabletPaymentPanel({
     (method === 'CASH' && typeof cashTendered === 'number' && cashTendered < bill);
 
   const handleSettle = () => {
-    if (isSettleDisabled) return;
+    if (isSettleDisabled || settled) return;
 
     const splitSeatNum = typeof selectedChair === 'number'
       ? selectedChair
@@ -283,23 +327,19 @@ export function TabletPaymentPanel({
       seatLabel: targetLabel,
     });
 
-    waiterRecordsPayment(tableNum, method, bill, splitSeatNum);
-
+    const finalBill = bill;
+    setSettledAmount(finalBill);
     setSettled(true);
+
     setTimeout(() => {
-      if (vacateAfter) {
-        if (splitSeatNum) {
-          waiterClearsChairAfterPayment(tableNum, splitSeatNum);
-        } else if (!splitAmount) {
-          waiterVacatesTable(tableNum);
-        }
+      waiterRecordsPayment(tableNum, method, finalBill, splitSeatNum);
+      if (splitSeatNum) {
+        waiterClearsChairAfterPayment(tableNum, splitSeatNum);
+      } else if (vacateAfter || !splitAmount) {
+        waiterVacatesTable(tableNum);
       }
-      setSettled(false);
-      setCashTendered('');
-      setIsUpiVerified(false);
-      setMethod('UPI');
       onDone();
-    }, 1500);
+    }, 1200);
   };
 
   const handlePrintBill = () => {
@@ -338,7 +378,7 @@ export function TabletPaymentPanel({
             Amount Due
           </p>
           <p className="font-mono text-2xl font-black text-[#9C3D1E]">
-            ₹{bill.toFixed(2)}
+            ₹{(settledAmount ?? bill).toFixed(2)}
           </p>
         </div>
       </div>
@@ -360,7 +400,7 @@ export function TabletPaymentPanel({
               </p>
               <h3 className="text-3xl font-black text-stone-950 mt-1 font-mono">{tableNum}</h3>
               <p className="text-2xl font-black text-[#9C3D1E] mt-2 font-mono">
-                ₹{bill.toFixed(2)} via {method}
+                ₹{(settledAmount ?? bill).toFixed(2)} via {method}
               </p>
               {vacateAfter && !splitAmount && (
                 <p className="text-xs text-stone-600 mt-2 font-bold">

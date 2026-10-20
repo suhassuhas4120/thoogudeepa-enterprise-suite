@@ -3,7 +3,8 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { Users, UtensilsCrossed, Link2, Unlink, Clock, AlertCircle, Utensils, CreditCard, UserX } from 'lucide-react';
 import { motion, AnimatePresence, useMotionValue, animate } from 'framer-motion';
-import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable, cleanTableNum } from '../../store/useSharedBridge';
+import { isPingLocallyResolved } from '../../lib/settlementStore';
 
 interface Props {
   selectedTableNum: string;
@@ -183,8 +184,19 @@ export function TabletFloorMap({
   // ── Double-tap detection ──
   const lastTapRef = useRef<{ num: string; time: number } | null>(null);
 
-  const activePings = pings.filter((p) => p.status === 'PENDING');
-  const urgentSet = new Set(activePings.map((p) => p.tableNumber));
+  const activePings = pings.filter((p) => {
+    if (p.status !== 'PENDING') return false;
+    const cleanT = cleanTableNum(p.tableNumber);
+    const normTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+    const compositeKey = `${normTable}-S${p.seatNumber || 1}-${p.type}`;
+    const tableKey = `${normTable}-${p.type}`;
+    return (
+      !isPingLocallyResolved(p.id) &&
+      !isPingLocallyResolved(compositeKey) &&
+      !isPingLocallyResolved(tableKey)
+    );
+  });
+  const urgentSet = new Set(activePings.map((p) => cleanTableNum(p.tableNumber)));
 
   // Compute elapsed minutes safely (handles 12-hour AM/PM & 24-hour formats, avoid negative time post-midnight)
   const getElapsedMins = (timeStr?: string) => {
@@ -224,9 +236,9 @@ export function TabletFloorMap({
   });
 
   // Calculate live counts for status pills based on the active section (or all tables)
-  const sectionTableNums = new Set(sectionTables.map((t) => t.number.toLowerCase()));
+  const sectionTableNums = new Set(sectionTables.map((t) => cleanTableNum(t.number)));
   const sectionReadyTickets = kdsTickets.filter(
-    (tk) => tk.status === 'READY' && (selectedSection === 'ALL' || sectionTableNums.has(tk.tableNumber.toLowerCase()))
+    (tk) => tk.status === 'READY' && (selectedSection === 'ALL' || sectionTableNums.has(cleanTableNum(tk.tableNumber)))
   );
 
   const statusCounts = {
@@ -241,10 +253,10 @@ export function TabletFloorMap({
     // Search query match
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim();
-      const cleanNum = t.number.toLowerCase().replace(/^(table\s*|t-?)/i, '');
+      const cleanNum = cleanTableNum(t.number).toLowerCase();
       const matchNum =
         t.number.toLowerCase().includes(q) ||
-        cleanNum.includes(q.replace(/^(table\s*|t-?)/i, ''));
+        cleanNum.includes(cleanTableNum(q).toLowerCase());
       const matchSec =
         t.section.toLowerCase().includes(q) ||
         formatSectionName(t.section).toLowerCase().includes(q);
@@ -254,7 +266,7 @@ export function TabletFloorMap({
 
     // Status filter
     if (statusFilter === 'READY') {
-      const tblKOTs = kdsTickets.filter((tk) => tk.tableNumber === t.number);
+      const tblKOTs = kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(t.number));
       return tblKOTs.some((tk) => tk.status === 'READY');
     }
     if (statusFilter !== 'ALL' && t.status !== statusFilter) return false;
@@ -301,18 +313,20 @@ export function TabletFloorMap({
         .map((p) => tables.find((t) => t.number === p))
         .filter(Boolean) as SharedTable[];
 
-      const groupTickets = kdsTickets.filter((tk) => peers.includes(tk.tableNumber));
+      const groupTickets = kdsTickets.filter((tk) =>
+        peers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
+      );
       const totalCapacity = allMembers.reduce((sum, m) => sum + (m.capacity || 2), 0);
       const totalBill = primaryTbl.currentBill || allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0);
       const kotCount = allMembers.reduce(
-        (sum, m) => sum + kdsTickets.filter((tk) => tk.tableNumber === m.number).length,
+        (sum, m) => sum + kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(m.number)).length,
         0
       );
       const readyCount = allMembers.reduce(
-        (sum, m) => sum + kdsTickets.filter((tk) => tk.tableNumber === m.number && tk.status === 'READY').length,
+        (sum, m) => sum + kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(m.number) && tk.status === 'READY').length,
         0
       );
-      const hasPing = allMembers.some((m) => urgentSet.has(m.number));
+      const hasPing = allMembers.some((m) => urgentSet.has(cleanTableNum(m.number)));
 
       // Order placed check: tickets exist, KOTs fired, active items exist, or bill > 0
       const hasPlacedOrder =
@@ -342,13 +356,13 @@ export function TabletFloorMap({
         elapsedMins,
         isTimerActive,
         memberNumbers: peers,
-        isSelected: peers.includes(selectedTableNum),
+        isSelected: peers.some((p) => cleanTableNum(p) === cleanTableNum(selectedTableNum)),
       });
     } else {
       if (seenGroupIds.has(tbl.number)) continue;
       seenGroupIds.add(tbl.number);
 
-      const tblKOTs = kdsTickets.filter((tk) => tk.tableNumber === tbl.number);
+      const tblKOTs = kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tbl.number));
       const readyCount = tblKOTs.filter((tk) => tk.status === 'READY').length;
 
       // Order placed check: tickets exist, KOTs fired, active items exist, or bill > 0
@@ -375,11 +389,11 @@ export function TabletFloorMap({
         readyCount,
         status: tbl.status,
         section: tbl.section,
-        hasPing: urgentSet.has(tbl.number),
+        hasPing: urgentSet.has(cleanTableNum(tbl.number)),
         elapsedMins,
         isTimerActive,
         memberNumbers: [tbl.number],
-        isSelected: tbl.number === selectedTableNum,
+        isSelected: cleanTableNum(tbl.number) === cleanTableNum(selectedTableNum),
       });
     }
   }

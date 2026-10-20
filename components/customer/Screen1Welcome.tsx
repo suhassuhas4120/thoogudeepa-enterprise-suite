@@ -101,7 +101,10 @@ export const Screen1Welcome: React.FC = () => {
           }),
         );
       } catch {}
-      window.history.replaceState({}, "", window.location.pathname || "/");
+      const isLocalDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+      if (!isLocalDev) {
+        window.history.replaceState({}, "", window.location.pathname || "/");
+      }
     }
     syncWithActiveSession(activeTable.number, newSeat);
   };

@@ -19,7 +19,7 @@ import {
   CheckCircle2,
   X
 } from 'lucide-react';
-import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable, cleanTableNum } from '../../store/useSharedBridge';
 import { OrderStage } from '../../types/customer';
 import { useCustomer } from '../../context/CustomerContext';
 import { formatSectionName } from './TabletFloorMap';
@@ -148,7 +148,7 @@ export function TabletTableDetail({
   const [mergeChairMode, setMergeChairMode] = useState(false);
   const [chairsSelectedForMerge, setChairsSelectedForMerge] = useState<number[]>([]);
 
-  const table = tables.find((t) => t.number === tableNum);
+  const table = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(tableNum)) || tables.find((t) => t.number === tableNum);
   if (!table) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-stone-500 font-mono text-sm">
@@ -162,13 +162,14 @@ export function TabletTableDetail({
   const elapsed = getElapsed(table.seatedTime);
   const groupPeers =
     table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
+  const cleanPeersSet = new Set(groupPeers.map(cleanTableNum));
   const totalCapacity = groupPeers.reduce(
-    (s, p) => s + (tables.find((t) => t.number === p)?.capacity || 2),
+    (s, p) => s + (tables.find((t) => cleanTableNum(t.number) === cleanTableNum(p))?.capacity || 2),
     0
   );
   const tickets = isVacant
     ? []
-    : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+    : kdsTickets.filter((tk) => cleanPeersSet.has(cleanTableNum(tk.tableNumber)));
 
   const firedFromTickets = tickets.flatMap((tk) =>
     tk.items.map((item) => ({
@@ -265,14 +266,15 @@ export function TabletTableDetail({
   }
 
   // Check if customer has requested payment via captain
-  const cleanTbl = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-  const targetTblNum = cleanTbl(tableNum);
+  const targetTblNum = cleanTableNum(tableNum);
   const normTable = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
-  const peerNums = new Set((table.mergeGroupPeers || [tableNum]).map(cleanTbl));
+  const peerNums = new Set((table.mergeGroupPeers || [tableNum]).map(cleanTableNum));
 
   const isPaymentRequested = useMemo(() => {
+    if (activePanelTab === 'payment') return true;
+
     const hasPendingPaymentPing = (pings || []).some((p) => {
-      if (!peerNums.has(cleanTbl(p.tableNumber))) return false;
+      if (!peerNums.has(cleanTableNum(p.tableNumber))) return false;
       if (p.status !== 'PENDING') return false;
       if (p.type !== 'PAYMENT' && p.type !== 'BILL') return false;
 
@@ -290,12 +292,12 @@ export function TabletTableDetail({
 
     const hasActiveSession = Boolean(
       activeSettlementSessions?.[normTable] ||
-      (typeof selectedChair === 'number' && activeSettlementSessions?.[`${normTable}-CHAIR-${selectedChair}`]) ||
-      (selectedChair === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => k.startsWith(`${normTable}-CHAIR-`)))
+      (typeof selectedChair === 'number' && (activeSettlementSessions?.[`${normTable}-CHAIR-${selectedChair}`] || activeSettlementSessions?.[`T-${targetTblNum}-CHAIR-${selectedChair}`])) ||
+      (selectedChair === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => cleanTableNum(k.split('-CHAIR-')[0]) === targetTblNum))
     );
 
     return hasPendingPaymentPing || hasActiveSession || table.status === 'BILLING';
-  }, [pings, activeSettlementSessions, peerNums, normTable, selectedChair, mergedSeatGroups, table.status]);
+  }, [pings, activeSettlementSessions, peerNums, normTable, targetTblNum, selectedChair, mergedSeatGroups, table.status, activePanelTab]);
 
   const hasBillAmount = targetChairBill > 0 || (selectedChair === 'ALL' && totalTableBill > 0);
   const isSettleDisabled = !hasBillAmount || !isPaymentRequested;
@@ -1007,21 +1009,27 @@ export function TabletTableDetail({
               onClick={onSettle}
               disabled={isSettleDisabled}
               title={
-                !hasBillAmount
+                activePanelTab === 'payment'
+                  ? 'Payment panel open'
+                  : !hasBillAmount
                   ? 'No orders to settle'
                   : !isPaymentRequested
                   ? 'Payment disabled: Customer must tap "Call Captain for Bill/Payment" on their device first'
                   : `Settle ${selectedChair === 'ALL' ? 'Bill' : chairLabel}`
               }
               className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
-                isSettleDisabled
+                activePanelTab === 'payment'
+                  ? 'bg-emerald-700 text-white shadow-xs'
+                  : isSettleDisabled
                   ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
                   : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs animate-pulse'
               }`}
             >
               <CreditCard className="h-4 w-4 stroke-[2.4]" />
               <span>
-                {hasBillAmount && !isPaymentRequested
+                {activePanelTab === 'payment'
+                  ? 'In Settlement'
+                  : hasBillAmount && !isPaymentRequested
                   ? 'Awaiting Payment Call'
                   : `Settle ${selectedChair === 'ALL' ? 'Bill' : chairLabel}`}
               </span>

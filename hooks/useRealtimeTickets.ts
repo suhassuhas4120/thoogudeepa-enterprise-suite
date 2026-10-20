@@ -66,7 +66,13 @@ export function useRealtimeTickets(tableId: string) {
       .neq('status', 'COMPLETED')
       .order('created_at', { ascending: true });
 
-    if (tErr || !ticketsData || ticketsData.length === 0) {
+    if (tErr) {
+      // Preserve existing tickets on transient errors to prevent UI flicker
+      setIsLoading(false);
+      return;
+    }
+
+    if (!ticketsData || ticketsData.length === 0) {
       setTickets([]);
       setIsLoading(false);
       return;

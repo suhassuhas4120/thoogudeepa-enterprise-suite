@@ -79,6 +79,7 @@ export function ScreenM6Settlement({
   const {
     tables,
     kdsTickets,
+    settledBills,
     waiterRecordsPayment,
     waiterVacatesTable,
     waiterClearsChairAfterPayment,
@@ -332,10 +333,33 @@ export function ScreenM6Settlement({
     }
   }, [grandTotal, tableNum]);
 
+  // ── Listen for remote settlements (e.g. customer completed UPI on diner device) ──
+  useEffect(() => {
+    if (settled) return;
+    const tNum = cleanTableNum(tableNum);
+    const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+    const remoteBill =
+      (splitSeatNumber !== null ? settledBills?.[`${normTable}-CHAIR-${splitSeatNumber}`] : null) ||
+      settledBills?.[normTable] ||
+      Object.values(settledBills || {}).find(
+        (sb) =>
+          cleanTableNum(sb.tableName) === tNum &&
+          (splitSeatNumber === null || sb.seatNumber === splitSeatNumber) &&
+          sb.timestamp &&
+          Date.now() - sb.timestamp < 120000
+      );
+
+    if (remoteBill && remoteBill.grandTotal > 0) {
+      setSettledSnapshot(remoteBill as any);
+      setSettled(true);
+    }
+  }, [settledBills, tableNum, splitSeatNumber, settled]);
+
   // Real-time synchronization of floor captain settlement arrival to diner app
   useEffect(() => {
+    if (settled || grandTotal <= 0) return;
     waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, isUpiVerified);
-  }, [tableNum, splitSeatNumber, grandTotal, method, isUpiVerified, waiterInitiatesSettlement]);
+  }, [tableNum, splitSeatNumber, grandTotal, method, isUpiVerified, waiterInitiatesSettlement, settled]);
 
   const handleExplicitBack = () => {
     waiterClearsSettlementSession(tableNum, splitSeatNumber ?? undefined);

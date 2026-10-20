@@ -10,19 +10,31 @@ import {
   Eye,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { useSharedBridge } from "../../store/useSharedBridge";
+import { useSharedBridge, cleanTableNum } from "../../store/useSharedBridge";
+import { isPingLocallyResolved } from "../../lib/settlementStore";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSelectTable?: (tableNum: string) => void;
+  onSelectTable?: (tableNum: string, chair?: number | 'ALL', panelTab?: 'menu' | 'payment') => void;
 }
 
 export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
   const { pings, waiterResolvePing } = useSharedBridge();
   const [feedbackToast, setFeedbackToast] = useState<string | null>(null);
 
-  const activePings = pings.filter((p) => p.status === "PENDING");
+  const activePings = pings.filter((p) => {
+    if (p.status !== "PENDING") return false;
+    const cleanT = cleanTableNum(p.tableNumber);
+    const normTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, "0")}`;
+    const compositeKey = `${normTable}-S${p.seatNumber || 1}-${p.type}`;
+    const tableKey = `${normTable}-${p.type}`;
+    return (
+      !isPingLocallyResolved(p.id) &&
+      !isPingLocallyResolved(compositeKey) &&
+      !isPingLocallyResolved(tableKey)
+    );
+  });
 
   // Auto-dismiss feedback toast after 1.8s
   useEffect(() => {
@@ -47,9 +59,9 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
     waiterResolvePing(pingId);
   };
 
-  const handleFocusTable = (tblNum: string) => {
+  const handleFocusTable = (tblNum: string, chair?: number | 'ALL', panelTab?: 'menu' | 'payment') => {
     if (onSelectTable) {
-      onSelectTable(tblNum);
+      onSelectTable(tblNum, chair, panelTab);
     }
     onClose();
   };
@@ -192,7 +204,7 @@ export function TabletPingsDrawer({ open, onClose, onSelectTable }: Props) {
                               whileTap={{ scale: 0.95 }}
                               type="button"
                               onClick={() => {
-                                handleFocusTable(p.tableNumber);
+                                handleFocusTable(p.tableNumber, p.seatNumber, 'payment');
                               }}
                               className="w-full h-10 px-3 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer active:scale-98"
                             >

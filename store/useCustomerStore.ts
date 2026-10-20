@@ -243,7 +243,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
           return {
             cart: newCart,
-            payment: calculatePaymentTotals(newCart, state.payment),
+            payment: calculatePaymentTotals(newCart, state.payment, state.seatNumber),
           };
         } else {
           // Cannot reduce items that are already placed/cooking in kitchen
@@ -270,7 +270,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
       return {
         cart: newCart,
-        payment: calculatePaymentTotals(newCart, state.payment),
+        payment: calculatePaymentTotals(newCart, state.payment, state.seatNumber),
       };
     });
   },
@@ -280,7 +280,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const newCart = state.cart.filter((ci) => ci.cartItemId !== cartItemId);
       return {
         cart: newCart,
-        payment: calculatePaymentTotals(newCart, state.payment),
+        payment: calculatePaymentTotals(newCart, state.payment, state.seatNumber),
       };
     });
   },

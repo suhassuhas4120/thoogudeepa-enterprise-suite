@@ -137,7 +137,7 @@ export function TabletMergeModal({ open, onClose, tableNum, onMergedSuccess }: P
                         {currentTable.number} ({formatSectionName(currentTable.section, currentTable.number)})
                       </span>
                       <span className="text-xs text-stone-600 block mt-0.5">
-                        {currentTable.capacity} seats · Status: {currentTable.status} · Bill: ₹{currentTable.currentBill || 0}
+                        {currentTable.capacity} seats · Status: {currentTable.status} · Bill: ₹{Math.round((currentTable.currentBill || 0) * 1.05)}
                       </span>
                     </div>
                     {isAlreadyMerged && (
@@ -226,7 +226,7 @@ export function TabletMergeModal({ open, onClose, tableNum, onMergedSuccess }: P
                               <div className="mt-2 text-[10px] opacity-80 flex items-center gap-1">
                                 <Users className="h-3 w-3" />
                                 <span>{t.capacity} seats</span>
-                                <span className="ml-auto">₹{t.currentBill || 0}</span>
+                                <span className="ml-auto">₹{Math.round((t.currentBill || 0) * 1.05)}</span>
                               </div>
                             </button>
                           );

@@ -8,6 +8,7 @@ import { StickyBottomBar } from '../../ui/StickyBottomBar';
 import { Download, Share2, RotateCcw, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { downloadPdfBill } from '../../../lib/generatePdfBill';
+import { useSharedBridge } from '../../../store/useSharedBridge';
 
 export const Screen9DigitalBill: React.FC = () => {
   const {
@@ -125,6 +126,11 @@ export const Screen9DigitalBill: React.FC = () => {
   };
 
   const handleDineAgain = () => {
+    try {
+      const effTable = tableNumber || 'T-01';
+      const effSeat = contextSeatNumber || 1;
+      useSharedBridge.getState().clearSettledBill(effTable, effSeat);
+    } catch {}
     resetSession();
     setCurrentScreen(1);
   };

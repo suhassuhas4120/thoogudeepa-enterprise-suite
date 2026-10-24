@@ -222,7 +222,8 @@ export function TabletTableDetail({
 
   // Table total bill
   const firedSubtotal = allItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
-  const totalTableBill = Math.max(table.currentBill || 0, Math.round(firedSubtotal * 1.05)) + Math.round(allTableDraftSubtotal * 1.05);
+  const baseFiredSubtotal = Math.max(table.currentBill || 0, firedSubtotal);
+  const totalTableBill = Math.round(baseFiredSubtotal * 1.05) + Math.round(allTableDraftSubtotal * 1.05);
 
   // Selected chair's target seats
   const targetSeats: number[] =
@@ -1082,8 +1083,8 @@ export function TabletTableDetail({
               disabled={!isPaymentCompleted}
               title={
                 !isPaymentCompleted
-                  ? table.currentBill > 0
-                    ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                  ? totalTableBill > 0
+                    ? `Payment pending (₹${totalTableBill.toFixed(2)}). Settle bill before vacating.`
                     : 'Payment must be completed before vacating table'
                   : 'Vacate and reset table'
               }

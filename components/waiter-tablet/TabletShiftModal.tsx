@@ -77,7 +77,7 @@ export function TabletShiftModal({
       acc + (t.status === "OCCUPIED" ? t.guestCount || t.capacity || 2 : 0),
     0,
   );
-  const myBill = myTables.reduce((acc, t) => acc + (t.currentBill || 0), 0);
+  const myBill = Math.round(myTables.reduce((acc, t) => acc + (t.currentBill || 0), 0) * 1.05);
   const myOccupancyRate = Math.round(
     (myOccupied / (myTables.length || 1)) * 100,
   );
@@ -345,7 +345,7 @@ export function TabletShiftModal({
 
                       <div className="text-right">
                         <span className="text-sm font-black text-stone-900 block font-mono">
-                          {tbl.currentBill > 0 ? `₹${tbl.currentBill}` : "₹0"}
+                          {tbl.currentBill > 0 ? `₹${Math.round(tbl.currentBill * 1.05)}` : "₹0"}
                         </span>
                         <span className="text-[11px] text-stone-500 font-medium">
                           {tbl.currentBill > 0 ? "Current Bill" : "Ready"}

@@ -734,22 +734,70 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
     const targetNum = cleanNum(tableNumber);
     const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+    const isChair = typeof seatNumber === 'number';
 
     set((state) => {
       const nextBills = { ...state.settledBills };
-      if (typeof seatNumber === 'number') {
+      const nextSessions = { ...state.activeSettlementSessions };
+
+      if (isChair) {
         delete nextBills[`${normTable}-CHAIR-${seatNumber}`];
+        delete nextSessions[`${normTable}-CHAIR-${seatNumber}`];
         if (nextBills[normTable] && (!nextBills[normTable].seatNumber || nextBills[normTable].seatNumber === seatNumber)) {
           delete nextBills[normTable];
         }
+        if (nextSessions[normTable] && (!nextSessions[normTable].seatNumber || nextSessions[normTable].seatNumber === seatNumber)) {
+          delete nextSessions[normTable];
+        }
       } else {
         delete nextBills[normTable];
+        delete nextSessions[normTable];
         for (let s = 1; s <= 12; s++) {
           delete nextBills[`${normTable}-CHAIR-${s}`];
+          delete nextSessions[`${normTable}-CHAIR-${s}`];
         }
       }
-      return { settledBills: nextBills };
+
+      // Also clean up activeItems on the table for this chair/table so syncWithActiveSession starts clean
+      const newTables = state.tables.map((t) => {
+        if (cleanTableNum(t.number) !== targetNum) return t;
+        const remainingActiveItems = (t.activeItems || []).filter((ai) => {
+          if (!isChair) return false;
+          const aiSeat = ai.seatNumber !== undefined && ai.seatNumber !== null ? Number(ai.seatNumber) : 1;
+          return aiSeat !== seatNumber;
+        });
+        const remainingSubtotal = remainingActiveItems.reduce((s, ai) => s + (ai.price || 0) * (ai.quantity || 1), 0);
+        return {
+          ...t,
+          activeItems: remainingActiveItems,
+          currentBill: remainingSubtotal,
+          status: remainingActiveItems.length > 0 ? ('OCCUPIED' as const) : ('VACANT' as const),
+        };
+      });
+
+      // Mark matching KDS tickets completed or remove items for this chair
+      const newTickets = state.kdsTickets.map((tk) => {
+        if (cleanTableNum(tk.tableNumber) !== targetNum) return tk;
+        if (!isChair) {
+          return { ...tk, status: 'COMPLETED' as const };
+        }
+        const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+        const otherItems = (tk.items || []).filter((it) => (it.seatNumber ?? tkSeat) !== seatNumber);
+        if (otherItems.length === 0) {
+          return { ...tk, status: 'COMPLETED' as const };
+        }
+        return { ...tk, items: otherItems };
+      });
+
+      return {
+        settledBills: nextBills,
+        activeSettlementSessions: nextSessions,
+        tables: newTables,
+        kdsTickets: newTickets,
+      };
     });
+
+    broadcastStateChange('clearSettledBill', { tableNumber: normTable, seatNumber });
 
     bridgePost('/api/settlement/session', {
       action: 'CLEAR_BILL',

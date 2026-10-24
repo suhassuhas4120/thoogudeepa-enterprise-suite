@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSharedBridge, cleanTableNum } from '../../../store/useSharedBridge';
 import { INITIAL_MENU_ITEMS } from '../../../data/menuItems';
 import { useWaiterStore } from '../../../store/useWaiterStore';
-import { Smartphone, Bell, UtensilsCrossed, Utensils, Flame, Briefcase, LogOut, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
+import { Smartphone, Bell, UtensilsCrossed, Utensils, Flame, Briefcase, LogOut, CheckCircle2, Wifi, WifiOff, TrendingUp } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { waiterLocalOutbox, QueuedAction } from '../../../lib/waiterOutbox';
 
@@ -14,6 +14,7 @@ import { ScreenM3TableSheet } from '../../../components/waiter-mobile/ScreenM3Ta
 import { ScreenM4OrderPad } from '../../../components/waiter-mobile/ScreenM4OrderPad';
 import { ScreenM5Dispatch } from '../../../components/waiter-mobile/ScreenM5Dispatch';
 import { ScreenM6Settlement } from '../../../components/waiter-mobile/ScreenM6Settlement';
+import { MobileShiftModal } from '../../../components/waiter-mobile/MobileShiftModal';
 
 type MainTab = 'TABLES' | 'CALLS' | 'READY';
 type ActiveView =
@@ -92,6 +93,7 @@ export default function WaiterMobilePage() {
   const [toast, setToast] = useState<string | null>(null);
   const [outboxPendingCount, setOutboxPendingCount] = useState<number>(0);
   const [isOnline, setIsOnline] = useState<boolean>(true);
+  const [showShiftPerformance, setShowShiftPerformance] = useState(false);
 
   // Subscribe to persistent local outbox queue updates
   useEffect(() => {
@@ -499,11 +501,12 @@ export default function WaiterMobilePage() {
             </div>
 
             <button
-              onClick={handleLogout}
-              className="p-2 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl text-rose-700 transition flex items-center gap-1 active:scale-95 shadow-2xs"
-              title="Sign out"
+              onClick={() => setShowShiftPerformance(true)}
+              className="px-2.5 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-300 rounded-xl text-[#9C3D1E] transition flex items-center gap-1.5 active:scale-95 shadow-2xs font-mono font-bold"
+              title="Shift Performance & Account"
             >
-              <LogOut className="h-4 w-4" />
+              <TrendingUp className="h-4 w-4 text-[#9C3D1E]" />
+              <span className="hidden sm:inline">Shift Performance</span>
             </button>
           </div>
         </header>
@@ -710,6 +713,14 @@ export default function WaiterMobilePage() {
           />
         )}
       </div>
+
+      <MobileShiftModal
+        open={showShiftPerformance}
+        onClose={() => setShowShiftPerformance(false)}
+        onLogout={handleLogout}
+        waiterName={waiterName}
+        assignedSection={assignedSection}
+      />
     </main>
   );
 }

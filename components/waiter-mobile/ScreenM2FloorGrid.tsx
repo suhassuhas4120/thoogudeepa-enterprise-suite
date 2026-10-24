@@ -349,7 +349,8 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       );
       const ticketBillWithTax = Math.round(ticketTotal * 1.05);
       const rawBill = allMembers.reduce((s, t) => s + (t.currentBill || 0), 0);
-      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : rawBill;
+      const rawBillWithTax = Math.round(rawBill * 1.05);
+      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : rawBillWithTax;
       const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || allMembers.some((m) => m.status === 'OCCUPIED' || m.status === 'BILLING');
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (primaryTbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
@@ -400,7 +401,7 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
         0
       );
       const ticketBillWithTax = Math.round(ticketTotal * 1.05);
-      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : (tbl.currentBill || 0);
+      const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : Math.round((tbl.currentBill || 0) * 1.05);
       const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || tbl.status === 'OCCUPIED' || tbl.status === 'BILLING';
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (tbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
@@ -440,7 +441,7 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
 
   // Live floor figures for the summary bar
   const floorOccupiedCount = tables.filter((t) => t.status === 'OCCUPIED' || t.status === 'BILLING').length;
-  const floorLiveBill = tables.reduce((s, t) => s + (t.currentBill || 0), 0);
+  const floorLiveBill = Math.round(tables.reduce((s, t) => s + (t.currentBill || 0), 0) * 1.05);
 
   // Shared spring-back helper — called after drag ends or is cancelled
   const springBack = () => {

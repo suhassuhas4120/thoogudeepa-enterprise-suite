@@ -799,6 +799,15 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         const st = useCustomerStore.getState();
         localStorage.removeItem('thoogudeepa_customer_session_v1');
         localStorage.removeItem(`thoogudeepa_customer_session_${st.tableNumber}_s${st.seatNumber}`);
+        sessionStorage.removeItem('thoogudeepa_verified_session');
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('thoogudeepa_customer_session_')) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => localStorage.removeItem(k));
       } catch {}
     }
     set({

@@ -317,7 +317,7 @@ export function TabletFloorMap({
         peers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
       );
       const totalCapacity = allMembers.reduce((sum, m) => sum + (m.capacity || 2), 0);
-      const totalBill = primaryTbl.currentBill || allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0);
+      const totalBill = Math.round((primaryTbl.currentBill || allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0)) * 1.05);
       const kotCount = allMembers.reduce(
         (sum, m) => sum + kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(m.number)).length,
         0
@@ -384,7 +384,7 @@ export function TabletFloorMap({
         isMerged: false,
         displayNumber: tbl.number,
         totalCapacity: tbl.capacity,
-        totalBill: tbl.currentBill || 0,
+        totalBill: Math.round((tbl.currentBill || 0) * 1.05),
         kotCount: tblKOTs.length,
         readyCount,
         status: tbl.status,

@@ -284,12 +284,13 @@ export function ScreenM6Settlement({
     if (splitSeatNumber === null) {
       const tableBill = table?.currentBill || 0;
       if (tableBill > 0) {
-        const calcSub = Math.round(tableBill / 1.05);
-        const calcTax = tableBill - calcSub;
+        const calcSub = tableBill;
+        const calcTax = Math.round(calcSub * 0.05);
+        const calcGrand = calcSub + calcTax;
         return {
           subtotal: calcSub,
           totalTax: calcTax,
-          grandTotal: tableBill,
+          grandTotal: calcGrand,
           cgst: calcTax / 2,
           sgst: calcTax / 2,
         };

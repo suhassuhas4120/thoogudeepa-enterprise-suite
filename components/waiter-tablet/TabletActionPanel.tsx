@@ -259,8 +259,8 @@ export function TabletActionPanel({
               disabled={!isPaymentCompleted}
               title={
                 !isPaymentCompleted
-                  ? table.currentBill > 0
-                    ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                  ? totalWithGst > 0
+                    ? `Payment pending (₹${totalWithGst.toFixed(2)}). Settle bill before vacating.`
                     : 'Payment must be completed before vacating table'
                   : 'Clear table for next guests'
               }

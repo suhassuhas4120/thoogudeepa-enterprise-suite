@@ -763,7 +763,7 @@ function CustomerJourneyContent() {
         const normTbl = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
         const chairBill = bridgeState.settledBills?.[`${normTbl}-CHAIR-${seatId}`] || bridgeState.settledBills?.[normTbl];
 
-        if (chairBill) {
+        if (chairBill && curStore.currentScreen !== 1 && !curStore.isSettled) {
           curStore.handleBillSettledByWaiter(chairBill);
           return;
         }

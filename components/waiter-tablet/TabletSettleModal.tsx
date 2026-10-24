@@ -60,7 +60,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
 
   if (!table) return null;
 
-  const fullBill = table.currentBill || 0;
+  const fullBill = Math.round((table.currentBill || 0) * 1.05);
   const bill = splitAmount ? splitAmount : fullBill;
   const subtotal = Math.round(bill / 1.05);
   const totalTax = bill - subtotal;

@@ -1703,8 +1703,8 @@ export function ScreenM3TableSheet({
                 setConfirmVacate(true);
               } else {
                 setNotice(
-                  table.currentBill > 0
-                    ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                  grandTotal > 0
+                    ? `Payment pending (₹${grandTotal.toFixed(2)}). Settle bill before vacating.`
                     : 'Payment must be completed before vacating table.'
                 );
                 setTimeout(() => setNotice(null), 3000);
@@ -1713,8 +1713,8 @@ export function ScreenM3TableSheet({
             disabled={!isPaymentCompleted}
             title={
               !isPaymentCompleted
-                ? table.currentBill > 0
-                  ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                ? grandTotal > 0
+                  ? `Payment pending (₹${grandTotal.toFixed(2)}). Settle bill before vacating.`
                   : 'Payment must be completed before vacating table'
                 : 'Vacate and reset table'
             }

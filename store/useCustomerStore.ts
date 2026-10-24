@@ -857,9 +857,10 @@ if (typeof window !== 'undefined') {
       const p = event.detail;
       const curStore = useCustomerStore.getState();
       const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const pSeat = p?.seatNumber !== undefined && p?.seatNumber !== null ? Number(p.seatNumber) : undefined;
       const isMatch =
         cleanNum(curStore.tableNumber) === cleanNum(p?.tableNumber) &&
-        (!p?.seatNumber || curStore.seatNumber === p.seatNumber);
+        (pSeat === undefined || curStore.seatNumber === pSeat);
       if (isMatch) {
         curStore.setWaiterAttended(p?.type, p?.message);
       }

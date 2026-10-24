@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useSharedBridge } from '../../../store/useSharedBridge';
+import { useSharedBridge, cleanTableNum } from '../../../store/useSharedBridge';
+import { INITIAL_MENU_ITEMS } from '../../../data/menuItems';
 import { useWaiterStore } from '../../../store/useWaiterStore';
 import { Smartphone, Bell, UtensilsCrossed, Utensils, Flame, Briefcase, LogOut, CheckCircle2, Wifi, WifiOff } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -577,24 +578,125 @@ export default function WaiterMobilePage() {
             mode="CALLS"
             onNavigateToTable={(num) => navigateView({ type: 'SHEET', tableNum: num, initialSeat: 'ALL' })}
             onSettleTable={(num, chair) => {
+              const clean = cleanTableNum(num);
+              const tbl = (tables || []).find((t) => cleanTableNum(t.number) === clean);
+              const groupTables = (tables || []).filter((t) => {
+                if (cleanTableNum(t.number) === clean) return true;
+                if (tbl?.mergeGroupPeers?.some((p) => cleanTableNum(p) === cleanTableNum(t.number))) return true;
+                if (tbl?.mergedWith && cleanTableNum(tbl.mergedWith) === cleanTableNum(t.number)) return true;
+                return false;
+              });
+              const groupNums = new Set(groupTables.map((t) => cleanTableNum(t.number)));
+              const tks = (kdsTickets || []).filter(
+                (tk) => groupNums.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED'
+              );
+
+              // Gather unique ordered items: prioritize KDS tickets, only fall back to table activeItems if tickets are empty
+              const tableItems: Array<{ price: number; quantity: number; seatNumber?: number }> = [];
+              tks.forEach((tk) => {
+                tk.items.forEach((it) => {
+                  const itName = (it.name || '').toLowerCase();
+                  const fallbackPrice =
+                    INITIAL_MENU_ITEMS.find((m) => {
+                      const mName = (m.name || '').toLowerCase();
+                      return (
+                        (itName && mName === itName) ||
+                        (itName && mName.includes(itName)) ||
+                        (itName && itName.includes(mName)) ||
+                        (it.id && m.id === it.id)
+                      );
+                    })?.price || 220;
+                  const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
+                  const s = it.seatNumber !== undefined && it.seatNumber !== null
+                    ? Number(it.seatNumber)
+                    : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+                    ? Number((it as any).seat_number)
+                    : (tk.seatNumber ? Number(tk.seatNumber) : undefined);
+                  tableItems.push({
+                    price: unitPrice,
+                    quantity: it.quantity || 1,
+                    seatNumber: s,
+                  });
+                });
+              });
+
+              if (tableItems.length === 0) {
+                groupTables.forEach((gt) => {
+                  if (gt.activeItems && gt.activeItems.length > 0) {
+                    gt.activeItems.forEach((ai) => {
+                      const aiName = (ai.name || '').toLowerCase();
+                      const fallbackPrice =
+                        INITIAL_MENU_ITEMS.find((m) => {
+                          const mName = (m.name || '').toLowerCase();
+                          return (
+                            (aiName && mName === aiName) ||
+                            (aiName && mName.includes(aiName)) ||
+                            (aiName && aiName.includes(mName)) ||
+                            (ai.id && m.id === ai.id)
+                          );
+                        })?.price || 220;
+                      const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
+                      const s = ai.seatNumber !== undefined && ai.seatNumber !== null
+                        ? Number(ai.seatNumber)
+                        : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+                        ? Number((ai as any).seat_number)
+                        : undefined;
+                      tableItems.push({
+                        price: unitPrice,
+                        quantity: ai.quantity || 1,
+                        seatNumber: s,
+                      });
+                    });
+                  }
+                });
+              }
+
+              const chairsWithOrders = new Set<number>();
+              tableItems.forEach((it) => {
+                if (it.seatNumber) chairsWithOrders.add(it.seatNumber);
+              });
+              const totalChairs = groupTables.reduce((sum, t) => sum + (t.capacity || 4), 0) || (tbl?.capacity || 4);
+              const occupiedChairsCount = Math.min(
+                totalChairs,
+                Math.max(chairsWithOrders.size, tbl?.guestCount || 0, 1)
+              );
+
               let chairDue: number | undefined;
               if (typeof chair === 'number') {
-                const cleanTarget = num.replace(/^(TABLE\s*|T-?)/i, '').trim();
-                const tbl = (tables || []).find((t) => (t.number || '').replace(/^(TABLE\s*|T-?)/i, '').trim() === cleanTarget);
-                const tks = (kdsTickets || []).filter((tk) => (tk.tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim() === cleanTarget && tk.status !== 'COMPLETED');
-                const chairItems = [
-                  ...tks.flatMap((tk) => tk.items.filter((it) => (it.seatNumber ?? tk.seatNumber) === chair)),
-                  ...(tbl?.activeItems || []).filter((ai) => ai.seatNumber === chair),
-                ];
-                if (chairItems.length > 0) {
-                  const sub = chairItems.reduce((s, it) => s + (it.price || 0) * (it.quantity || 1), 0);
-                  chairDue = Math.round(sub * 1.05);
+                const anyChairHasSpecificOrders = tableItems.some((i) => !!i.seatNumber);
+                const directItems = tableItems.filter((i) => i.seatNumber === chair);
+                const fallbackChair1Direct = (chair === 1 && directItems.length === 0 && (!anyChairHasSpecificOrders || (chairsWithOrders.size === 1 && chairsWithOrders.has(1))))
+                  ? tableItems
+                  : [];
+                const effectiveDirectItems = directItems.length > 0 ? directItems : fallbackChair1Direct;
+                const sharedItems = tableItems.filter((i) => !i.seatNumber);
+                const directSub = effectiveDirectItems.reduce((s, i) => s + i.price * i.quantity, 0);
+
+                let calculatedSub = 0;
+                if (effectiveDirectItems.length > 0) {
+                  const sharedPerPerson = occupiedChairsCount > 0
+                    ? sharedItems.reduce((s, i) => s + i.price * i.quantity, 0) / occupiedChairsCount
+                    : 0;
+                  calculatedSub = directSub + (effectiveDirectItems === tableItems ? 0 : sharedPerPerson);
+                } else if (!anyChairHasSpecificOrders && sharedItems.length > 0) {
+                  calculatedSub = occupiedChairsCount > 0
+                    ? (sharedItems.reduce((s, i) => s + i.price * i.quantity, 0) / occupiedChairsCount)
+                    : 0;
+                } else if (sharedItems.length > 0) {
+                  calculatedSub = occupiedChairsCount > 0
+                    ? (sharedItems.reduce((s, i) => s + i.price * i.quantity, 0) / occupiedChairsCount)
+                    : 0;
+                }
+
+                if (calculatedSub > 0) {
+                  chairDue = Math.round(calculatedSub * 1.05);
                 }
               }
+
               navigateView({
                 type: 'SETTLE',
-                tableNum: num,
-                splitLabel: chair ? `Chair ${chair}` : undefined,
+                tableNum: tbl?.number || num,
+                splitLabel: typeof chair === 'number' ? `Chair ${chair}` : undefined,
                 splitAmount: chairDue,
               });
             }}

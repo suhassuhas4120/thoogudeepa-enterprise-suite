@@ -277,6 +277,21 @@ export function TabletTableDetail({
   const isPaymentRequested = useMemo(() => {
     if (activePanelTab === 'payment') return true;
 
+    // If order was placed by waiter from waiter interface, allow settling directly
+    const hasWaiterOrders = (tickets || []).some((tk) => {
+      if (tk.source === 'WAITER') {
+        if (selectedChair === 'ALL') return true;
+        if (typeof selectedChair === 'number') {
+          return !tk.seatNumber || Number(tk.seatNumber) === selectedChair || tk.items?.some((it) => it.seatNumber === selectedChair);
+        }
+        if (typeof selectedChair === 'string' && mergedSeatGroups[selectedChair]) {
+          return !tk.seatNumber || mergedSeatGroups[selectedChair].includes(Number(tk.seatNumber));
+        }
+        return true;
+      }
+      return false;
+    }) || (table.activeItems && table.activeItems.length > 0 && (!tickets || tickets.length === 0));
+
     const hasPendingPaymentPing = (pings || []).some((p) => {
       if (!peerNums.has(cleanTableNum(p.tableNumber))) return false;
       if (p.status !== 'PENDING') return false;
@@ -300,8 +315,8 @@ export function TabletTableDetail({
       (selectedChair === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => cleanTableNum(k.split('-CHAIR-')[0]) === targetTblNum))
     );
 
-    return hasPendingPaymentPing || hasActiveSession || table.status === 'BILLING';
-  }, [pings, activeSettlementSessions, peerNums, normTable, targetTblNum, selectedChair, mergedSeatGroups, table.status, activePanelTab]);
+    return hasWaiterOrders || hasPendingPaymentPing || hasActiveSession || table.status === 'BILLING';
+  }, [tickets, activePanelTab, pings, activeSettlementSessions, peerNums, normTable, targetTblNum, selectedChair, mergedSeatGroups, table.status, table.activeItems]);
 
   const hasBillAmount = targetChairBill > 0 || (selectedChair === 'ALL' && totalTableBill > 0);
   const isSettleDisabled = !hasBillAmount || !isPaymentRequested;

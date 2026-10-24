@@ -295,9 +295,13 @@ async function reconcileAllState(): Promise<void> {
           const tNum = clean(row.table_number);
           const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
           if (sess.initiatedAt && Math.abs(now - sess.initiatedAt) < 1800000) {
-            activeSessionsFromDb[normTable] = sess;
-            if (typeof sess.seatNumber === 'number') {
-              activeSessionsFromDb[`${normTable}-CHAIR-${sess.seatNumber}`] = sess;
+            const sNum = sess.seatNumber !== undefined && sess.seatNumber !== null && !isNaN(Number(sess.seatNumber))
+              ? Number(sess.seatNumber)
+              : undefined;
+            if (typeof sNum === 'number') {
+              activeSessionsFromDb[`${normTable}-CHAIR-${sNum}`] = sess;
+            } else {
+              activeSessionsFromDb[normTable] = sess;
             }
           }
         } catch {}
@@ -651,11 +655,18 @@ export function useBridgeSync() {
               const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
               const tNum = clean(row.table_number);
               const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+              const sNum = sess.seatNumber !== undefined && sess.seatNumber !== null && !isNaN(Number(sess.seatNumber))
+                ? Number(sess.seatNumber)
+                : undefined;
               useSharedBridge.setState((prev) => {
                 const next = { ...(prev.activeSettlementSessions || {}) };
-                next[normTable] = sess;
-                if (typeof sess.seatNumber === 'number') {
-                  next[`${normTable}-CHAIR-${sess.seatNumber}`] = sess;
+                if (typeof sNum === 'number') {
+                  next[`${normTable}-CHAIR-${sNum}`] = sess;
+                  if (next[normTable]?.seatNumber === sNum) {
+                    delete next[normTable];
+                  }
+                } else {
+                  next[normTable] = sess;
                 }
                 return { activeSettlementSessions: next };
               });
@@ -700,6 +711,7 @@ export function useBridgeSync() {
               {
                 id: row.id,
                 tableNumber: row.table_number,
+                seatNumber: row.seat_number ? Number(row.seat_number) : undefined,
                 type: row.type,
                 message: row.message ?? undefined,
                 timestamp: row.created_at
@@ -728,11 +740,18 @@ export function useBridgeSync() {
               const clean = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
               const tNum = clean(row.table_number);
               const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+              const sNum = sess.seatNumber !== undefined && sess.seatNumber !== null && !isNaN(Number(sess.seatNumber))
+                ? Number(sess.seatNumber)
+                : undefined;
               useSharedBridge.setState((prev) => {
                 const next = { ...(prev.activeSettlementSessions || {}) };
-                next[normTable] = sess;
-                if (typeof sess.seatNumber === 'number') {
-                  next[`${normTable}-CHAIR-${sess.seatNumber}`] = sess;
+                if (typeof sNum === 'number') {
+                  next[`${normTable}-CHAIR-${sNum}`] = sess;
+                  if (next[normTable]?.seatNumber === sNum) {
+                    delete next[normTable];
+                  }
+                } else {
+                  next[normTable] = sess;
                 }
                 return { activeSettlementSessions: next };
               });
@@ -930,11 +949,18 @@ export function useBridgeSync() {
           const cleanNum = (str: string) => (str || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
           const tNum = cleanNum(s.tableNumber);
           const normTable = `T-${String(parseInt(tNum, 10) || 1).padStart(2, '0')}`;
+          const sNum = s.seatNumber !== undefined && s.seatNumber !== null && !isNaN(Number(s.seatNumber))
+            ? Number(s.seatNumber)
+            : undefined;
           useSharedBridge.setState((prev) => {
             const next = { ...(prev.activeSettlementSessions || {}) };
-            next[normTable] = s;
-            if (typeof s.seatNumber === 'number') {
-              next[`${normTable}-CHAIR-${s.seatNumber}`] = s;
+            if (typeof sNum === 'number') {
+              next[`${normTable}-CHAIR-${sNum}`] = s;
+              if (next[normTable]?.seatNumber === sNum) {
+                delete next[normTable];
+              }
+            } else {
+              next[normTable] = s;
             }
             return { activeSettlementSessions: next };
           });
@@ -977,9 +1003,10 @@ export function useBridgeSync() {
           try {
             const curStore = useCustomerStore.getState();
             const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+            const pSeat = p.seatNumber !== undefined && p.seatNumber !== null ? Number(p.seatNumber) : undefined;
             const isMatch =
               cleanNum(curStore.tableNumber) === cleanNum(p.tableNumber) &&
-              (!p.seatNumber || curStore.seatNumber === p.seatNumber);
+              (pSeat === undefined || curStore.seatNumber === pSeat);
             if (isMatch) {
               curStore.setWaiterAttended(p.type, p.message);
             }

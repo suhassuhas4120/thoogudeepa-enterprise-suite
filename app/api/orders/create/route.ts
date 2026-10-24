@@ -87,7 +87,8 @@ export async function POST(req: NextRequest) {
           const isSameTable = activeOrd.table_number.toUpperCase() === tableNumber.toUpperCase();
           const isSameSeat = Number(activeOrd.seat_number) === Number(seatNumber);
 
-          if (!isSameTable || !isSameSeat) {
+          // Only block if customer has an active unpaid order on a DIFFERENT table (cross-table abandonment)
+          if (!isSameTable) {
             // Verify if the active order's chair is still occupied in the dining room
             const { data: seatCheck } = await supabase
               .from('table_seats')
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
               return NextResponse.json(
                 {
                   error: 'ACTIVE_ORDER_PENDING',
-                  message: `You already have an active dining order at Table ${activeOrd.table_number} Chair ${activeOrd.seat_number}. Please settle your pending bill before placing orders on another chair.`,
+                  message: `You already have an active dining order at Table ${activeOrd.table_number} Chair ${activeOrd.seat_number}. Please settle your pending bill before placing orders on another table.`,
                   existingOrder: {
                     id: activeOrd.id,
                     tableNumber: activeOrd.table_number,

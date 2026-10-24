@@ -106,23 +106,38 @@ export function TabletPaymentPanel({
 
   // ── Group peers & unified orders computation ──
   const groupPeers = table?.mergeGroupPeers || (table?.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
-  const tickets = kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const peerNums = new Set(groupPeers.map(cleanTableNum));
+  const tickets = kdsTickets.filter((tk) => peerNums.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
   const firedFromTickets = tickets.flatMap((tk) =>
-    tk.items.map((it) => ({
-      ...it,
-      seatNumber: it.seatNumber || (it as any).seat_number || tk.seatNumber,
-      price: it.price || (it as any).unitPrice || 0,
-      tableNum: tk.tableNumber,
-    }))
+    tk.items.map((it) => {
+      const seat = it.seatNumber !== undefined && it.seatNumber !== null
+        ? Number(it.seatNumber)
+        : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+        ? Number((it as any).seat_number)
+        : (tk.seatNumber ? Number(tk.seatNumber) : undefined);
+      return {
+        ...it,
+        seatNumber: seat,
+        price: it.price || (it as any).unitPrice || 0,
+        tableNum: tk.tableNumber,
+      };
+    })
   );
-  const firedFromActive = (table?.activeItems || []).map((it) => ({
-    ...it,
-    seatNumber: it.seatNumber || (it as any).seat_number || 1,
-    price: it.price || (it as any).unitPrice || 0,
-    tableNum: tableNum,
-  }));
+  const firedFromActive = (table?.activeItems || []).map((it) => {
+    const seat = it.seatNumber !== undefined && it.seatNumber !== null
+      ? Number(it.seatNumber)
+      : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+      ? Number((it as any).seat_number)
+      : undefined;
+    return {
+      ...it,
+      seatNumber: seat,
+      price: it.price || (it as any).unitPrice || 0,
+      tableNum: tableNum,
+    };
+  });
   const allFiredItems = firedFromTickets.length > 0 ? firedFromTickets : firedFromActive;
-  const allDraftItems = cart.filter((c) => !c.isOrdered && (!c.tableNumber || groupPeers.includes(c.tableNumber)));
+  const allDraftItems = cart.filter((c) => !c.isOrdered && (!c.tableNumber || peerNums.has(cleanTableNum(c.tableNumber))));
 
   const isVacant = table?.status === 'VACANT';
 
@@ -146,18 +161,23 @@ export function TabletPaymentPanel({
 
     targetLabel = typeof selectedChair === 'number' ? `Chair ${selectedChair}` : String(selectedChair);
 
-    const chairFired = allFiredItems.filter((it) => it.seatNumber && targetSeats.includes(it.seatNumber));
-    const chairDraft = allDraftItems.filter((c) => c.seatNumber && targetSeats.includes(c.seatNumber));
+    const chairFired = allFiredItems.filter((it) => it.seatNumber && targetSeats.includes(Number(it.seatNumber)));
+    const chairDraft = allDraftItems.filter((c) => c.seatNumber && targetSeats.includes(Number(c.seatNumber)));
 
-    const chairFiredSub = chairFired.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
+    const sharedFired = allFiredItems.filter((it) => !it.seatNumber);
+    const guestCount = Math.max(1, table?.guestCount || table?.capacity || 1);
+    const sharedShare = sharedFired.length > 0
+      ? sharedFired.reduce((s, it) => s + (it.price || 0) * it.quantity, 0) / guestCount
+      : 0;
+
+    const chairFiredSub = chairFired.reduce((s, it) => s + (it.price || 0) * it.quantity, 0) + sharedShare;
     const chairDraftSub = chairDraft.reduce((s, it) => s + it.totalPrice, 0);
     const chairSubtotal = chairFiredSub + chairDraftSub;
     const chairTotal = Math.round(chairSubtotal * 1.05);
 
     if (chairTotal > 0) {
       effectiveBill = chairTotal;
-    } else if (totalTableBill > 0 && allFiredItems.length === 0 && allDraftItems.length === 0) {
-      const guestCount = Math.max(1, table?.guestCount || table?.capacity || 1);
+    } else if (totalTableBill > 0) {
       effectiveBill = Math.round(totalTableBill / guestCount);
     } else {
       effectiveBill = 0;

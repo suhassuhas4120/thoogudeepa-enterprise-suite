@@ -6,7 +6,8 @@ import {
   Plus, CreditCard, Split, Link2, UserX, Users,
   ChefHat, Clock, ArrowRight, Bell
 } from 'lucide-react';
-import { useSharedBridge, SharedTable } from '../../store/useSharedBridge';
+import { useSharedBridge, SharedTable, cleanTableNum } from '../../store/useSharedBridge';
+import { isPingLocallyResolved } from '../../lib/settlementStore';
 
 interface Props {
   tableNum: string;
@@ -52,9 +53,21 @@ export function TabletActionPanel({
 
   const groupPeers = table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
   const readyTickets = kdsTickets.filter((tk) =>
-    groupPeers.includes(tk.tableNumber) && tk.status === 'READY'
+    groupPeers.some((gp) => cleanTableNum(gp) === cleanTableNum(tk.tableNumber)) && tk.status === 'READY'
   );
-  const tablePings = pings.filter((p) => p.tableNumber === tableNum && p.status === 'PENDING');
+  const tablePings = pings.filter((p) => {
+    if (p.status !== 'PENDING') return false;
+    if (cleanTableNum(p.tableNumber) !== cleanTableNum(tableNum)) return false;
+    const cleanT = cleanTableNum(p.tableNumber);
+    const normTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+    const compositeKey = `${normTable}-S${p.seatNumber || 1}-${p.type}`;
+    const tableKey = `${normTable}-${p.type}`;
+    return (
+      !isPingLocallyResolved(p.id) &&
+      !isPingLocallyResolved(compositeKey) &&
+      !isPingLocallyResolved(tableKey)
+    );
+  });
 
   const gst = Math.round(table.currentBill * 0.05);
   const totalWithGst = table.currentBill + gst;

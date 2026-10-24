@@ -517,7 +517,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         guestName,
         guestCount: guestCount || 1,
         source: 'CUSTOMER',
-        deviceToken: getOrCreateDeviceToken(),
+        deviceToken: getOrCreateDeviceToken(tableNumber, assignedSeat),
         idempotencyKey: ticket.id,
         clientOrderId: ticket.id,
         items: items.map((i, idx) => ({
@@ -1625,6 +1625,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const targetNum = cleanTableNum(tableNumber);
     const isChairSettle = typeof seatNumber === 'number';
 
+    // 1. Capture matching pings BEFORE mutating state
+    const currentPings = get().pings;
+    const matchingPings = currentPings.filter(
+      (p) =>
+        cleanTableNum(p.tableNumber) === targetNum &&
+        (p.type?.toUpperCase() === 'PAYMENT' || p.type?.toUpperCase() === 'BILL') &&
+        (!isChairSettle || p.seatNumber === undefined || Number(p.seatNumber) === Number(seatNumber))
+    );
+
+    // Mark matching pings resolved locally and persist resolution to Supabase
+    matchingPings.forEach((p) => {
+      markPingLocallyResolved(p.id);
+      bridgePost('/api/pings/resolve', { pingId: p.id });
+    });
+
     set((state) => {
       const targetTbl = state.tables.find((t) => cleanTableNum(t.number) === targetNum);
       const groupNums: Set<string> = new Set(targetTbl?.mergeGroupPeers ?? [targetTbl?.number || tableNumber]);
@@ -1665,7 +1680,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           (p) =>
             !(
               cleanTableNum(p.tableNumber) === targetNum &&
-              (p.type === 'PAYMENT' || p.type === 'BILL') &&
+              (p.type?.toUpperCase() === 'PAYMENT' || p.type?.toUpperCase() === 'BILL') &&
               (!isChairSettle || p.seatNumber === undefined || Number(p.seatNumber) === Number(seatNumber))
             )
         ),
@@ -1677,24 +1692,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       };
     });
 
-    const matchingPings = get().pings.filter(
-      (p) =>
-        cleanTableNum(p.tableNumber) === targetNum &&
-        (p.type === 'PAYMENT' || p.type === 'BILL') &&
-        (!isChairSettle || p.seatNumber === undefined || Number(p.seatNumber) === Number(seatNumber))
-    );
-    matchingPings.forEach((p) => {
-      markPingLocallyResolved(p.id);
-      bridgePost('/api/pings/resolve', { pingId: p.id });
-    });
-
     if (typeof window !== 'undefined') {
       const normTbl = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
       let pQuery = supabase
         .from('pings')
         .update({ status: 'RESOLVED' })
-        .or(`table_number.eq.${normTbl},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
-        .in('type', ['PAYMENT', 'BILL']);
+        .in('type', ['PAYMENT', 'BILL', 'Payment', 'Bill', 'payment', 'bill'])
+        .or(`table_number.eq.${normTbl},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`);
       if (typeof seatNumber === 'number') {
         pQuery = pQuery.or(`seat_number.eq.${seatNumber},seat_number.is.null`);
       }
@@ -1713,18 +1717,21 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     }
 
     const normTblKey = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
-    markPingLocallyResolved(`${normTblKey}-S${seatNumber || 1}-PAYMENT`);
-    markPingLocallyResolved(`${normTblKey}-S${seatNumber || 1}-BILL`);
     markPingLocallyResolved(`${normTblKey}-PAYMENT`);
     markPingLocallyResolved(`${normTblKey}-BILL`);
-    markPingLocallyResolved(`T-${targetNum}-PAYMENT`);
-    markPingLocallyResolved(`T-${targetNum}-BILL`);
-    markPingLocallyResolved(`T-${targetNum}-S${seatNumber || 1}-PAYMENT`);
-    markPingLocallyResolved(`T-${targetNum}-S${seatNumber || 1}-BILL`);
+    markPingLocallyResolved(`${targetNum}-PAYMENT`);
+    markPingLocallyResolved(`${targetNum}-BILL`);
+    if (isChairSettle) {
+      markPingLocallyResolved(`${normTblKey}-S${seatNumber}-PAYMENT`);
+      markPingLocallyResolved(`${normTblKey}-S${seatNumber}-BILL`);
+      markPingLocallyResolved(`${targetNum}-S${seatNumber}-PAYMENT`);
+      markPingLocallyResolved(`${targetNum}-S${seatNumber}-BILL`);
+    }
 
     broadcastStateChange('paymentPingsResolved', {
       tableNumber: normTblKey,
       seatNumber,
+      pingIds: matchingPings.map((p) => p.id),
     });
   },
 
@@ -1734,6 +1741,18 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     // Snapshot for rollback (vacate is destructive — save full state)
     const prevTables = get().tables;
     const prevTickets = get().kdsTickets;
+
+    // Resolve any remaining pings for this table locally and on server
+    const currentPings = get().pings;
+    const tablePings = currentPings.filter((p) => cleanTableNum(p.tableNumber) === targetNum);
+    tablePings.forEach((p) => {
+      markPingLocallyResolved(p.id);
+      bridgePost('/api/pings/resolve', { pingId: p.id });
+    });
+    markPingLocallyResolved(`${normTable}-PAYMENT`);
+    markPingLocallyResolved(`${normTable}-BILL`);
+    markPingLocallyResolved(`${targetNum}-PAYMENT`);
+    markPingLocallyResolved(`${targetNum}-BILL`);
 
     set((state) => {
       const targetTbl = state.tables.find((t) => cleanTableNum(t.number) === targetNum);
@@ -1774,6 +1793,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
 
     broadcastStateChange('tableVacated');
+    broadcastStateChange('paymentPingsResolved', {
+      tableNumber: normTable,
+      pingIds: tablePings.map((p) => p.id),
+    });
 
     // Clear server settlement session
     bridgePost('/api/settlement/session', {
@@ -1782,6 +1805,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
 
     if (typeof window !== 'undefined') {
+      supabase
+        .from('pings')
+        .update({ status: 'RESOLVED' })
+        .or(`table_number.eq.${normTable},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
+        .then(() => {}, () => {});
+
       supabase
         .from('pings')
         .delete()
@@ -1906,12 +1935,30 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       };
     });
 
+    const currentPings = get().pings;
+    const chairPings = currentPings.filter(
+      (p) =>
+        cleanTableNum(p.tableNumber) === targetNum &&
+        (p.seatNumber === undefined || Number(p.seatNumber) === Number(seatNumber))
+    );
+    chairPings.forEach((p) => {
+      markPingLocallyResolved(p.id);
+      bridgePost('/api/pings/resolve', { pingId: p.id });
+    });
+
     markPingLocallyResolved(`${normTable}-S${seatNumber}-PAYMENT`);
     markPingLocallyResolved(`${normTable}-S${seatNumber}-BILL`);
+    markPingLocallyResolved(`${targetNum}-S${seatNumber}-PAYMENT`);
+    markPingLocallyResolved(`${targetNum}-S${seatNumber}-BILL`);
 
     broadcastStateChange('chairCleared', {
       tableNumber: normTable,
       seatNumber,
+    });
+    broadcastStateChange('paymentPingsResolved', {
+      tableNumber: normTable,
+      seatNumber,
+      pingIds: chairPings.map((p) => p.id),
     });
 
     // Clear server settlement session for this chair (keeping settled bill snapshot for receipt)
@@ -1922,6 +1969,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     });
 
     if (typeof window !== 'undefined') {
+      supabase
+        .from('pings')
+        .update({ status: 'RESOLVED' })
+        .or(`table_number.eq.${normTable},table_number.eq.${targetNum}`)
+        .or(`seat_number.eq.${seatNumber},seat_number.is.null`)
+        .then(() => {}, () => {});
+
       supabase
         .from('pings')
         .delete()
@@ -2544,16 +2598,41 @@ if (typeof window !== 'undefined') {
           if (reason === 'paymentPingsResolved' && payload?.tableNumber) {
             const targetTbl = cleanTableNum(payload.tableNumber);
             const targetSeat = payload.seatNumber;
-            useSharedBridge.setState((state) => ({
-              pings: state.pings.filter(
-                (p) =>
-                  !(
-                    cleanTableNum(p.tableNumber) === targetTbl &&
-                    (p.type === 'PAYMENT' || p.type === 'BILL') &&
-                    (!targetSeat || p.seatNumber === undefined || Number(p.seatNumber) === Number(targetSeat))
-                  )
-              ),
-            }));
+            const normTblKey = `T-${String(parseInt(targetTbl, 10) || 1).padStart(2, '0')}`;
+            markPingLocallyResolved(`${normTblKey}-PAYMENT`);
+            markPingLocallyResolved(`${normTblKey}-BILL`);
+            markPingLocallyResolved(`${targetTbl}-PAYMENT`);
+            markPingLocallyResolved(`${targetTbl}-BILL`);
+            if (targetSeat) {
+              markPingLocallyResolved(`${normTblKey}-S${targetSeat}-PAYMENT`);
+              markPingLocallyResolved(`${normTblKey}-S${targetSeat}-BILL`);
+              markPingLocallyResolved(`${targetTbl}-S${targetSeat}-PAYMENT`);
+              markPingLocallyResolved(`${targetTbl}-S${targetSeat}-BILL`);
+            }
+            if (Array.isArray(payload.pingIds)) {
+              payload.pingIds.forEach((id: string) => markPingLocallyResolved(id));
+            }
+            useSharedBridge.setState((state) => {
+              state.pings.forEach((p) => {
+                if (
+                  cleanTableNum(p.tableNumber) === targetTbl &&
+                  (p.type?.toUpperCase() === 'PAYMENT' || p.type?.toUpperCase() === 'BILL') &&
+                  (!targetSeat || p.seatNumber === undefined || Number(p.seatNumber) === Number(targetSeat))
+                ) {
+                  markPingLocallyResolved(p.id);
+                }
+              });
+              return {
+                pings: state.pings.filter(
+                  (p) =>
+                    !(
+                      cleanTableNum(p.tableNumber) === targetTbl &&
+                      (p.type?.toUpperCase() === 'PAYMENT' || p.type?.toUpperCase() === 'BILL') &&
+                      (!targetSeat || p.seatNumber === undefined || Number(p.seatNumber) === Number(targetSeat))
+                    )
+                ),
+              };
+            });
           } else if (reason === 'settlementSessionStarted' && payload) {
             const sess = payload;
             useSharedBridge.setState((state) => {

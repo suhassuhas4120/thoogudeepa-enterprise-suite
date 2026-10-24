@@ -243,7 +243,7 @@ function CustomerJourneyContent() {
     }
 
     // Chair Device Lock & Cryptographic Anti-Tampering Check
-    const devToken = getOrCreateDeviceToken();
+    const devToken = getOrCreateDeviceToken(cleanTable, parsedSeat);
     const queryParts = [
       `table=${encodeURIComponent(cleanTable)}`,
       `seat=${parsedSeat}`,
@@ -505,7 +505,7 @@ function CustomerJourneyContent() {
 
     if (!isTakenLocally) {
       try {
-        const token = getOrCreateDeviceToken();
+        const token = getOrCreateDeviceToken(normTable, newSeat);
         const res = await fetch(
           `/api/session/verify?table=${encodeURIComponent(normTable)}&seat=${newSeat}&deviceToken=${encodeURIComponent(token)}`
         );
@@ -819,7 +819,7 @@ function CustomerJourneyContent() {
       if (!postOrderScreens.includes(curStore.currentScreen)) return;
 
       try {
-        const token = getOrCreateDeviceToken();
+        const token = getOrCreateDeviceToken(tableId, seatId);
         const res = await fetch(
           `/api/session/verify?table=${encodeURIComponent(tableId)}&seat=${seatId}&deviceToken=${encodeURIComponent(token)}`
         );

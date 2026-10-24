@@ -242,7 +242,6 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
                               whileTap={{ scale: 0.93 }}
                               type="button"
                               onClick={() => {
-                                handleResolvePing(p.id, p.tableNumber);
                                 onSettleTable(p.tableNumber, p.seatNumber);
                               }}
                               className="px-3.5 py-2 font-mono text-xs font-black rounded-xl shadow-xs transition shrink-0 flex items-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white cursor-pointer"

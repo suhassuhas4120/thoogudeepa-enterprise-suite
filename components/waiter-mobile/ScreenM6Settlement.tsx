@@ -179,13 +179,19 @@ export function ScreenM6Settlement({
           options: it.options,
           addOns: it.addOns || [],
           stage: it.stage,
-          seatNumber: it.seatNumber || tk.seatNumber,
+          seatNumber:
+            it.seatNumber !== undefined && it.seatNumber !== null
+              ? Number(it.seatNumber)
+              : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+              ? Number((it as any).seat_number)
+              : (tk.seatNumber ? Number(tk.seatNumber) : undefined),
           ticketNumber: tk.id.slice(-4),
         });
       });
     });
 
-    if (table?.activeItems && table.activeItems.length > 0) {
+    // Only fall back to table.activeItems if tickets list is empty (avoids double counting)
+    if (list.length === 0 && table?.activeItems && table.activeItems.length > 0) {
       table.activeItems.forEach((ai, idx) => {
         const id = ai.id || `ai-${idx}`;
         if (!seenIds.has(id)) {
@@ -204,6 +210,12 @@ export function ScreenM6Settlement({
               }
             )?.price || 220;
           const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
+          const resolvedSeat =
+            ai.seatNumber !== undefined && ai.seatNumber !== null
+              ? Number(ai.seatNumber)
+              : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+              ? Number((ai as any).seat_number)
+              : undefined;
           list.push({
             id,
             name: ai.name || 'Dish',
@@ -213,7 +225,7 @@ export function ScreenM6Settlement({
             options: ai.options,
             addOns: (ai as any).addOns || [],
             stage: ai.status || 'Placed',
-            seatNumber: ai.seatNumber,
+            seatNumber: resolvedSeat,
             ticketNumber: 'TBL',
           });
         }

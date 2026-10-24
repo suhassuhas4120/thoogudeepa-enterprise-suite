@@ -171,8 +171,8 @@ async function handleVerifySession(
           order: orderObj,
           activeOrder: orderObj,
         });
-      } else {
-        // Diner has an active unpaid order on a different chair or table
+      } else if (!isSameTable) {
+        // Diner has an active unpaid order on a different table (cross-table abandonment)
         return NextResponse.json({
           active: false,
           tableNumber,

@@ -17,6 +17,7 @@ import {
   UtensilsCrossed,
   Split,
   Bell,
+  UserX,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge, cleanTableNum } from '../../store/useSharedBridge';
@@ -466,6 +467,21 @@ export function ScreenM3TableSheet({
   const normTbl = `T-${String(parseInt(targetTblNum, 10) || 1).padStart(2, '0')}`;
   const peerNums = new Set(groupTables.map((t) => cleanTableNum(t.number)));
 
+  // Check if orders for this selection were placed by waiter from waiter interface
+  const hasWaiterOrders = tickets.some((tk) => {
+    if (tk.source === 'WAITER') {
+      if (selectedSeat === 'ALL') return true;
+      if (typeof selectedSeat === 'number') {
+        return !tk.seatNumber || Number(tk.seatNumber) === selectedSeat || tk.items?.some((it) => it.seatNumber === selectedSeat);
+      }
+      if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+        return !tk.seatNumber || mergedSeatGroups[selectedSeat].includes(Number(tk.seatNumber));
+      }
+      return true;
+    }
+    return false;
+  }) || (table.activeItems && table.activeItems.length > 0 && tickets.length === 0);
+
   const isPaymentRequestedForSelection = (() => {
     const hasPendingPaymentPing = (pings || []).some((p) => {
       if (!peerNums.has(cleanTableNum(p.tableNumber))) return false;
@@ -488,29 +504,21 @@ export function ScreenM3TableSheet({
       (selectedSeat === 'ALL' && Object.keys(activeSettlementSessions || {}).some((k) => cleanTableNum(k.split('-CHAIR-')[0]) === targetTblNum))
     );
 
-    return hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';
+    return hasWaiterOrders || hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';
   })();
 
   let isCurrentSelectionSettleDisabled = false;
   let currentSelectionSettleReason = '';
 
   if (selectedSeat === 'ALL') {
-    const activeChairsWithOrders = Array.from(
-      new Set(allTableOrderedItems.map((i) => i.seatNumber).filter((s): s is number => typeof s === 'number'))
-    );
-    if (activeChairsWithOrders.length > 1) {
-      isCurrentSelectionSettleDisabled = true;
-      currentSelectionSettleReason = 'Select an individual chair tab above to settle its bill';
-    } else {
-      isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || hasUnservedTableItems || !isPaymentRequestedForSelection;
-      currentSelectionSettleReason = !hasTableOrders
-        ? 'No orders placed'
-        : hasUnservedTableItems
-        ? 'Serve all table items to settle'
-        : !isPaymentRequestedForSelection
-        ? 'Awaiting customer to call captain for payment'
-        : '';
-    }
+    isCurrentSelectionSettleDisabled = isVacant || grandTotal <= 0 || !hasTableOrders || (hasUnservedTableItems && !hasWaiterOrders) || !isPaymentRequestedForSelection;
+    currentSelectionSettleReason = !hasTableOrders
+      ? 'No orders placed'
+      : (hasUnservedTableItems && !hasWaiterOrders)
+      ? 'Serve all table items to settle'
+      : !isPaymentRequestedForSelection
+      ? 'Awaiting customer to call captain for payment'
+      : '';
   } else if (typeof selectedSeat === 'number') {
     const chairDirectItems = allTableOrderedItems.filter((i) => i.seatNumber === selectedSeat);
     const tableSharedItems = allTableOrderedItems.filter((i) => !i.seatNumber);
@@ -518,10 +526,10 @@ export function ScreenM3TableSheet({
     const hasChairItems = chairTargetItems.length > 0;
     const hasUnservedChair = !hasChairItems || chairTargetItems.some((i) => i.stage !== 'Served');
     const chairBreakdown = getChairBillBreakdown(selectedSeat);
-    isCurrentSelectionSettleDisabled = isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || hasUnservedChair || !isPaymentRequestedForSelection;
+    isCurrentSelectionSettleDisabled = isVacant || chairBreakdown.totalDue <= 0 || !hasChairItems || (hasUnservedChair && !hasWaiterOrders) || !isPaymentRequestedForSelection;
     currentSelectionSettleReason = !hasChairItems
       ? 'No orders for this chair'
-      : hasUnservedChair
+      : (hasUnservedChair && !hasWaiterOrders)
       ? `Serve all items for Chair ${selectedSeat} to settle`
       : !isPaymentRequestedForSelection
       ? `Awaiting Chair ${selectedSeat} to call captain for payment`
@@ -534,10 +542,10 @@ export function ScreenM3TableSheet({
     const hasGroupItems = groupTargetItems.length > 0;
     const hasUnservedGroup = !hasGroupItems || groupTargetItems.some((i) => i.stage !== 'Served');
     const groupBreakdown = getChairBillBreakdown(selectedSeat);
-    isCurrentSelectionSettleDisabled = isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || hasUnservedGroup || !isPaymentRequestedForSelection;
+    isCurrentSelectionSettleDisabled = isVacant || groupBreakdown.totalDue <= 0 || !hasGroupItems || (hasUnservedGroup && !hasWaiterOrders) || !isPaymentRequestedForSelection;
     currentSelectionSettleReason = !hasGroupItems
       ? 'No orders for this group'
-      : hasUnservedGroup
+      : (hasUnservedGroup && !hasWaiterOrders)
       ? 'Serve all group items to settle'
       : !isPaymentRequestedForSelection
       ? 'Awaiting customer to call captain for payment'
@@ -1600,16 +1608,17 @@ export function ScreenM3TableSheet({
         </div>
       </div>
 
-      {/* Sticky footer: Add Dishes & Settle */}
-      <footer className="shrink-0 bg-white/95 backdrop-blur-md border-t border-[#EAE5DF] px-4 py-2.5 pb-5 z-30">
+      {/* Sticky footer: Add Dishes, Settle Bill & Secondary Action Row (Split, Merge, Vacate) */}
+      <footer className="shrink-0 bg-white/95 backdrop-blur-md border-t border-[#EAE5DF] px-4 py-2.5 pb-5 z-30 space-y-2">
+        {/* Primary Row: Add Dishes & Settle Bill */}
         <div className="grid grid-cols-2 gap-2.5 font-mono text-xs font-black">
           <motion.button
             whileTap={{ scale: 0.95 }}
             type="button"
             onClick={() => onGoToOrder(typeof selectedSeat === 'number' ? selectedSeat : undefined)}
-            className="min-h-[48px] rounded-xl bg-[#9C3D1E] hover:bg-[#853318] text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs"
+            className="min-h-[46px] rounded-xl bg-[#9C3D1E] hover:bg-[#853318] text-white flex items-center justify-center gap-1.5 transition-all duration-150 shadow-xs cursor-pointer"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-4 w-4 stroke-[2.4]" />
             <span>Add Dishes</span>
           </motion.button>
           <motion.button
@@ -1636,23 +1645,88 @@ export function ScreenM3TableSheet({
               }
             }}
             title={currentSelectionSettleReason || 'Proceed to payment settlement'}
-            className={`min-h-[48px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
+            className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
               isCurrentSelectionSettleDisabled
                 ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95 shadow-xs'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-95 shadow-xs animate-pulse'
             }`}
           >
-            <CreditCard className="h-4 w-4" />
+            <CreditCard className="h-4 w-4 stroke-[2.4]" />
             <span>
               {isCurrentSelectionSettleDisabled && hasTableOrders
-                ? currentSelectionSettleReason.startsWith('Select an individual')
-                  ? 'Select Chair'
-                  : currentSelectionSettleReason.includes('call') || currentSelectionSettleReason.includes('Awaiting')
-                  ? 'Awaiting Call'
-                  : 'Serve to Settle'
-                : 'Settle'}
+                ? currentSelectionSettleReason.includes('call') || currentSelectionSettleReason.includes('Awaiting')
+                  ? 'Awaiting Payment Call'
+                  : currentSelectionSettleReason.includes('Serve')
+                  ? 'Serve to Settle'
+                  : typeof selectedSeat === 'number'
+                  ? `Settle Chair ${selectedSeat}`
+                  : 'Settle Full Bill'
+                : typeof selectedSeat === 'number'
+                ? `Settle Chair ${selectedSeat}`
+                : typeof selectedSeat === 'string' && selectedSeat !== 'ALL'
+                ? `Settle ${selectedSeat}`
+                : 'Settle Full Bill'}
             </span>
           </motion.button>
+        </div>
+
+        {/* Secondary Action Buttons matching Waiter Tablet: Split, Merge, Vacate */}
+        <div className="grid grid-cols-3 gap-2 font-mono text-xs">
+          <button
+            type="button"
+            onClick={() => {
+              if (chairsWithOrders.size > 1 && selectedSeat === 'ALL') {
+                const firstChair = Array.from(chairsWithOrders)[0];
+                setSelectedSeat(firstChair);
+              } else if (typeof selectedSeat === 'number') {
+                setSelectedSeat('ALL');
+              }
+            }}
+            disabled={isVacant || grandTotal <= 0}
+            className="py-2.5 rounded-xl border-2 border-stone-300 bg-stone-50 hover:bg-stone-100 disabled:opacity-40 font-bold text-stone-800 transition cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Split className="h-3.5 w-3.5" />
+            <span>{typeof selectedSeat === 'number' ? 'All Table' : 'Split'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowMergeModal(true)}
+            className="py-2.5 rounded-xl border-2 border-stone-300 bg-stone-50 hover:bg-stone-100 font-bold text-stone-800 transition cursor-pointer flex items-center justify-center gap-1.5"
+          >
+            <Link2 className="h-3.5 w-3.5" />
+            <span>{isMerged ? 'Unmerge' : 'Merge'}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (isPaymentCompleted) {
+                setConfirmVacate(true);
+              } else {
+                setNotice(
+                  table.currentBill > 0
+                    ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                    : 'Payment must be completed before vacating table.'
+                );
+                setTimeout(() => setNotice(null), 3000);
+              }
+            }}
+            disabled={!isPaymentCompleted}
+            title={
+              !isPaymentCompleted
+                ? table.currentBill > 0
+                  ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                  : 'Payment must be completed before vacating table'
+                : 'Vacate and reset table'
+            }
+            className={`py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
+              !isPaymentCompleted
+                ? 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-50 shadow-none'
+                : 'border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer shadow-2xs'
+            }`}
+          >
+            <UserX className="h-3.5 w-3.5" />
+            <span>Vacate</span>
+          </button>
         </div>
       </footer>
 

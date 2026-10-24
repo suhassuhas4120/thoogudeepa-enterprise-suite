@@ -131,6 +131,9 @@ export function TabletTableCockpit({
   const peerNums = new Set(groupPeers.map(cleanTableNum));
 
   const isPaymentRequested = useMemo(() => {
+    const hasWaiterOrders = (tickets || []).some((tk) => tk.source === 'WAITER') ||
+      (table.activeItems && table.activeItems.length > 0 && (!tickets || tickets.length === 0));
+
     const hasPendingPaymentPing = (pings || []).some((p) => {
       if (!peerNums.has(cleanTableNum(p.tableNumber))) return false;
       if (p.status !== 'PENDING') return false;
@@ -143,8 +146,8 @@ export function TabletTableCockpit({
       Object.keys(activeSettlementSessions || {}).some((k) => cleanTableNum(k.split('-CHAIR-')[0]) === targetTblNum)
     );
 
-    return hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';
-  }, [pings, activeSettlementSessions, peerNums, normTable, targetTblNum, table?.status]);
+    return hasWaiterOrders || hasPendingPaymentPing || hasActiveSession || table?.status === 'BILLING';
+  }, [tickets, pings, activeSettlementSessions, peerNums, normTable, targetTblNum, table?.status, table?.activeItems]);
 
   const totalChairs = table.capacity || 4;
   const occupiedChairsCount = Math.max(table.guestCount || 0, allOrderedItems.length > 0 ? 1 : 0);

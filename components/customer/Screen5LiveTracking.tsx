@@ -185,18 +185,24 @@ export const Screen5LiveTracking: React.FC = () => {
 
     const chairCandidate = sessions[chairKey];
     if (isValid(chairCandidate)) {
-      if (typeof chairCandidate.seatNumber !== 'number' || Number(chairCandidate.seatNumber) === effectiveSeat) {
+      const cSeat = chairCandidate.seatNumber !== undefined && chairCandidate.seatNumber !== null
+        ? Number(chairCandidate.seatNumber)
+        : undefined;
+      if (cSeat === undefined || cSeat === effectiveSeat) {
         return chairCandidate;
       }
     }
 
     const tableCandidate = sessions[normTable];
     if (isValid(tableCandidate)) {
-      if (Number(tableCandidate.seatNumber) === effectiveSeat) {
+      const tSeat = tableCandidate.seatNumber !== undefined && tableCandidate.seatNumber !== null
+        ? Number(tableCandidate.seatNumber)
+        : undefined;
+      if (tSeat === effectiveSeat) {
         return tableCandidate;
       }
-      if (typeof tableCandidate.seatNumber !== 'number') {
-        const otherChairsHaveItems = currentTbl?.activeItems?.some((ai) => ai.seatNumber && ai.seatNumber !== effectiveSeat);
+      if (tSeat === undefined) {
+        const otherChairsHaveItems = currentTbl?.activeItems?.some((ai) => ai.seatNumber && Number(ai.seatNumber) !== effectiveSeat);
         if (!otherChairsHaveItems) {
           return tableCandidate;
         }
@@ -210,14 +216,16 @@ export const Screen5LiveTracking: React.FC = () => {
 
   // Check if waiter was called for payment strictly for this chair
   const hasActivePaymentPing = useMemo(() => {
-    return pings.some(
-      (p) =>
-        isTableMatch(p.tableNumber, effectiveTable) &&
-        p.type === 'PAYMENT' &&
-        p.status === 'PENDING' &&
-        (!p.seatNumber || p.seatNumber === effectiveSeat)
-    );
-  }, [pings, effectiveTable, effectiveSeat]);
+    return pings.some((p) => {
+      if (!isTableMatch(p.tableNumber, effectiveTable)) return false;
+      if (p.type !== 'PAYMENT' || p.status !== 'PENDING') return false;
+      const pSeat = p.seatNumber !== undefined && p.seatNumber !== null ? Number(p.seatNumber) : undefined;
+      if (pSeat !== undefined && !isNaN(pSeat)) {
+        return pSeat === effectiveSeat;
+      }
+      return isWaitingForCaptain;
+    });
+  }, [pings, effectiveTable, effectiveSeat, isWaitingForCaptain]);
 
   const isSummoned = isWaitingForCaptain || hasActivePaymentPing || (waiterNotification?.active && waiterNotification.type === 'PAYMENT');
 

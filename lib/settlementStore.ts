@@ -81,11 +81,18 @@ export function clearSettledBillInMemory(tableNumber: string, seatNumber?: numbe
 const resolvedPingsMap = new Map<string, number>();
 
 export function markPingLocallyResolved(pingIdOrKey: string) {
-  resolvedPingsMap.set(pingIdOrKey, Date.now());
+  if (!pingIdOrKey) return;
+  const now = Date.now();
+  resolvedPingsMap.set(pingIdOrKey, now);
+  resolvedPingsMap.set(pingIdOrKey.toUpperCase(), now);
+  resolvedPingsMap.set(pingIdOrKey.toLowerCase(), now);
 }
 
 export function isPingLocallyResolved(pingIdOrKey: string): boolean {
-  const at = resolvedPingsMap.get(pingIdOrKey);
+  if (!pingIdOrKey) return false;
+  const at = resolvedPingsMap.get(pingIdOrKey) ||
+             resolvedPingsMap.get(pingIdOrKey.toUpperCase()) ||
+             resolvedPingsMap.get(pingIdOrKey.toLowerCase());
   if (!at) return false;
-  return Math.abs(Date.now() - at) < 20000;
+  return Math.abs(Date.now() - at) < 60000;
 }

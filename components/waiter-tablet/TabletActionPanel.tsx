@@ -45,6 +45,10 @@ export function TabletActionPanel({
 
   const isVacant = table.status === 'VACANT';
   const isBilling = table.status === 'BILLING';
+  const isPaymentCompleted =
+    !isVacant &&
+    (isBilling ||
+      (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)));
 
   const groupPeers = table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
   const readyTickets = kdsTickets.filter((tk) =>
@@ -236,13 +240,31 @@ export function TabletActionPanel({
             {/* Vacate table */}
             <button
               type="button"
-              onClick={onVacate}
-              className="w-full flex items-center gap-3 px-5 py-3 rounded-2xl border border-rose-200 bg-rose-50 hover:bg-rose-100 transition cursor-pointer"
+              onClick={() => {
+                if (isPaymentCompleted) onVacate();
+              }}
+              disabled={!isPaymentCompleted}
+              title={
+                !isPaymentCompleted
+                  ? table.currentBill > 0
+                    ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                    : 'Payment must be completed before vacating table'
+                  : 'Clear table for next guests'
+              }
+              className={`w-full flex items-center gap-3 px-5 py-3 rounded-2xl border transition ${
+                !isPaymentCompleted
+                  ? 'border-stone-200 bg-stone-100 opacity-50 cursor-not-allowed'
+                  : 'border-rose-200 bg-rose-50 hover:bg-rose-100 cursor-pointer'
+              }`}
             >
-              <UserX className="h-4 w-4 text-rose-600" />
+              <UserX className={`h-4 w-4 ${!isPaymentCompleted ? 'text-stone-400' : 'text-rose-600'}`} />
               <div className="text-left">
-                <p className="font-mono font-black text-[11px] text-rose-700">Vacate Table</p>
-                <p className="text-[9.5px] text-rose-500 font-mono">Clear table for next guests</p>
+                <p className={`font-mono font-black text-[11px] ${!isPaymentCompleted ? 'text-stone-400' : 'text-rose-700'}`}>
+                  Vacate Table
+                </p>
+                <p className={`text-[9.5px] font-mono ${!isPaymentCompleted ? 'text-stone-400' : 'text-rose-500'}`}>
+                  {!isPaymentCompleted ? 'Complete payment before vacating' : 'Clear table for next guests'}
+                </p>
               </div>
             </button>
           </div>

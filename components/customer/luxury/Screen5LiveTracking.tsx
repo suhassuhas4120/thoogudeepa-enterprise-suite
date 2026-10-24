@@ -355,8 +355,7 @@ export const Screen5LiveTracking: React.FC = () => {
       const existing = combinedTicketItems.find(
         (ci) =>
           !matchedBridgeIds.has(ci.id) &&
-          (ci.id === si.id ||
-            getCanonicalKey(ci.name) === getCanonicalKey(si.name))
+          (ci.id ? ci.id === si.id : (!si.id && getCanonicalKey(ci.name) === getCanonicalKey(si.name)))
       );
       if (existing) {
         matchedBridgeIds.add(existing.id);
@@ -367,14 +366,8 @@ export const Screen5LiveTracking: React.FC = () => {
           existing.stage = si.stage;
         }
       } else {
-        const alreadyCoveredCount = combinedTicketItems.filter(
-          (ci) => getCanonicalKey(ci.name) === getCanonicalKey(si.name)
-        ).length;
-        const supabaseMatchingCount = supabaseItems.filter(
-          (i) => getCanonicalKey(i.name) === getCanonicalKey(si.name)
-        ).length;
-
-        if (alreadyCoveredCount < supabaseMatchingCount) {
+        const alreadyCovered = combinedTicketItems.some((ci) => ci.id === si.id);
+        if (!alreadyCovered) {
           combinedTicketItems.push({
             id: si.id,
             ticketId: si.ticketId,
@@ -401,9 +394,9 @@ export const Screen5LiveTracking: React.FC = () => {
           (c) => c && c.isOrdered && c.seatNumber === effectiveSeat && getCanonicalKey(c.menuItem?.name || '') === key
         );
 
-        // Check if table activeItems has a stage update for this item
+        // Check if table activeItems has a stage update for this item - strictly match by ID to avoid cross-order stage bleeding
         const tableActiveItem = currentTbl?.activeItems?.find(
-          (ai) => ai && (ai.id === ti.id || (getCanonicalKey(ai.name) === key && (!ai.seatNumber || ai.seatNumber === effectiveSeat)))
+          (ai) => ai && (ai.id ? ai.id === ti.id : (!ti.id && getCanonicalKey(ai.name) === key && (!ai.seatNumber || ai.seatNumber === effectiveSeat)))
         );
         const rawTblStatus = String(tableActiveItem?.status || '').toUpperCase();
         const tableStage: OrderStage | undefined =

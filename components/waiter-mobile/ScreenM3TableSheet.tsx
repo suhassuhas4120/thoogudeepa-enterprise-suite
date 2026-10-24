@@ -183,12 +183,18 @@ export function ScreenM3TableSheet({
 
   tickets.forEach((tk) => {
     tk.items.forEach((it) => {
+      const itName = (it.name || '').toLowerCase();
       const fallbackPrice =
         INITIAL_MENU_ITEMS.find(
-          (m) =>
-            m.name.toLowerCase() === it.name.toLowerCase() ||
-            m.name.toLowerCase().includes(it.name.toLowerCase()) ||
-            it.name.toLowerCase().includes(m.name.toLowerCase())
+          (m) => {
+            const mName = (m.name || '').toLowerCase();
+            return (
+              (itName && mName === itName) ||
+              (itName && mName.includes(itName)) ||
+              (itName && itName.includes(mName)) ||
+              (it.id && m.id === it.id)
+            );
+          }
         )?.price || 220;
       const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
       const stageLabel =
@@ -208,7 +214,7 @@ export function ScreenM3TableSheet({
         : (tk.seatNumber ? Number(tk.seatNumber) : undefined);
       allTableOrderedItems.push({
         id: it.id,
-        name: it.name,
+        name: it.name || 'Dish',
         quantity: it.quantity,
         price: unitPrice,
         totalPrice: unitPrice * it.quantity,
@@ -227,12 +233,18 @@ export function ScreenM3TableSheet({
     groupTables.forEach((gt) => {
       if (gt.activeItems && gt.activeItems.length > 0) {
         gt.activeItems.forEach((ai, idx) => {
+          const aiName = (ai.name || '').toLowerCase();
           const fallbackPrice =
             INITIAL_MENU_ITEMS.find(
-              (m) =>
-                m.name.toLowerCase() === ai.name.toLowerCase() ||
-                m.name.toLowerCase().includes(ai.name.toLowerCase()) ||
-                ai.name.toLowerCase().includes(m.name.toLowerCase())
+              (m) => {
+                const mName = (m.name || '').toLowerCase();
+                return (
+                  (aiName && mName === aiName) ||
+                  (aiName && mName.includes(aiName)) ||
+                  (aiName && aiName.includes(mName)) ||
+                  (ai.id && m.id === ai.id)
+                );
+              }
             )?.price || 220;
           const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
           const resolvedSeat = ai.seatNumber !== undefined && ai.seatNumber !== null
@@ -532,7 +544,18 @@ export function ScreenM3TableSheet({
       : '';
   }
 
+  const isPaymentCompleted =
+    !isVacant &&
+    (table.status === 'BILLING' ||
+      (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)));
+
   const handleVacate = () => {
+    if (!isPaymentCompleted) {
+      setNotice('Cannot vacate table: Payment must be completed first.');
+      setTimeout(() => setNotice(null), 3000);
+      setConfirmVacate(false);
+      return;
+    }
     waiterVacatesTable(tableNum);
     setConfirmVacate(false);
     onVacated();
@@ -1540,7 +1563,7 @@ export function ScreenM3TableSheet({
                       Vacate {table.number}?
                     </h3>
                     <p className="font-mono text-xs text-stone-500">
-                      All guests must have paid.
+                      {isPaymentCompleted ? 'All guests have paid.' : 'Payment pending: Table cannot be vacated before payment.'}
                     </p>
                   </div>
                 </div>
@@ -1555,10 +1578,15 @@ export function ScreenM3TableSheet({
                     Cancel
                   </motion.button>
                   <motion.button
-                    whileTap={{ scale: 0.93 }}
+                    whileTap={isPaymentCompleted ? { scale: 0.93 } : undefined}
                     type="button"
+                    disabled={!isPaymentCompleted}
                     onClick={handleVacate}
-                    className="min-h-[48px] rounded-xl bg-red-600 hover:bg-red-700 text-white font-black transition-all duration-150 shadow-xs flex items-center justify-center gap-1.5"
+                    className={`min-h-[48px] rounded-xl font-black transition-all duration-150 shadow-xs flex items-center justify-center gap-1.5 ${
+                      !isPaymentCompleted
+                        ? 'bg-stone-300 text-stone-500 cursor-not-allowed opacity-60'
+                        : 'bg-red-600 hover:bg-red-700 text-white'
+                    }`}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                     <span>Confirm Vacate</span>

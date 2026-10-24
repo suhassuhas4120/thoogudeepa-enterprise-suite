@@ -161,7 +161,13 @@ export function TabletTableCockpit({
     });
   };
 
+  const isPaymentCompleted =
+    !isVacant &&
+    (table.status === 'BILLING' ||
+      (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)));
+
   const handleVacate = () => {
+    if (!isPaymentCompleted) return;
     waiterVacatesTable(selectedTableNum);
     onSetConfirmVacate(false);
     onVacated();
@@ -473,8 +479,22 @@ export function TabletTableCockpit({
         {!confirmVacate ? (
           <button
             type="button"
-            onClick={() => onSetConfirmVacate(true)}
-            className="w-full py-2.5 bg-[#FAF8F5] hover:bg-rose-50 border border-stone-300 hover:border-rose-300 text-stone-600 hover:text-rose-700 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-95"
+            disabled={!isPaymentCompleted}
+            onClick={() => {
+              if (isPaymentCompleted) {
+                onSetConfirmVacate(true);
+              }
+            }}
+            title={
+              !isPaymentCompleted
+                ? 'Payment pending: Table cannot be vacated until payment is settled'
+                : 'Vacate and reset table'
+            }
+            className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-2 transition ${
+              !isPaymentCompleted
+                ? 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60'
+                : 'bg-[#FAF8F5] hover:bg-rose-50 border border-stone-300 hover:border-rose-300 text-stone-600 hover:text-rose-700 cursor-pointer active:scale-95'
+            }`}
           >
             <Trash2 className="h-3.5 w-3.5" />
             <span>Vacate &amp; Clean Table {table.number}</span>
@@ -494,8 +514,13 @@ export function TabletTableCockpit({
               </button>
               <button
                 type="button"
+                disabled={!isPaymentCompleted}
                 onClick={handleVacate}
-                className="py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
+                className={`py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition ${
+                  !isPaymentCompleted
+                    ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                    : 'bg-rose-600 hover:bg-rose-700 text-white cursor-pointer'
+                }`}
               >
                 <Trash2 className="h-3.5 w-3.5" />
                 <span>Yes, Vacate</span>

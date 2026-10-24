@@ -159,6 +159,10 @@ export function TabletTableDetail({
   }
 
   const isVacant = table.status === 'VACANT';
+  const isPaymentCompleted =
+    !isVacant &&
+    (table.status === 'BILLING' ||
+      (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)));
   const elapsed = getElapsed(table.seatedTime);
   const groupPeers =
     table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
@@ -1057,8 +1061,22 @@ export function TabletTableDetail({
             </button>
             <button
               type="button"
-              onClick={onVacate}
-              className="py-2.5 rounded-xl border-2 border-rose-300 bg-rose-50 hover:bg-rose-100 font-bold text-rose-700 transition cursor-pointer flex items-center justify-center gap-1.5"
+              onClick={() => {
+                if (isPaymentCompleted) onVacate();
+              }}
+              disabled={!isPaymentCompleted}
+              title={
+                !isPaymentCompleted
+                  ? table.currentBill > 0
+                    ? `Payment pending (₹${table.currentBill.toFixed(2)}). Settle bill before vacating.`
+                    : 'Payment must be completed before vacating table'
+                  : 'Vacate and reset table'
+              }
+              className={`py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
+                !isPaymentCompleted
+                  ? 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-50 shadow-none'
+                  : 'border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer shadow-2xs'
+              }`}
             >
               <UserX className="h-3.5 w-3.5" />
               <span>Vacate</span>

@@ -155,18 +155,24 @@ export function ScreenM6Settlement({
 
     tickets.forEach((tk) => {
       tk.items.forEach((it) => {
+        const itName = (it.name || '').toLowerCase();
         const fallbackPrice =
           INITIAL_MENU_ITEMS.find(
-            (m) =>
-              m.name.toLowerCase() === it.name.toLowerCase() ||
-              m.name.toLowerCase().includes(it.name.toLowerCase()) ||
-              it.name.toLowerCase().includes(m.name.toLowerCase())
+            (m) => {
+              const mName = (m.name || '').toLowerCase();
+              return (
+                (itName && mName === itName) ||
+                (itName && mName.includes(itName)) ||
+                (itName && itName.includes(mName)) ||
+                (it.id && m.id === it.id)
+              );
+            }
           )?.price || 220;
         const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
         seenIds.add(it.id);
         list.push({
           id: it.id,
-          name: it.name,
+          name: it.name || 'Dish',
           quantity: it.quantity,
           price: unitPrice,
           totalPrice: unitPrice * it.quantity,
@@ -184,17 +190,23 @@ export function ScreenM6Settlement({
         const id = ai.id || `ai-${idx}`;
         if (!seenIds.has(id)) {
           seenIds.add(id);
+          const aiName = (ai.name || '').toLowerCase();
           const fallbackPrice =
             INITIAL_MENU_ITEMS.find(
-              (m) =>
-                m.name.toLowerCase() === ai.name.toLowerCase() ||
-                m.name.toLowerCase().includes(ai.name.toLowerCase()) ||
-                ai.name.toLowerCase().includes(m.name.toLowerCase())
+              (m) => {
+                const mName = (m.name || '').toLowerCase();
+                return (
+                  (aiName && mName === aiName) ||
+                  (aiName && mName.includes(aiName)) ||
+                  (aiName && aiName.includes(mName)) ||
+                  (ai.id && m.id === ai.id)
+                );
+              }
             )?.price || 220;
           const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
           list.push({
             id,
-            name: ai.name,
+            name: ai.name || 'Dish',
             quantity: ai.quantity,
             price: unitPrice,
             totalPrice: unitPrice * ai.quantity,

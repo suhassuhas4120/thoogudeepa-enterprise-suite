@@ -105,12 +105,13 @@ export function TableChairsSheet({
           : 'PLACED';
 
       const seat = it.seatNumber || tk.seatNumber || 1;
-      const menuItem = INITIAL_MENU_ITEMS.find((m) => m.name.trim().toLowerCase() === it.name.trim().toLowerCase() || m.id === it.id);
+      const itName = (it.name || '').trim().toLowerCase();
+      const menuItem = INITIAL_MENU_ITEMS.find((m) => (itName && m.name.trim().toLowerCase() === itName) || (it.id && m.id === it.id));
       const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
 
       allTableOrderedItems.push({
         id: it.id,
-        name: it.name,
+        name: it.name || menuItem?.name || 'Dish',
         quantity: it.quantity,
         price: unitPrice,
         totalPrice: unitPrice * it.quantity,
@@ -139,12 +140,13 @@ export function TableChairsSheet({
           : 'PLACED';
 
       const seat = ai.seatNumber || 1;
-      const menuItem = INITIAL_MENU_ITEMS.find((m) => m.name.trim().toLowerCase() === ai.name.trim().toLowerCase() || m.id === ai.id);
+      const aiName = (ai.name || '').trim().toLowerCase();
+      const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id));
       const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
 
       allTableOrderedItems.push({
         id: ai.id || `ai-${idx}`,
-        name: ai.name,
+        name: ai.name || menuItem?.name || 'Dish',
         quantity: ai.quantity,
         price: unitPrice,
         totalPrice: unitPrice * ai.quantity,

@@ -362,7 +362,25 @@ export default function WaiterTabletPage() {
     );
   };
 
+  const currentTableObj = tables.find(
+    (t) => cleanTableNum(t.number) === cleanTableNum(selectedTableNum)
+  );
+  const isCurrentTableVacant = currentTableObj?.status === "VACANT";
+  const isPaymentCompletedForSelectedTable =
+    !isCurrentTableVacant &&
+    Boolean(
+      currentTableObj &&
+        (currentTableObj.status === "BILLING" ||
+          (currentTableObj.currentBill === 0 &&
+            (!currentTableObj.activeItems || currentTableObj.activeItems.length === 0)))
+    );
+
   const handleVacate = () => {
+    if (!isPaymentCompletedForSelectedTable) {
+      showToast("Cannot vacate table: Payment must be completed first.");
+      setConfirmVacate(false);
+      return;
+    }
     if (!confirmVacate) {
       setConfirmVacate(true);
       return;
@@ -1022,6 +1040,11 @@ export default function WaiterTabletPage() {
                             This clears active orders and resets the table
                             status to vacant.
                           </p>
+                          {!isPaymentCompletedForSelectedTable && (
+                            <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">
+                              Payment pending: Complete payment settlement before vacating.
+                            </p>
+                          )}
                           <div className="flex gap-2">
                             <button
                               type="button"
@@ -1032,8 +1055,13 @@ export default function WaiterTabletPage() {
                             </button>
                             <button
                               type="button"
+                              disabled={!isPaymentCompletedForSelectedTable}
                               onClick={handleVacate}
-                              className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs cursor-pointer transition shadow-xs"
+                              className={`flex-1 py-2.5 rounded-xl font-black text-xs transition shadow-xs ${
+                                !isPaymentCompletedForSelectedTable
+                                  ? "bg-stone-300 text-stone-500 cursor-not-allowed"
+                                  : "bg-rose-600 hover:bg-rose-700 text-white cursor-pointer"
+                              }`}
                             >
                               Vacate
                             </button>

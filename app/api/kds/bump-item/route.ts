@@ -49,6 +49,11 @@ export async function POST(req: NextRequest) {
     try {
       const nowIso = new Date().toISOString();
 
+      // Normalize table number if provided
+      const rawTable = body.tableNumber ? String(body.tableNumber).trim() : '';
+      const cleanNum = rawTable.replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const normTable = cleanNum ? `T-${String(parseInt(cleanNum, 10) || cleanNum).padStart(2, '0')}` : '';
+
       // 1. Fetch item from order_items
       let { data: item } = await supabase
         .from('order_items')
@@ -60,21 +65,43 @@ export async function POST(req: NextRequest) {
 
       // If not matched by exact ID, try matching by itemName within recent order items
       if (!item && itemName) {
-        const { data: matchedByName } = await supabase
+        let q = supabase
           .from('order_items')
           .select('*')
           .ilike('name', `%${itemName}%`)
-          .neq('stage', 'SERVED')
           .order('created_at', { ascending: false })
-          .limit(1);
+          .limit(10);
+        if (normTable) {
+          q = q.or(`table_number.eq.${normTable},table_number.eq.${rawTable}`);
+        }
+        const { data: matchedByName } = await q;
         if (matchedByName && matchedByName.length > 0) {
-          item = matchedByName[0];
+          item = matchedByName.find((it: any) => it.stage !== 'SERVED') || matchedByName[0];
+        }
+      }
+
+      // If still not matched, try searching order_items by tableNumber
+      if (!item && normTable) {
+        const { data: tblItems } = await supabase
+          .from('order_items')
+          .select('*')
+          .or(`table_number.eq.${normTable},table_number.eq.${rawTable}`)
+          .order('created_at', { ascending: false })
+          .limit(20);
+        if (tblItems && tblItems.length > 0) {
+          item =
+            tblItems.find((it: any) =>
+              it.id === itemId ||
+              (itemName && (it.name || '').trim().toLowerCase().includes(itemName)) ||
+              (normSearch && (it.name || '').trim().toLowerCase().includes(normSearch))
+            ) ||
+            tblItems.find((it: any) => it.stage !== 'SERVED');
         }
       }
 
       // 2. Fetch ticket from kds_tickets
       let targetTicket: any = null;
-      if (ticketId) {
+      if (ticketId && ticketId !== 'tbl-direct') {
         const { data: t } = await supabase
           .from('kds_tickets')
           .select('*')
@@ -90,6 +117,28 @@ export async function POST(req: NextRequest) {
           .eq('order_id', item.order_id)
           .maybeSingle();
         if (t) targetTicket = t;
+      }
+
+      // Search tickets by table number if provided
+      if (!targetTicket && normTable) {
+        const { data: tblTickets } = await supabase
+          .from('kds_tickets')
+          .select('*')
+          .or(`table_number.eq.${normTable},table_number.eq.${rawTable}`)
+          .order('created_at', { ascending: false });
+        if (tblTickets && tblTickets.length > 0) {
+          targetTicket =
+            tblTickets.find((t: any) =>
+              Array.isArray(t.items) &&
+              t.items.some((it: any) =>
+                it.id === itemId ||
+                (itemName && (it.name || '').trim().toLowerCase().includes(itemName)) ||
+                (normSearch && (it.name || '').trim().toLowerCase().includes(normSearch))
+              )
+            ) ||
+            tblTickets.find((t: any) => t.status !== 'COMPLETED') ||
+            tblTickets[0];
+        }
       }
 
       if (!targetTicket) {
@@ -117,15 +166,50 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Fallback: search recent tickets across all statuses (including COMPLETED)
       if (!item && !targetTicket) {
-        const { data: anyTicket } = await supabase
+        const { data: recentTickets } = await supabase
           .from('kds_tickets')
           .select('*')
-          .neq('status', 'COMPLETED');
-        targetTicket = (anyTicket || []).find((t: any) =>
+          .order('created_at', { ascending: false })
+          .limit(50);
+        targetTicket = (recentTickets || []).find((t: any) =>
           Array.isArray(t.items) &&
-          t.items.some((it: any) => it.id === itemId)
+          t.items.some((it: any) =>
+            it.id === itemId ||
+            (itemName && (it.name || '').trim().toLowerCase().includes(itemName)) ||
+            (normSearch && (it.name || '').trim().toLowerCase().includes(normSearch))
+          )
         );
+      }
+
+      // If the item belongs to a valid floor table, upsert it into order_items so it persists
+      if (!item && !targetTicket && normTable) {
+        const nameToSave = body.itemName || (body.name ? String(body.name) : `Item ${itemId}`);
+        const priceToSave = Number(body.price || body.unitPrice || 0);
+        const qtyToSave = Number(body.quantity || 1);
+        const seatToSave = Number(body.seatNumber || body.seat_number) || 1;
+        const { data: insertedItem } = await supabase
+          .from('order_items')
+          .upsert({
+            id: itemId,
+            order_id: `ORD-${normTable.replace(/[^a-zA-Z0-9]/g, '')}-${nowIso.slice(-6)}`,
+            table_number: normTable,
+            seat_number: seatToSave,
+            name: nameToSave,
+            quantity: qtyToSave,
+            price: priceToSave,
+            unit_price: priceToSave,
+            total_price: priceToSave * qtyToSave,
+            stage: targetStage || 'SERVED',
+            created_at: nowIso,
+            updated_at: nowIso,
+          })
+          .select('*')
+          .maybeSingle();
+        if (insertedItem) {
+          item = insertedItem;
+        }
       }
 
       if (!item && !targetTicket) {
@@ -134,9 +218,10 @@ export async function POST(req: NextRequest) {
 
       let ticketItem = targetTicket?.items?.find((it: any) => 
         it.id === itemId ||
-        (item && it.id === item.id) ||
-        (itemName && (it.name || '').trim().toLowerCase() === itemName) ||
-        (normSearch && (it.name || '').trim().toLowerCase().includes(normSearch))
+        (item && it.id === item.id)
+      ) || targetTicket?.items?.find((it: any) =>
+        (!itemId && itemName && (it.name || '').trim().toLowerCase() === itemName) ||
+        (!itemId && normSearch && (it.name || '').trim().toLowerCase().includes(normSearch))
       );
       if (!ticketItem && targetTicket?.items) {
         ticketItem = targetTicket.items.find((it: any) => {
@@ -189,7 +274,7 @@ export async function POST(req: NextRequest) {
             it.id === itemId ||
             (item && it.id === item.id) ||
             (ticketItem && it.id === ticketItem.id) ||
-            (itemName && (it.name || '').trim().toLowerCase() === itemName);
+            (!itemId && itemName && (it.name || '').trim().toLowerCase() === itemName);
           if (isMatch) {
             return { ...it, stage: nextStage };
           }

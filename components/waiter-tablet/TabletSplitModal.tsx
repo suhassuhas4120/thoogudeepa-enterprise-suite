@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { X, Split, Users, Armchair, Link2, CreditCard } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useSharedBridge } from '../../store/useSharedBridge';
+import { useSharedBridge, cleanTableNum } from '../../store/useSharedBridge';
 
 interface Props {
   open: boolean;
@@ -25,7 +25,9 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
 
   const isVacant = table.status === 'VACANT';
   const groupPeers = table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
-  const tickets = isVacant ? [] : kdsTickets.filter((tk) => groupPeers.includes(tk.tableNumber));
+  const tickets = isVacant
+    ? []
+    : kdsTickets.filter((tk) => groupPeers.some((gp) => cleanTableNum(gp) === cleanTableNum(tk.tableNumber)));
 
   // Gather all ordered items
   const allOrderedItems: {
@@ -67,7 +69,6 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
     }
   }
 
-  const groupPeers: string[] = table.mergeGroupPeers ?? [tableNum];
   const groupCurrentBill = tables
     .filter((t) => groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(t.number)))
     .reduce((s, t) => s + (t.currentBill || 0), 0);

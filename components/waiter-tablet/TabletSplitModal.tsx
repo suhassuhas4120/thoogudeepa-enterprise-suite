@@ -67,8 +67,12 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
     }
   }
 
+  const groupPeers: string[] = table.mergeGroupPeers ?? [tableNum];
+  const groupCurrentBill = tables
+    .filter((t) => groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(t.number)))
+    .reduce((s, t) => s + (t.currentBill || 0), 0);
   const itemsSubtotal = allOrderedItems.reduce((acc, it) => acc + it.totalPrice, 0);
-  const grandTotal = isVacant ? 0 : Math.round(Math.max(table.currentBill || 0, itemsSubtotal) * 1.05);
+  const grandTotal = isVacant ? 0 : Math.round(Math.max(groupCurrentBill, itemsSubtotal) * 1.05);
   const subtotal = Math.round(grandTotal / 1.05);
   const tax = Math.max(0, grandTotal - subtotal);
 

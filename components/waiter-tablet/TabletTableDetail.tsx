@@ -222,7 +222,10 @@ export function TabletTableDetail({
 
   // Table total bill
   const firedSubtotal = allItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
-  const baseFiredSubtotal = Math.max(table.currentBill || 0, firedSubtotal);
+  const groupCurrentBill = tables
+    .filter((t) => cleanPeersSet.has(cleanTableNum(t.number)))
+    .reduce((s, t) => s + (t.currentBill || 0), 0);
+  const baseFiredSubtotal = Math.max(groupCurrentBill, firedSubtotal);
   const totalTableBill = Math.round(baseFiredSubtotal * 1.05) + Math.round(allTableDraftSubtotal * 1.05);
 
   // Selected chair's target seats

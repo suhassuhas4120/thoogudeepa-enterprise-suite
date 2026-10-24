@@ -17,9 +17,10 @@ export function ScreenM16DayCloseZReport() {
   const grossSales = Math.max(48250, shiftStats.totalRevenue + realSettledSum);
   const discountTotal = 1650;
   const taxable = grossSales - discountTotal;
-  const cgst = Math.round(taxable * 0.025);
-  const sgst = Math.round(taxable * 0.025);
-  const netRevenue = taxable + cgst + sgst;
+  const totalTax = Math.round(taxable * 0.05);
+  const cgst = totalTax / 2;
+  const sgst = totalTax - cgst;
+  const netRevenue = taxable + totalTax;
 
   // Expected cash (baseline estimated cash + actual settled cash - petty expenses)
   const baselineCash = Math.round(48250 * 0.26);

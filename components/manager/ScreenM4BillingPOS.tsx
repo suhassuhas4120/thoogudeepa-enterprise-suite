@@ -43,7 +43,7 @@ interface BillItem {
 }
 
 export function ScreenM4BillingPOS() {
-  const { tables, kdsTickets, waiterFiresKOT, waiterRecordsPayment, waiterVacatesTable, recordSettledBill } = useSharedBridge();
+  const { tables, kdsTickets, waiterFiresKOT, waiterRecordsPayment, waiterVacatesTable, recordSettledBill, waiterMarkKitchenItemServed } = useSharedBridge();
   const {
     selectedTableNumber,
     selectedSeatNumber,
@@ -73,83 +73,111 @@ export function ScreenM4BillingPOS() {
 
   const currentSeat: 'ALL' | number = selectedSeatNumber || 'ALL';
 
-  // Gather existing KOT items for this table from kdsTickets
+  const isTableVacant = selectedTable.status === 'VACANT';
+
+  // Gather existing KOT items for this table from kdsTickets (vacant tables have no active items)
   const groupPeers: string[] = selectedTable?.mergeGroupPeers ?? [selectedTable?.number || 'T-01'];
-  const tableTickets = kdsTickets.filter(
-    (tk) =>
-      groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber)) &&
-      tk.status !== 'COMPLETED'
-  );
+  const tableTickets = isTableVacant
+    ? []
+    : kdsTickets.filter(
+        (tk) =>
+          groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber))
+      );
 
   const existingItems: BillItem[] = [];
-  tableTickets.forEach((tk) => {
-    (tk.items || []).forEach((it) => {
-      const rawStage = String(it.stage || tk.status || '').toUpperCase();
-      const stage: BillItem['stage'] =
-        rawStage === 'SERVED'
-          ? 'SERVED'
-          : rawStage === 'READY' || rawStage === 'PLATED'
-          ? 'READY'
-          : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
-          ? 'PREPARING'
-          : rawStage === 'RECEIVED'
-          ? 'RECEIVED'
-          : 'PLACED';
+  if (!isTableVacant) {
+    tableTickets.forEach((tk) => {
+      (tk.items || []).forEach((it) => {
+        const activeMatch = selectedTable.activeItems?.find((ai) => ai.id === it.id);
+        const isServed = it.stage === 'SERVED' || (it.stage as string) === 'Served' || activeMatch?.status === 'Served';
+        const rawStage = isServed ? 'SERVED' : String(it.stage || tk.status || '').toUpperCase();
+        const stage: BillItem['stage'] =
+          rawStage === 'SERVED'
+            ? 'SERVED'
+            : rawStage === 'READY' || rawStage === 'PLATED'
+            ? 'READY'
+            : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
+            ? 'PREPARING'
+            : rawStage === 'RECEIVED'
+            ? 'RECEIVED'
+            : 'PLACED';
 
-      const seat = it.seatNumber || tk.seatNumber || 1;
-      const itName = (it.name || '').trim().toLowerCase();
-      const menuItem = INITIAL_MENU_ITEMS.find((m) => (itName && m.name.trim().toLowerCase() === itName) || (it.id && m.id === it.id));
-      const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
+        const seat = it.seatNumber || tk.seatNumber || 1;
+        const itName = (it.name || '').trim().toLowerCase();
+        const menuItem = INITIAL_MENU_ITEMS.find((m) => (itName && m.name.trim().toLowerCase() === itName) || (it.id && m.id === it.id));
+        const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
 
-      existingItems.push({
-        id: it.id,
-        name: it.name || menuItem?.name || 'Dish',
-        price: unitPrice,
-        qty: it.quantity,
-        isFree: false,
-        seatNumber: seat,
-        stage,
-        isExistingKOT: true,
-        ticketId: tk.id,
-        options: it.options,
-        addOns: it.addOns,
+        existingItems.push({
+          id: it.id,
+          name: it.name || menuItem?.name || 'Dish',
+          price: unitPrice,
+          qty: it.quantity,
+          isFree: false,
+          seatNumber: seat,
+          stage,
+          isExistingKOT: true,
+          ticketId: tk.id,
+          options: it.options,
+          addOns: it.addOns,
+        });
       });
     });
-  });
 
-  // Fallback to table activeItems if tickets are empty but activeItems present
-  if (existingItems.length === 0 && selectedTable.activeItems && selectedTable.activeItems.length > 0) {
-    selectedTable.activeItems.forEach((ai, idx) => {
-      const rawStage = String(ai.status || '').toUpperCase();
-      const stage: BillItem['stage'] =
-        rawStage === 'SERVED'
-          ? 'SERVED'
-          : rawStage === 'READY' || rawStage === 'PLATED'
-          ? 'READY'
-          : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
-          ? 'PREPARING'
-          : rawStage === 'RECEIVED'
-          ? 'RECEIVED'
-          : 'PLACED';
+    const groupTables = tables.filter((t) => groupPeers.some((peer) => cleanNum(peer) === cleanNum(t.number)));
+    const groupCurrentBill = groupTables.reduce((s, t) => s + (t.currentBill || 0), 0);
+    const effectiveBill = groupCurrentBill > 0 ? groupCurrentBill : (selectedTable.currentBill || 0);
 
-      const seat = ai.seatNumber || 1;
-      const aiName = (ai.name || '').trim().toLowerCase();
-      const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id) || m.name === ai.name);
-      const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
+    // Fallback to table activeItems across all group member tables if tickets are empty
+    if (existingItems.length === 0) {
+      groupTables.forEach((gt) => {
+        (gt.activeItems || []).forEach((ai, idx) => {
+          const rawStage = String(ai.status || '').toUpperCase();
+          const stage: BillItem['stage'] =
+            rawStage === 'SERVED'
+              ? 'SERVED'
+              : rawStage === 'READY' || rawStage === 'PLATED'
+              ? 'READY'
+              : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
+              ? 'PREPARING'
+              : rawStage === 'RECEIVED'
+              ? 'RECEIVED'
+              : 'PLACED';
 
+          const seat = ai.seatNumber || 1;
+          const aiName = (ai.name || '').trim().toLowerCase();
+          const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id) || m.name === ai.name);
+          const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
+
+          existingItems.push({
+            id: ai.id || `ai-${gt.number}-${idx}`,
+            name: ai.name || menuItem?.name || 'Dish',
+            price: unitPrice,
+            qty: ai.quantity,
+            isFree: false,
+            seatNumber: seat,
+            stage,
+            isExistingKOT: true,
+            ticketId: 'tbl-direct',
+            options: ai.options,
+          });
+        });
+      });
+    }
+
+    // Fallback to running table bill if tickets and activeItems are empty but table has currentBill
+    if (existingItems.length === 0 && effectiveBill > 0) {
       existingItems.push({
-        id: ai.id || `ai-${idx}`,
-        name: ai.name || menuItem?.name || 'Dish',
-        price: unitPrice,
-        qty: ai.quantity,
+        id: `bill-direct-${selectedTable.number}`,
+        name: 'Running Table Order',
+        price: effectiveBill,
+        qty: 1,
         isFree: false,
-        seatNumber: seat,
-        stage,
+        seatNumber: typeof currentSeat === 'number' ? currentSeat : 1,
+        stage: 'SERVED',
         isExistingKOT: true,
         ticketId: 'tbl-direct',
-        options: ai.options,
       });
-    });
+    }
   }
 
   // Extra newly added items (not yet fired to kitchen)
@@ -277,16 +305,23 @@ export function ScreenM4BillingPOS() {
   const subtotal = displayedItems.reduce((acc, item) => acc + (item.isFree ? 0 : item.price * item.qty), 0);
   const discountAmount = Math.round((subtotal * discountPercent) / 100);
   const taxableAmount = subtotal - discountAmount;
-  const cgst = Math.round(taxableAmount * 0.025);
-  const sgst = Math.round(taxableAmount * 0.025);
-  const grandTotal = taxableAmount + cgst + sgst;
+  const totalTax = Math.round(taxableAmount * 0.05);
+  const cgst = totalTax / 2;
+  const sgst = totalTax - cgst;
+  const grandTotal = taxableAmount + totalTax;
   const tenderedNum = Number(cashTendered) || 0;
   const changeDue = Math.max(0, tenderedNum - grandTotal);
 
+  // Check if there are unserved items (order just placed, cooking, ready, or unfired extra items)
+  const hasUnservedItems =
+    displayedItems.length === 0 ||
+    displayedItems.some((it) => it.stage !== 'SERVED');
+
   const handleSettle = () => {
-    // If there are still unfired extra items, automatically fire them before settlement
-    if (extraItems.length > 0) {
-      handleFireExtraToKitchen();
+    // Cannot settle bill before order is served or if there are unserved/unfired items
+    if (hasUnservedItems || grandTotal <= 0) {
+      alert('Cannot settle bill: All dishes must be served to the table before finalizing payment.');
+      return;
     }
 
     const invNum = `INV-${Date.now().toString().slice(-6)}`;
@@ -673,9 +708,20 @@ export function ScreenM4BillingPOS() {
                               >
                                 <Trash2 className="h-3.5 w-3.5 mx-auto" />
                               </button>
+                            ) : it.stage !== 'SERVED' ? (
+                              <button
+                                type="button"
+                                onClick={() => waiterMarkKitchenItemServed(it.ticketId || 'tbl-direct', it.id)}
+                                className="px-2 py-0.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded text-[10px] font-bold transition flex items-center gap-1 mx-auto cursor-pointer"
+                                title="Mark this item as served"
+                              >
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                <span>Serve</span>
+                              </button>
                             ) : (
-                              <span className="text-[10px] text-slate-400 font-bold">
-                                Fired
+                              <span className="text-[10px] text-emerald-600 font-bold flex items-center justify-center gap-0.5">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                <span>Served</span>
                               </span>
                             )}
                           </td>
@@ -847,6 +893,22 @@ export function ScreenM4BillingPOS() {
 
           {/* Settlement Actions */}
           <div className="mt-4 pt-3 border-t border-slate-200 space-y-2 shrink-0">
+            {hasUnservedItems && displayedItems.length > 0 && (
+              <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-center text-amber-900 text-xs font-mono font-bold flex items-center justify-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+                <span>
+                  {extraItems.length > 0
+                    ? 'Fire extra items to kitchen and serve before settling bill.'
+                    : '⚠️ All dishes must be served before finalizing payment.'}
+                </span>
+              </div>
+            )}
+            {displayedItems.length === 0 && (
+              <div className="p-2.5 bg-stone-50 border border-stone-200 rounded-xl text-center text-stone-500 text-xs font-mono font-bold">
+                No items on this bill to settle.
+              </div>
+            )}
+
             {settledSuccess ? (
               <div className="bg-emerald-50 border-2 border-emerald-600 p-3 rounded-xl text-center font-mono text-emerald-800 text-xs font-bold flex items-center justify-center gap-2">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600" />
@@ -855,10 +917,29 @@ export function ScreenM4BillingPOS() {
             ) : (
               <>
                 <button
+                  type="button"
                   onClick={handleSettle}
-                  className="w-full bg-[#9C3D1E] text-white py-2.5 px-3 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 hover:bg-emerald-600 transition shadow-xs"
+                  disabled={hasUnservedItems || grandTotal <= 0}
+                  className={`w-full py-2.5 px-3 rounded-xl font-mono text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition shadow-xs ${
+                    hasUnservedItems || grandTotal <= 0
+                      ? 'bg-stone-200 text-stone-400 border border-stone-300 cursor-not-allowed opacity-75'
+                      : 'bg-[#9C3D1E] hover:bg-emerald-600 text-white cursor-pointer active:scale-98'
+                  }`}
+                  title={
+                    displayedItems.length === 0
+                      ? 'No items on bill to settle'
+                      : hasUnservedItems
+                      ? 'Cannot pay: Dishes must be served before bill can be settled'
+                      : `Collect ₹${grandTotal} and settle bill`
+                  }
                 >
-                  <span>COLLECT ₹{grandTotal} &amp; SETTLE BILL</span>
+                  <span>
+                    {displayedItems.length === 0
+                      ? 'NO BILL ITEMS TO SETTLE'
+                      : hasUnservedItems
+                      ? 'SERVE ALL DISHES TO SETTLE'
+                      : `COLLECT ₹${grandTotal} & SETTLE BILL`}
+                  </span>
                 </button>
                 <div className="grid grid-cols-2 gap-2">
                   <button

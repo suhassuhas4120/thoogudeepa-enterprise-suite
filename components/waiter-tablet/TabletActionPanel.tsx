@@ -69,8 +69,12 @@ export function TabletActionPanel({
     );
   });
 
-  const gst = Math.round(table.currentBill * 0.05);
-  const totalWithGst = table.currentBill + gst;
+  const groupCurrentBill = tables
+    .filter((t) => groupPeers.some((gp) => cleanTableNum(gp) === cleanTableNum(t.number)))
+    .reduce((s, t) => s + (t.currentBill || 0), 0);
+  const effectiveSubtotal = groupCurrentBill > 0 ? groupCurrentBill : table.currentBill;
+  const gst = Math.round(effectiveSubtotal * 0.05);
+  const totalWithGst = effectiveSubtotal + gst;
 
   return (
     <div className="flex flex-col h-full overflow-hidden bg-[#FAF8F5]">
@@ -289,15 +293,15 @@ export function TabletActionPanel({
             <p className="text-[9px] font-black uppercase tracking-wider text-stone-400">Bill Breakdown</p>
             <div className="flex justify-between text-stone-700">
               <span>Subtotal</span>
-              <span className="font-bold">₹{table.currentBill.toLocaleString()}</span>
+              <span className="font-bold">₹{effectiveSubtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-stone-500">
               <span>CGST (2.5%)</span>
-              <span>₹{Math.round(table.currentBill * 0.025)}</span>
+              <span>₹{Math.round(gst / 2)}</span>
             </div>
             <div className="flex justify-between text-stone-500">
               <span>SGST (2.5%)</span>
-              <span>₹{Math.round(table.currentBill * 0.025)}</span>
+              <span>₹{gst - Math.round(gst / 2)}</span>
             </div>
             <div className="flex justify-between font-black text-stone-900 border-t border-dashed border-stone-200 pt-2">
               <span>Grand Total</span>

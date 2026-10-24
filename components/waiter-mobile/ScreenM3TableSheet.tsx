@@ -291,12 +291,12 @@ export function ScreenM3TableSheet({
 
   // Clean, consistent, zero double-tax pricing:
   // When ordered items are listed, subtotal is strictly the pre-tax dishes total (itemsSubtotal).
-  // If no items are listed yet table has a groupBill, derive subtotal from the inclusive groupBill.
+  // If no items are listed yet table has a groupBill, subtotal is the pre-tax groupBill.
   const subtotal = isVacant
     ? 0
     : itemsSubtotal > 0
     ? itemsSubtotal
-    : Math.round(groupBill / 1.05);
+    : groupBill;
 
   const occupiedChairsCount = (isVacant || allTableOrderedItems.length === 0)
     ? 0
@@ -310,11 +310,7 @@ export function ScreenM3TableSheet({
       );
 
   // Tax calculation (5% GST total = 2.5% CGST + 2.5% SGST)
-  const totalTax = isVacant
-    ? 0
-    : itemsSubtotal > 0
-    ? Math.round(subtotal * 0.05)
-    : groupBill - subtotal;
+  const totalTax = isVacant ? 0 : Math.round(subtotal * 0.05);
   const cgst = totalTax / 2;
   const sgst = totalTax - cgst;
   const grandTotal = isVacant ? 0 : subtotal + totalTax;

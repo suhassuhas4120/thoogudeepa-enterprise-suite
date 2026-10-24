@@ -406,19 +406,33 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       status: 'NEW',
       source: 'CUSTOMER',
       seatNumber: assignedSeat,
-      items: items.map((i, idx) => ({
-        id: `ki-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
-        name: i.item.name,
-        quantity: i.quantity,
-        stage: 'PLACED',
-        prepMode: i.item.prepMode,
-        options: i.selectedOption,
-        addOns: i.addOns,
-        seatNumber: assignedSeat,
-        price: i.item.price,
-      })),
+      items: items.map((i, idx) => {
+        const addOns = i.addOns || [];
+        const addOnExtra = addOns.reduce((s, ao) => {
+          const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+          return s + (found?.extraPrice || 0);
+        }, 0);
+        return {
+          id: `ki-c-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
+          name: i.item.name,
+          quantity: i.quantity,
+          stage: 'PLACED' as const,
+          prepMode: i.item.prepMode,
+          options: i.selectedOption,
+          addOns: i.addOns,
+          seatNumber: assignedSeat,
+          price: i.item.price + addOnExtra,
+        };
+      }),
     };
-    const orderTotal = items.reduce((s, i) => s + i.item.price * i.quantity, 0);
+    const orderTotal = items.reduce((s, i) => {
+      const addOns = i.addOns || [];
+      const addOnExtra = addOns.reduce((ao_s, ao) => {
+        const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
+        return ao_s + (found?.extraPrice || 0);
+      }, 0);
+      return s + (i.item.price + addOnExtra) * i.quantity;
+    }, 0);
 
     // Create kitchen notification for new order
     const notif = {
@@ -2492,12 +2506,13 @@ if (typeof window !== 'undefined') {
           if (tk?.id) ticketMap.set(tk.id, tk);
         });
         const mergedLiveTickets = Array.from(ticketMap.values()).filter(
-          (tk) => tk.status !== 'COMPLETED' && (activeTableNums.has(tk.tableNumber) || (tk.items && tk.items.length > 0))
+          (tk) => tk.status !== 'COMPLETED' && activeTableNums.has(tk.tableNumber)
         );
 
         // Merge active items across chairs so multi-diner tables retain all chairs' orders
         const currentTables = currentBridge.tables || [];
         const mergedTables = sanitizedTables.map((t) => {
+          if (t.status === 'VACANT') return t;
           const localTbl = currentTables.find((lt: SharedTable) => lt.number === t.number);
           if (!localTbl) return t;
 

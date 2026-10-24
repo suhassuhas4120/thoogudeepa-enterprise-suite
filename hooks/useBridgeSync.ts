@@ -868,7 +868,7 @@ export function useBridgeSync() {
               .flatMap((tk) => (tk.items || []).filter((it) => it.stage !== 'SERVED'));
 
             const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
-            const computedBill = Math.round(activeItemsSum * 1.05);
+            const computedBill = activeItemsSum;
             const dbBill = Number(row.current_bill || 0);
             const effectiveBill = dbBill > 0 ? dbBill : computedBill;
             const hasOrders = tableActiveItems.length > 0 || effectiveBill > 0 || row.status === 'OCCUPIED' || row.status === 'BILLING';

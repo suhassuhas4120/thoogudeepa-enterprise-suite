@@ -317,7 +317,8 @@ export function TabletFloorMap({
         peers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
       );
       const totalCapacity = allMembers.reduce((sum, m) => sum + (m.capacity || 2), 0);
-      const totalBill = Math.round((primaryTbl.currentBill || allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0)) * 1.05);
+      const groupCurrentBill = allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0);
+      const totalBill = Math.round(groupCurrentBill * 1.05);
       const kotCount = allMembers.reduce(
         (sum, m) => sum + kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(m.number)).length,
         0

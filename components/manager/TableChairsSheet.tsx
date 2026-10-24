@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSharedBridge } from '../../store/useSharedBridge';
 import { useManagerStore } from '../../store/useManagerStore';
 import { INITIAL_MENU_ITEMS } from '../../data/menuItems';
@@ -43,6 +43,10 @@ export function TableChairsSheet({
 
   const [selectedSeat, setSelectedSeat] = useState<'ALL' | number>('ALL');
 
+  useEffect(() => {
+    setSelectedSeat('ALL');
+  }, [tableNumber]);
+
   const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
   const targetNum = cleanNum(tableNumber);
   const table =
@@ -65,12 +69,15 @@ export function TableChairsSheet({
   const isBilling = table.status === 'BILLING';
   const isVacant = table.status === 'VACANT';
 
-  // Find all active tickets for this table
+  // Find all active tickets for this table (Vacant tables have no active tickets)
   const groupPeers: string[] = table.mergeGroupPeers ?? [table.number];
-  const tickets = kdsTickets.filter(
-    (tk) =>
-      groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber))
-  );
+  const tickets = isVacant
+    ? []
+    : kdsTickets.filter(
+        (tk) =>
+          groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber)) &&
+          tk.status !== 'COMPLETED'
+      );
 
   // Unified items list
   interface ChairItem {
@@ -88,108 +95,116 @@ export function TableChairsSheet({
 
   const allTableOrderedItems: ChairItem[] = [];
 
-  tickets.forEach((tk) => {
-    (tk.items || []).forEach((it) => {
-      const activeMatch = table.activeItems?.find((ai) => ai.id === it.id);
-      const isServed = it.stage === 'SERVED' || (it.stage as string) === 'Served' || activeMatch?.status === 'Served';
-      const rawStage = isServed ? 'SERVED' : String(it.stage || tk.status || '').toUpperCase();
-      const stage: ChairItem['stage'] =
-        rawStage === 'SERVED'
-          ? 'SERVED'
-          : rawStage === 'READY' || rawStage === 'PLATED'
-          ? 'READY'
-          : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
-          ? 'PREPARING'
-          : rawStage === 'RECEIVED'
-          ? 'RECEIVED'
-          : 'PLACED';
+  if (!isVacant) {
+    tickets.forEach((tk) => {
+      (tk.items || []).forEach((it) => {
+        const activeMatch = table.activeItems?.find((ai) => ai.id === it.id);
+        const isServed = it.stage === 'SERVED' || (it.stage as string) === 'Served' || activeMatch?.status === 'Served';
+        const rawStage = isServed ? 'SERVED' : String(it.stage || tk.status || '').toUpperCase();
+        const stage: ChairItem['stage'] =
+          rawStage === 'SERVED'
+            ? 'SERVED'
+            : rawStage === 'READY' || rawStage === 'PLATED'
+            ? 'READY'
+            : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
+            ? 'PREPARING'
+            : rawStage === 'RECEIVED'
+            ? 'RECEIVED'
+            : 'PLACED';
 
-      const seat = it.seatNumber || tk.seatNumber || 1;
-      const itName = (it.name || '').trim().toLowerCase();
-      const menuItem = INITIAL_MENU_ITEMS.find((m) => (itName && m.name.trim().toLowerCase() === itName) || (it.id && m.id === it.id));
-      const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
+        const seat = it.seatNumber || tk.seatNumber || 1;
+        const itName = (it.name || '').trim().toLowerCase();
+        const menuItem = INITIAL_MENU_ITEMS.find((m) => (itName && m.name.trim().toLowerCase() === itName) || (it.id && m.id === it.id));
+        const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
 
-      allTableOrderedItems.push({
-        id: it.id,
-        name: it.name || menuItem?.name || 'Dish',
-        quantity: it.quantity,
-        price: unitPrice,
-        totalPrice: unitPrice * it.quantity,
-        options: it.options,
-        addOns: it.addOns || [],
-        stage,
-        seatNumber: seat,
-        ticketId: tk.id,
+        allTableOrderedItems.push({
+          id: it.id,
+          name: it.name || menuItem?.name || 'Dish',
+          quantity: it.quantity,
+          price: unitPrice,
+          totalPrice: unitPrice * it.quantity,
+          options: it.options,
+          addOns: it.addOns || [],
+          stage,
+          seatNumber: seat,
+          ticketId: tk.id,
+        });
       });
     });
-  });
 
-  // Fallback to table activeItems if tickets are empty
-  if (allTableOrderedItems.length === 0 && table.activeItems && table.activeItems.length > 0) {
-    table.activeItems.forEach((ai, idx) => {
-      const rawStage = String(ai.status || '').toUpperCase();
-      const stage: ChairItem['stage'] =
-        rawStage === 'SERVED'
-          ? 'SERVED'
-          : rawStage === 'READY' || rawStage === 'PLATED'
-          ? 'READY'
-          : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
-          ? 'PREPARING'
-          : rawStage === 'RECEIVED'
-          ? 'RECEIVED'
-          : 'PLACED';
+    // Fallback to table activeItems if tickets are empty
+    if (allTableOrderedItems.length === 0 && table.activeItems && table.activeItems.length > 0) {
+      table.activeItems.forEach((ai, idx) => {
+        const rawStage = String(ai.status || '').toUpperCase();
+        const stage: ChairItem['stage'] =
+          rawStage === 'SERVED'
+            ? 'SERVED'
+            : rawStage === 'READY' || rawStage === 'PLATED'
+            ? 'READY'
+            : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
+            ? 'PREPARING'
+            : rawStage === 'RECEIVED'
+            ? 'RECEIVED'
+            : 'PLACED';
 
-      const seat = ai.seatNumber || 1;
-      const aiName = (ai.name || '').trim().toLowerCase();
-      const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id));
-      const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
+        const seat = ai.seatNumber || 1;
+        const aiName = (ai.name || '').trim().toLowerCase();
+        const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id));
+        const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
 
-      allTableOrderedItems.push({
-        id: ai.id || `ai-${idx}`,
-        name: ai.name || menuItem?.name || 'Dish',
-        quantity: ai.quantity,
-        price: unitPrice,
-        totalPrice: unitPrice * ai.quantity,
-        options: ai.options,
-        stage,
-        seatNumber: seat,
-        ticketId: 'tbl-direct',
+        allTableOrderedItems.push({
+          id: ai.id || `ai-${idx}`,
+          name: ai.name || menuItem?.name || 'Dish',
+          quantity: ai.quantity,
+          price: unitPrice,
+          totalPrice: unitPrice * ai.quantity,
+          options: ai.options,
+          stage,
+          seatNumber: seat,
+          ticketId: 'tbl-direct',
+        });
       });
+    }
+  }
+
+  // Occupancy metrics (Vacant tables have 0 occupied guests and 0 chairs with orders)
+  const chairsWithOrders = new Set<number>();
+  if (!isVacant) {
+    allTableOrderedItems.forEach((it) => {
+      if (it.seatNumber) chairsWithOrders.add(it.seatNumber);
     });
   }
 
-  // Occupancy metrics
-  const chairsWithOrders = new Set<number>();
-  allTableOrderedItems.forEach((it) => {
-    if (it.seatNumber) chairsWithOrders.add(it.seatNumber);
-  });
-
-  const occupiedGuests = Math.min(
-    capacity,
-    Math.max(chairsWithOrders.size, table.guestCount || (isOccupied || isBilling ? 1 : 0))
-  );
+  const occupiedGuests = isVacant
+    ? 0
+    : Math.min(
+        capacity,
+        Math.max(chairsWithOrders.size, table.guestCount || (isOccupied || isBilling ? 1 : 0))
+      );
 
   // Filtered items based on selected seat
-  const displayedItems =
-    selectedSeat === 'ALL'
-      ? allTableOrderedItems
-      : allTableOrderedItems.filter((i) => i.seatNumber === selectedSeat);
+  const displayedItems = isVacant
+    ? []
+    : selectedSeat === 'ALL'
+    ? allTableOrderedItems
+    : allTableOrderedItems.filter((i) => i.seatNumber === selectedSeat);
 
   // Pricing calculations
-  const itemsSubtotal = displayedItems.reduce((sum, it) => sum + it.totalPrice, 0);
-  const totalTableItemsSubtotal = allTableOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+  const itemsSubtotal = isVacant ? 0 : displayedItems.reduce((sum, it) => sum + it.totalPrice, 0);
+  const totalTableItemsSubtotal = isVacant ? 0 : allTableOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
 
-  const displayedSubtotal =
-    itemsSubtotal > 0
-      ? itemsSubtotal
-      : selectedSeat === 'ALL'
-      ? table.currentBill
-      : occupiedGuests > 0 && (isOccupied || isBilling)
-      ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
-      : 0;
+  const displayedSubtotal = isVacant
+    ? 0
+    : itemsSubtotal > 0
+    ? itemsSubtotal
+    : selectedSeat === 'ALL'
+    ? table.currentBill
+    : occupiedGuests > 0 && (isOccupied || isBilling)
+    ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
+    : 0;
 
-  const displayedTax = Math.round(displayedSubtotal * 0.05);
-  const displayedTotal = displayedSubtotal + displayedTax;
+  const displayedTax = isVacant ? 0 : Math.round(displayedSubtotal * 0.05);
+  const displayedTotal = isVacant ? 0 : displayedSubtotal + displayedTax;
 
   // Check whether payment is done for this table / chair from Waiter Mobile, Waiter Tablet, Customer, or Manager
   const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
@@ -242,8 +257,8 @@ export function TableChairsSheet({
   // Print KOT is enabled ONLY when payment is done and the table is not already vacant
   const isPrintKOTEnabled = !isVacant && isSelectionPaid;
 
-  // Add Items is enabled until payment is done (once paid by waiter mobile, customer, waiter tablet, or manager, cannot add extra items to settled bill)
-  const isAddItemsEnabled = !isVacant && !isSelectionPaid;
+  // Add Items is enabled when table is vacant (to punch initial order) or when occupied until payment is settled
+  const isAddItemsEnabled = isVacant || !isSelectionPaid;
 
   const handleOpenBilling = () => {
     setSelectedTableNumber(table.number);
@@ -364,7 +379,7 @@ export function TableChairsSheet({
             <FileText className="h-4 w-4 mb-0.5 shrink-0" />
             <span className="truncate w-full text-center">All Table</span>
             <span className="text-[10px] opacity-80 shrink-0 font-bold">
-              ₹ {Math.round(table.currentBill * 1.05)}
+              ₹ {Math.round((isVacant ? 0 : table.currentBill) * 1.05)}
             </span>
           </button>
 
@@ -372,18 +387,20 @@ export function TableChairsSheet({
           {Array.from({ length: capacity }).map((_, idx) => {
             const seatNum = idx + 1;
             const isSelected = selectedSeat === seatNum;
-            const chairItems = allTableOrderedItems.filter((i) => i.seatNumber === seatNum);
-            const hasOrders = chairItems.length > 0;
-            const isSeated = hasOrders || (chairsWithOrders.size === 0 && seatNum <= occupiedGuests);
-            const chairSub = chairItems.reduce((s, it) => s + it.totalPrice, 0);
+            const chairItems = isVacant ? [] : allTableOrderedItems.filter((i) => i.seatNumber === seatNum);
+            const hasOrders = !isVacant && chairItems.length > 0;
+            const isSeated = !isVacant && (hasOrders || (chairsWithOrders.size === 0 && seatNum <= occupiedGuests));
+            const chairSub = isVacant ? 0 : chairItems.reduce((s, it) => s + it.totalPrice, 0);
             const chairAmt =
-              chairSub > 0
+              isVacant
+                ? 0
+                : chairSub > 0
                 ? Math.round(chairSub * 1.05)
                 : isSeated && table.currentBill > 0
                 ? Math.round((table.currentBill * 1.05) / Math.max(1, occupiedGuests))
                 : 0;
 
-            const hasReadyItem = chairItems.some((i) => i.stage === 'READY');
+            const hasReadyItem = !isVacant && chairItems.some((i) => i.stage === 'READY');
 
             return (
               <button
@@ -456,7 +473,9 @@ export function TableChairsSheet({
             }`}
             title={
               isAddItemsEnabled
-                ? 'Add dishes or extra items to this table/chair'
+                ? isVacant
+                  ? 'Add dishes to seat new order on this vacant table'
+                  : 'Add dishes or extra items to this table/chair'
                 : 'Bill already paid — cannot add items to a settled bill. Vacate table first to seat new orders.'
             }
           >

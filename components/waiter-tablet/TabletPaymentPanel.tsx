@@ -141,9 +141,12 @@ export function TabletPaymentPanel({
 
   const isVacant = table?.status === 'VACANT';
 
+  const groupCurrentBill = tables
+    .filter((t) => peerNums.has(cleanTableNum(t.number)))
+    .reduce((s, t) => s + (t.currentBill || 0), 0);
   const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
   const totalTableDraftSubtotal = allDraftItems.reduce((s, it) => s + it.totalPrice, 0);
-  const baseFiredSubtotal = Math.max(table?.currentBill || 0, totalTableFiredSubtotal);
+  const baseFiredSubtotal = Math.max(groupCurrentBill, totalTableFiredSubtotal);
   const totalTableBill = Math.round(baseFiredSubtotal * 1.05) + Math.round(totalTableDraftSubtotal * 1.05);
 
   let effectiveBill = 0;

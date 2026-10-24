@@ -121,8 +121,11 @@ export function TabletTableCockpit({
     }
   }
 
+  const groupCurrentBill = tables
+    .filter((t) => groupPeers.some((gp) => cleanTableNum(gp) === cleanTableNum(t.number)))
+    .reduce((s, t) => s + (t.currentBill || 0), 0);
   const itemsSubtotal = allOrderedItems.reduce((acc, i) => acc + i.totalPrice, 0);
-  const subtotal = Math.max(table.currentBill || 0, itemsSubtotal);
+  const subtotal = Math.max(groupCurrentBill, itemsSubtotal);
   const tax = Math.round(subtotal * 0.05);
   const grandTotal = isVacant ? 0 : subtotal + tax;
 

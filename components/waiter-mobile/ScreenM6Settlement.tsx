@@ -282,7 +282,10 @@ export function ScreenM6Settlement({
 
     // Only fall back to whole table bill when this is a full-table settlement
     if (splitSeatNumber === null) {
-      const tableBill = table?.currentBill || 0;
+      const groupTables = tables.filter((t) => groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(t.number)));
+      const tableBill = groupTables.length > 0
+        ? groupTables.reduce((s, t) => s + (t.currentBill || 0), 0)
+        : (table?.currentBill || 0);
       if (tableBill > 0) {
         const calcSub = tableBill;
         const calcTax = Math.round(calcSub * 0.05);

@@ -60,7 +60,11 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
 
   if (!table) return null;
 
-  const fullBill = Math.round((table.currentBill || 0) * 1.05);
+  const groupPeers: string[] = table.mergeGroupPeers ?? [tableNum];
+  const groupCurrentBill = tables
+    .filter((t) => groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(t.number)))
+    .reduce((s, t) => s + (t.currentBill || 0), 0);
+  const fullBill = Math.round(groupCurrentBill * 1.05);
   const bill = splitAmount ? splitAmount : fullBill;
   const subtotal = Math.round(bill / 1.05);
   const totalTax = bill - subtotal;

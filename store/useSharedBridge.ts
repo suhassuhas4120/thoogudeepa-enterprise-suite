@@ -917,7 +917,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       const newTickets = state.kdsTickets.map((t) => {
         if (t.id !== ticketId && !t.items.some((it) => it.id === itemId)) return t;
         const newItems = t.items.map((it) => {
-          if (it.id !== itemId && (!itemId && itemName && it.name === itemName && it.seatNumber === targetItem?.seatNumber)) return it;
+          const isTarget = itemId
+            ? it.id === itemId
+            : Boolean(
+                itemName &&
+                it.name === itemName &&
+                (targetItem?.seatNumber === undefined || it.seatNumber === targetItem?.seatNumber)
+              );
+          if (!isTarget) return it;
           return { ...it, stage };
         });
         const allPlated = newItems.every((i) => i.stage === 'PLATED' || i.stage === 'SERVED');
@@ -1278,23 +1285,16 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
               kotCount: t.kotCount + 1,
               activeItems: [
                 ...(t.activeItems || []),
-                ...items.map((i, idx) => {
-                  const addOns = i.addOns || [];
-                  const addOnExtra = addOns.reduce((s, ao) => {
-                    const found = i.item.optionsGroup2?.addOns?.find((a) => a.name === ao);
-                    return s + (found?.extraPrice || 0);
-                  }, 0);
-                  return {
-                    id: `ai-w-${Date.now()}-${Math.floor(Math.random() * 100000)}-${itemIdCounter++}-${idx}`,
-                    name: i.item.name,
-                    quantity: i.quantity,
-                    status: 'Placed',
-                    seatNumber,
-                    price: i.item.price + addOnExtra,
-                    options: i.selectedOption,
-                    addOns,
-                  };
-                }),
+                ...ticket.items.map((it) => ({
+                  id: it.id,
+                  name: it.name,
+                  quantity: it.quantity,
+                  status: 'Placed',
+                  seatNumber,
+                  price: it.price,
+                  options: it.options,
+                  addOns: it.addOns,
+                })),
               ],
             }
           : t

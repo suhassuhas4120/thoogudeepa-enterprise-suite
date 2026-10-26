@@ -93,7 +93,7 @@ group('Manager store — static data constants', () => {
   ok('3 shifts defined (DINNER, LUNCH, MORNING)', s.includes('DINNER SERVICE') && s.includes('LUNCH SERVICE') && s.includes('MORNING PREP'));
   ok('DINNER SERVICE is ACTIVE', /DINNER SERVICE.*ACTIVE/.test(s));
   ok('INITIAL_STAFF_ROSTER exported', /export const INITIAL_STAFF_ROSTER/.test(s));
-  ok('7 staff members in roster', (s.match(/id: 'st-/g) || []).length === 7);
+  ok('8 staff members in roster', (s.match(/id: 'st-/g) || []).length === 8);
   ok('Staff sections: A, B, C defined', s.includes('SECTION A') && s.includes('SECTION B') && s.includes('SECTION C'));
   ok('INITIAL_HARDWARE exported', /export const INITIAL_HARDWARE/.test(s));
   ok('6 hardware devices defined', (s.match(/id: 'hw-/g) || []).length === 6);

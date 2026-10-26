@@ -171,6 +171,9 @@ async function runPhase1Suite() {
   console.log('\n--- Scenario 1.2: Re-Scan While Active Order Pending ---');
   const activeDevice = `dev-active-order-${Date.now()}`;
   
+  // Ensure chair is vacant before creating active order
+  await postJson('/api/tables/vacate', { tableNumber: table, seatNumber: seat });
+
   // Create an active order first
   const order12 = await postJson('/api/orders/create', {
     tableNumber: table,
@@ -324,6 +327,10 @@ async function runPhase1Suite() {
   console.log('\n================================================================');
   console.log(`   PHASE 1 EXECUTION COMPLETE: ${passedTests}/${totalTests} TESTS PASSED`);
   console.log('================================================================\n');
+
+  if (passedTests < totalTests) {
+    process.exit(1);
+  }
 }
 
 runPhase1Suite().catch((err) => {

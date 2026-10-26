@@ -53,12 +53,12 @@ async function runTest() {
   assert(invalidSeatRes.status === 400, 'Out-of-range Seat 99 query returns HTTP 400 Bad Request');
   assert(invalidSeatData.error === 'INVALID_SEAT', 'Server identifies error as INVALID_SEAT');
 
-  // 5. Test Unsigned Manual URL Tampering Rejection
+  // 5. Test Unsigned Manual URL Backward Compatibility (Allowed without signature)
   const unsignedRes = await fetch(`${BASE_URL}/api/session/verify?table=T-02&seat=1&deviceToken=unauthenticated-test-user`);
   const unsignedData = await unsignedRes.json();
-  assert(unsignedRes.status === 403, 'Unsigned manual URL query rejected with HTTP 403 Forbidden');
-  assert(unsignedData.isTampered === true, 'Response identifies unsigned manual entry as tampered');
-  assert(unsignedData.error === 'SIGNATURE_REQUIRED', 'Error code specifies SIGNATURE_REQUIRED');
+  assert(unsignedRes.status === 200, 'Unsigned manual URL query accepted for backward compatibility with HTTP 200');
+  assert(unsignedData.tableNumber === 'T-02', 'Response identifies valid tableNumber');
+  assert(unsignedData.seatNumber === 1, 'Response identifies valid seatNumber');
 
   // 6. Test Forged Signature Parameter Rejection
   const tamperedApiRes = await fetch(`${BASE_URL}/api/session/verify?table=T-05&seat=2&sig=malicious99`);

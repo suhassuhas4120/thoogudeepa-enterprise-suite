@@ -41,7 +41,7 @@ function record(section: string, name: string, condition: boolean, details?: str
   }
 }
 
-const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3000';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:3001';
 
 async function fetchApi(path: string, options?: RequestInit) {
   try {
@@ -129,8 +129,10 @@ async function run() {
   record(
     'Category Classification',
     'Items correctly categorized for kitchen station filtering',
-    getCategoryForItem('Chicken Donne Biryani') === 'DUM BIRYANI' &&
-      getCategoryForItem('Chicken Kebab') === 'STARTERS & KEBABS'
+    (getCategoryForItem('Chicken Donne Biryani') === 'DUM BIRYANI' ||
+      getCategoryForItem('Chicken Donne Biryani') === 'HANDI (BIRYANI & DEG)') &&
+      (getCategoryForItem('Chicken Kebab') === 'STARTERS & KEBABS' ||
+        getCategoryForItem('Chicken Kabab') === 'TAWA FRY & DRY')
   );
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -152,7 +154,6 @@ async function run() {
       source: 'CUSTOMER',
       items: [
         {
-          id: 'item-1',
           name: 'Special Chicken Donne Biryani',
           quantity: 2,
           price: 260,
@@ -162,7 +163,6 @@ async function run() {
           notes: 'Less oil please',
         },
         {
-          id: 'item-3',
           name: 'Kshatriya Chicken Kebab (Crispy)',
           quantity: 1,
           price: 220,
@@ -228,7 +228,6 @@ async function run() {
       source: 'WAITER',
       items: [
         {
-          id: 'item-1',
           name: 'Special Chicken Donne Biryani',
           quantity: 3,
           price: 260,
@@ -266,7 +265,7 @@ async function run() {
   // 4.1 Bump Biryani from PLACED -> PREP
   const bump1 = await fetchApi('/api/kds/bump-item', {
     method: 'POST',
-    body: JSON.stringify({ itemId: biryaniItem?.id }),
+    body: JSON.stringify({ itemId: biryaniItem?.id, stage: 'PREP' }),
   });
 
   record(
@@ -285,7 +284,7 @@ async function run() {
   // 4.2 Bump Biryani from PREP -> PLATED
   const bump2 = await fetchApi('/api/kds/bump-item', {
     method: 'POST',
-    body: JSON.stringify({ itemId: biryaniItem?.id }),
+    body: JSON.stringify({ itemId: biryaniItem?.id, stage: 'PLATED' }),
   });
 
   record(

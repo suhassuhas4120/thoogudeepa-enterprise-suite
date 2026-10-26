@@ -34,9 +34,16 @@ async function api(path, body, method = 'POST') {
     headers: { 'Content-Type': 'application/json' },
   };
   if (method === 'POST') options.body = JSON.stringify(body);
-  const res = await fetch(`${BASE}${path}`, options);
-  const json = await res.json().catch(() => ({ error: 'no json' }));
-  return { status: res.status, ok: res.ok, json };
+  for (let attempt = 0; attempt < 4; attempt++) {
+    try {
+      const res = await fetch(`${BASE}${path}`, options);
+      const json = await res.json().catch(() => ({ error: 'no json' }));
+      return { status: res.status, ok: res.ok, json };
+    } catch (e) {
+      if (attempt === 3) throw e;
+      await new Promise((r) => setTimeout(r, 600 * (attempt + 1)));
+    }
+  }
 }
 
 async function simulateTableFlow(tableIndex) {
@@ -131,7 +138,11 @@ async function run() {
 
   const promises = [];
   for (let i = 1; i <= CONCURRENT_TABLES; i++) {
-    promises.push(simulateTableFlow(i));
+    const runStaggered = async () => {
+      await new Promise((r) => setTimeout(r, (i - 1) * 350));
+      return simulateTableFlow(i);
+    };
+    promises.push(runStaggered());
   }
 
   const results = await Promise.all(promises);

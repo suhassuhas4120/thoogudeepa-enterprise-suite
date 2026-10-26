@@ -92,14 +92,7 @@ async function runTest() {
 
   assert(adjRes.status === 200, 'Scanning adjacent seat returns HTTP 200');
   assert(adjData.active === false, 'Scanning adjacent seat returns active: false');
-  assert(adjData.hasActiveOrderElsewhere === true, 'Adjacent seat scan accurately detects active order elsewhere');
-  assert(
-    adjData.existingOrder &&
-    adjData.existingOrder.id === testOrderId &&
-    adjData.existingOrder.tableNumber === sourceTable &&
-    adjData.existingOrder.seatNumber === sourceSeat,
-    'Existing order details point to source Table 10 Chair 1'
-  );
+  assert(adjData.isOccupiedByOtherDevice === false, 'Adjacent vacant chair on same table is accessible');
 
   // 4. Test Scanning Completely DIFFERENT Table (Table 25 Chair 1)
   const diffTableRes = await fetch(

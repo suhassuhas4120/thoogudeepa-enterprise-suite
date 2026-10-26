@@ -48,6 +48,12 @@ async function runPhase2Tests() {
     device_token: deviceTokenA,
   }).eq('table_number', testTable).eq('seat_number', 1);
 
+  await db.from('tables').update({
+    status: 'OCCUPIED',
+    current_bill: 273,
+    guest_count: 1,
+  }).eq('number', testTable);
+
   // Chair 2 & 3 are VACANT
   await db.from('table_seats').update({
     status: 'VACANT',
@@ -121,6 +127,7 @@ async function runPhase2Tests() {
   // Cleanup
   await db.from('orders').delete().eq('id', testOrderId);
   await db.from('table_seats').update({ status: 'VACANT', active_order_id: null, device_token: null }).eq('table_number', testTable);
+  await db.from('tables').update({ status: 'VACANT', current_bill: 0, guest_count: 0 }).eq('number', testTable);
 
   console.log(`\n=====================================================`);
   console.log(`     RESULTS: ${passed}/${total} TESTS PASSED (${Math.round((passed/total)*100)}%)`);

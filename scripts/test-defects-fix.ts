@@ -121,27 +121,27 @@ assert(m6Settle.includes('const calcTax = Math.round(calcSub * 0.05);') && m6Set
 
 // Check TabletFloorMap: all tables calculate taxed totalBill
 const tabFloor = fs.readFileSync(path.join(__dirname, '../components/waiter-tablet/TabletFloorMap.tsx'), 'utf8');
-assert(tabFloor.includes('Math.round((primaryTbl.currentBill || allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0)) * 1.05)'), '[PASS] TabletFloorMap taxes merged table bills');
+assert(tabFloor.includes('Math.round(groupCurrentBill * 1.05)') || tabFloor.includes('Math.round((primaryTbl.currentBill || allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0)) * 1.05)'), '[PASS] TabletFloorMap taxes merged table bills');
 assert(tabFloor.includes('totalBill: Math.round((tbl.currentBill || 0) * 1.05)'), '[PASS] TabletFloorMap taxes solo table bills');
 
 // Check TabletTableDetail: totalTableBill uses baseFiredSubtotal * 1.05
 const tabDetail = fs.readFileSync(path.join(__dirname, '../components/waiter-tablet/TabletTableDetail.tsx'), 'utf8');
-assert(tabDetail.includes('const baseFiredSubtotal = Math.max(table.currentBill || 0, firedSubtotal);'), '[PASS] TabletTableDetail computes baseFiredSubtotal');
+assert(tabDetail.includes('const baseFiredSubtotal = Math.max(groupCurrentBill, firedSubtotal);') || tabDetail.includes('const baseFiredSubtotal = Math.max(table.currentBill || 0, firedSubtotal);'), '[PASS] TabletTableDetail computes baseFiredSubtotal');
 assert(tabDetail.includes('Math.round(baseFiredSubtotal * 1.05)'), '[PASS] TabletTableDetail taxes baseFiredSubtotal');
 assert(tabDetail.includes('Payment pending (₹${totalTableBill.toFixed(2)})'), '[PASS] TabletTableDetail vacate warning uses taxed totalTableBill');
 
 // Check TabletPaymentPanel: totalTableBill uses baseFiredSubtotal * 1.05
 const tabPayment = fs.readFileSync(path.join(__dirname, '../components/waiter-tablet/TabletPaymentPanel.tsx'), 'utf8');
-assert(tabPayment.includes('const baseFiredSubtotal = Math.max(table?.currentBill || 0, totalTableFiredSubtotal);'), '[PASS] TabletPaymentPanel computes baseFiredSubtotal');
+assert(tabPayment.includes('const baseFiredSubtotal = Math.max(groupCurrentBill, totalTableFiredSubtotal);') || tabPayment.includes('const baseFiredSubtotal = Math.max(table?.currentBill || 0, totalTableFiredSubtotal);'), '[PASS] TabletPaymentPanel computes baseFiredSubtotal');
 assert(tabPayment.includes('Math.round(baseFiredSubtotal * 1.05)'), '[PASS] TabletPaymentPanel taxes baseFiredSubtotal');
 
 // Check TabletSettleModal: fullBill uses table.currentBill * 1.05
 const tabSettle = fs.readFileSync(path.join(__dirname, '../components/waiter-tablet/TabletSettleModal.tsx'), 'utf8');
-assert(tabSettle.includes('const fullBill = Math.round((table.currentBill || 0) * 1.05);'), '[PASS] TabletSettleModal fullBill is taxed');
+assert(tabSettle.includes('const fullBill = Math.round(groupCurrentBill * 1.05);') || tabSettle.includes('const fullBill = Math.round((table.currentBill || 0) * 1.05);'), '[PASS] TabletSettleModal fullBill is taxed');
 
 // Check TabletSplitModal: grandTotal taxes Math.max(table.currentBill, itemsSubtotal)
 const tabSplit = fs.readFileSync(path.join(__dirname, '../components/waiter-tablet/TabletSplitModal.tsx'), 'utf8');
-assert(tabSplit.includes('const grandTotal = isVacant ? 0 : Math.round(Math.max(table.currentBill || 0, itemsSubtotal) * 1.05);'), '[PASS] TabletSplitModal grandTotal is taxed');
+assert(tabSplit.includes('const grandTotal = isVacant ? 0 : Math.round(Math.max(groupCurrentBill, itemsSubtotal) * 1.05);') || tabSplit.includes('const grandTotal = isVacant ? 0 : Math.round(Math.max(table.currentBill || 0, itemsSubtotal) * 1.05);'), '[PASS] TabletSplitModal grandTotal is taxed');
 
 // Check TabletActionPanel: vacate warning uses totalWithGst
 const tabAction = fs.readFileSync(path.join(__dirname, '../components/waiter-tablet/TabletActionPanel.tsx'), 'utf8');
@@ -185,3 +185,6 @@ assert(mobileShiftModal.includes('shiftRevenue'), '[PASS] MobileShiftModal rende
 console.log('\n================================================================');
 console.log('  ALL 3 DEFECT VERIFICATION TESTS PASSED SUCCESSFULLY! (100%)');
 console.log('================================================================\n');
+
+process.exit(0);
+

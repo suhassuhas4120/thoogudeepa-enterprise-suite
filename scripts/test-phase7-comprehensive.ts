@@ -317,7 +317,7 @@ group('useSharedBridge — customerPlacesOrder full logic', () => {
   ok('customerPlacesOrder creates ticket with source CUSTOMER', /source: 'CUSTOMER'/.test(b));
   ok('customerPlacesOrder creates ticket with status NEW', /status: 'NEW'/.test(b));
   ok('customerPlacesOrder sets items to stage PLACED', /stage: 'PLACED'/.test(b));
-  ok('customerPlacesOrder calculates orderTotal (price * quantity)', /item\.price \* i\.quantity/.test(b));
+  ok('customerPlacesOrder calculates orderTotal (price * quantity)', /(i\.item\.price|item\.price).*\*.*quantity/.test(b));
   ok('customerPlacesOrder increments kotCount by 1', /kotCount: t\.kotCount \+ 1/.test(b));
   ok('customerPlacesOrder sets table status to OCCUPIED', /status: 'OCCUPIED'/.test(b));
   ok('customerPlacesOrder adds to activeItems array', /activeItems:.*\[/.test(b));

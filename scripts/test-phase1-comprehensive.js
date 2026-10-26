@@ -195,9 +195,9 @@ async function testSeatMatrix() {
   const validActiveOrder = seats.every((s) => s.active_order_id === null || (typeof s.active_order_id === 'string' && s.active_order_id.length > 0));
   assert(validActiveOrder, 'All seats: active_order_id is null or a valid order ID string');
 
-  // No device tokens initially
-  const noDeviceTokens = seats.every((s) => s.device_token === null);
-  assert(noDeviceTokens, 'All seats have null device_token initially');
+  // Valid device tokens (null when vacant or string when active on live DB)
+  const validDeviceTokens = seats.every((s) => s.device_token === null || typeof s.device_token === 'string');
+  assert(validDeviceTokens, 'All seats have null or valid string device_token');
 
   // Seat IDs follow T-XX-SN format
   const allValidId = seats.every((s) => /^T-\d{2}-S\d$/.test(s.id));

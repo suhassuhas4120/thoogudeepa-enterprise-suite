@@ -1102,7 +1102,8 @@ export default function WaiterTabletPage() {
               />
             )}
 
-            {/* Split Bill Modal */}
+            {/* [DISABLED PER USER REQUEST] Split Bill Modal */}
+            {/*
             <TabletSplitModal
               tableNum={selectedTableNum}
               open={splitOpen}
@@ -1112,14 +1113,17 @@ export default function WaiterTabletPage() {
                 setRightPanelTab("payment");
               }}
             />
+            */}
 
-            {/* Merge / Unmerge Modal */}
+            {/* [DISABLED PER USER REQUEST] Merge / Unmerge Modal */}
+            {/*
             <TabletMergeModal
               tableNum={selectedTableNum}
               open={mergeOpen}
               onClose={() => setMergeOpen(false)}
               onMergedSuccess={(msg) => showToast(msg)}
             />
+            */}
 
             {/* Shift Metrics Modal */}
             <TabletShiftModal

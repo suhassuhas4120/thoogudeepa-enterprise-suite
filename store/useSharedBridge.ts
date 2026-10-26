@@ -2177,27 +2177,28 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const effectiveTicketId = ticketId && ticketId !== 'tbl-direct' ? ticketId : matchedTicket?.id;
 
     set((state) => {
-      let targetTableNumber: string | undefined = tableNumber;
-      let targetItemName: string | undefined = itemName;
-      let targetSeatNumber: number | undefined;
+      const targetTableNumber = tableNumber;
+      const targetItemName = itemName;
+      const targetSeatNumber = matchedItem?.seatNumber || matchedAi?.seatNumber;
 
-      const cleanNum = (s?: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      let matchedOnce = false;
 
       const newTickets = state.kdsTickets.map((t) => {
-        const isMatch =
-          t.id === ticketId ||
+        const isTargetTicket =
           (effectiveTicketId && t.id === effectiveTicketId) ||
-          t.items.some((i) => i.id === itemId) ||
-          (targetTableNumber &&
-            cleanNum(t.tableNumber) === cleanNum(targetTableNumber) &&
-            t.items.some((i) => (targetItemName && i.name === targetItemName && i.stage !== 'SERVED') || i.id === itemId));
-        if (!isMatch) return t;
-        targetTableNumber = t.tableNumber;
-        const target = t.items.find((i) => i.id === itemId || (itemName && i.name === itemName));
-        if (target) {
-          targetItemName = target.name;
-          targetSeatNumber = target.seatNumber || t.seatNumber;
-        }
+          (ticketId && ticketId !== 'tbl-direct' && t.id === ticketId) ||
+          t.items.some((i) => i.id === itemId);
+
+        const isTableFallbackMatch =
+          !effectiveTicketId &&
+          !matchedOnce &&
+          targetTableNumber &&
+          cleanTableNum(t.tableNumber) === cleanTableNum(targetTableNumber) &&
+          t.items.some((i) => (targetItemName && i.name === targetItemName && i.stage !== 'SERVED') || i.id === itemId);
+
+        if (!isTargetTicket && !isTableFallbackMatch) return t;
+        if (isTableFallbackMatch) matchedOnce = true;
+
         const hasDirectMatch = t.items.some((i) => i.id === itemId);
         const newItems = hasDirectMatch
           ? t.items.map((it) => (it.id === itemId ? { ...it, stage: 'SERVED' as OrderStage } : it))
@@ -2221,19 +2222,18 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         return { ...t, items: newItems, status: allServed ? 'COMPLETED' : t.status };
       });
 
-      if (!targetTableNumber) {
-        const foundTbl = state.tables.find((tbl) => tbl.activeItems?.some((ai) => ai.id === itemId));
-        if (foundTbl) targetTableNumber = foundTbl.number;
-      }
+      const resolvedTableNum =
+        targetTableNumber ||
+        state.tables.find((tbl) => tbl.activeItems?.some((ai) => ai.id === itemId))?.number;
 
-      const updatedTables = targetTableNumber
+      const updatedTables = resolvedTableNum
         ? state.tables.map((tbl) => {
-            if (cleanNum(tbl.number) !== cleanNum(targetTableNumber)) return tbl;
+            if (cleanTableNum(tbl.number) !== cleanTableNum(resolvedTableNum)) return tbl;
             let aiServedOnce = false;
             const updatedActive = (tbl.activeItems || []).map((ai) => {
               if (ai.id === itemId) {
                 aiServedOnce = true;
-                return { ...ai, status: 'Served' };
+                return { ...ai, status: 'Served', stage: 'SERVED' };
               }
               return ai;
             });
@@ -2248,7 +2248,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                     (targetSeatNumber === undefined || ai.seatNumber === undefined || ai.seatNumber === targetSeatNumber)
                   ) {
                     aiServedOnce = true;
-                    return { ...ai, status: 'Served' };
+                    return { ...ai, status: 'Served', stage: 'SERVED' };
                   }
                   return ai;
                 });
@@ -2880,15 +2880,27 @@ if (typeof window !== 'undefined') {
           } else if (reason === 'KDS_ITEM_BUMPED' && payload) {
             const { ticketId, itemId, stage, tableNumber: bumpedTable, itemName: bumpedName } = payload as any;
             useSharedBridge.setState((state) => {
+              let matchedOnce = false;
               const newTickets = state.kdsTickets.map((t) => {
-                const isMatch =
-                  t.id === ticketId ||
-                  t.items.some((i) => i.id === itemId) ||
-                  (bumpedTable && cleanTableNum(t.tableNumber) === cleanTableNum(bumpedTable) &&
-                   t.items.some((i) => (bumpedName && i.name === bumpedName) || i.id === itemId));
-                if (!isMatch) return t;
+                const isTargetTicket =
+                  (ticketId && t.id === ticketId) ||
+                  t.items.some((i) => i.id === itemId);
+
+                const isTableFallback =
+                  !ticketId &&
+                  !matchedOnce &&
+                  bumpedTable &&
+                  cleanTableNum(t.tableNumber) === cleanTableNum(bumpedTable) &&
+                  t.items.some((i) => (bumpedName && i.name === bumpedName) || i.id === itemId);
+
+                if (!isTargetTicket && !isTableFallback) return t;
+                if (isTableFallback) matchedOnce = true;
+
+                const hasDirectMatch = t.items.some((i) => i.id === itemId);
+                let itemMatchedOnce = false;
                 const newItems = t.items.map((it) => {
-                  if (it.id === itemId || (bumpedName && it.name === bumpedName)) {
+                  if (hasDirectMatch ? it.id === itemId : (!itemMatchedOnce && bumpedName && it.name === bumpedName && it.stage !== 'SERVED')) {
+                    itemMatchedOnce = true;
                     return { ...it, stage: (stage || 'SERVED') as OrderStage };
                   }
                   return it;
@@ -2899,9 +2911,12 @@ if (typeof window !== 'undefined') {
               const updatedTables = bumpedTable
                 ? state.tables.map((tbl) => {
                     if (cleanTableNum(tbl.number) !== cleanTableNum(bumpedTable)) return tbl;
+                    const hasDirectMatch = (tbl.activeItems || []).some((ai) => ai.id === itemId);
+                    let aiMatchedOnce = false;
                     const updatedActive = (tbl.activeItems || []).map((ai) => {
-                      if (ai.id === itemId || (bumpedName && ai.name === bumpedName)) {
-                        return { ...ai, status: stage === 'SERVED' ? 'Served' : (stage || 'Served') };
+                      if (hasDirectMatch ? ai.id === itemId : (!aiMatchedOnce && bumpedName && ai.name === bumpedName && ai.status !== 'Served')) {
+                        aiMatchedOnce = true;
+                        return { ...ai, status: 'Served', stage: 'SERVED' };
                       }
                       return ai;
                     });

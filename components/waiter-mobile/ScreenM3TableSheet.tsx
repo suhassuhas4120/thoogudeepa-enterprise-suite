@@ -159,10 +159,9 @@ export function ScreenM3TableSheet({
   const groupPeers: string[] = table.mergeGroupPeers ?? [tableNum];
   const groupTables = groupPeers.map((n) => tables.find((t) => t.number === n)).filter(Boolean) as typeof tables;
 
-  const cleanTableNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
+  const cleanPeersSet = new Set(groupPeers.map(cleanTableNum));
   const tickets = kdsTickets.filter((tk) =>
-    groupPeers.some((peer) => cleanTableNum(peer) === cleanTableNum(tk.tableNumber)) &&
-    tk.status !== 'COMPLETED'
+    cleanPeersSet.has(cleanTableNum(tk.tableNumber))
   );
 
   const inMergeGroup = groupPeers.length > 1;
@@ -567,6 +566,9 @@ export function ScreenM3TableSheet({
     onVacated();
   };
 
+  // ── [DEACTIVATED PER USER REQUEST] Table & Seat Merge / Split UI Logics ──
+  // The UI buttons and modals for Split Bill, Table Merge, and Chair Merge have been neatly
+  // commented out per user request. These handlers and state helpers are preserved intact.
   // ── Table Merge Logic ──
   const handleConfirmTableMerge = () => {
     if (!targetMergeTable) return;
@@ -777,7 +779,8 @@ export function ScreenM3TableSheet({
         {/* ── INTERACTIVE CHAIR NAVIGATION (LARGE, PROMINENT CHAIRS) ── */}
         <div className="shrink-0 space-y-1.5">
 
-          {/* Merge action bar — slides in when ≥1 chair is selected, providing immediate cancel option */}
+          {/* Merge action bar (temporarily commented out) */}
+          {/*
           <AnimatePresence>
             {selectedChairsForMerge.length >= 1 && (
               <motion.div
@@ -819,6 +822,7 @@ export function ScreenM3TableSheet({
               </motion.div>
             )}
           </AnimatePresence>
+          */}
 
           {/* Horizontal Grid of Large Interactive Chair Cards */}
           <div className={`flex items-center gap-2 pt-2 pb-0.5 px-0.5 ${isCompactRail ? 'w-full' : 'overflow-x-auto scrollbar-none'}`}>
@@ -839,7 +843,8 @@ export function ScreenM3TableSheet({
               <span className="text-[10px] opacity-80 shrink-0">₹{grandTotal.toFixed(0)}</span>
             </button>
 
-            {/* Merged Group Cards (if any) — each shows a direct Split × button */}
+            {/* Merged Group Cards with Split button (temporarily commented out) */}
+            {/*
             {Object.entries(mergedSeatGroups).map(([groupKey, groupSeats]) => {
               const isSelected = selectedSeat === groupKey;
               const breakdown = getChairBillBreakdown(groupKey);
@@ -848,7 +853,6 @@ export function ScreenM3TableSheet({
               return (
                 <div key={groupKey} className={`relative ${isCompactRail ? 'flex-1 min-w-0' : 'shrink-0'}`}>
                   {groupSeats.length <= 2 ? (
-                    /* 2-chair group: single outer button, no inner buttons, split × is sibling */
                     <button
                       type="button"
                       onClick={() => setSelectedSeat(groupKey)}
@@ -874,7 +878,6 @@ export function ScreenM3TableSheet({
                       </span>
                     </button>
                   ) : (
-                    /* 3+ chair group: outer is a div so inner remove-chip buttons are valid HTML */
                     <div
                       role="button"
                       tabIndex={0}
@@ -888,7 +891,6 @@ export function ScreenM3TableSheet({
                           : 'bg-indigo-50 text-indigo-950 border-indigo-300 hover:bg-indigo-100'
                       }`}
                     >
-                      {/* Header row */}
                       <div className="flex items-center gap-1 w-full min-w-0">
                         <Link2 className="h-3.5 w-3.5 shrink-0" />
                         <span className="font-black truncate">Group</span>
@@ -896,8 +898,6 @@ export function ScreenM3TableSheet({
                           ₹{groupAmt.toFixed(0)}
                         </span>
                       </div>
-
-                      {/* Per-chair removal chips */}
                       <div className="mt-1 flex flex-wrap gap-1">
                         {groupSeats.map((seat) => (
                           <button
@@ -922,7 +922,6 @@ export function ScreenM3TableSheet({
                     </div>
                   )}
 
-                  {/* 2-chair group only: quick × badge to split the pair */}
                   {groupSeats.length <= 2 && (
                     <button
                       type="button"
@@ -936,6 +935,7 @@ export function ScreenM3TableSheet({
                 </div>
               );
             })}
+            */}
 
             {/* Individual Chairs 1..N — chairs already in a merged group are hidden here (shown in group card) */}
             {Array.from({ length: totalChairs }).map((_, idx) => {
@@ -958,8 +958,8 @@ export function ScreenM3TableSheet({
                   key={seatNum}
                   type="button"
                   data-chairnum={seatNum}
+                  /* Hold-to-merge chair selection temporarily commented out
                   onPointerDown={() => {
-                    // 550ms long-press → enter selection mode, select this chair
                     holdChairTimerRef.current = setTimeout(() => {
                       holdChairTimerRef.current = null;
                       setSelectedChairsForMerge((prev) =>
@@ -982,18 +982,9 @@ export function ScreenM3TableSheet({
                       holdChairTimerRef.current = null;
                     }
                   }}
+                  */
                   onClick={() => {
-                    if (selectedChairsForMerge.length > 0) {
-                      // In selection mode: tap toggles this chair in/out
-                      setSelectedChairsForMerge((prev) =>
-                        prev.includes(seatNum)
-                          ? prev.filter((s) => s !== seatNum)
-                          : [...prev, seatNum]
-                      );
-                    } else {
-                      // Normal tap: navigate to chair details
-                      setSelectedSeat(seatNum);
-                    }
+                    setSelectedSeat(seatNum);
                   }}
                   className={`p-2.5 rounded-2xl font-mono text-xs font-black border-2 transition-all active:scale-95 flex flex-col items-center justify-between h-[84px] relative select-none ${
                     isCompactRail ? 'flex-1 min-w-0' : 'shrink-0 min-w-[86px]'
@@ -1226,7 +1217,8 @@ export function ScreenM3TableSheet({
                       </div>
                       <button
                         type="button"
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation();
                           readyToServeItems.forEach((it) =>
                             waiterMarkKitchenItemServed(it.ticketId, it.id)
                           );
@@ -1494,9 +1486,10 @@ export function ScreenM3TableSheet({
         </motion.div>
         </div>
 
-        {/* Quick Operations: Merge Seats / Split Back & Serve Food */}
+        {/* Quick Operations: Serve Food (Merge Seats & Split Back temporarily commented out) */}
         <div className="shrink-0 space-y-2 px-4">
-          <div className="grid grid-cols-2 gap-2.5 font-mono text-xs">
+          <div className="w-full font-mono text-xs">
+            {/*
             {Object.keys(mergedSeatGroups).length > 0 ? (
               <button
                 type="button"
@@ -1519,12 +1512,16 @@ export function ScreenM3TableSheet({
                 <span>Merge Seats</span>
               </button>
             )}
+            */}
 
             <button
               type="button"
-              onClick={handleServeReadyFood}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleServeReadyFood();
+              }}
               disabled={!hasReadyFood}
-              className={`min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-95 ${
+              className={`w-full min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-95 ${
                 hasReadyFood
                   ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs'
                   : 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60'
@@ -1668,8 +1665,9 @@ export function ScreenM3TableSheet({
           </motion.button>
         </div>
 
-        {/* Secondary Action Buttons matching Waiter Tablet: Split, Merge, Vacate */}
-        <div className="grid grid-cols-3 gap-2 font-mono text-xs">
+        {/* Secondary Action Buttons matching Waiter Tablet: Split & Merge temporarily commented out */}
+        {/*
+        <div className="grid grid-cols-2 gap-2 font-mono text-xs mb-2">
           <button
             type="button"
             onClick={() => {
@@ -1694,6 +1692,9 @@ export function ScreenM3TableSheet({
             <Link2 className="h-3.5 w-3.5" />
             <span>{isMerged ? 'Unmerge' : 'Merge'}</span>
           </button>
+        </div>
+        */}
+        <div className="w-full font-mono text-xs">
           <button
             type="button"
             onClick={() => {
@@ -1716,21 +1717,21 @@ export function ScreenM3TableSheet({
                   : 'Payment must be completed before vacating table'
                 : 'Vacate and reset table'
             }
-            className={`py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
+            className={`w-full py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
               !isPaymentCompleted
                 ? 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-50 shadow-none'
                 : 'border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer shadow-2xs'
             }`}
           >
             <UserX className="h-3.5 w-3.5" />
-            <span>Vacate</span>
+            <span>Vacate Table</span>
           </button>
         </div>
       </footer>
 
-      {/* ── MODAL: TABLE MERGE & SEAT MERGE (DYNAMIC & FULLY FUNCTIONAL) ── */}
+      {/* ── MODAL: TABLE MERGE & SEAT MERGE (TEMPORARILY COMMENTED OUT / DISABLED) ── */}
       <AnimatePresence>
-        {showMergeModal && (
+        {false && showMergeModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1784,7 +1785,7 @@ export function ScreenM3TableSheet({
               {mergeTab === 'TABLE' && (
                 <div className="space-y-3 py-1">
                   <p className="text-xs text-stone-600 font-semibold">
-                    Merge {table.number} with candidate table:
+                    Merge {table?.number || tableNum} with candidate table:
                   </p>
 
                   <div className="relative">
@@ -1849,7 +1850,7 @@ export function ScreenM3TableSheet({
               {mergeTab === 'SEATS' && (
                 <div className="space-y-3 py-1">
                   <p className="text-xs text-stone-600 font-semibold">
-                    Select chairs in {table.number} to combine on one check:
+                    Select chairs in {table?.number || tableNum} to combine on one check:
                   </p>
                   <div className="grid grid-cols-4 gap-2">
                     {Array.from({ length: totalChairs }).map((_, idx) => {
@@ -1897,9 +1898,9 @@ export function ScreenM3TableSheet({
         )}
       </AnimatePresence>
 
-      {/* ── MODAL: SPLIT BILL (BY PERSONS OR BY CHAIRS) ── */}
+      {/* ── MODAL: SPLIT BILL (TEMPORARILY COMMENTED OUT / DISABLED) ── */}
       <AnimatePresence>
-        {showSplitModal && (
+        {false && showSplitModal && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1918,7 +1919,7 @@ export function ScreenM3TableSheet({
               <div className="flex items-center justify-between pb-2 border-b border-stone-200 shrink-0">
                 <div className="flex items-center gap-2 text-stone-900 font-black text-sm">
                   <Split className="h-4 w-4 text-amber-700" />
-                  <span>Split Bill — Table {table.number}</span>
+                  <span>Split Bill — Table {table?.number || tableNum}</span>
                 </div>
                 <button
                   type="button"

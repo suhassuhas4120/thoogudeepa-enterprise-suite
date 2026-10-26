@@ -289,7 +289,10 @@ export function TabletNotifDrawer({
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => waiterMarkKitchenItemServed(tk.id, item.id)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    waiterMarkKitchenItemServed(tk.id, item.id);
+                                  }}
                                   className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-mono text-[11px] font-black transition cursor-pointer"
                                 >
                                   Serve

@@ -354,7 +354,10 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
                           <motion.button
                             whileTap={{ scale: 0.93 }}
                             type="button"
-                            onClick={() => handleServeGroup(notif.ticketId, notif.tableNumber, notif.items)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleServeGroup(notif.ticketId, notif.tableNumber, notif.items);
+                            }}
                             className="px-3.5 py-1.5 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
@@ -426,7 +429,10 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
                         <motion.button
                           whileTap={{ scale: 0.93 }}
                           type="button"
-                          onClick={() => handleServeSingleItem(notif.ticketId, notif.item.id, notif.tableNumber, notif.item.name)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleServeSingleItem(notif.ticketId, notif.item.id, notif.tableNumber, notif.item.name);
+                          }}
                           className="px-3 py-1.5 font-mono text-xs font-black rounded-xl shadow-xs transition flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />

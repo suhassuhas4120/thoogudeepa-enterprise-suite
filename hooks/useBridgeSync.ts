@@ -28,7 +28,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { supabase, getSyncBroadcastChannel } from '../lib/supabase';
-import { useSharedBridge, type SharedTable } from '../store/useSharedBridge';
+import { useSharedBridge, cleanTableNum, type SharedTable } from '../store/useSharedBridge';
 import { useCustomerStore } from '../store/useCustomerStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { isPingLocallyResolved, markPingLocallyResolved } from '../lib/settlementStore';
@@ -238,40 +238,38 @@ async function reconcileAllState(): Promise<void> {
       }>
     >();
     mappedTickets.forEach((tk) => {
-      if (tk.status !== 'COMPLETED') {
-        const list = itemsByTable.get(tk.tableNumber) || [];
-        tk.items.forEach((it) => {
-          const sUpper = String(it.stage || '').toUpperCase();
-          list.push({
-            id: it.id,
-            name: it.name,
-            quantity: it.quantity,
-            status:
-              sUpper === 'SERVED'
-                ? 'Served'
-                : (sUpper === 'PLATED' || sUpper === 'READY')
-                ? 'Ready'
-                : (sUpper === 'PREP' || sUpper === 'PREPARING' || sUpper === 'COOKING')
-                ? 'Cooking'
-                : sUpper === 'RECEIVED'
-                ? 'Received'
-                : 'Placed',
-            options: it.options,
-            addOns: it.addOns || [],
-            seatNumber: it.seatNumber,
-            price: it.price,
-          });
+      const tKey = cleanTableNum(tk.tableNumber);
+      const list = itemsByTable.get(tKey) || [];
+      tk.items.forEach((it) => {
+        const sUpper = String(it.stage || '').toUpperCase();
+        list.push({
+          id: it.id,
+          name: it.name,
+          quantity: it.quantity,
+          status:
+            sUpper === 'SERVED'
+              ? 'Served'
+              : (sUpper === 'PLATED' || sUpper === 'READY')
+              ? 'Ready'
+              : (sUpper === 'PREP' || sUpper === 'PREPARING' || sUpper === 'COOKING')
+              ? 'Cooking'
+              : sUpper === 'RECEIVED'
+              ? 'Received'
+              : 'Placed',
+          options: it.options,
+          addOns: it.addOns || [],
+          seatNumber: it.seatNumber,
+          price: it.price,
         });
-        itemsByTable.set(tk.tableNumber, list);
-      }
+      });
+      itemsByTable.set(tKey, list);
     });
 
     let mappedTables = bridge.tables;
     if (tables && tables.length > 0) {
-      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
       mappedTables = tables.map((row: DbTableRow) => {
-        const localTbl = bridge.tables.find((t) => cleanNum(t.number) === cleanNum(row.number));
-        const tableActiveItems = itemsByTable.get(row.number) || [];
+        const localTbl = bridge.tables.find((t) => cleanTableNum(t.number) === cleanTableNum(row.number));
+        const tableActiveItems = itemsByTable.get(cleanTableNum(row.number)) || [];
         const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
         const computedBill = activeItemsSum;
         const dbBill = Number(row.current_bill || 0);
@@ -393,12 +391,19 @@ async function reconcileAllState(): Promise<void> {
 
     const nextTickets = (() => {
       const dbIds = new Set((mappedTickets || []).map((t) => t.id));
-      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const occupiedCleanTables = new Set(
+        mappedTables
+          .filter((t) => t.status === 'OCCUPIED' || t.status === 'BILLING')
+          .map((t) => cleanTableNum(t.number))
+      );
       const pendingOptimistic = (bridge.kdsTickets || []).filter((tk) => {
-        if (!tk || tk.status === 'COMPLETED') return false;
+        if (!tk) return false;
         if (dbIds.has(tk.id)) return false;
+        if (tk.status === 'COMPLETED') {
+          return occupiedCleanTables.has(cleanTableNum(tk.tableNumber));
+        }
         const isDuplicate = mappedTickets.some((mt) =>
-          cleanNum(mt.tableNumber) === cleanNum(tk.tableNumber) &&
+          cleanTableNum(mt.tableNumber) === cleanTableNum(tk.tableNumber) &&
           mt.items.length === tk.items.length &&
           mt.items.every((mi) => tk.items.some((ti) => ti.name === mi.name && ti.quantity === mi.quantity))
         );
@@ -657,34 +662,31 @@ export function useBridgeSync() {
             : undefined;
 
           useSharedBridge.setState((state) => {
-            const nextTickets =
-              row.status === 'COMPLETED'
-                ? state.kdsTickets.filter((tk) => tk.id !== row.id)
-                : state.kdsTickets.map((tk) =>
-                    tk.id === row.id
-                      ? {
-                          ...tk,
-                          seatNumber: row.seat_number ? Number(row.seat_number) : tk.seatNumber,
-                          status: row.status,
-                          elapsedMinutes: row.elapsed_minutes ?? tk.elapsedMinutes,
-                          items: parsedItems ?? tk.items,
-                        }
-                      : tk
-                  );
+            const nextTickets = state.kdsTickets.map((tk) =>
+              tk.id === row.id
+                ? {
+                    ...tk,
+                    seatNumber: row.seat_number ? Number(row.seat_number) : tk.seatNumber,
+                    status: row.status,
+                    elapsedMinutes: row.elapsed_minutes ?? tk.elapsedMinutes,
+                    items: parsedItems ?? tk.items,
+                  }
+                : tk
+            );
 
-            const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
             // Keep tables activeItems in sync with updated ticket items
             const nextTables = parsedItems && row.table_number
               ? state.tables.map((tbl) => {
-                  if (cleanNum(tbl.number) !== cleanNum(row.table_number)) return tbl;
+                  if (cleanTableNum(tbl.number) !== cleanTableNum(row.table_number)) return tbl;
                   return {
                     ...tbl,
                     activeItems: (tbl.activeItems || []).map((ai) => {
-                      const matched = parsedItems.find((pi) => pi.id === ai.id);
+                      const matched = parsedItems.find((pi) => pi.id === ai.id || (pi.name === ai.name && (pi.seatNumber === undefined || ai.seatNumber === undefined || pi.seatNumber === ai.seatNumber)));
                       if (!matched) return ai;
                       const ms = String(matched.stage || '').toUpperCase();
                       return {
                         ...ai,
+                        stage: (ms === 'SERVED' ? 'SERVED' : (ai as any).stage || ms),
                         status:
                           ms === 'SERVED'
                             ? 'Served'
@@ -958,15 +960,13 @@ export function useBridgeSync() {
             reconcileAllState();
             return;
           }
-          const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
-
           useSharedBridge.setState((state) => {
             const existingIdx = state.tables.findIndex(
-              (t) => cleanNum(t.number) === cleanNum(row.number)
+              (t) => cleanTableNum(t.number) === cleanTableNum(row.number)
             );
             const localTbl = existingIdx >= 0 ? state.tables[existingIdx] : undefined;
             const tableActiveItems = state.kdsTickets
-              .filter((tk) => cleanNum(tk.tableNumber) === cleanNum(row.number) && tk.status !== 'COMPLETED')
+              .filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(row.number))
               .flatMap((tk) =>
                 (tk.items || [])
                   .map((it) => {

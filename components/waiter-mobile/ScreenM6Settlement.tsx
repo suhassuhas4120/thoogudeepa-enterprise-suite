@@ -125,10 +125,8 @@ export function ScreenM6Settlement({
 
   const groupPeers: string[] = table?.mergeGroupPeers ?? [tableNum];
   const tickets = useMemo(() => {
-    return kdsTickets.filter(
-      (tk) =>
-        groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber)) &&
-        tk.status !== 'COMPLETED'
+    return kdsTickets.filter((tk) =>
+      groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
     );
   }, [kdsTickets, groupPeers]);
 

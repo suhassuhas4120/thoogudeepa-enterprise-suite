@@ -587,7 +587,7 @@ export default function WaiterMobilePage() {
               });
               const groupNums = new Set(groupTables.map((t) => cleanTableNum(t.number)));
               const tks = (kdsTickets || []).filter(
-                (tk) => groupNums.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED'
+                (tk) => groupNums.has(cleanTableNum(tk.tableNumber))
               );
 
               // Gather unique ordered items: prioritize KDS tickets, only fall back to table activeItems if tickets are empty

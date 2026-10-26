@@ -481,6 +481,8 @@ export function TabletTableDetail({
             Select Chair · {totalCapacity} Seats Available
           </p>
 
+          {/* Merge Chairs button (temporarily commented out) */}
+          {/*
           <button
             type="button"
             onClick={() => {
@@ -496,9 +498,11 @@ export function TabletTableDetail({
             <Link2 className="h-3 w-3" />
             <span>{mergeChairMode ? 'Cancel Merge' : 'Merge Chairs'}</span>
           </button>
+          */}
         </div>
 
-        {/* Merge Chair Action Banner */}
+        {/* Merge Chair Action Banner (temporarily commented out) */}
+        {/*
         {mergeChairMode && (
           <div className="mb-2.5 p-2.5 bg-purple-50 border-2 border-purple-300 rounded-2xl flex items-center justify-between font-mono text-xs">
             <span className="text-purple-950 font-bold">
@@ -526,6 +530,7 @@ export function TabletTableDetail({
             </div>
           </div>
         )}
+        */}
 
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar pt-2.5 pb-2 px-1.5 -mt-1.5">
           {/* ALL Seats Button — supports dropping menu dish */}
@@ -577,7 +582,8 @@ export function TabletTableDetail({
             </span>
           </button>
 
-          {/* Merged Chair Groups */}
+          {/* Merged Chair Groups (temporarily commented out) */}
+          {/*
           {Object.entries(mergedSeatGroups).map(([groupKey, seats]) => {
             const isSelected = selectedChair === groupKey;
             const groupFired = allItems.filter(
@@ -620,7 +626,6 @@ export function TabletTableDetail({
                   </span>
                 </button>
 
-                {/* Unmerge chip button */}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -636,6 +641,7 @@ export function TabletTableDetail({
               </div>
             );
           })}
+          */}
 
           {/* Individual Chairs (excluding those in merged groups) */}
           {chairs.map((ch) => {
@@ -1151,8 +1157,9 @@ export function TabletTableDetail({
             </button>
           </div>
 
-          {/* Secondary Action Buttons */}
-          <div className="grid grid-cols-3 gap-2 font-mono text-xs">
+          {/* Secondary Action Buttons: Split & Merge temporarily commented out */}
+          {/*
+          <div className="grid grid-cols-2 gap-2 font-mono text-xs mb-2">
             <button
               type="button"
               onClick={onSplit}
@@ -1170,6 +1177,9 @@ export function TabletTableDetail({
               <Link2 className="h-3.5 w-3.5" />
               <span>{table.mergedWith ? 'Unmerge' : 'Merge'}</span>
             </button>
+          </div>
+          */}
+          <div className="w-full font-mono text-xs">
             <button
               type="button"
               onClick={() => {
@@ -1183,14 +1193,14 @@ export function TabletTableDetail({
                     : 'Payment must be completed before vacating table'
                   : 'Vacate and reset table'
               }
-              className={`py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
+              className={`w-full py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
                 !isPaymentCompleted
                   ? 'border-stone-200 bg-stone-100 text-stone-400 cursor-not-allowed opacity-50 shadow-none'
                   : 'border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-700 cursor-pointer shadow-2xs'
               }`}
             >
               <UserX className="h-3.5 w-3.5" />
-              <span>Vacate</span>
+              <span>Vacate Table</span>
             </button>
           </div>
         </div>

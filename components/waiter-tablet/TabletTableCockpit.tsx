@@ -312,7 +312,10 @@ export function TabletTableCockpit({
             </div>
             <button
               type="button"
-              onClick={handleServeReady}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleServeReady();
+              }}
               className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black shadow-xs active:scale-95 transition cursor-pointer"
             >
               Mark Served
@@ -435,7 +438,8 @@ export function TabletTableCockpit({
           )}
         </div>
 
-        {/* Secondary Operations: Split Bill & Merge Table */}
+        {/* Secondary Operations: Split Bill & Merge Table (temporarily commented out) */}
+        {/*
         <div className="grid grid-cols-2 gap-2">
           {grandTotal > 0 && !isVacant ? (
             <button
@@ -470,6 +474,7 @@ export function TabletTableCockpit({
             <span>{isMerged ? 'Manage Merge' : 'Merge Table'}</span>
           </button>
         </div>
+        */}
 
         {/* Two-step Vacate & Reset */}
         {!confirmVacate ? (

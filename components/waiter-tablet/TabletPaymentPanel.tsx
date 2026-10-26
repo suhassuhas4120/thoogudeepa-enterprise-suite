@@ -107,7 +107,7 @@ export function TabletPaymentPanel({
   // ── Group peers & unified orders computation ──
   const groupPeers = table?.mergeGroupPeers || (table?.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
   const peerNums = new Set(groupPeers.map(cleanTableNum));
-  const tickets = kdsTickets.filter((tk) => peerNums.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
+  const tickets = kdsTickets.filter((tk) => peerNums.has(cleanTableNum(tk.tableNumber)));
   const firedFromTickets = tickets.flatMap((tk) =>
     tk.items.map((it) => {
       const seat = it.seatNumber !== undefined && it.seatNumber !== null

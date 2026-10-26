@@ -243,7 +243,10 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
                           <motion.button
                             whileTap={{ scale: 0.95 }}
                             type="button"
-                            onClick={() => handleServeTicket(group.ticketId, group.tableNumber, group.items)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleServeTicket(group.ticketId, group.tableNumber, group.items);
+                            }}
                             className={`h-10 px-3 bg-emerald-600 hover:bg-emerald-700 text-white font-mono text-xs font-black rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 shadow-xs ${
                               !onFocusTable ? 'col-span-2' : ''
                             }`}

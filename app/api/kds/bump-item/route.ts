@@ -213,21 +213,34 @@ export async function POST(req: NextRequest) {
       }
 
       if (!item && !targetTicket) {
-        return NextResponse.json({ error: `Item ${itemId} not found` }, { status: 404 });
+        return NextResponse.json(
+          { error: `Item ${itemId} not found in database or ticket`, itemId, ticketId },
+          { status: 404 }
+        );
       }
 
       let ticketItem = targetTicket?.items?.find((it: any) => 
         it.id === itemId ||
         (item && it.id === item.id)
-      ) || targetTicket?.items?.find((it: any) =>
-        (!itemId && itemName && (it.name || '').trim().toLowerCase() === itemName) ||
-        (!itemId && normSearch && (it.name || '').trim().toLowerCase().includes(normSearch))
-      );
+      ) || targetTicket?.items?.find((it: any) => {
+        const itName = (it.name || '').trim().toLowerCase();
+        return (
+          (itemName && (itName === itemName || itName.includes(itemName) || itemName.includes(itName))) ||
+          (normSearch && (itName === normSearch || itName.includes(normSearch) || normSearch.includes(itName)))
+        );
+      });
       if (!ticketItem && targetTicket?.items) {
         ticketItem = targetTicket.items.find((it: any) => {
           const itName = (it.name || '').trim().toLowerCase();
           return (itName === normSearch || (itName && normSearch.includes(itName))) && it.stage !== 'SERVED';
         });
+      }
+
+      if (!item && !ticketItem) {
+        return NextResponse.json(
+          { error: `Item ${itemId} not found in database or ticket`, itemId, ticketId },
+          { status: 404 }
+        );
       }
 
       const currentStage = item?.stage || ticketItem?.stage || 'PLACED';
@@ -270,11 +283,14 @@ export async function POST(req: NextRequest) {
       let ticketStatus = 'NEW';
       if (targetTicket) {
         const updatedTicketItems = (targetTicket.items || []).map((it: any) => {
+          const itName = (it.name || '').trim().toLowerCase();
+          const isNameMatch = itemName && (itName === itemName || itName.includes(itemName) || itemName.includes(itName));
+          const isSeatMatch = !body.seatNumber || !it.seatNumber || Number(body.seatNumber) === Number(it.seatNumber);
           const isMatch =
             it.id === itemId ||
             (item && it.id === item.id) ||
             (ticketItem && it.id === ticketItem.id) ||
-            (!itemId && itemName && (it.name || '').trim().toLowerCase() === itemName);
+            (isNameMatch && isSeatMatch);
           if (isMatch) {
             return { ...it, stage: nextStage };
           }
@@ -286,7 +302,7 @@ export async function POST(req: NextRequest) {
         const anyActive = updatedTicketItems.some((it: any) => it.stage === 'PREP' || it.stage === 'PLATED' || it.stage === 'RECEIVED');
 
         if (allServed) {
-          ticketStatus = 'SERVED';
+          ticketStatus = 'COMPLETED';
         } else if (allPlated) {
           ticketStatus = 'READY';
         } else if (anyActive) {

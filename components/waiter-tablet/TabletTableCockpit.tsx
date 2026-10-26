@@ -89,8 +89,9 @@ export function TabletTableCockpit({
     tickets.forEach((tk) => {
       tk.items.forEach((it) => {
         const unitPrice = it.price && it.price > 0 ? it.price : 220;
+        const itStage = String(it.stage || '').toUpperCase();
         const stageLabel =
-          it.stage === 'SERVED' ? 'Served' : it.stage === 'PLATED' ? 'Ready' : it.stage === 'PREP' ? 'Cooking' : 'Placed';
+          itStage === 'SERVED' ? 'Served' : (itStage === 'PLATED' || itStage === 'READY') ? 'Ready' : (itStage === 'PREP' || itStage === 'PREPARING' || itStage === 'COOKING') ? 'Cooking' : 'Placed';
         allOrderedItems.push({
           id: it.id,
           name: it.name,
@@ -125,7 +126,7 @@ export function TabletTableCockpit({
     .filter((t) => groupPeers.some((gp) => cleanTableNum(gp) === cleanTableNum(t.number)))
     .reduce((s, t) => s + (t.currentBill || 0), 0);
   const itemsSubtotal = allOrderedItems.reduce((acc, i) => acc + i.totalPrice, 0);
-  const subtotal = Math.max(groupCurrentBill, itemsSubtotal);
+  const subtotal = allOrderedItems.length > 0 ? Math.max(groupCurrentBill, itemsSubtotal) : 0;
   const tax = Math.round(subtotal * 0.05);
   const grandTotal = isVacant ? 0 : subtotal + tax;
 
@@ -167,10 +168,11 @@ export function TabletTableCockpit({
     });
   };
 
+  const hasNoItems = (!table.activeItems || table.activeItems.length === 0) && allOrderedItems.length === 0;
   const isPaymentCompleted =
     !isVacant &&
     (table.status === 'BILLING' ||
-      (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)));
+      (hasNoItems && table.currentBill === 0));
 
   const handleVacate = () => {
     if (!isPaymentCompleted) return;
@@ -413,26 +415,14 @@ export function TabletTableCockpit({
           </motion.button>
 
           {grandTotal > 0 && !isVacant ? (
-            isPaymentRequested ? (
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => onGoToSettle()}
-                className="py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
-              >
-                <CreditCard className="h-4 w-4 text-emerald-400" />
-                <span>Settle Full Bill</span>
-              </motion.button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                title="Payment disabled: Customer must tap 'Call Captain for Bill/Payment' on their device first"
-                className="py-3 bg-stone-100 text-stone-400 rounded-xl text-xs font-bold flex items-center justify-center gap-2 border border-stone-200 cursor-not-allowed"
-              >
-                <CreditCard className="h-4 w-4 text-stone-400" />
-                <span>Awaiting Payment Call</span>
-              </button>
-            )
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => onGoToSettle()}
+              className="py-3 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition cursor-pointer"
+            >
+              <CreditCard className="h-4 w-4 text-emerald-400" />
+              <span>{isPaymentRequested ? 'Settle Full Bill (Requested)' : 'Settle Full Bill'}</span>
+            </motion.button>
           ) : (
             <button
               type="button"

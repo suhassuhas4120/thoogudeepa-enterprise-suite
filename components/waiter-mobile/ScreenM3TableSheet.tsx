@@ -43,21 +43,15 @@ function statusBadge(status: string) {
 }
 
 function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) {
-  if (stage === 'Received') {
+  const s = String(stage || '').trim().toUpperCase();
+  if (s === 'SERVED') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
-        Received
+      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
+        <span>Served</span>
       </span>
     );
   }
-  if (stage === 'Cooking' || stage === 'PREP' || stage === 'Preparing') {
-    return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-        Preparing
-      </span>
-    );
-  }
-  if (stage === 'Ready' || stage === 'PLATED') {
+  if (s === 'READY' || s === 'PLATED') {
     return (
       <motion.button
         type="button"
@@ -66,17 +60,24 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
           e.stopPropagation();
           onServe?.();
         }}
-        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95"
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95 border border-emerald-700"
       >
         <span className="text-white">●</span>
         <span>Serve</span>
       </motion.button>
     );
   }
-  if (stage === 'Served' || stage === 'SERVED') {
+  if (s === 'COOKING' || s === 'PREP' || s === 'PREPARING') {
     return (
-      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
-        <span>Served</span>
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+        Preparing
+      </span>
+    );
+  }
+  if (s === 'RECEIVED') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
+        Received
       </span>
     );
   }
@@ -198,14 +199,15 @@ export function ScreenM3TableSheet({
           }
         )?.price || 220;
       const unitPrice = it.price && it.price > 0 ? it.price : fallbackPrice;
+      const itStage = String(it.stage || '').toUpperCase();
       const stageLabel =
-        it.stage === 'SERVED'
+        itStage === 'SERVED'
           ? 'Served'
-          : it.stage === 'PLATED'
+          : itStage === 'PLATED' || itStage === 'READY'
           ? 'Ready'
-          : it.stage === 'PREP'
+          : itStage === 'PREP' || itStage === 'PREPARING' || itStage === 'COOKING'
           ? 'Cooking'
-          : it.stage === 'RECEIVED'
+          : itStage === 'RECEIVED'
           ? 'Received'
           : 'Placed';
       const resolvedSeat = it.seatNumber !== undefined && it.seatNumber !== null

@@ -147,7 +147,9 @@ export function TabletPaymentPanel({
   const totalTableFiredSubtotal = allFiredItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
   const totalTableDraftSubtotal = allDraftItems.reduce((s, it) => s + it.totalPrice, 0);
   const baseFiredSubtotal = Math.max(groupCurrentBill, totalTableFiredSubtotal);
-  const totalTableBill = Math.round(baseFiredSubtotal * 1.05) + Math.round(totalTableDraftSubtotal * 1.05);
+  const totalTableBill = allFiredItems.length > 0 || allDraftItems.length > 0
+    ? Math.round(baseFiredSubtotal * 1.05) + Math.round(totalTableDraftSubtotal * 1.05)
+    : 0;
 
   let effectiveBill = 0;
   let targetLabel = 'All Seats';

@@ -26,69 +26,47 @@ type ActiveView =
 export default function WaiterMobilePage() {
   const { pings, kdsTickets, tables } = useSharedBridge();
 
-  // Persist session across page reloads without kicking waiter back to login
-  const [loggedIn, setLoggedIn] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
-        return Boolean(saved && JSON.parse(saved)?.waiterName);
-      } catch {
-        return false;
-      }
-    }
-    return false;
-  });
+  const [mounted, setMounted] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [waiterName, setWaiterName] = useState('');
+  const [assignedSection, setAssignedSection] = useState('ALL');
+  const [mainTab, setMainTab] = useState<MainTab>('TABLES');
+  const [view, setView] = useState<ActiveView>({ type: 'FLOOR' });
 
-  const [waiterName, setWaiterName] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
-        return saved ? (JSON.parse(saved)?.waiterName || '') : '';
-      } catch {
-        return '';
-      }
-    }
-    return '';
-  });
-
-  const [assignedSection, setAssignedSection] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
-        return saved ? (JSON.parse(saved)?.assignedSection || 'ALL') : 'ALL';
-      } catch {
-        return 'ALL';
-      }
-    }
-    return 'ALL';
-  });
-
-  const [mainTab, setMainTab] = useState<MainTab>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedTab = sessionStorage.getItem('thoogudeepa_waiter_tab');
-        if (savedTab === 'TABLES' || savedTab === 'CALLS' || savedTab === 'READY') {
-          return savedTab as MainTab;
-        }
-      } catch {}
-    }
-    return 'TABLES';
-  });
-
-  const [view, setView] = useState<ActiveView>(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const savedView = sessionStorage.getItem('thoogudeepa_waiter_view');
-        if (savedView) {
-          const parsed = JSON.parse(savedView);
-          if (parsed && typeof parsed === 'object' && parsed.type) {
-            return parsed as ActiveView;
+  // Restore session & persisted state on mount safely without SSR hydration mismatch
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('thoogudeepa_waiter_session');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.waiterName) {
+          setLoggedIn(true);
+          setWaiterName(parsed.waiterName);
+          if (parsed.assignedSection) {
+            setAssignedSection(parsed.assignedSection);
           }
+          useWaiterStore.getState().setActiveCaptain(parsed.waiterName);
         }
-      } catch {}
-    }
-    return { type: 'FLOOR' };
-  });
+      }
+      const savedTab = sessionStorage.getItem('thoogudeepa_waiter_tab');
+      if (savedTab === 'TABLES' || savedTab === 'CALLS' || savedTab === 'READY') {
+        setMainTab(savedTab as MainTab);
+      }
+      const savedView = sessionStorage.getItem('thoogudeepa_waiter_view');
+      let initialView: ActiveView = { type: 'FLOOR' };
+      if (savedView) {
+        const parsed = JSON.parse(savedView);
+        if (parsed && typeof parsed === 'object' && parsed.type) {
+          initialView = parsed as ActiveView;
+          setView(initialView);
+        }
+      }
+      if (typeof window !== 'undefined' && !window.history.state?.view) {
+        window.history.replaceState({ view: initialView }, '');
+      }
+    } catch {}
+    setMounted(true);
+  }, []);
 
   const [toast, setToast] = useState<string | null>(null);
   const [outboxPendingCount, setOutboxPendingCount] = useState<number>(0);
@@ -157,30 +135,30 @@ export default function WaiterMobilePage() {
   };
 
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      // Ensure history stack is populated without blowing away restored view
-      if (!window.history.state?.view) {
-        window.history.replaceState({ view }, '');
-      }
+    if (!mounted || typeof window === 'undefined') return;
 
-      const handlePopState = (e: PopStateEvent) => {
-        if (e.state && e.state.view) {
-          setView(e.state.view);
-          try {
-            sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify(e.state.view));
-          } catch {}
-        } else {
-          setView({ type: 'FLOOR' });
-          try {
-            sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify({ type: 'FLOOR' }));
-          } catch {}
-        }
-      };
-
-      window.addEventListener('popstate', handlePopState);
-      return () => window.removeEventListener('popstate', handlePopState);
+    // Ensure history stack is populated without blowing away restored view
+    if (!window.history.state?.view) {
+      window.history.replaceState({ view }, '');
     }
-  }, [view]);
+
+    const handlePopState = (e: PopStateEvent) => {
+      if (e.state && e.state.view) {
+        setView(e.state.view);
+        try {
+          sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify(e.state.view));
+        } catch {}
+      } else {
+        setView({ type: 'FLOOR' });
+        try {
+          sessionStorage.setItem('thoogudeepa_waiter_view', JSON.stringify({ type: 'FLOOR' }));
+        } catch {}
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [mounted, view]);
 
   const activePings = pings.filter((p) => p.status === 'PENDING');
   const readyTickets = kdsTickets.filter((tk) => tk.status === 'READY');
@@ -268,6 +246,24 @@ export default function WaiterMobilePage() {
     setMainTab('TABLES');
     navigateView({ type: 'FLOOR' }, true);
   };
+
+  // ── Render matching loading shell on SSR & initial client render to prevent hydration mismatch ───
+  if (!mounted) {
+    return (
+      <main className="min-h-screen bg-[#FAF8F5] flex flex-col items-center justify-center font-sans w-full">
+        <div className="flex flex-col items-center gap-3">
+          <img
+            src="/assets/thoogudeepa-logo.png"
+            alt="Thoogudeepa Donne Biryani"
+            className="h-12 w-12 rounded-full object-cover animate-pulse shadow-md border border-[#D28835]/40"
+          />
+          <div className="h-1.5 w-24 bg-stone-200 rounded-full overflow-hidden">
+            <div className="h-full bg-[#D28835] rounded-full animate-pulse" />
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   // ── Not logged in ─────────────────────────────────────────────────────────
   if (!loggedIn) {

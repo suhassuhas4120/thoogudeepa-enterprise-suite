@@ -45,8 +45,13 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
     const unservedItems = (tk.items || []).filter((it) => it.stage !== 'SERVED');
     if (unservedItems.length === 0) return;
 
-    // Ticket is ready if status is READY or all unserved items are PLATED
-    const isReady = tk.status === 'READY' || unservedItems.every((it) => it.stage === 'PLATED');
+    // Ticket is ready if status is READY or all unserved items are PLATED or READY
+    const isReady =
+      tk.status === 'READY' ||
+      unservedItems.every((it) => {
+        const s = String(it.stage || '').toUpperCase();
+        return s === 'PLATED' || s === 'READY';
+      });
 
     if (isReady) {
       readyGroups.push({
@@ -63,8 +68,11 @@ export function TabletPickupDrawer({ open, onClose, onFocusTable }: Props) {
         })),
       });
     } else {
-      // Also include individual plated items if partially ready
-      const platedItems = unservedItems.filter((it) => it.stage === 'PLATED');
+      // Also include individual plated/ready items if partially ready
+      const platedItems = unservedItems.filter((it) => {
+        const s = String(it.stage || '').toUpperCase();
+        return s === 'PLATED' || s === 'READY';
+      });
       if (platedItems.length > 0) {
         readyGroups.push({
           ticketId: tk.id,

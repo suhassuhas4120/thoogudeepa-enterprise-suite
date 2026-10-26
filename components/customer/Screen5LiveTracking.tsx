@@ -128,12 +128,15 @@ export const Screen5LiveTracking: React.FC = () => {
   // Normalized matching for table ID to handle T-01, TABLE 01, 01 reliably
   const isTableMatch = (a?: string, b?: string) => {
     if (!a || !b) return false;
-    const normA = a.toUpperCase().replace(/\s+/g, '').replace('TABLE', '').replace('T-', '');
-    const normB = b.toUpperCase().replace(/\s+/g, '').replace('TABLE', '').replace('T-', '');
+    const strA = String(a);
+    const strB = String(b);
+    const normA = strA.toUpperCase().replace(/\s+/g, '').replace('TABLE', '').replace('T-', '');
+    const normB = strB.toUpperCase().replace(/\s+/g, '').replace('TABLE', '').replace('T-', '');
     return normA === normB || (parseInt(normA, 10) > 0 && parseInt(normA, 10) === parseInt(normB, 10));
   };
 
-  const getCleanName = (name: string) => {
+  const getCleanName = (name?: string | null) => {
+    if (!name || typeof name !== 'string') return '';
     return name
       .replace(/\s*\[Seat \d+\]/gi, '')
       .replace(/\s*\[Table [^\]]+\]/gi, '')
@@ -141,17 +144,17 @@ export const Screen5LiveTracking: React.FC = () => {
       .trim();
   };
 
-  const getCanonicalKey = (name: string) => {
+  const getCanonicalKey = (name?: string | null) => {
     return getCleanName(name).toLowerCase().replace(/[^a-z0-9]/g, '');
   };
 
-  const isVegItem = (name: string) => {
-    const lower = name.toLowerCase();
+  const isVegItem = (name?: string | null) => {
+    const lower = String(name || '').toLowerCase();
     return lower.includes('dessert') || lower.includes('paneer') || lower.includes('veg') || lower.includes('salad');
   };
 
   // Normalized table key for bridge lookups
-  const normTable = `T-${String(parseInt(effectiveTable.replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
+  const normTable = `T-${String(parseInt(String(effectiveTable).replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
   const chairKey = `${normTable}-CHAIR-${effectiveSeat}`;
   const currentTbl = tables.find((t) => isTableMatch(t.number, effectiveTable));
 
@@ -257,6 +260,7 @@ export const Screen5LiveTracking: React.FC = () => {
       const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
       return (tk.items || [])
         .filter((it) => {
+          if (!it) return false;
           const itemSeat = it.seatNumber !== undefined && it.seatNumber !== null
             ? Number(it.seatNumber)
             : (it as any).seat_number !== undefined && (it as any).seat_number !== null
@@ -264,19 +268,22 @@ export const Screen5LiveTracking: React.FC = () => {
             : tkSeat;
           return itemSeat === effectiveSeat;
         })
-        .map((it) => ({
-          id: it.id,
-          ticketId: tk.id,
-          name: getCleanName(it.name),
-          quantity: it.quantity,
-          price: Number(it.price || (it as any).unitPrice || (it as any).unit_price || 0),
-          stage: it.stage as OrderStage,
-          prepMode: it.prepMode,
-          options: it.options,
-          addOns: it.addOns,
-          notes: it.notes,
-          seatNumber: effectiveSeat,
-        }));
+        .map((it) => {
+          const rawName = it.name || (it as any).itemName || (it as any).dishName || (it as any).dish_name || (it as any).item_name || (it as any).item?.name || '';
+          return {
+            id: it.id,
+            ticketId: tk.id,
+            name: getCleanName(rawName) || 'Special Dish',
+            quantity: it.quantity,
+            price: Number(it.price || (it as any).unitPrice || (it as any).unit_price || 0),
+            stage: it.stage as OrderStage,
+            prepMode: it.prepMode,
+            options: it.options,
+            addOns: it.addOns,
+            notes: it.notes,
+            seatNumber: effectiveSeat,
+          };
+        });
     });
 
     const mySupabaseTickets = supabaseTickets.filter((tk) => {
@@ -299,6 +306,7 @@ export const Screen5LiveTracking: React.FC = () => {
       const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
       return (tk.items || [])
         .filter((it: any) => {
+          if (!it) return false;
           const itemSeat = it.seat_number !== undefined && it.seat_number !== null
             ? Number(it.seat_number)
             : (it.seatNumber !== undefined && it.seatNumber !== null
@@ -306,19 +314,22 @@ export const Screen5LiveTracking: React.FC = () => {
             : tkSeat);
           return itemSeat === effectiveSeat;
         })
-        .map((it) => ({
-          id: it.id,
-          ticketId: tk.id,
-          name: getCleanName(it.name),
-          quantity: it.quantity,
-          price: Number((it as any).price || (it as any).unit_price || (it as any).unitPrice || 0),
-          stage: it.stage as OrderStage,
-          prepMode: '',
-          options: '',
-          addOns: [] as string[],
-          notes: it.notes,
-          seatNumber: effectiveSeat,
-        }));
+        .map((it) => {
+          const rawName = it.name || (it as any).itemName || (it as any).dishName || (it as any).dish_name || (it as any).item_name || (it as any).item?.name || '';
+          return {
+            id: it.id,
+            ticketId: tk.id,
+            name: getCleanName(rawName) || 'Special Dish',
+            quantity: it.quantity,
+            price: Number((it as any).price || (it as any).unit_price || (it as any).unitPrice || 0),
+            stage: it.stage as OrderStage,
+            prepMode: '',
+            options: '',
+            addOns: [] as string[],
+            notes: it.notes,
+            seatNumber: effectiveSeat,
+          };
+        });
     });
 
     // Combine bridge items and supabase items authoritative from kitchen tickets for this chair
@@ -1551,7 +1562,7 @@ export const Screen5LiveTracking: React.FC = () => {
             <div className="py-4 space-y-2 border-t border-white/10">
               <button
                 onClick={() => {
-                  const normTbl = `T-${String(parseInt(effectiveTable.replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
+                  const normTbl = `T-${String(parseInt(String(effectiveTable).replace(/[^0-9]/g, ''), 10) || 1).padStart(2, '0')}`;
                   const key = `${normTbl}-CHAIR-${effectiveSeat}`;
                   const candidate = settledBills[key] || settledBills[normTbl];
                   const now = Date.now();

@@ -43,7 +43,7 @@ interface BillItem {
 }
 
 export function ScreenM4BillingPOS() {
-  const { tables, kdsTickets, waiterFiresKOT, waiterRecordsPayment, waiterVacatesTable, recordSettledBill, waiterMarkKitchenItemServed } = useSharedBridge();
+  const { tables, kdsTickets, waiterFiresKOT, waiterRecordsPayment, waiterVacatesTable, waiterClearsChairAfterPayment, recordSettledBill, waiterMarkKitchenItemServed } = useSharedBridge();
   const {
     selectedTableNumber,
     selectedSeatNumber,
@@ -364,6 +364,8 @@ export function ScreenM4BillingPOS() {
 
     if (currentSeat === 'ALL') {
       waiterVacatesTable(selectedTable.number);
+    } else if (typeof currentSeat === 'number') {
+      waiterClearsChairAfterPayment(selectedTable.number, currentSeat);
     }
 
     setSettledSuccess(true);
@@ -629,9 +631,7 @@ export function ScreenM4BillingPOS() {
                 <thead>
                   <tr className="border-b border-[#EAE5DF] text-slate-500 text-left sticky top-0 bg-white">
                     <th className="pb-2">ITEM DESCRIPTION</th>
-                    <th className="pb-2 text-center">STAGE</th>
                     <th className="pb-2 text-center">QTY</th>
-                    <th className="pb-2 text-right">PRICE</th>
                     <th className="pb-2 text-right">TOTAL</th>
                     <th className="pb-2 text-center">ACTION</th>
                   </tr>
@@ -639,7 +639,6 @@ export function ScreenM4BillingPOS() {
                 <tbody className="divide-y divide-slate-100">
                   {displayedItems.length > 0 ? (
                     displayedItems.map((it) => {
-                      const badge = getStageBadge(it.stage);
                       return (
                         <tr
                           key={it.id}
@@ -661,11 +660,6 @@ export function ScreenM4BillingPOS() {
                                 Option: {it.options}
                               </span>
                             )}
-                          </td>
-                          <td className="py-2 text-center">
-                            <span className={`text-[9.5px] px-1.5 py-0.5 rounded border ${badge.cls}`}>
-                              {badge.text}
-                            </span>
                           </td>
                           <td className="py-2 text-center">
                             {!it.isExistingKOT ? (
@@ -695,7 +689,6 @@ export function ScreenM4BillingPOS() {
                               </span>
                             )}
                           </td>
-                          <td className="py-2 text-right font-bold text-slate-700">₹ {it.price}</td>
                           <td className="py-2 text-right font-black text-slate-900">
                             ₹ {(it.price * it.qty).toLocaleString('en-IN')}
                           </td>
@@ -730,7 +723,7 @@ export function ScreenM4BillingPOS() {
                     })
                   ) : (
                     <tr>
-                      <td colSpan={6} className="py-8 text-center text-slate-400">
+                      <td colSpan={4} className="py-8 text-center text-slate-400">
                         <Armchair className="h-7 w-7 mx-auto text-slate-300 mb-1" />
                         <div className="font-bold text-xs">No items on this bill</div>
                         <div className="text-[11px] text-slate-400">

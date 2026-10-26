@@ -193,15 +193,16 @@ export function TableChairsSheet({
   const itemsSubtotal = isVacant ? 0 : displayedItems.reduce((sum, it) => sum + it.totalPrice, 0);
   const totalTableItemsSubtotal = isVacant ? 0 : allTableOrderedItems.reduce((sum, it) => sum + it.totalPrice, 0);
 
+  // Check whether table or selected seat actually has orders placed
+  const hasTableOrders = !isVacant && (totalTableItemsSubtotal > 0 || (table.currentBill || 0) > 0);
+  const hasSeatOrders = !isVacant && (selectedSeat === 'ALL' ? hasTableOrders : displayedItems.length > 0);
+
+  // For whole table: show total items or current bill. For individual chair: show that chair's own subtotal (do NOT artificially split table bill onto empty chairs)
   const displayedSubtotal = isVacant
     ? 0
-    : itemsSubtotal > 0
-    ? itemsSubtotal
     : selectedSeat === 'ALL'
-    ? table.currentBill
-    : occupiedGuests > 0 && (isOccupied || isBilling)
-    ? Math.round(table.currentBill / Math.max(1, occupiedGuests))
-    : 0;
+    ? (totalTableItemsSubtotal > 0 ? totalTableItemsSubtotal : table.currentBill)
+    : itemsSubtotal;
 
   const displayedTax = isVacant ? 0 : Math.round(displayedSubtotal * 0.05);
   const displayedTotal = isVacant ? 0 : displayedSubtotal + displayedTax;
@@ -221,9 +222,10 @@ export function TableChairsSheet({
   const chairHasUnsettledItems = (seatNum: number) =>
     allTableOrderedItems.some((i) => i.seatNumber === seatNum && isItemActiveUnsettled(i.stage));
 
-  // Whole table payment is done ONLY when:
-  // 1. Table is in 'BILLING' status (explicitly set upon full table payment by waiter mobile, tablet, customer, or manager), OR
-  // 2. All chairs that ordered have settled their bills AND there are no active cooking/unsettled items on any chair.
+  // Whole table payment is done when:
+  // 1. Table has no orders placed at all (0 bill, 0 items) -> no payment required!
+  // 2. Table is in 'BILLING' status (explicitly set upon full table payment), OR
+  // 3. All chairs that ordered have settled their bills AND there are no active cooking/unsettled items on any chair.
   const allActiveChairsSettled =
     chairsWithOrdersList.length > 0 &&
     chairsWithOrdersList.every((seatNum) => {
@@ -234,31 +236,37 @@ export function TableChairsSheet({
       );
     });
 
-  const isTablePaid = isBilling || (allActiveChairsSettled && !isVacant && chairsWithOrdersList.length > 0);
+  const isTablePaid =
+    !hasTableOrders ||
+    isBilling ||
+    (allActiveChairsSettled && !isVacant && chairsWithOrdersList.length > 0);
 
   // Single chair payment:
-  // A chair is paid ONLY if:
-  // 1. The whole table is paid (isTablePaid / isBilling), OR
-  // 2. This specific chair has a settled bill in settledBills AND has NO active cooking/unsettled items (PLACED, RECEIVED, PREPARING, READY).
+  // A chair is paid / settled if:
+  // 1. That chair has NO orders placed (no payment required!), OR
+  // 2. The whole table is paid (isTablePaid / isBilling), OR
+  // 3. This specific chair has a settled bill in settledBills AND has NO active cooking/unsettled items.
   const isCurrentChairSettled =
     typeof selectedSeat === 'number' &&
-    Boolean(
-      settledBills?.[`${normTable}-CHAIR-${selectedSeat}`] ||
-      settledBills?.[`${table.number}-CHAIR-${selectedSeat}`]
-    ) &&
-    !chairHasUnsettledItems(selectedSeat);
+    (!hasSeatOrders ||
+      (Boolean(
+        settledBills?.[`${normTable}-CHAIR-${selectedSeat}`] ||
+        settledBills?.[`${table.number}-CHAIR-${selectedSeat}`]
+      ) && !chairHasUnsettledItems(selectedSeat)));
 
   const isSelectionPaid =
     !isVacant && (selectedSeat === 'ALL' ? isTablePaid : (isTablePaid || isCurrentChairSettled));
 
-  // Vacate is enabled ONLY when payment is done and the table is not already vacant
-  const isVacateEnabled = !isVacant && isSelectionPaid;
+  // Vacate is enabled if:
+  // 1. Table/chair is not already vacant AND
+  // 2. There are NO orders to pay (empty table/chair can always be vacated), OR payment is settled!
+  const isVacateEnabled = !isVacant && (!hasSeatOrders || isSelectionPaid);
 
-  // Print KOT is enabled ONLY when payment is done and the table is not already vacant
-  const isPrintKOTEnabled = !isVacant && isSelectionPaid;
+  // Print KOT is enabled when there are active/paid items and not vacant
+  const isPrintKOTEnabled = !isVacant && hasSeatOrders && isSelectionPaid;
 
   // Add Items is enabled when table is vacant (to punch initial order) or when occupied until payment is settled
-  const isAddItemsEnabled = isVacant || !isSelectionPaid;
+  const isAddItemsEnabled = isVacant || !hasSeatOrders || !isSelectionPaid;
 
   const handleOpenBilling = () => {
     setSelectedTableNumber(table.number);
@@ -280,8 +288,13 @@ export function TableChairsSheet({
   const handleVacateTable = () => {
     if (!isVacateEnabled) return;
 
-    if (selectedSeat !== 'ALL' && !isTablePaid && isCurrentChairSettled) {
+    if (selectedSeat !== 'ALL' && hasSeatOrders && !isTablePaid && isCurrentChairSettled) {
       if (confirm(`Vacate Chair ${selectedSeat} on Table ${table.number}?`)) {
+        waiterClearsChairAfterPayment(table.number, selectedSeat as number);
+        setSelectedSeat('ALL');
+      }
+    } else if (selectedSeat !== 'ALL' && !hasSeatOrders) {
+      if (confirm(`Clear Chair ${selectedSeat} on Table ${table.number}?`)) {
         waiterClearsChairAfterPayment(table.number, selectedSeat as number);
         setSelectedSeat('ALL');
       }
@@ -391,14 +404,7 @@ export function TableChairsSheet({
             const hasOrders = !isVacant && chairItems.length > 0;
             const isSeated = !isVacant && (hasOrders || (chairsWithOrders.size === 0 && seatNum <= occupiedGuests));
             const chairSub = isVacant ? 0 : chairItems.reduce((s, it) => s + it.totalPrice, 0);
-            const chairAmt =
-              isVacant
-                ? 0
-                : chairSub > 0
-                ? Math.round(chairSub * 1.05)
-                : isSeated && table.currentBill > 0
-                ? Math.round((table.currentBill * 1.05) / Math.max(1, occupiedGuests))
-                : 0;
+            const chairAmt = isVacant || chairSub <= 0 ? 0 : Math.round(chairSub * 1.05);
 
             const hasReadyItem = !isVacant && chairItems.some((i) => i.stage === 'READY');
 
@@ -594,12 +600,14 @@ export function TableChairsSheet({
               {!isVacant && (
                 <span
                   className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded border ${
-                    isSelectionPaid
+                    !hasSeatOrders
+                      ? 'bg-slate-100 text-slate-700 border-slate-300'
+                      : isSelectionPaid
                       ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                       : 'bg-amber-100 text-amber-800 border-amber-300'
                   }`}
                 >
-                  {isSelectionPaid ? 'PAID' : 'PAYMENT PENDING'}
+                  {!hasSeatOrders ? 'NO ORDERS' : isSelectionPaid ? 'PAID' : 'PAYMENT PENDING'}
                 </span>
               )}
             </div>
@@ -662,12 +670,12 @@ export function TableChairsSheet({
             }`}
           >
             <Trash2 className="h-4 w-4" />
-            <span>{selectedSeat !== 'ALL' && !isTablePaid && isCurrentChairSettled ? `Vacate C${selectedSeat}` : 'Vacate'}</span>
+            <span>{selectedSeat !== 'ALL' && (!hasSeatOrders || isCurrentChairSettled) ? `Vacate C${selectedSeat}` : 'Vacate'}</span>
           </button>
         </div>
 
         {/* Helper prompt if payment is pending */}
-        {!isVacateEnabled && !isVacant && (
+        {!isVacateEnabled && !isVacant && hasSeatOrders && (
           <p className="text-[10px] text-amber-800 font-mono text-center font-bold bg-amber-50 py-1.5 px-2 rounded-lg border border-amber-200">
             Payment pending • Print KOT &amp; Vacate enable after payment on Waiter Mobile, Tablet, Customer, or Manager side
           </p>

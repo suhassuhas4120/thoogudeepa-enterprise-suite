@@ -601,10 +601,11 @@ export function ScreenM5KitchenSpeed() {
           <div className="space-y-2.5 max-h-[860px] overflow-y-auto pr-1">
             {kitchenNotificationsList.map((notif) => {
               const stageBadge = getStageBadge(notif.stage);
-              const isReady = notif.stage === 'PLATED';
-              const isPrep = notif.stage === 'PREP';
-              const isServed = notif.stage === 'SERVED';
-              const isReceived = notif.stage === 'RECEIVED';
+              const sUpper = String(notif.stage || '').toUpperCase();
+              const isReady = sUpper === 'PLATED' || sUpper === 'READY';
+              const isPrep = sUpper === 'PREP' || sUpper === 'PREPARING';
+              const isServed = sUpper === 'SERVED';
+              const isReceived = sUpper === 'RECEIVED';
 
               return (
                 <div

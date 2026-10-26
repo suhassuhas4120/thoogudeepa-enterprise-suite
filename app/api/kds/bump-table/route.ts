@@ -20,18 +20,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'ticketId is required' }, { status: 400 });
     }
 
+    const rawTable = body.tableNumber ? String(body.tableNumber).trim() : '';
+    const cleanNum = rawTable.replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const normTable = cleanNum ? `T-${String(parseInt(cleanNum, 10) || cleanNum).padStart(2, '0')}` : '';
+
     // 1. Fetch ticket
-    const { data: ticket, error: tErr } = await supabase
+    let { data: ticket, error: tErr } = await supabase
       .from('kds_tickets')
       .select('*')
       .eq('id', ticketId)
       .maybeSingle();
 
-    if (tErr || !ticket) {
-      return NextResponse.json({ error: `Ticket ${ticketId} not found` }, { status: 404 });
+    if (!ticket && normTable) {
+      const { data: tblTickets } = await supabase
+        .from('kds_tickets')
+        .select('*')
+        .or(`table_number.eq.${normTable},table_number.eq.${rawTable}`)
+        .order('created_at', { ascending: false });
+      if (tblTickets && tblTickets.length > 0) {
+        ticket = tblTickets.find((t: any) => t.status !== 'COMPLETED') || tblTickets[0];
+      }
     }
 
-    const currentStatus = ticket.status || 'NEW';
+    const currentStatus = ticket?.status || 'NEW';
     const transition = TICKET_TRANSITION[currentStatus] || { ticket: 'PREP', item: 'PREP' };
     const nextStatus = targetStatus || transition.ticket;
     const nextItemStage =
@@ -43,9 +54,16 @@ export async function POST(req: NextRequest) {
         ? 'PREP'
         : transition.item;
 
+    if (!ticket) {
+      return NextResponse.json(
+        { error: `Ticket ${ticketId} not found in database`, ticketId },
+        { status: 404 }
+      );
+    }
+
     const updatedTicketItems = (ticket.items || []).map((it: any) => ({
       ...it,
-      stage: nextItemStage,
+      stage: it.stage === 'SERVED' ? 'SERVED' : nextItemStage,
     }));
 
     // 2. Update ticket status & items
@@ -56,9 +74,9 @@ export async function POST(req: NextRequest) {
         items: updatedTicketItems,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', ticketId);
+      .eq('id', ticket.id || ticketId);
 
-    // 3. Update all associated line items in order_items table
+    // 3. Update all associated line items in order_items table (preserving SERVED)
     let updatedItemCount = updatedTicketItems.length;
     const nowIso = new Date().toISOString();
     if (ticket.order_id) {
@@ -69,6 +87,7 @@ export async function POST(req: NextRequest) {
           updated_at: nowIso,
         })
         .eq('order_id', ticket.order_id)
+        .neq('stage', 'SERVED')
         .select('*');
 
       if (updatedItems && updatedItems.length > 0) {

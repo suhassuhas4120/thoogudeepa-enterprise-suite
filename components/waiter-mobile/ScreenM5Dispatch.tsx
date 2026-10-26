@@ -69,7 +69,10 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
     const unservedItems = (tk.items || []).filter((it) => it.stage !== 'SERVED');
     if (unservedItems.length === 0) return;
 
-    const allReady = unservedItems.every((it) => it.stage === 'PLATED');
+    const allReady = unservedItems.every((it) => {
+      const s = String(it.stage || '').toUpperCase();
+      return s === 'PLATED' || s === 'READY';
+    });
 
     if (allReady) {
       readyNotifications.push({
@@ -89,7 +92,8 @@ export function ScreenM5Dispatch({ mode = 'CALLS', initialTab, onNavigateToTable
       });
     } else {
       unservedItems.forEach((it) => {
-        if (it.stage === 'PLATED') {
+        const s = String(it.stage || '').toUpperCase();
+        if (s === 'PLATED' || s === 'READY') {
           readyNotifications.push({
             type: 'SINGLE',
             id: `item-${tk.id}-${it.id}`,

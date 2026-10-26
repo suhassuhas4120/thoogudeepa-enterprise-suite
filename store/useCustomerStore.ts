@@ -437,8 +437,58 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     set((state) => {
       // Record payment in bridge → updates waiter shift stats + table to BILLING
       const bridge = useSharedBridge.getState();
+      const seat = state.seatNumber || 1;
+      const cleanTable = state.tableNumber.replace(/[^a-zA-Z0-9]/g, '');
+      const inv = state.payment.invoiceNumber || `INV-${cleanTable}-${Date.now().toString().slice(-4)}`;
+      const now = new Date();
+      const formattedDate = now.toLocaleDateString('en-IN', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      });
+      const formattedTime = now.toLocaleTimeString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+      });
+
+      const settledItems = state.payment.settledItems && state.payment.settledItems.length > 0
+        ? state.payment.settledItems
+        : state.cart.map((c) => ({
+            id: c.cartItemId,
+            name: c.menuItem.name,
+            quantity: c.quantity,
+            price: Math.round(c.totalPrice / (c.quantity || 1)),
+            totalPrice: c.totalPrice,
+            seatNumber: seat,
+          }));
+
+      const snapshot: SettledBillSnapshot = {
+        invoiceNumber: inv,
+        items: settledItems,
+        subtotal: state.payment.subtotal,
+        totalTax: state.payment.tax,
+        cgst: Math.round(state.payment.tax / 2),
+        sgst: state.payment.tax - Math.round(state.payment.tax / 2),
+        grandTotal: state.payment.totalAmount,
+        method: state.payment.paymentMethod || 'UPI',
+        cashTendered: state.payment.totalAmount,
+        cashChange: 0,
+        seatLabel: `Chair ${seat}`,
+        seatNumber: seat,
+        captainName: 'Floor Captain',
+        tableName: state.tableNumber,
+        section: 'Main Dining Hall',
+        guestCount: 1,
+        formattedDate,
+        formattedTime,
+        timestamp: Date.now(),
+      };
+
+      bridge.recordSettledBill(snapshot);
       bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount, state.seatNumber);
       bridge.waiterClearsChairAfterPayment(state.tableNumber, state.seatNumber);
+      bridge.waiterClearsSettlementSession(state.tableNumber, state.seatNumber);
 
       return {
         previousScreen: state.currentScreen,
@@ -447,6 +497,8 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         payment: {
           ...state.payment,
           transactionId: randomTxn,
+          invoiceNumber: inv,
+          settledItems,
         },
       };
     });

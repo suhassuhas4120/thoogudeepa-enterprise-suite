@@ -181,19 +181,45 @@ async function reconcileAllState(): Promise<void> {
       status: row.status,
       source: row.source,
       items: Array.isArray(row.items)
-        ? row.items.map((it) => ({
-            id: it.id || `it-${Math.random()}`,
-            name: it.name,
-            quantity: it.quantity,
-            stage: (it.stage as 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED') || 'PLACED',
-            prepMode: it.prepMode || '',
-            options: it.options,
-            addOns: (it as any).addOns || (it as any).add_ons || [],
-            seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
-              ? Number(it.seat_number || it.seatNumber || row.seat_number)
-              : undefined,
-            price: Number(it.price || it.unit_price || 0),
-          }))
+        ? row.items.map((it) => {
+            const rawStage = String(it.stage || '').toUpperCase();
+            // Monotonic advancement guard: do not regress stage if client has advanced it locally
+            const STAGE_RANK: Record<string, number> = {
+              PLACED: 1,
+              RECEIVED: 2,
+              PREP: 3,
+              PREPARING: 3,
+              COOKING: 3,
+              READY: 4,
+              PLATED: 4,
+              SERVED: 5,
+            };
+            const prevTk = bridge.kdsTickets.find((t) => t.id === row.id);
+            const prevIt = prevTk?.items.find((pi) => pi.id === it.id || (pi.name === it.name && (pi.seatNumber === undefined || it.seat_number === undefined || pi.seatNumber === Number(it.seat_number || it.seatNumber))));
+            const prevStage = prevIt ? String(prevIt.stage || '').toUpperCase() : '';
+            const prevRank = STAGE_RANK[prevStage] || 0;
+            const dbRank = STAGE_RANK[rawStage] || 0;
+            const resolvedStage: 'PLACED' | 'RECEIVED' | 'PREP' | 'PLATED' | 'SERVED' =
+              prevRank > dbRank
+                ? (prevStage === 'READY' ? 'PLATED' : (prevIt!.stage as any))
+                : rawStage === 'READY'
+                ? 'PLATED'
+                : (rawStage as any) || 'PLACED';
+
+            return {
+              id: it.id || `it-${Math.random()}`,
+              name: it.name,
+              quantity: it.quantity,
+              stage: resolvedStage,
+              prepMode: it.prepMode || '',
+              options: it.options,
+              addOns: (it as any).addOns || (it as any).add_ons || [],
+              seatNumber: (it.seat_number || it.seatNumber || row.seat_number)
+                ? Number(it.seat_number || it.seatNumber || row.seat_number)
+                : undefined,
+              price: Number(it.price || it.unit_price || 0),
+            };
+          })
         : [],
     }));
 
@@ -215,18 +241,19 @@ async function reconcileAllState(): Promise<void> {
       if (tk.status !== 'COMPLETED') {
         const list = itemsByTable.get(tk.tableNumber) || [];
         tk.items.forEach((it) => {
+          const sUpper = String(it.stage || '').toUpperCase();
           list.push({
             id: it.id,
             name: it.name,
             quantity: it.quantity,
             status:
-              it.stage === 'SERVED'
+              sUpper === 'SERVED'
                 ? 'Served'
-                : it.stage === 'PLATED'
+                : (sUpper === 'PLATED' || sUpper === 'READY')
                 ? 'Ready'
-                : it.stage === 'PREP'
+                : (sUpper === 'PREP' || sUpper === 'PREPARING' || sUpper === 'COOKING')
                 ? 'Cooking'
-                : it.stage === 'RECEIVED'
+                : sUpper === 'RECEIVED'
                 ? 'Received'
                 : 'Placed',
             options: it.options,
@@ -241,28 +268,43 @@ async function reconcileAllState(): Promise<void> {
 
     let mappedTables = bridge.tables;
     if (tables && tables.length > 0) {
+      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
       mappedTables = tables.map((row: DbTableRow) => {
+        const localTbl = bridge.tables.find((t) => cleanNum(t.number) === cleanNum(row.number));
         const tableActiveItems = itemsByTable.get(row.number) || [];
         const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
         const computedBill = activeItemsSum;
         const dbBill = Number(row.current_bill || 0);
-        const effectiveBill = dbBill > 0 ? dbBill : computedBill;
+        // Retain running bill: if KDS items exist, prefer max(computed, dbBill); if KDS tickets already served, retain dbBill
+        const effectiveBill = Math.max(dbBill, computedBill);
         const hasRunningBill = effectiveBill > 0;
-        const hasOrders = tableActiveItems.length > 0 || hasRunningBill || row.status === 'OCCUPIED' || row.status === 'BILLING';
+        const hasActiveKds = tableActiveItems.length > 0;
+        const isDbOccupied = row.status === 'OCCUPIED' || row.status === 'BILLING';
+        const isLocallySeated = Boolean(localTbl && localTbl.status === 'OCCUPIED' && (localTbl.guestCount || 0) > 0 && localTbl.seatedTime !== '--');
+
+        // A table is truly active if:
+        // 1. It has active KDS tickets or running bill > 0
+        // 2. OR it is actively seated with guests in DB or locally
+        const hasOrders = hasActiveKds || hasRunningBill;
+        const isTrulyActive = hasOrders || (isDbOccupied && ((row.guest_count ?? 0) > 0 || isLocallySeated));
+
+        const finalStatus: SharedTable['status'] = !isTrulyActive
+          ? 'VACANT'
+          : (row.status === 'BILLING' || localTbl?.status === 'BILLING' ? 'BILLING' : 'OCCUPIED');
 
         return {
           id: row.number,
           number: row.number,
-          section: row.section,
-          capacity: row.capacity,
-          status: hasOrders ? (row.status === 'BILLING' ? 'BILLING' : 'OCCUPIED') : (row.status || 'VACANT'),
-          guestCount: hasOrders ? (row.guest_count ?? 1) : 0,
-          seatedTime: '--',
-          currentBill: effectiveBill,
-          serverName: row.server_name || 'Floor Captain',
-          kotCount: hasOrders ? (row.kot_count ?? 1) : 0,
-          mergedWith: row.merged_with ?? undefined,
-          activeItems: tableActiveItems,
+          section: row.section || localTbl?.section || 'Express / Couple Hall',
+          capacity: row.capacity || localTbl?.capacity || 2,
+          status: finalStatus,
+          guestCount: finalStatus === 'VACANT' ? 0 : Math.max(1, row.guest_count ?? localTbl?.guestCount ?? 1),
+          seatedTime: localTbl?.seatedTime && localTbl.seatedTime !== '--' ? localTbl.seatedTime : (finalStatus !== 'VACANT' ? 'Just now' : '--'),
+          currentBill: finalStatus === 'VACANT' ? 0 : effectiveBill,
+          serverName: row.server_name || localTbl?.serverName || 'Floor Captain',
+          kotCount: finalStatus === 'VACANT' ? 0 : (row.kot_count ?? localTbl?.kotCount ?? (hasOrders ? 1 : 0)),
+          mergedWith: row.merged_with ?? localTbl?.mergedWith ?? undefined,
+          activeItems: finalStatus === 'VACANT' ? [] : (tableActiveItems.length > 0 ? tableActiveItems : (localTbl?.activeItems || [])),
         };
       });
     }
@@ -349,43 +391,126 @@ async function reconcileAllState(): Promise<void> {
       }
     });
 
-    useSharedBridge.setState((prev) => ({
-      tables: mappedTables,
-      kdsTickets: (() => {
-        const dbIds = new Set((mappedTickets || []).map((t) => t.id));
-        // Retain optimistic in-memory tickets created in the last 20 seconds that haven't hit DB yet
-        const pendingOptimistic = (prev.kdsTickets || []).filter((tk) => {
-          if (!tk || tk.status === 'COMPLETED') return false;
-          if (dbIds.has(tk.id)) return false;
-          return true;
-        });
-        return [...mappedTickets, ...pendingOptimistic];
-      })(),
-      inventory86: nextInventory,
-      pings: (() => {
-        const dbPingIds = new Set(nextPings.map((p) => p.id));
-        const pendingLocal = (prev.pings || []).filter(
-          (p) => p && p.status === 'PENDING' && !dbPingIds.has(p.id)
+    const nextTickets = (() => {
+      const dbIds = new Set((mappedTickets || []).map((t) => t.id));
+      const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const pendingOptimistic = (bridge.kdsTickets || []).filter((tk) => {
+        if (!tk || tk.status === 'COMPLETED') return false;
+        if (dbIds.has(tk.id)) return false;
+        const isDuplicate = mappedTickets.some((mt) =>
+          cleanNum(mt.tableNumber) === cleanNum(tk.tableNumber) &&
+          mt.items.length === tk.items.length &&
+          mt.items.every((mi) => tk.items.some((ti) => ti.name === mi.name && ti.quantity === mi.quantity))
         );
-        return [...nextPings, ...pendingLocal];
-      })(),
-      activeSettlementSessions: {
-        ...(prev.activeSettlementSessions || {}),
-        ...activeSessionsFromDb,
-      },
-      settledBills: (() => {
-        const merged: Record<string, any> = { ...settledBillsFromDb };
-        const prevBills = prev.settledBills || {};
-        const nowTs = Date.now();
-        // Only keep in-flight snapshots from memory if created in the last 4 seconds
-        Object.entries(prevBills).forEach(([k, v]) => {
-          if (v?.timestamp && Math.abs(nowTs - v.timestamp) < 4000 && !merged[k]) {
-            merged[k] = v;
-          }
+        if (isDuplicate) return false;
+        return true;
+      });
+      return [...mappedTickets, ...pendingOptimistic];
+    })();
+
+    const nextPingsList = (() => {
+      const dbPingIds = new Set(nextPings.map((p) => p.id));
+      const pendingLocal = (bridge.pings || []).filter(
+        (p) => p && p.status === 'PENDING' && !dbPingIds.has(p.id)
+      );
+      return [...nextPings, ...pendingLocal];
+    })();
+
+    const nextSettledBills = (() => {
+      const merged: Record<string, any> = { ...settledBillsFromDb };
+      const prevBills = bridge.settledBills || {};
+      const nowTs = Date.now();
+      // Only keep in-flight snapshots from memory if created in the last 4 seconds
+      Object.entries(prevBills).forEach(([k, v]) => {
+        if (v?.timestamp && Math.abs(nowTs - v.timestamp) < 4000 && !merged[k]) {
+          merged[k] = v;
+        }
+      });
+      return merged;
+    })();
+
+    useSharedBridge.setState((prev) => {
+      const tablesEqual =
+        prev.tables &&
+        prev.tables.length === mappedTables.length &&
+        mappedTables.every((mt, idx) => {
+          const pt = prev.tables[idx];
+          if (!pt) return false;
+          if (
+            pt.number !== mt.number ||
+            pt.status !== mt.status ||
+            pt.currentBill !== mt.currentBill ||
+            pt.guestCount !== mt.guestCount ||
+            pt.kotCount !== mt.kotCount ||
+            pt.mergedWith !== mt.mergedWith
+          ) return false;
+          const pItems = pt.activeItems || [];
+          const mItems = mt.activeItems || [];
+          if (pItems.length !== mItems.length) return false;
+          return pItems.every((pai, i) => {
+            const mai = mItems[i];
+            return mai && pai.id === mai.id && pai.status === mai.status && pai.quantity === mai.quantity;
+          });
         });
-        return merged;
-      })(),
-    }));
+
+      const ticketsEqual =
+        prev.kdsTickets &&
+        prev.kdsTickets.length === nextTickets.length &&
+        nextTickets.every((nt, idx) => {
+          const pt = prev.kdsTickets[idx];
+          if (!pt) return false;
+          if (
+            pt.id !== nt.id ||
+            pt.status !== nt.status ||
+            pt.tableNumber !== nt.tableNumber ||
+            pt.items.length !== nt.items.length
+          ) return false;
+          return pt.items.every((pi, i) => pi.stage === nt.items[i]?.stage);
+        });
+
+      const pingsEqual =
+        prev.pings &&
+        prev.pings.length === nextPingsList.length &&
+        nextPingsList.every((np, idx) => {
+          const pp = prev.pings[idx];
+          return pp && pp.id === np.id && pp.status === np.status;
+        });
+
+      const inventoryEqual =
+        prev.inventory86 &&
+        prev.inventory86.length === nextInventory.length &&
+        nextInventory.every((ni, idx) => {
+          const pi = prev.inventory86[idx];
+          return pi && pi.id === ni.id && pi.is86 === ni.is86;
+        });
+
+      const prevSessions = prev.activeSettlementSessions || {};
+      const prevSessionKeys = Object.keys(prevSessions);
+      const nextSessionKeys = Object.keys(activeSessionsFromDb);
+      const sessionsEqual =
+        prevSessionKeys.length === nextSessionKeys.length &&
+        nextSessionKeys.every((k) => prevSessions[k]?.tableNumber === activeSessionsFromDb[k]?.tableNumber);
+
+      const prevBills = prev.settledBills || {};
+      const prevBillKeys = Object.keys(prevBills);
+      const nextBillKeys = Object.keys(nextSettledBills);
+      const billsEqual =
+        prevBillKeys.length === nextBillKeys.length &&
+        nextBillKeys.every((k) => prevBills[k]?.timestamp === nextSettledBills[k]?.timestamp);
+
+      if (tablesEqual && ticketsEqual && pingsEqual && inventoryEqual && sessionsEqual && billsEqual) {
+        return prev;
+      }
+
+      return {
+        tables: tablesEqual ? prev.tables : mappedTables,
+        kdsTickets: ticketsEqual ? prev.kdsTickets : nextTickets,
+        pings: pingsEqual ? prev.pings : nextPingsList,
+        inventory86: inventoryEqual ? prev.inventory86 : nextInventory,
+        activeSettlementSessions: sessionsEqual ? prev.activeSettlementSessions : activeSessionsFromDb,
+        settledBills: billsEqual ? prev.settledBills : nextSettledBills,
+      };
+    });
   } catch (err) {
     console.error('[BridgeSync] Reconciliation error:', err);
   } finally {
@@ -410,34 +535,6 @@ export function useBridgeSync() {
     const channel = supabase
       .channel('bridge_global_sync')
 
-      // ── tables ────────────────────────────────────────────────────
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'tables' },
-        (payload) => {
-          const row = payload.new as DbTableRow | undefined;
-          if (!row || !row.number) {
-            // DELETE — run full reconcile to be safe
-            reconcileAllState();
-            return;
-          }
-          useSharedBridge.setState((state) => ({
-            tables: state.tables.map((t) =>
-              t.number === row.number
-                ? {
-                    ...t,
-                    status: row.status ?? t.status,
-                    guestCount: row.guest_count ?? t.guestCount,
-                    currentBill: Number(row.current_bill) || t.currentBill,
-                    serverName: row.server_name || t.serverName,
-                    kotCount: row.kot_count ?? t.kotCount,
-                    mergedWith: row.merged_with ?? undefined,
-                  }
-                : t
-            ),
-          }));
-        }
-      )
 
       // ── kds_tickets ───────────────────────────────────────────────
       .on(
@@ -585,16 +682,17 @@ export function useBridgeSync() {
                     activeItems: (tbl.activeItems || []).map((ai) => {
                       const matched = parsedItems.find((pi) => pi.id === ai.id);
                       if (!matched) return ai;
+                      const ms = String(matched.stage || '').toUpperCase();
                       return {
                         ...ai,
                         status:
-                          matched.stage === 'SERVED'
+                          ms === 'SERVED'
                             ? 'Served'
-                            : matched.stage === 'PLATED'
+                            : (ms === 'PLATED' || ms === 'READY')
                             ? 'Ready'
-                            : matched.stage === 'PREP'
+                            : (ms === 'PREP' || ms === 'PREPARING' || ms === 'COOKING')
                             ? 'Cooking'
-                            : matched.stage === 'RECEIVED'
+                            : ms === 'RECEIVED'
                             ? 'Received'
                             : 'Placed',
                       };
@@ -856,36 +954,74 @@ export function useBridgeSync() {
         { event: '*', schema: 'public', table: 'tables' },
         (payload) => {
           const row = payload.new as DbTableRow;
-          if (!row?.number) return;
+          if (!row?.number) {
+            reconcileAllState();
+            return;
+          }
           const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '');
 
           useSharedBridge.setState((state) => {
             const existingIdx = state.tables.findIndex(
               (t) => cleanNum(t.number) === cleanNum(row.number)
             );
+            const localTbl = existingIdx >= 0 ? state.tables[existingIdx] : undefined;
             const tableActiveItems = state.kdsTickets
               .filter((tk) => cleanNum(tk.tableNumber) === cleanNum(row.number) && tk.status !== 'COMPLETED')
-              .flatMap((tk) => (tk.items || []).filter((it) => it.stage !== 'SERVED'));
+              .flatMap((tk) =>
+                (tk.items || [])
+                  .map((it) => {
+                    const sUpper = (it.stage || '').toUpperCase();
+                    return {
+                      id: it.id,
+                      name: it.name,
+                      quantity: it.quantity,
+                      status:
+                        sUpper === 'SERVED'
+                          ? 'Served'
+                          : sUpper === 'PLATED' || sUpper === 'READY'
+                          ? 'Ready'
+                          : sUpper === 'PREP' || sUpper === 'PREPARING' || sUpper === 'COOKING'
+                          ? 'Cooking'
+                          : sUpper === 'RECEIVED'
+                          ? 'Received'
+                          : 'Placed',
+                      options: it.options,
+                      addOns: it.addOns || [],
+                      seatNumber: it.seatNumber,
+                      price: it.price,
+                    };
+                  })
+              );
 
             const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
             const computedBill = activeItemsSum;
             const dbBill = Number(row.current_bill || 0);
-            const effectiveBill = dbBill > 0 ? dbBill : computedBill;
-            const hasOrders = tableActiveItems.length > 0 || effectiveBill > 0 || row.status === 'OCCUPIED' || row.status === 'BILLING';
+            const effectiveBill = Math.max(dbBill, computedBill);
+            const hasRunningBill = effectiveBill > 0;
+            const hasActiveKds = tableActiveItems.length > 0;
+            const isDbOccupied = row.status === 'OCCUPIED' || row.status === 'BILLING';
+            const isLocallySeated = localTbl && localTbl.status === 'OCCUPIED' && (localTbl.guestCount || 0) > 0;
+
+            const hasOrders = hasActiveKds || hasRunningBill;
+            const isTrulyActive = hasOrders || (isDbOccupied && ((row.guest_count ?? 0) > 0 || isLocallySeated));
+
+            const finalStatus: SharedTable['status'] = !isTrulyActive
+              ? 'VACANT'
+              : (row.status === 'BILLING' || localTbl?.status === 'BILLING' ? 'BILLING' : 'OCCUPIED');
 
             const updatedTable: SharedTable = {
               id: row.number,
               number: row.number,
               section: row.section || (existingIdx >= 0 ? state.tables[existingIdx].section : 'Main AC Hall'),
               capacity: row.capacity || (existingIdx >= 0 ? state.tables[existingIdx].capacity : 4),
-              status: hasOrders ? (row.status === 'BILLING' ? 'BILLING' : 'OCCUPIED') : (row.status || 'VACANT'),
-              guestCount: hasOrders ? (row.guest_count ?? (existingIdx >= 0 ? state.tables[existingIdx].guestCount : 1)) : 0,
-              seatedTime: existingIdx >= 0 ? state.tables[existingIdx].seatedTime : '--',
-              currentBill: effectiveBill,
+              status: finalStatus,
+              guestCount: finalStatus === 'VACANT' ? 0 : Math.max(1, row.guest_count ?? (existingIdx >= 0 ? state.tables[existingIdx].guestCount : 1)),
+              seatedTime: existingIdx >= 0 && state.tables[existingIdx].seatedTime !== '--' ? state.tables[existingIdx].seatedTime : (finalStatus !== 'VACANT' ? 'Just now' : '--'),
+              currentBill: finalStatus === 'VACANT' ? 0 : effectiveBill,
               serverName: row.server_name || (existingIdx >= 0 ? state.tables[existingIdx].serverName : 'Floor Captain'),
-              kotCount: hasOrders ? (row.kot_count ?? (existingIdx >= 0 ? state.tables[existingIdx].kotCount : 1)) : 0,
+              kotCount: finalStatus === 'VACANT' ? 0 : (row.kot_count ?? (existingIdx >= 0 ? state.tables[existingIdx].kotCount : (hasOrders ? 1 : 0))),
               mergedWith: row.merged_with ?? undefined,
-              activeItems: existingIdx >= 0 ? state.tables[existingIdx].activeItems : [],
+              activeItems: finalStatus === 'VACANT' ? [] : (tableActiveItems.length > 0 ? tableActiveItems : (existingIdx >= 0 ? state.tables[existingIdx].activeItems : [])),
             };
 
             if (existingIdx >= 0) {
@@ -933,11 +1069,11 @@ export function useBridgeSync() {
     // 1. Initial reconciliation
     reconcileAllState();
 
-    // 2. High-frequency 1.5s background polling heartbeat
+    // 2. High-reliability background polling heartbeat (fallback for network drops)
     // Guarantees real-time synchronization on all devices, mobile browsers, cellular networks, and WiFis
     const pollInterval = setInterval(() => {
       reconcileAllState();
-    }, 1500);
+    }, 3000);
 
     // 3. Instantaneous peer-to-peer broadcast listener (<50ms response across devices)
     const broadcastCh = getSyncBroadcastChannel();

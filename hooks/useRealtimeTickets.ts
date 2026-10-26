@@ -42,7 +42,8 @@ export function deriveOverallStage(items: TrackedItem[]): ItemStage {
   return 'PLACED';
 }
 
-function parseSeatFromItemName(name: string): number | null {
+function parseSeatFromItemName(name?: string | null): number | null {
+  if (!name || typeof name !== 'string') return null;
   const match = name.match(/\[seat\s*(\d+)\]/i);
   return match ? parseInt(match[1], 10) : null;
 }

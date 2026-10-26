@@ -18,9 +18,10 @@ export const INITIAL_STAFF_ROSTER: StaffRosterMember[] = [
   { id: 'st-2', name: 'Captain Suresh', role: 'Floor Captain', assignedSection: 'SECTION B (Family AC)', tablesCount: 3, status: 'ACTIVE', phone: '+91 98450 22334', cashCollected: 3000, cashHandedOver: 2000 },
   { id: 'st-3', name: 'Captain Vijay', role: 'Floor Captain', assignedSection: 'SECTION C (Terrace VIP)', tablesCount: 1, status: 'ACTIVE', phone: '+91 98450 33445', cashCollected: 5200, cashHandedOver: 5200 },
   { id: 'st-4', name: 'Captain Nayana', role: 'Floor Captain', assignedSection: 'SECTION C (Terrace VIP)', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 77889', cashCollected: 0, cashHandedOver: 0 },
-  { id: 'st-5', name: 'Kiran K.', role: 'Senior Waiter', assignedSection: 'SECTION A', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 44556', cashCollected: 1200, cashHandedOver: 1200 },
-  { id: 'st-6', name: 'Anand R.', role: 'Waiter', assignedSection: 'SECTION B', tablesCount: 2, status: 'ON BREAK', phone: '+91 98450 55667', cashCollected: 850, cashHandedOver: 850 },
-  { id: 'st-7', name: 'Sunil G.', role: 'Busboy', assignedSection: 'ALL SECTIONS', tablesCount: 8, status: 'ACTIVE', phone: '+91 98450 66778', cashCollected: 0, cashHandedOver: 0 },
+  { id: 'st-5', name: 'Captain Vennela', role: 'Floor Captain', assignedSection: 'SECTION D (Express)', tablesCount: 4, status: 'ACTIVE', phone: '+91 98450 88990', cashCollected: 0, cashHandedOver: 0 },
+  { id: 'st-6', name: 'Kiran K.', role: 'Senior Waiter', assignedSection: 'SECTION A', tablesCount: 2, status: 'ACTIVE', phone: '+91 98450 44556', cashCollected: 1200, cashHandedOver: 1200 },
+  { id: 'st-7', name: 'Anand R.', role: 'Waiter', assignedSection: 'SECTION B', tablesCount: 2, status: 'ON BREAK', phone: '+91 98450 55667', cashCollected: 850, cashHandedOver: 850 },
+  { id: 'st-8', name: 'Sunil G.', role: 'Busboy', assignedSection: 'ALL SECTIONS', tablesCount: 8, status: 'ACTIVE', phone: '+91 98450 66778', cashCollected: 0, cashHandedOver: 0 },
 ];
 
 export const INITIAL_HARDWARE: HardwareDevice[] = [

@@ -56,7 +56,7 @@ export function MobileShiftModal({
   waiterName,
   assignedSection,
 }: Props) {
-  const { tables, kdsTickets, shiftStats } = useSharedBridge();
+  const { tables, kdsTickets, shiftStats, paidBillsHistory } = useSharedBridge();
 
   const currentSection = assignedSection || "ALL";
 
@@ -83,11 +83,27 @@ export function MobileShiftModal({
 
   const readyTickets = kdsTickets.filter((tk) => tk.status === "READY");
 
-  const shiftRevenue = shiftStats?.totalRevenue || 18450;
-  const shiftOrders = shiftStats?.tablesServed || 42;
-  const cashTotal = Math.round(shiftRevenue * 0.35);
-  const upiTotal = Math.round(shiftRevenue * 0.55);
-  const cardTotal = Math.round(shiftRevenue * 0.1);
+  const shiftRevenue = shiftStats?.totalRevenue ?? 0;
+  const shiftOrders = shiftStats?.tablesServed ?? 0;
+
+  let upiTotal = shiftStats?.upiRevenue ?? 0;
+  let cashTotal = shiftStats?.cashRevenue ?? 0;
+  let cardTotal = shiftStats?.cardRevenue ?? 0;
+
+  if (upiTotal === 0 && cashTotal === 0 && cardTotal === 0 && paidBillsHistory && paidBillsHistory.length > 0) {
+    paidBillsHistory.forEach((b) => {
+      const m = String(b.method || '').toUpperCase();
+      if (m === 'UPI') upiTotal += b.grandTotal || 0;
+      else if (m === 'CASH') cashTotal += b.grandTotal || 0;
+      else if (m === 'CARD') cardTotal += b.grandTotal || 0;
+    });
+  }
+
+  if (upiTotal === 0 && cashTotal === 0 && cardTotal === 0 && shiftRevenue > 0) {
+    upiTotal = Math.round(shiftRevenue * 0.6);
+    cashTotal = Math.round(shiftRevenue * 0.3);
+    cardTotal = shiftRevenue - upiTotal - cashTotal;
+  }
 
   return (
     <AnimatePresence>

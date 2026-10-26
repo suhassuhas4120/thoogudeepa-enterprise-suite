@@ -81,6 +81,7 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
   const occupiedChairsCount = Math.max(table.guestCount || 0, allOrderedItems.length > 0 ? 1 : 0);
 
   // Per chair breakdown helper
+  const anyChairHasSpecificOrders = allOrderedItems.some((i) => !!i.seatNumber);
   const getChairDue = (seat: number) => {
     if (isVacant || allOrderedItems.length === 0) return 0;
     const directItems = allOrderedItems.filter((i) => i.seatNumber === seat);
@@ -94,8 +95,10 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
           : 0;
       const totalSub = directSub + sharedPerPerson;
       return Math.round(totalSub * 1.05);
+    } else if (!anyChairHasSpecificOrders) {
+      return occupiedChairsCount > 0 ? Math.round(grandTotal / occupiedChairsCount) : 0;
     } else {
-      return occupiedChairsCount > 0 ? Math.round((grandTotal / occupiedChairsCount)) : 0;
+      return 0;
     }
   };
 

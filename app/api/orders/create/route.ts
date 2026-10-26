@@ -369,8 +369,18 @@ export async function POST(req: NextRequest) {
 
     // 2. Insert line items
     const lineItems = items.map((it: any, index: number) => {
-      const unitPrice = Number(it.unitPrice || it.price || 0);
-      const qty = Number(it.quantity || 1);
+      const canonical = INITIAL_MENU_ITEMS.find((m) => m.id === it.id || m.name.toLowerCase() === (it.name || '').toLowerCase());
+      const basePrice = canonical ? canonical.price : Number(it.unitPrice || it.price || 0);
+      let addOnCost = 0;
+      const effectiveAddOns = it.addOns || it.add_ons || [];
+      if (Array.isArray(effectiveAddOns) && canonical?.optionsGroup2?.addOns) {
+        for (const ao of effectiveAddOns) {
+          const aoRecord = canonical.optionsGroup2.addOns.find((a) => a.name === ao);
+          if (aoRecord) addOnCost += aoRecord.extraPrice;
+        }
+      }
+      const unitPrice = basePrice + addOnCost;
+      const qty = Math.max(1, Math.min(25, Number(it.quantity || 1)));
       const totalPrice = unitPrice * qty;
       const itemSeat = it.seat_number || it.seatNumber || seatNumber;
 

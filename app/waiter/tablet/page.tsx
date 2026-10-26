@@ -371,8 +371,8 @@ export default function WaiterTabletPage() {
     Boolean(
       currentTableObj &&
         (currentTableObj.status === "BILLING" ||
-          (currentTableObj.currentBill === 0 &&
-            (!currentTableObj.activeItems || currentTableObj.activeItems.length === 0)))
+          ((!currentTableObj.activeItems || currentTableObj.activeItems.length === 0) &&
+            currentTableObj.currentBill === 0))
     );
 
   const handleVacate = () => {

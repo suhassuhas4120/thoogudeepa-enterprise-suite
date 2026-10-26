@@ -53,7 +53,7 @@ export function TabletShiftModal({
   captainName,
   sectionName,
 }: Props) {
-  const { tables, kdsTickets, shiftStats } = useSharedBridge();
+  const { tables, kdsTickets, shiftStats, paidBillsHistory } = useSharedBridge();
   const { activeSection } = useWaiterStore();
 
   const currentSection = sectionName || activeSection || "Section A";
@@ -85,11 +85,27 @@ export function TabletShiftModal({
   // Ready food tickets waiting at pass
   const readyTickets = kdsTickets.filter((tk) => tk.status === "READY");
 
-  const shiftRevenue = shiftStats?.totalRevenue || 18450;
-  const shiftOrders = shiftStats?.tablesServed || 42;
-  const cashTotal = Math.round(shiftRevenue * 0.35);
-  const upiTotal = Math.round(shiftRevenue * 0.55);
-  const cardTotal = Math.round(shiftRevenue * 0.1);
+  const shiftRevenue = shiftStats?.totalRevenue ?? 0;
+  const shiftOrders = shiftStats?.tablesServed ?? 0;
+
+  let upiTotal = shiftStats?.upiRevenue ?? 0;
+  let cashTotal = shiftStats?.cashRevenue ?? 0;
+  let cardTotal = shiftStats?.cardRevenue ?? 0;
+
+  if (upiTotal === 0 && cashTotal === 0 && cardTotal === 0 && paidBillsHistory && paidBillsHistory.length > 0) {
+    paidBillsHistory.forEach((b) => {
+      const m = String(b.method || '').toUpperCase();
+      if (m === 'UPI') upiTotal += b.grandTotal || 0;
+      else if (m === 'CASH') cashTotal += b.grandTotal || 0;
+      else if (m === 'CARD') cardTotal += b.grandTotal || 0;
+    });
+  }
+
+  if (upiTotal === 0 && cashTotal === 0 && cardTotal === 0 && shiftRevenue > 0) {
+    upiTotal = Math.round(shiftRevenue * 0.6);
+    cashTotal = Math.round(shiftRevenue * 0.3);
+    cardTotal = shiftRevenue - upiTotal - cashTotal;
+  }
 
   const displaySectionTitle = formatSectionName(currentSection);
 
@@ -187,7 +203,7 @@ export function TabletShiftModal({
                         <span>UPI Digital</span>
                       </div>
                       <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                        {Math.round((upiTotal / shiftRevenue) * 100)}%
+                        {Math.round((upiTotal / (shiftRevenue || 1)) * 100)}%
                       </span>
                     </div>
                     <div className="text-lg font-black text-stone-900 mt-1.5 font-mono">
@@ -206,7 +222,7 @@ export function TabletShiftModal({
                         <span>Cash Drawer</span>
                       </div>
                       <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded">
-                        {Math.round((cashTotal / shiftRevenue) * 100)}%
+                        {Math.round((cashTotal / (shiftRevenue || 1)) * 100)}%
                       </span>
                     </div>
                     <div className="text-lg font-black text-stone-900 mt-1.5 font-mono">
@@ -225,7 +241,7 @@ export function TabletShiftModal({
                         <span>Card / EDC</span>
                       </div>
                       <span className="text-xs font-bold text-blue-700 bg-blue-50 px-1.5 py-0.5 rounded">
-                        {Math.round((cardTotal / shiftRevenue) * 100)}%
+                        {Math.round((cardTotal / (shiftRevenue || 1)) * 100)}%
                       </span>
                     </div>
                     <div className="text-lg font-black text-stone-900 mt-1.5 font-mono">

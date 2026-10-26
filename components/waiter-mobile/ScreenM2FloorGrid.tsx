@@ -76,8 +76,13 @@ function getOccupiedSeatsForTable(
   const isTableActive = table.status === 'OCCUPIED' || table.status === 'BILLING';
   const hasActiveTickets = matchingTickets.length > 0;
   const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
-  if (occupied.size === 0 && (hasActiveTickets || hasActiveItems || (isTableActive && (table.currentBill || 0) > 0))) {
-    occupied.add(1);
+  if (occupied.size === 0 && isTableActive) {
+    if (table.guestCount && table.guestCount > 0) {
+      const count = Math.min(capacity, table.guestCount);
+      for (let c = 1; c <= count; c++) occupied.add(c);
+    } else if (hasActiveTickets || hasActiveItems || (table.currentBill || 0) > 0) {
+      occupied.add(1);
+    }
   }
 
   return occupied;
@@ -351,7 +356,8 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       const rawBill = allMembers.reduce((s, t) => s + (t.currentBill || 0), 0);
       const rawBillWithTax = Math.round(rawBill * 1.05);
       const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : rawBillWithTax;
-      const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || allMembers.some((m) => m.status === 'OCCUPIED' || m.status === 'BILLING');
+      const isGroupSeated = allMembers.some((m) => (m.status === 'OCCUPIED' && (m.guestCount || 0) > 0) || m.status === 'BILLING');
+      const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || isGroupSeated;
       const effectiveStatus: SharedTable['status'] = hasOrders
         ? (primaryTbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
         : (primaryTbl.status === 'CLEANING' ? 'CLEANING' : 'VACANT');
@@ -402,9 +408,11 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
       );
       const ticketBillWithTax = Math.round(ticketTotal * 1.05);
       const totalBill = ticketBillWithTax > 0 ? ticketBillWithTax : Math.round((tbl.currentBill || 0) * 1.05);
-      const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || tbl.status === 'OCCUPIED' || tbl.status === 'BILLING';
+      const isSeatedWithGuests = tbl.status === 'OCCUPIED' && (tbl.guestCount || 0) > 0;
+      const isBilling = tbl.status === 'BILLING';
+      const hasOrders = totalBill > 0 || totalItemsPlaced > 0 || occupiedChairs > 0 || matchingTickets.length > 0 || isSeatedWithGuests || isBilling;
       const effectiveStatus: SharedTable['status'] = hasOrders
-        ? (tbl.status === 'BILLING' ? 'BILLING' : 'OCCUPIED')
+        ? (isBilling ? 'BILLING' : 'OCCUPIED')
         : (tbl.status === 'CLEANING' ? 'CLEANING' : 'VACANT');
 
       const hasPing = urgentPingTables.has(tbl.number);
@@ -689,9 +697,10 @@ export function ScreenM2FloorGrid({ waiterName, assignedSection, onSelectTable, 
             let recItemsCount = 0;
             tableTickets.forEach((tk) => {
               (tk.items || []).forEach((it) => {
-                if (it.stage === 'PLATED') readyItemsCount += it.quantity;
-                else if (it.stage === 'PREP') prepItemsCount += it.quantity;
-                else if (it.stage === 'RECEIVED') recItemsCount += it.quantity;
+                const st = String(it.stage || '').toUpperCase();
+                if (st === 'PLATED' || st === 'READY') readyItemsCount += it.quantity;
+                else if (st === 'PREP' || st === 'PREPARING' || st === 'COOKING') prepItemsCount += it.quantity;
+                else if (st === 'RECEIVED') recItemsCount += it.quantity;
               });
             });
 

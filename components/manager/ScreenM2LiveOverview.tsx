@@ -195,7 +195,7 @@ export function ScreenM2LiveOverview() {
                       isOcc ? 'text-white' : isBill ? 'text-amber-900' : 'text-slate-800'
                     }`}
                   >
-                    {isOcc || isBill ? `₹ ${Math.round(tbl.currentBill * 1.05)}` : 'VACANT'}
+                    {isOcc || isBill ? (tbl.currentBill > 0 ? `₹ ${Math.round(tbl.currentBill * 1.05)}` : (tbl.kotCount > 0 ? 'KOT PLACED' : 'SEATED')) : 'VACANT'}
                   </div>
                   {isOcc && (
                     <div className="text-[10px] mt-0.5 truncate text-white/80 font-bold">

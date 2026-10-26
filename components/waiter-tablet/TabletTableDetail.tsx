@@ -53,21 +53,15 @@ function statusBadge(status: SharedTable['status']) {
 }
 
 function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) {
-  if (stage === 'Received' || stage === 'RECEIVED') {
+  const s = String(stage || '').trim().toUpperCase();
+  if (s === 'SERVED') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
-        Received
+      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
+        <span>Served</span>
       </span>
     );
   }
-  if (stage === 'Cooking' || stage === 'PREP' || stage === 'Preparing') {
-    return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-        Preparing
-      </span>
-    );
-  }
-  if (stage === 'Ready' || stage === 'PLATED') {
+  if (s === 'READY' || s === 'PLATED') {
     return (
       <motion.button
         type="button"
@@ -83,10 +77,17 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
       </motion.button>
     );
   }
-  if (stage === 'Served' || stage === 'SERVED') {
+  if (s === 'COOKING' || s === 'PREP' || s === 'PREPARING') {
     return (
-      <span className="px-2 py-0.5 rounded-md font-bold uppercase text-[8.5px] bg-stone-100 text-stone-400 border border-stone-300 line-through inline-flex items-center gap-1 shadow-none">
-        <span>Served</span>
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
+        Preparing
+      </span>
+    );
+  }
+  if (s === 'RECEIVED') {
+    return (
+      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
+        Received
       </span>
     );
   }
@@ -183,17 +184,30 @@ export function TabletTableDetail({
       tableNum: tk.tableNumber,
     }))
   );
-  const firedFromActive = (table.activeItems || []).map((item) => ({
-    id: item.id || `active-${item.name}`,
-    name: item.name,
-    quantity: item.quantity,
-    stage: ((item as any).stage || (item.status === 'Served' ? 'SERVED' : 'PREP')) as OrderStage,
-    prepMode: (item as any).prepMode || 'Standard',
-    options: item.options,
-    seatNumber: item.seatNumber || (item as any).seat_number || 1,
-    price: item.price || (item as any).unitPrice || 0,
-    tableNum: tableNum,
-  }));
+  const firedFromActive = (table.activeItems || []).map((item) => {
+    const rawSt = String((item as any).stage || item.status || '').toUpperCase();
+    const resolvedStage: OrderStage =
+      rawSt === 'SERVED'
+        ? 'SERVED'
+        : rawSt === 'READY' || rawSt === 'PLATED'
+        ? 'PLATED'
+        : rawSt === 'COOKING' || rawSt === 'PREP' || rawSt === 'PREPARING'
+        ? 'PREP'
+        : rawSt === 'RECEIVED'
+        ? 'RECEIVED'
+        : 'PLACED';
+    return {
+      id: item.id || `active-${item.name}`,
+      name: item.name,
+      quantity: item.quantity,
+      stage: resolvedStage,
+      prepMode: (item as any).prepMode || 'Standard',
+      options: item.options,
+      seatNumber: item.seatNumber || (item as any).seat_number || 1,
+      price: item.price || (item as any).unitPrice || 0,
+      tableNum: tableNum,
+    };
+  });
   const allItems = firedFromTickets.length > 0 ? firedFromTickets : firedFromActive;
 
   const allFiredItems = allItems;
@@ -226,7 +240,9 @@ export function TabletTableDetail({
     .filter((t) => cleanPeersSet.has(cleanTableNum(t.number)))
     .reduce((s, t) => s + (t.currentBill || 0), 0);
   const baseFiredSubtotal = Math.max(groupCurrentBill, firedSubtotal);
-  const totalTableBill = Math.round(baseFiredSubtotal * 1.05) + Math.round(allTableDraftSubtotal * 1.05);
+  const totalTableBill = allItems.length > 0 || allTableDraftSubtotal > 0
+    ? Math.round(baseFiredSubtotal * 1.05) + Math.round(allTableDraftSubtotal * 1.05)
+    : 0;
 
   // Selected chair's target seats
   const targetSeats: number[] =
@@ -263,14 +279,7 @@ export function TabletTableDetail({
     const chairFiredSub = displayItems.reduce((s, it) => s + (it.price || 0) * it.quantity, 0);
     const chairSubtotal = chairFiredSub + draftSubtotal;
     const chairTotal = Math.round(chairSubtotal * 1.05);
-    if (chairTotal > 0) {
-      targetChairBill = chairTotal;
-    } else if (totalTableBill > 0 && allItems.length === 0 && allTableDraftSubtotal === 0) {
-      const guestCount = Math.max(1, table.guestCount || totalCapacity);
-      targetChairBill = Math.round(totalTableBill / guestCount);
-    } else {
-      targetChairBill = 0;
-    }
+    targetChairBill = chairTotal;
   }
 
   // Check if customer has requested payment via captain
@@ -323,7 +332,7 @@ export function TabletTableDetail({
   }, [tickets, activePanelTab, pings, activeSettlementSessions, peerNums, normTable, targetTblNum, selectedChair, mergedSeatGroups, table.status, table.activeItems]);
 
   const hasBillAmount = targetChairBill > 0 || (selectedChair === 'ALL' && totalTableBill > 0);
-  const isSettleDisabled = !hasBillAmount || !isPaymentRequested;
+  const isSettleDisabled = !hasBillAmount;
 
   const handleConfirmMergeSelectedChairs = () => {
     if (chairsSelectedForMerge.length < 2) return;
@@ -635,7 +644,7 @@ export function TabletTableDetail({
             const hasItems = allItems.some((it) => it.seatNumber === ch);
             const hasDraft = allTableDraftItems.some((c) => c.seatNumber === ch);
             const hasReady = allItems.some(
-              (it) => it.seatNumber === ch && it.stage === 'PLATED'
+              (it) => it.seatNumber === ch && (it.stage === 'PLATED' || (it.stage as string) === 'READY')
             );
             const isSelected = selectedChair === ch;
             const isDragTarget = dragOverTarget === ch;
@@ -891,109 +900,190 @@ export function TabletTableDetail({
         )}
 
         {!isVacant && displayItems.length > 0 && (
-          tickets.map((tk, tkIdx) => {
-            const tkItems = tk.items.filter((it) => {
-              if (selectedChair === 'ALL') return true;
-              if (typeof selectedChair === 'number') return it.seatNumber === selectedChair;
-              if (targetSeats.length > 0) return it.seatNumber && targetSeats.includes(it.seatNumber);
-              return false;
-            });
-            if (tkItems.length === 0) return null;
+          tickets.length > 0 ? (
+            tickets.map((tk, tkIdx) => {
+              const tkItems = tk.items.filter((it) => {
+                if (selectedChair === 'ALL') return true;
+                const itemSeat = it.seatNumber ?? tk.seatNumber ?? 1;
+                if (typeof selectedChair === 'number') return itemSeat === selectedChair;
+                if (targetSeats.length > 0) return targetSeats.includes(itemSeat);
+                return false;
+              });
+              if (tkItems.length === 0) return null;
 
-            const isAllServed = tk.items.length > 0 && tk.items.every((i) => i.stage === 'SERVED' || (i.stage as string) === 'Served');
+              const isAllServed =
+                tk.items.length > 0 &&
+                tk.items.every(
+                  (i) =>
+                    i.stage === 'SERVED' ||
+                    (i.stage as string) === 'Served' ||
+                    table.activeItems?.some((ai) => (ai.id === i.id || ai.name === i.name) && ai.status === 'Served')
+                );
 
-            return (
-              <div
-                key={tk.id ? `${tk.id}-${tkIdx}` : `kot-${tkIdx}`}
-                className={`space-y-2 p-3.5 rounded-2xl border-2 transition ${
-                  isAllServed ? 'bg-stone-50/70 border-stone-200' : 'bg-white border-stone-200'
-                }`}
-              >
-                {/* KOT Header */}
-                <div className="flex items-center justify-between pb-2 border-b border-stone-200">
-                  <div className="flex items-center gap-2">
-                    <Flame className={`h-4 w-4 stroke-[2.4] ${isAllServed ? 'text-stone-400' : 'text-orange-600'}`} />
-                    <span className="font-mono text-xs font-black text-stone-900 uppercase tracking-wider">
-                      KOT #{tk.id ? tk.id.slice(-4) : String(tkIdx + 1)} · {tk.timestamp}
-                    </span>
+              return (
+                <div
+                  key={tk.id ? `${tk.id}-${tkIdx}` : `kot-${tkIdx}`}
+                  className={`space-y-2 p-3.5 rounded-2xl border-2 transition ${
+                    isAllServed ? 'bg-stone-50/70 border-stone-200' : 'bg-white border-stone-200'
+                  }`}
+                >
+                  {/* KOT Header */}
+                  <div className="flex items-center justify-between pb-2 border-b border-stone-200">
+                    <div className="flex items-center gap-2">
+                      <Flame className={`h-4 w-4 stroke-[2.4] ${isAllServed ? 'text-stone-400' : 'text-orange-600'}`} />
+                      <span className="font-mono text-xs font-black text-stone-900 uppercase tracking-wider">
+                        KOT #{tk.id ? tk.id.slice(-4) : String(tkIdx + 1)} · {tk.timestamp}
+                      </span>
+                    </div>
+                    {(isAllServed || tk.status === 'COMPLETED' || tk.status === 'SERVED') && (
+                      <span className="px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300">
+                        SERVED
+                      </span>
+                    )}
                   </div>
-                  {(isAllServed || tk.status === 'COMPLETED' || tk.status === 'SERVED') && (
-                    <span className="px-2 py-0.5 rounded-lg border text-[10px] font-black font-mono uppercase tracking-wider text-emerald-800 bg-emerald-100 border-emerald-300">
-                      SERVED
-                    </span>
-                  )}
-                </div>
 
-                {tkItems.map((item) => {
-                  const isServed = item.stage === 'SERVED' || (item.stage as string) === 'Served';
-                  return (
-                    <div
-                      key={item.id}
-                      className={`flex items-center justify-between py-2 border-b border-stone-100 last:border-0 transition ${
-                        isServed ? 'opacity-60' : ''
-                      }`}
-                    >
-                      <div className="min-w-0 flex-1 pr-2">
-                        <div className="flex items-center gap-2">
-                          <p
-                            className={`text-[14px] font-black leading-tight antialiased ${
-                              isServed ? 'line-through text-stone-400' : 'text-stone-950'
-                            }`}
-                          >
-                            {item.name}
-                          </p>
-                          {item.seatNumber && (
-                            <span
-                              className={`text-[9.5px] font-black font-mono px-1.5 py-0.5 rounded border ${
-                                isServed
-                                  ? 'bg-stone-100 text-stone-400 border-stone-200'
-                                  : 'bg-amber-100 text-amber-900 border-amber-200'
+                  {tkItems.map((item) => {
+                    const isServed =
+                      item.stage === 'SERVED' ||
+                      (item.stage as string) === 'Served' ||
+                      table.activeItems?.some((ai) => (ai.id === item.id || ai.name === item.name) && ai.status === 'Served');
+                    return (
+                      <div
+                        key={item.id}
+                        className={`flex items-center justify-between py-2 border-b border-stone-100 last:border-0 transition ${
+                          isServed ? 'opacity-60' : ''
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1 pr-2">
+                          <div className="flex items-center gap-2">
+                            <p
+                              className={`text-[14px] font-black leading-tight antialiased ${
+                                isServed ? 'line-through text-stone-400' : 'text-stone-950'
                               }`}
                             >
-                              Chair {item.seatNumber}
-                            </span>
+                              {item.name}
+                            </p>
+                            {(item.seatNumber || tk.seatNumber) && (
+                              <span
+                                className={`text-[9.5px] font-black font-mono px-1.5 py-0.5 rounded border ${
+                                  isServed
+                                    ? 'bg-stone-100 text-stone-400 border-stone-200'
+                                    : 'bg-amber-100 text-amber-900 border-amber-200'
+                                }`}
+                              >
+                                Chair {item.seatNumber || tk.seatNumber}
+                              </span>
+                            )}
+                          </div>
+                          {item.options && (
+                            <p
+                              className={`text-[10px] font-mono mt-0.5 ${
+                                isServed ? 'text-stone-400' : 'text-stone-500'
+                              }`}
+                            >
+                              {item.options}
+                            </p>
                           )}
                         </div>
-                        {item.options && (
-                          <p
-                            className={`text-[10px] font-mono mt-0.5 ${
-                              isServed ? 'text-stone-400' : 'text-stone-500'
+                        <div className="flex items-center gap-2.5 shrink-0 font-mono">
+                          <span
+                            className={`text-xs font-black px-2 py-1 rounded-lg ${
+                              isServed
+                                ? 'text-stone-400 bg-stone-100 border border-stone-200'
+                                : 'text-stone-700 bg-stone-100'
                             }`}
                           >
-                            {item.options}
-                          </p>
-                        )}
+                            ×{item.quantity}
+                          </span>
+                          {item.price !== undefined && (
+                            <span
+                              className={`text-xs font-black ${
+                                isServed ? 'line-through text-stone-400' : 'text-[#9C3D1E]'
+                              }`}
+                            >
+                              ₹{item.price * item.quantity}
+                            </span>
+                          )}
+                          <StagePill
+                            stage={isServed ? 'SERVED' : item.stage}
+                            onServe={() => waiterMarkKitchenItemServed(tk.id, item.id)}
+                          />
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2.5 shrink-0 font-mono">
-                        <span
-                          className={`text-xs font-black px-2 py-1 rounded-lg ${
-                            isServed
-                              ? 'text-stone-400 bg-stone-100 border border-stone-200'
-                              : 'text-stone-700 bg-stone-100'
+                    );
+                  })}
+                </div>
+              );
+            })
+          ) : (
+            <div className="space-y-2 p-3.5 rounded-2xl border-2 bg-white border-stone-200">
+              <div className="flex items-center justify-between pb-2 border-b border-stone-200">
+                <div className="flex items-center gap-2">
+                  <Flame className="h-4 w-4 stroke-[2.4] text-orange-600" />
+                  <span className="font-mono text-xs font-black text-stone-900 uppercase tracking-wider">
+                    Table Order · Active
+                  </span>
+                </div>
+              </div>
+              {displayItems.map((item) => {
+                const isServed = item.stage === 'SERVED' || (item.stage as string) === 'Served';
+                return (
+                  <div
+                    key={item.id}
+                    className={`flex items-center justify-between py-2 border-b border-stone-100 last:border-0 transition ${
+                      isServed ? 'opacity-60' : ''
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1 pr-2">
+                      <div className="flex items-center gap-2">
+                        <p
+                          className={`text-[14px] font-black leading-tight antialiased ${
+                            isServed ? 'line-through text-stone-400' : 'text-stone-950'
                           }`}
                         >
-                          ×{item.quantity}
-                        </span>
-                        {item.price !== undefined && (
+                          {item.name}
+                        </p>
+                        {item.seatNumber && (
                           <span
-                            className={`text-xs font-black ${
-                              isServed ? 'line-through text-stone-400' : 'text-[#9C3D1E]'
+                            className={`text-[9.5px] font-black font-mono px-1.5 py-0.5 rounded border ${
+                              isServed
+                                ? 'bg-stone-100 text-stone-400 border-stone-200'
+                                : 'bg-amber-100 text-amber-900 border-amber-200'
                             }`}
                           >
-                            ₹{item.price * item.quantity}
+                            Chair {item.seatNumber}
                           </span>
                         )}
-                        <StagePill
-                          stage={item.stage}
-                          onServe={() => waiterMarkKitchenItemServed(tk.id, item.id)}
-                        />
                       </div>
+                      {item.options && (
+                        <p className={`text-[10px] font-mono mt-0.5 ${isServed ? 'text-stone-400' : 'text-stone-500'}`}>
+                          {item.options}
+                        </p>
+                      )}
                     </div>
-                  );
-                })}
-              </div>
-            );
-          })
+                    <div className="flex items-center gap-2.5 shrink-0 font-mono">
+                      <span
+                        className={`text-xs font-black px-2 py-1 rounded-lg ${
+                          isServed ? 'text-stone-400 bg-stone-100 border border-stone-200' : 'text-stone-700 bg-stone-100'
+                        }`}
+                      >
+                        ×{item.quantity}
+                      </span>
+                      {item.price !== undefined && (
+                        <span className={`text-xs font-black ${isServed ? 'line-through text-stone-400' : 'text-[#9C3D1E]'}`}>
+                          ₹{item.price * item.quantity}
+                        </span>
+                      )}
+                      <StagePill
+                        stage={item.stage}
+                        onServe={() => waiterMarkKitchenItemServed('tbl-direct', item.id)}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )
         )}
       </div>
 
@@ -1036,8 +1126,6 @@ export function TabletTableDetail({
                   ? 'Payment panel open'
                   : !hasBillAmount
                   ? 'No orders to settle'
-                  : !isPaymentRequested
-                  ? 'Payment disabled: Customer must tap "Call Captain for Bill/Payment" on their device first'
                   : `Settle ${selectedChair === 'ALL' ? 'Bill' : chairLabel}`
               }
               className={`min-h-[46px] rounded-xl flex items-center justify-center gap-1.5 transition-all duration-150 border-0 ${
@@ -1045,15 +1133,19 @@ export function TabletTableDetail({
                   ? 'bg-emerald-700 text-white shadow-xs'
                   : isSettleDisabled
                   ? 'bg-stone-200 text-stone-400 cursor-not-allowed shadow-none'
-                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs animate-pulse'
+                  : isPaymentRequested
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs animate-pulse'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer active:scale-98 shadow-xs'
               }`}
             >
               <CreditCard className="h-4 w-4 stroke-[2.4]" />
               <span>
                 {activePanelTab === 'payment'
                   ? 'In Settlement'
-                  : hasBillAmount && !isPaymentRequested
-                  ? 'Awaiting Payment Call'
+                  : !hasBillAmount
+                  ? 'No Bill Due'
+                  : isPaymentRequested
+                  ? `Settle ${selectedChair === 'ALL' ? 'Bill' : chairLabel} (Requested)`
                   : `Settle ${selectedChair === 'ALL' ? 'Bill' : chairLabel}`}
               </span>
             </button>

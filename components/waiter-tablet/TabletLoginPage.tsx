@@ -19,19 +19,19 @@ interface Props {
   onLogin: (captainName: string, section?: string) => void;
 }
 
-// Ready Steward Names starting with Section A Shiva, then Manja, Suhas, Nayana
+// Canonical Steward Names consistent with Mobile (1111: Ramesh, 2222: Suresh, 3333: Nayana, 4444: Vennela)
 const QUICK_STEWARDS = [
-  { name: 'Shiva', sec: 'Section A' },
-  { name: 'Manja', sec: 'Section B' },
-  { name: 'Suhas', sec: 'Section C' },
-  { name: 'Nayana', sec: 'Section D' },
+  { name: 'Ramesh', sec: 'Section A' },
+  { name: 'Suresh', sec: 'Section B' },
+  { name: 'Nayana', sec: 'Section C' },
+  { name: 'Vennela', sec: 'Section D' },
 ];
 
 const PIN_STEWARD_MAP: Record<string, { name: string; sec: string }> = {
-  '1111': { name: 'Shiva', sec: 'Section A' },
-  '2222': { name: 'Manja', sec: 'Section B' },
-  '3333': { name: 'Suhas', sec: 'Section C' },
-  '4444': { name: 'Nayana', sec: 'Section D' },
+  '1111': { name: 'Ramesh', sec: 'Section A' },
+  '2222': { name: 'Suresh', sec: 'Section B' },
+  '3333': { name: 'Nayana', sec: 'Section C' },
+  '4444': { name: 'Vennela', sec: 'Section D' },
 };
 
 const SECTIONS = [
@@ -225,7 +225,7 @@ export function TabletLoginPage({ onLogin }: Props) {
               </span>
             </div>
 
-            {/* Quick Name Pills (Shiva, Manja, Suhas, Nayana) */}
+            {/* Quick Name Pills (Ramesh, Suresh, Nayana, Vennela) */}
             <div className="grid grid-cols-4 gap-2">
               {QUICK_STEWARDS.map((st) => {
                 const isSelected = waiterName.toLowerCase() === st.name.toLowerCase();

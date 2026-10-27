@@ -54,17 +54,22 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
       });
     });
 
-    if (allOrderedItems.length === 0 && table.activeItems && table.activeItems.length > 0) {
+    const seenIds = new Set(allOrderedItems.map((i) => i.id));
+    if (table.activeItems && table.activeItems.length > 0) {
       table.activeItems.forEach((ai, idx) => {
-        const unitPrice = ai.price && ai.price > 0 ? ai.price : 220;
-        allOrderedItems.push({
-          id: ai.id || `ai-${idx}`,
-          name: ai.name,
-          quantity: ai.quantity,
-          price: unitPrice,
-          totalPrice: unitPrice * ai.quantity,
-          seatNumber: ai.seatNumber,
-        });
+        const id = ai.id || `ai-${idx}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          const unitPrice = ai.price && ai.price > 0 ? ai.price : 220;
+          allOrderedItems.push({
+            id,
+            name: ai.name,
+            quantity: ai.quantity,
+            price: unitPrice,
+            totalPrice: unitPrice * ai.quantity,
+            seatNumber: ai.seatNumber,
+          });
+        }
       });
     }
   }

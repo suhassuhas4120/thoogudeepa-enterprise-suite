@@ -188,8 +188,9 @@ export function ScreenM6Settlement({
       });
     });
 
-    // Only fall back to table.activeItems if tickets list is empty (avoids double counting)
-    if (list.length === 0 && table?.activeItems && table.activeItems.length > 0) {
+    // Supplement with items from table.activeItems that are not already present in tickets
+    // (e.g. items from earlier completed tickets that were already served on this table)
+    if (table?.activeItems && table.activeItems.length > 0) {
       table.activeItems.forEach((ai, idx) => {
         const id = ai.id || `ai-${idx}`;
         if (!seenIds.has(id)) {
@@ -254,7 +255,9 @@ export function ScreenM6Settlement({
 
   // Subtotal and tax calculations
   const { subtotal, totalTax, grandTotal, cgst, sgst } = useMemo(() => {
-    if (splitAmount && splitAmount > 0) {
+    // Split persons mode (e.g. "Person 1 of 3") splits the whole table without chair scoping
+    const isPersonSplit = Boolean(splitLabel && /person/i.test(splitLabel));
+    if (isPersonSplit && splitAmount && splitAmount > 0) {
       const calcSub = Math.round(splitAmount / 1.05);
       const calcTax = splitAmount - calcSub;
       return {
@@ -273,6 +276,18 @@ export function ScreenM6Settlement({
         subtotal: displayedItemsSum,
         totalTax: calcTax,
         grandTotal: calcGrand,
+        cgst: calcTax / 2,
+        sgst: calcTax / 2,
+      };
+    }
+
+    if (splitAmount && splitAmount > 0) {
+      const calcSub = Math.round(splitAmount / 1.05);
+      const calcTax = splitAmount - calcSub;
+      return {
+        subtotal: calcSub,
+        totalTax: calcTax,
+        grandTotal: splitAmount,
         cgst: calcTax / 2,
         sgst: calcTax / 2,
       };

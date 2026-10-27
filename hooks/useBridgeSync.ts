@@ -32,6 +32,7 @@ import { useSharedBridge, cleanTableNum, type SharedTable } from '../store/useSh
 import { useCustomerStore } from '../store/useCustomerStore';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { isPingLocallyResolved, markPingLocallyResolved } from '../lib/settlementStore';
+import { INITIAL_MENU_ITEMS } from '../data/menuItems';
 export { markPingLocallyResolved, isPingLocallyResolved };
 
 // ── Supabase row shapes (only fields we need) ────────────────────────
@@ -99,7 +100,8 @@ function computeStateFingerprint(
   tickets: DbKdsTicketRow[] | null,
   tables: DbTableRow[] | null,
   menu86: DbMenu86Row[] | null,
-  pings: DbPingRow[] | null
+  pings: DbPingRow[] | null,
+  unpaidOrders?: any[] | null
 ): string {
   const tkPart = (tickets || [])
     .map((t) => `${t.id}:${t.status}:${t.table_number}:${(t.items || []).map((i: any) => `${i.id}-${i.stage}-${i.quantity}`).join(',')}`)
@@ -113,7 +115,10 @@ function computeStateFingerprint(
   const pingSig = (pings || [])
     .map((p) => `${p.id}:${p.status}:${p.type}:${p.message || ''}`)
     .join('|');
-  return `${tkPart}#${tblPart}#${m86Part}#${pingSig}`;
+  const ordSig = (unpaidOrders || [])
+    .map((o) => `${o.id}:${o.table_number}:${o.seat_number}:${o.subtotal || o.total}:${(o.items || []).length}`)
+    .join('|');
+  return `${tkPart}#${tblPart}#${m86Part}#${pingSig}#${ordSig}`;
 }
 
 /**
@@ -151,16 +156,18 @@ async function reconcileAllState(): Promise<void> {
       { data: tables },
       { data: menu86 },
       { data: pings },
+      { data: unpaidOrders },
     ] = await Promise.all([
       supabase.from('kds_tickets').select('*').neq('status', 'COMPLETED').order('created_at', { ascending: true }),
       supabase.from('tables').select('*').order('number', { ascending: true }),
       supabase.from('menu_86').select('*').order('name', { ascending: true }),
       supabase.from('pings').select('*').order('created_at', { ascending: true }),
+      supabase.from('orders').select('id, table_number, seat_number, items, subtotal, tax, total, status, created_at').eq('status', 'UNPAID').order('created_at', { ascending: true }),
     ]);
 
     // Skip setState if database data is completely identical
-    const fingerprint = computeStateFingerprint(tickets, tables, menu86, pings);
-    if (fingerprint === lastStateFingerprint && bridge.kdsTickets.length > 0) {
+    const fingerprint = computeStateFingerprint(tickets, tables, menu86, pings, unpaidOrders);
+    if (fingerprint === lastStateFingerprint && (bridge.kdsTickets.length > 0 || (tickets || []).length === 0)) {
       return;
     }
     lastStateFingerprint = fingerprint;
@@ -223,7 +230,7 @@ async function reconcileAllState(): Promise<void> {
         : [],
     }));
 
-    // Group active items by table number
+    // Group active items by table number (unpaid orders + active KDS tickets + local items)
     const itemsByTable = new Map<
       string,
       Array<{
@@ -237,32 +244,109 @@ async function reconcileAllState(): Promise<void> {
         price?: number;
       }>
     >();
+    const seenItemIdsByTable = new Map<string, Set<string>>();
+
+    // 1. Unpaid orders represent the complete persistent dining session items for active tables
+    (unpaidOrders || []).forEach((ord: any) => {
+      const tKey = cleanTableNum(ord.table_number);
+      const list = itemsByTable.get(tKey) || [];
+      const seen = seenItemIdsByTable.get(tKey) || new Set<string>();
+
+      (ord.items || []).forEach((it: any, idx: number) => {
+        const id = it.id || `${ord.id}-it-${idx}`;
+        if (!seen.has(id)) {
+          seen.add(id);
+          const rawStage = String(it.stage || '').toUpperCase();
+          const fallbackPrice =
+            INITIAL_MENU_ITEMS.find((m) => m.id === it.id || m.name?.toLowerCase() === (it.name || '').toLowerCase())?.price || 220;
+          const unitPrice = Number(it.price || it.unitPrice || fallbackPrice);
+          const sNum = it.seatNumber !== undefined && it.seatNumber !== null
+            ? Number(it.seatNumber)
+            : it.seat_number !== undefined && it.seat_number !== null
+            ? Number(it.seat_number)
+            : ord.seat_number ? Number(ord.seat_number) : 1;
+
+          list.push({
+            id,
+            name: it.name || 'Dish',
+            quantity: Number(it.quantity || 1),
+            status:
+              rawStage === 'SERVED'
+                ? 'Served'
+                : (rawStage === 'PLATED' || rawStage === 'READY')
+                ? 'Ready'
+                : (rawStage === 'PREP' || rawStage === 'PREPARING' || rawStage === 'COOKING')
+                ? 'Cooking'
+                : 'Placed',
+            options: it.options || it.selectedOption || undefined,
+            addOns: it.addOns || it.add_ons || [],
+            seatNumber: sNum,
+            price: unitPrice,
+          });
+        }
+      });
+      itemsByTable.set(tKey, list);
+      seenItemIdsByTable.set(tKey, seen);
+    });
+
+    // 2. Overlay live status from active KDS tickets or supplement newly created tickets
     mappedTickets.forEach((tk) => {
       const tKey = cleanTableNum(tk.tableNumber);
       const list = itemsByTable.get(tKey) || [];
+      const seen = seenItemIdsByTable.get(tKey) || new Set<string>();
+
       tk.items.forEach((it) => {
         const sUpper = String(it.stage || '').toUpperCase();
-        list.push({
-          id: it.id,
-          name: it.name,
-          quantity: it.quantity,
-          status:
-            sUpper === 'SERVED'
-              ? 'Served'
-              : (sUpper === 'PLATED' || sUpper === 'READY')
-              ? 'Ready'
-              : (sUpper === 'PREP' || sUpper === 'PREPARING' || sUpper === 'COOKING')
-              ? 'Cooking'
-              : sUpper === 'RECEIVED'
-              ? 'Received'
-              : 'Placed',
-          options: it.options,
-          addOns: it.addOns || [],
-          seatNumber: it.seatNumber,
-          price: it.price,
-        });
+        const stageStatus =
+          sUpper === 'SERVED'
+            ? 'Served'
+            : (sUpper === 'PLATED' || sUpper === 'READY')
+            ? 'Ready'
+            : (sUpper === 'PREP' || sUpper === 'PREPARING' || sUpper === 'COOKING')
+            ? 'Cooking'
+            : sUpper === 'RECEIVED'
+            ? 'Received'
+            : 'Placed';
+
+        const existingItem = list.find((li) => li.id === it.id);
+        if (existingItem) {
+          existingItem.status = stageStatus;
+        } else if (!seen.has(it.id)) {
+          seen.add(it.id);
+          list.push({
+            id: it.id,
+            name: it.name,
+            quantity: it.quantity,
+            status: stageStatus,
+            options: it.options,
+            addOns: it.addOns || [],
+            seatNumber: it.seatNumber,
+            price: it.price,
+          });
+        }
       });
       itemsByTable.set(tKey, list);
+      seenItemIdsByTable.set(tKey, seen);
+    });
+
+    // 3. Keep local in-memory activeItems not already seen
+    bridge.tables.forEach((localTbl) => {
+      const tKey = cleanTableNum(localTbl.number);
+      const list = itemsByTable.get(tKey) || [];
+      const seen = seenItemIdsByTable.get(tKey) || new Set<string>();
+
+      (localTbl.activeItems || []).forEach((ai, idx) => {
+        const id = ai.id || `local-ai-${idx}`;
+        if (!seen.has(id)) {
+          seen.add(id);
+          list.push({
+            ...ai,
+            id,
+          });
+        }
+      });
+      itemsByTable.set(tKey, list);
+      seenItemIdsByTable.set(tKey, seen);
     });
 
     let mappedTables = bridge.tables;
@@ -338,6 +422,18 @@ async function reconcileAllState(): Promise<void> {
             const sNum = sess.seatNumber !== undefined && sess.seatNumber !== null && !isNaN(Number(sess.seatNumber))
               ? Number(sess.seatNumber)
               : undefined;
+
+            // Reconcile with current chair items in case new orders were placed after session initiation
+            const tblActive = itemsByTable.get(cleanTableNum(normTable)) || [];
+            const chairActive = typeof sNum === 'number'
+              ? tblActive.filter((it) => it.seatNumber === sNum)
+              : tblActive;
+            const chairSub = chairActive.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
+            const chairDue = Math.round(chairSub * 1.05);
+            if (chairDue > (sess.grandTotal || 0)) {
+              sess.grandTotal = chairDue;
+            }
+
             if (typeof sNum === 'number') {
               activeSessionsFromDb[`${normTable}-CHAIR-${sNum}`] = sess;
             } else {
@@ -410,7 +506,10 @@ async function reconcileAllState(): Promise<void> {
         if (isDuplicate) return false;
         return true;
       });
-      return [...mappedTickets, ...pendingOptimistic];
+      const activeMappedTickets = (mappedTickets || []).filter((tk) =>
+        occupiedCleanTables.has(cleanTableNum(tk.tableNumber))
+      );
+      return [...activeMappedTickets, ...pendingOptimistic];
     })();
 
     const nextPingsList = (() => {
@@ -1032,6 +1131,14 @@ export function useBridgeSync() {
               return { tables: [...state.tables, updatedTable] };
             }
           });
+        }
+      )
+      // ── orders (order ingestion, additions, payment completion) ──
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        () => {
+          reconcileAllState();
         }
       )
 

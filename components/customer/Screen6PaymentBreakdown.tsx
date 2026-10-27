@@ -95,47 +95,50 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     const chairCart = (cart || []).filter((ci) => ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1));
     if (chairCart.length > 0) return chairCart;
 
-    // Check if table has items in bridge tickets strictly for this chair
+    // Fallback: Combine items from bridge tickets and table.activeItems for this chair
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+    const seenIds = new Set<string>();
+    const unifiedList: any[] = [];
+
     const myTickets = kdsTickets.filter(
       (tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) &&
-              tk.status !== 'COMPLETED' &&
               (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
     );
-    if (myTickets.length > 0) {
-      const items = myTickets.flatMap((tk) =>
-        tk.items
-          .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
-          .map((it) => {
-            const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
-            const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
-            return {
-              cartItemId: it.id,
-              menuItem: { id: it.id, name: it.name, price: verifiedPrice } as any,
-              selectedOption: it.options || '',
-              selectedAddOns: it.addOns || [],
-              quantity: it.quantity,
-              totalPrice: verifiedPrice * it.quantity,
-              prepMode: it.prepMode || '',
-              isOrdered: true,
-              seatNumber: effectiveSeat,
-            };
-          })
-      );
-      if (items.length > 0) return items;
-    }
+    myTickets.forEach((tk) => {
+      tk.items
+        .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+        .forEach((it) => {
+          const id = it.id || `tk-${it.name}-${effectiveSeat}`;
+          seenIds.add(id);
+          const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
+          const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
+          unifiedList.push({
+            cartItemId: id,
+            menuItem: { id: it.id, name: it.name, price: verifiedPrice } as any,
+            selectedOption: it.options || '',
+            selectedAddOns: it.addOns || [],
+            quantity: it.quantity,
+            totalPrice: verifiedPrice * it.quantity,
+            prepMode: it.prepMode || '',
+            isOrdered: true,
+            seatNumber: effectiveSeat,
+          });
+        });
+    });
 
     const currentTbl = tables.find((t) => cleanNum(t.number) === cleanNum(effectiveTable));
     if (currentTbl?.activeItems && currentTbl.activeItems.length > 0) {
       const chairTableItems = currentTbl.activeItems.filter(
         (it: any) => it.seatNumber === effectiveSeat || (!it.seatNumber && effectiveSeat === 1)
       );
-      if (chairTableItems.length > 0) {
-        return chairTableItems.map((it: any) => {
+      chairTableItems.forEach((it: any, idx: number) => {
+        const id = it.id || `active-${it.name}-${idx}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
           const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
           const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
-          return {
-            cartItemId: it.id || `active-${it.name}`,
+          unifiedList.push({
+            cartItemId: id,
             menuItem: { id: it.id, name: it.name, price: verifiedPrice } as any,
             selectedOption: it.options || '',
             selectedAddOns: it.addOns || [],
@@ -144,12 +147,12 @@ export const Screen6PaymentBreakdown: React.FC = () => {
             prepMode: it.prepMode || '',
             isOrdered: true,
             seatNumber: effectiveSeat,
-          };
-        });
-      }
+          });
+        }
+      });
     }
 
-    return [];
+    return unifiedList;
   }, [cart, kdsTickets, tables, effectiveTable, effectiveSeat]);
 
   const subtotal = activeCart.reduce((s, i) => s + i.totalPrice, 0);

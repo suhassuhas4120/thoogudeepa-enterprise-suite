@@ -590,8 +590,10 @@ export default function WaiterMobilePage() {
                 (tk) => groupNums.has(cleanTableNum(tk.tableNumber))
               );
 
-              // Gather unique ordered items: prioritize KDS tickets, only fall back to table activeItems if tickets are empty
+              // Gather unique ordered items from KDS tickets and groupTables activeItems
               const tableItems: Array<{ price: number; quantity: number; seatNumber?: number }> = [];
+              const seenItemKeys = new Set<string>();
+
               tks.forEach((tk) => {
                 tk.items.forEach((it) => {
                   const itName = (it.name || '').toLowerCase();
@@ -611,6 +613,8 @@ export default function WaiterMobilePage() {
                     : (it as any).seat_number !== undefined && (it as any).seat_number !== null
                     ? Number((it as any).seat_number)
                     : (tk.seatNumber ? Number(tk.seatNumber) : undefined);
+                  const itemKey = it.id || `${it.name}-${s}-${unitPrice}`;
+                  seenItemKeys.add(itemKey);
                   tableItems.push({
                     price: unitPrice,
                     quantity: it.quantity || 1,
@@ -619,36 +623,38 @@ export default function WaiterMobilePage() {
                 });
               });
 
-              if (tableItems.length === 0) {
-                groupTables.forEach((gt) => {
-                  if (gt.activeItems && gt.activeItems.length > 0) {
-                    gt.activeItems.forEach((ai) => {
-                      const aiName = (ai.name || '').toLowerCase();
-                      const fallbackPrice =
-                        INITIAL_MENU_ITEMS.find((m) => {
-                          const mName = (m.name || '').toLowerCase();
-                          return (
-                            (aiName && mName === aiName) ||
-                            (aiName && mName.includes(aiName)) ||
-                            (aiName && aiName.includes(mName)) ||
-                            (ai.id && m.id === ai.id)
-                          );
-                        })?.price || 220;
-                      const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
-                      const s = ai.seatNumber !== undefined && ai.seatNumber !== null
-                        ? Number(ai.seatNumber)
-                        : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
-                        ? Number((ai as any).seat_number)
-                        : undefined;
+              groupTables.forEach((gt) => {
+                if (gt.activeItems && gt.activeItems.length > 0) {
+                  gt.activeItems.forEach((ai, idx) => {
+                    const aiName = (ai.name || '').toLowerCase();
+                    const fallbackPrice =
+                      INITIAL_MENU_ITEMS.find((m) => {
+                        const mName = (m.name || '').toLowerCase();
+                        return (
+                          (aiName && mName === aiName) ||
+                          (aiName && mName.includes(aiName)) ||
+                          (aiName && aiName.includes(mName)) ||
+                          (ai.id && m.id === ai.id)
+                        );
+                      })?.price || 220;
+                    const unitPrice = ai.price && ai.price > 0 ? ai.price : fallbackPrice;
+                    const s = ai.seatNumber !== undefined && ai.seatNumber !== null
+                      ? Number(ai.seatNumber)
+                      : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+                      ? Number((ai as any).seat_number)
+                      : undefined;
+                    const itemKey = ai.id || `${ai.name}-${s}-${unitPrice}-${idx}`;
+                    if (!seenItemKeys.has(itemKey)) {
+                      seenItemKeys.add(itemKey);
                       tableItems.push({
                         price: unitPrice,
                         quantity: ai.quantity || 1,
                         seatNumber: s,
                       });
-                    });
-                  }
-                });
-              }
+                    }
+                  });
+                }
+              });
 
               const chairsWithOrders = new Set<number>();
               tableItems.forEach((it) => {

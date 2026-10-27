@@ -347,8 +347,11 @@ export const Screen5LiveTracking: React.FC = () => {
       seatNumber: number;
     }> = [];
 
+    const coveredItemIds = new Set<string>();
+
     // Map bridge items first (most reactive, in-memory + broadcast)
     bridgeItems.forEach((bi) => {
+      if (bi.id) coveredItemIds.add(bi.id);
       combinedTicketItems.push({
         id: bi.id,
         ticketId: bi.ticketId,
@@ -365,49 +368,130 @@ export const Screen5LiveTracking: React.FC = () => {
     });
 
     // Supplement with supabase items and reconcile stages
-    const matchedBridgeIds = new Set<string>();
-
     supabaseItems.forEach((si) => {
-      const existing = combinedTicketItems.find(
-        (ci) =>
-          !matchedBridgeIds.has(ci.id) &&
-          (ci.id ? ci.id === si.id : (!si.id && getCanonicalKey(ci.name) === getCanonicalKey(si.name)))
-      );
-      if (existing) {
-        matchedBridgeIds.add(existing.id);
-        // Reconcile: advance to the furthest stage reported
-        const existingIdx = getDishStageIdx(existing.stage, existing.id);
-        const supabaseIdx = getDishStageIdx(si.stage, si.id);
-        if (supabaseIdx > existingIdx) {
-          existing.stage = si.stage;
+      if (si.id && coveredItemIds.has(si.id)) {
+        const existing = combinedTicketItems.find((ci) => ci.id === si.id);
+        if (existing) {
+          const existingIdx = getDishStageIdx(existing.stage, existing.id);
+          const supabaseIdx = getDishStageIdx(si.stage, si.id);
+          if (supabaseIdx > existingIdx) {
+            existing.stage = si.stage;
+          }
         }
       } else {
-        const alreadyCovered = combinedTicketItems.some((ci) => ci.id === si.id);
-        if (!alreadyCovered) {
-          combinedTicketItems.push({
-            id: si.id,
-            ticketId: si.ticketId,
-            name: si.name,
-            quantity: si.quantity,
-            price: si.price,
-            stage: si.stage,
-            prepMode: 'Military Dum Handi',
-            options: si.options,
-            addOns: si.addOns,
-            notes: si.notes,
-            seatNumber: effectiveSeat,
-          });
-        }
+        if (si.id) coveredItemIds.add(si.id);
+        combinedTicketItems.push({
+          id: si.id,
+          ticketId: si.ticketId,
+          name: si.name,
+          quantity: si.quantity,
+          price: si.price,
+          stage: si.stage,
+          prepMode: 'Military Dum Handi',
+          options: si.options,
+          addOns: si.addOns,
+          notes: si.notes,
+          seatNumber: effectiveSeat,
+        });
       }
     });
 
-    // If kitchen tickets exist for this chair, they are authoritative!
-    // They represent all confirmed orders placed for this chair across all devices.
+    // Reconcile with table activeItems for this chair (covers previously served items from earlier orders whose tickets completed)
+    const tableChairActiveItems = (currentTbl?.activeItems || []).filter((ai) => {
+      if (!ai) return false;
+      const aiSeat = ai.seatNumber !== undefined && ai.seatNumber !== null ? Number(ai.seatNumber) : undefined;
+      if (aiSeat !== undefined && !isNaN(aiSeat)) {
+        return aiSeat === effectiveSeat;
+      }
+      return effectiveSeat === 1;
+    });
+
+    tableChairActiveItems.forEach((ai) => {
+      if (ai.id && coveredItemIds.has(ai.id)) {
+        const existing = combinedTicketItems.find((ci) => ci.id === ai.id);
+        if (existing && String(ai.status).toUpperCase() === 'SERVED') {
+          existing.stage = 'SERVED';
+        }
+        return;
+      }
+
+      // Old item from earlier order that was served or whose ticket is completed
+      const rawStatus = String(ai.status || '').toUpperCase();
+      const resolvedStage: OrderStage =
+        rawStatus === 'SERVED' ? 'SERVED' :
+        rawStatus === 'READY' || rawStatus === 'PLATED' ? 'PLATED' :
+        rawStatus === 'COOKING' || rawStatus === 'PREP' || rawStatus === 'PREPARING' ? 'PREP' :
+        rawStatus === 'RECEIVED' ? 'RECEIVED' :
+        'PLACED';
+
+      const key = getCanonicalKey(ai.name);
+      const cartMatch = (cart || []).find(
+        (c) => c && c.isOrdered && (c.seatNumber === effectiveSeat || (!c.seatNumber && effectiveSeat === 1)) && getCanonicalKey(c.menuItem?.name || '') === key
+      );
+
+      const itemPrice = Number(ai.price || 0) > 0
+        ? Number(ai.price)
+        : cartMatch?.menuItem?.price ||
+          INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === key)?.price ||
+          0;
+
+      if (ai.id) coveredItemIds.add(ai.id);
+      combinedTicketItems.push({
+        id: ai.id || `ai-${Date.now()}-${Math.random()}`,
+        name: getCleanName(ai.name) || 'Special Dish',
+        quantity: ai.quantity || 1,
+        price: itemPrice,
+        stage: resolvedStage,
+        prepMode: (ai as any).prepMode || cartMatch?.prepMode || 'Military Dum Handi',
+        options: ai.options || cartMatch?.selectedOption || '',
+        addOns: (ai as any).addOns || cartMatch?.selectedAddOns || [],
+        notes: '',
+        seatNumber: effectiveSeat,
+      });
+    });
+
+    // Fallback to local ordered cart if ticket stream hasn't populated yet
+    const orderedCart = (cart || []).filter(
+      (ci) => ci && ci.isOrdered && (ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1))
+    );
+
+    if (combinedTicketItems.length === 0 && orderedCart.length > 0) {
+      return orderedCart.map((ci) => {
+        const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
+        const key = getCanonicalKey(dishName);
+        const tableActiveItem = currentTbl?.activeItems?.find(
+          (ai) => ai && (ai.id === ci.cartItemId || getCanonicalKey(ai.name) === key)
+        );
+        const rawStatus = String(tableActiveItem?.status || '').toUpperCase();
+        const tableStage: OrderStage =
+          rawStatus === 'SERVED' ? 'SERVED' :
+          rawStatus === 'READY' || rawStatus === 'PLATED' ? 'PLATED' :
+          rawStatus === 'COOKING' || rawStatus === 'PREP' ? 'PREP' :
+          rawStatus === 'RECEIVED' ? 'RECEIVED' :
+          'PLACED';
+
+        const itemPrice = ci.menuItem?.price || (ci.totalPrice ? Math.round(ci.totalPrice / (ci.quantity || 1)) : 0);
+
+        return {
+          id: `cart-${ci.cartItemId || Math.random()}`,
+          cartItemId: ci.cartItemId,
+          name: dishName,
+          quantity: ci.quantity || 1,
+          price: itemPrice,
+          stage: tableStage,
+          prepMode: ci.prepMode || ci.menuItem?.prepMode || 'Military Dum Handi',
+          options: ci.selectedOption,
+          addOns: ci.selectedAddOns || [],
+          seatNumber: effectiveSeat,
+        };
+      });
+    }
+
     if (combinedTicketItems.length > 0) {
       return combinedTicketItems.map((ti) => {
         const key = getCanonicalKey(ti.name);
         const cartMatch = (cart || []).find(
-          (c) => c && c.isOrdered && c.seatNumber === effectiveSeat && getCanonicalKey(c.menuItem?.name || '') === key
+          (c) => c && c.isOrdered && (c.seatNumber === effectiveSeat || (!c.seatNumber && effectiveSeat === 1)) && getCanonicalKey(c.menuItem?.name || '') === key
         );
 
         // Check if table activeItems has a stage update for this item - strictly match by ID to avoid cross-order stage bleeding
@@ -417,8 +501,8 @@ export const Screen5LiveTracking: React.FC = () => {
         const rawTblStatus = String(tableActiveItem?.status || '').toUpperCase();
         const tableStage: OrderStage | undefined =
           rawTblStatus === 'SERVED' ? 'SERVED' :
-          rawTblStatus === 'READY' ? 'PLATED' :
-          rawTblStatus === 'COOKING' ? 'PREP' :
+          rawTblStatus === 'READY' || rawTblStatus === 'PLATED' ? 'PLATED' :
+          rawTblStatus === 'COOKING' || rawTblStatus === 'PREP' ? 'PREP' :
           rawTblStatus === 'RECEIVED' ? 'RECEIVED' :
           undefined;
 
@@ -445,35 +529,6 @@ export const Screen5LiveTracking: React.FC = () => {
           options: ti.options || cartMatch?.selectedOption || '',
           addOns: ti.addOns && ti.addOns.length > 0 ? ti.addOns : cartMatch?.selectedAddOns || [],
           notes: ti.notes || '',
-          seatNumber: effectiveSeat,
-        };
-      });
-    }
-
-    // Fallback to local ordered cart if ticket stream hasn't populated yet
-    const orderedCart = (cart || []).filter((ci) => ci && ci.isOrdered && ci.seatNumber === effectiveSeat);
-    if (orderedCart.length > 0) {
-      return orderedCart.map((ci) => {
-        const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
-        // In fallback mode, match strictly by unique cart item ID rather than dish name to prevent cross-order stage contamination
-        const tableActiveItem = currentTbl?.activeItems?.find(
-          (ai) => ai && ai.id === ci.cartItemId
-        );
-        const tableStage: OrderStage | undefined =
-          tableActiveItem?.status === 'Served' ? 'SERVED' : undefined;
-
-        const itemPrice = ci.menuItem?.price || (ci.totalPrice ? Math.round(ci.totalPrice / (ci.quantity || 1)) : 0);
-
-        return {
-          id: `cart-${ci.cartItemId || Math.random()}`,
-          cartItemId: ci.cartItemId,
-          name: dishName,
-          quantity: ci.quantity || 1,
-          price: itemPrice,
-          stage: tableStage || 'PLACED',
-          prepMode: ci.prepMode || ci.menuItem?.prepMode || 'Military Dum Handi',
-          options: ci.selectedOption,
-          addOns: ci.selectedAddOns || [],
           seatNumber: effectiveSeat,
         };
       });
@@ -950,7 +1005,7 @@ export const Screen5LiveTracking: React.FC = () => {
                               <CheckCircle2 className="h-3 w-3 text-teal-600" />
                               <span>Received</span>
                             </span>
-                          ) : it.stage === 'PREP' || it.stage === 'PREPARING' ? (
+                          ) : it.stage === 'PREP' || (it.stage as string) === 'PREPARING' ? (
                             <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-2 py-0.5 text-[9px] font-black text-amber-800 font-mono animate-pulse">
                               <Flame className="h-3 w-3 text-amber-600" />
                               <span>Preparing</span>

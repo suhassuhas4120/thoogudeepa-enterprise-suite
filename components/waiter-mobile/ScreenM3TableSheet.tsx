@@ -182,6 +182,8 @@ export function ScreenM3TableSheet({
     ticketNumber: string;
   }[] = [];
 
+  const seenItemIds = new Set<string>();
+
   tickets.forEach((tk) => {
     tk.items.forEach((it) => {
       const itName = (it.name || '').toLowerCase();
@@ -214,6 +216,7 @@ export function ScreenM3TableSheet({
         : (it as any).seat_number !== undefined && (it as any).seat_number !== null
         ? Number((it as any).seat_number)
         : (tk.seatNumber ? Number(tk.seatNumber) : undefined);
+      seenItemIds.add(it.id);
       allTableOrderedItems.push({
         id: it.id,
         name: it.name || 'Dish',
@@ -230,11 +233,13 @@ export function ScreenM3TableSheet({
     });
   });
 
-  if (allTableOrderedItems.length === 0) {
-    // Pull activeItems from ALL group members (since each table keeps its own items now)
-    groupTables.forEach((gt) => {
-      if (gt.activeItems && gt.activeItems.length > 0) {
-        gt.activeItems.forEach((ai, idx) => {
+  // Pull any remaining activeItems from group members (e.g. items from completed KDS tickets)
+  groupTables.forEach((gt) => {
+    if (gt.activeItems && gt.activeItems.length > 0) {
+      gt.activeItems.forEach((ai, idx) => {
+        const id = ai.id || `ai-${gt.number}-${idx}`;
+        if (!seenItemIds.has(id)) {
+          seenItemIds.add(id);
           const aiName = (ai.name || '').toLowerCase();
           const fallbackPrice =
             INITIAL_MENU_ITEMS.find(
@@ -255,7 +260,7 @@ export function ScreenM3TableSheet({
             ? Number((ai as any).seat_number)
             : undefined;
           allTableOrderedItems.push({
-            id: ai.id || `ai-${gt.number}-${idx}`,
+            id,
             name: ai.name,
             quantity: ai.quantity,
             price: unitPrice,
@@ -267,10 +272,10 @@ export function ScreenM3TableSheet({
             ticketId: 'tbl-direct',
             ticketNumber: 'TBL',
           });
-        });
-      }
-    });
-  }
+        }
+      });
+    }
+  });
 
   // Derive true table occupancy from presence of active tickets/items or running bill
   const rawGroupBill = groupTables.reduce((s, t) => s + (t.currentBill || 0), 0);

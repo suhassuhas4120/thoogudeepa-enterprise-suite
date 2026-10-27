@@ -123,20 +123,30 @@ export function TabletPaymentPanel({
       };
     })
   );
-  const firedFromActive = (table?.activeItems || []).map((it) => {
-    const seat = it.seatNumber !== undefined && it.seatNumber !== null
-      ? Number(it.seatNumber)
-      : (it as any).seat_number !== undefined && (it as any).seat_number !== null
-      ? Number((it as any).seat_number)
-      : undefined;
-    return {
-      ...it,
-      seatNumber: seat,
-      price: it.price || (it as any).unitPrice || 0,
-      tableNum: tableNum,
-    };
+  const seenIds = new Set<string>();
+  const allFiredItems: any[] = [];
+  firedFromTickets.forEach((it) => {
+    const id = it.id || `tk-${it.name}-${it.seatNumber}`;
+    seenIds.add(id);
+    allFiredItems.push(it);
   });
-  const allFiredItems = firedFromTickets.length > 0 ? firedFromTickets : firedFromActive;
+  (table?.activeItems || []).forEach((it, idx) => {
+    const id = it.id || `ai-${idx}`;
+    if (!seenIds.has(id)) {
+      seenIds.add(id);
+      const seat = it.seatNumber !== undefined && it.seatNumber !== null
+        ? Number(it.seatNumber)
+        : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+        ? Number((it as any).seat_number)
+        : undefined;
+      allFiredItems.push({
+        ...it,
+        seatNumber: seat,
+        price: it.price || (it as any).unitPrice || 0,
+        tableNum: tableNum,
+      });
+    }
+  });
   const allDraftItems = cart.filter((c) => !c.isOrdered && (!c.tableNumber || peerNums.has(cleanTableNum(c.tableNumber))));
 
   const isVacant = table?.status === 'VACANT';

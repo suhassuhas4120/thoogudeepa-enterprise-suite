@@ -121,12 +121,24 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
         price: it.price || (it as any).unitPrice || 0,
       }))
     );
-    const tableActive = (table?.activeItems || []).map((it) => ({
-      ...it,
-      seatNumber: it.seatNumber || (it as any).seat_number || 1,
-      price: it.price || (it as any).unitPrice || 0,
-    }));
-    const combinedItems = allItems.length > 0 ? allItems : tableActive;
+    const seenIds = new Set<string>();
+    const combinedItems: any[] = [];
+    allItems.forEach((it: any) => {
+      const id = it.id || `tk-${it.name}-${it.seatNumber}`;
+      seenIds.add(id);
+      combinedItems.push(it);
+    });
+    (table?.activeItems || []).forEach((it: any, idx: number) => {
+      const id = it.id || `ai-${idx}`;
+      if (!seenIds.has(id)) {
+        seenIds.add(id);
+        combinedItems.push({
+          ...it,
+          seatNumber: it.seatNumber || (it as any).seat_number || 1,
+          price: it.price || (it as any).unitPrice || 0,
+        });
+      }
+    });
     const relevantItems = combinedItems.filter((it: any) => !splitSeatNum || it.seatNumber === splitSeatNum);
 
     const snapshotItems = relevantItems.length > 0

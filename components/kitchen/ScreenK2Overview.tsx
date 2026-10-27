@@ -71,6 +71,7 @@ export const ScreenK2Overview: React.FC = () => {
     setSelectedTableNumber,
     setSelectedTicketId,
     callFloorWaiter: localCallFloorWaiter,
+    soundAlertsEnabled,
   } = useKitchenStore();
 
   const {
@@ -90,30 +91,50 @@ export const ScreenK2Overview: React.FC = () => {
     Record<string, 'RECEIVED' | 'PREPARING' | 'READY'>
   >({});
 
-  const prevTicketCountRef = useRef(bridgeTickets.length);
+  const chimedTicketIdsRef = useRef<Set<string>>(new Set());
+  const hasMountedRef = useRef(false);
 
   useEffect(() => {
-    if (bridgeTickets.length > prevTicketCountRef.current) {
-      try {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(587.33, ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
-          gain.gain.setValueAtTime(0.3, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.4);
-        }
-      } catch {}
+    // On initial mount: register existing tickets so we never chime for existing tickets on screen load
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      bridgeTickets.forEach((tk) => {
+        if (tk?.id) chimedTicketIdsRef.current.add(tk.id);
+      });
+      return;
     }
-    prevTicketCountRef.current = bridgeTickets.length;
-  }, [bridgeTickets.length]);
+
+    // Only chime for genuinely NEW incoming active tickets that have never chimed before
+    const newActiveTickets = bridgeTickets.filter((tk) => {
+      if (!tk?.id || tk.status === 'COMPLETED') return false;
+      if (tk.items && tk.items.length > 0 && tk.items.every((it) => it.stage === 'SERVED')) return false;
+      return !chimedTicketIdsRef.current.has(tk.id);
+    });
+
+    if (newActiveTickets.length > 0) {
+      newActiveTickets.forEach((tk) => chimedTicketIdsRef.current.add(tk.id));
+
+      if (soundAlertsEnabled) {
+        try {
+          const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+          if (AudioCtx) {
+            const ctx = new AudioCtx();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15);
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.4);
+          }
+        } catch {}
+      }
+    }
+  }, [bridgeTickets, soundAlertsEnabled]);
 
   const formatKdsTableNumber = (num: string): string => {
     if (!num) return 'TABLE --';

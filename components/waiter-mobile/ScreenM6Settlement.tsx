@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   ChevronLeft,
   QrCode,
@@ -114,7 +114,7 @@ export function ScreenM6Settlement({
   const [method, setMethod] = useState<PayMethod>('UPI');
   const [customerPhone, setCustomerPhone] = useState('');
   const [cashTendered, setCashTendered] = useState<number | ''>('');
-  const [vacateAfter, setVacateAfter] = useState(!splitAmount);
+  const [vacateAfter, setVacateAfter] = useState(true);
   const [settled, setSettled] = useState(false);
   const [settledSnapshot, setSettledSnapshot] = useState<SettledBillSnapshot | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState<string>('');
@@ -125,9 +125,7 @@ export function ScreenM6Settlement({
 
   const groupPeers: string[] = table?.mergeGroupPeers ?? [tableNum];
   const tickets = useMemo(() => {
-    return kdsTickets.filter((tk) =>
-      groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
-    );
+    return kdsTickets.filter((tk) => groupPeers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
   }, [kdsTickets, groupPeers]);
 
   // Captain Name
@@ -397,10 +395,18 @@ export function ScreenM6Settlement({
   }, [settledBills, tableNum, splitSeatNumber, settled]);
 
   // Real-time synchronization of floor captain settlement arrival to diner app
+  const lastSyncKeyRef = useRef<string>('');
   useEffect(() => {
     if (settled || grandTotal <= 0) return;
-    waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, isUpiVerified);
-  }, [tableNum, splitSeatNumber, grandTotal, method, isUpiVerified, waiterInitiatesSettlement, settled]);
+    const syncKey = `${tableNum}_${splitSeatNumber ?? 'all'}_${grandTotal}_${method}_${isUpiVerified}`;
+    if (lastSyncKeyRef.current === syncKey) return;
+    lastSyncKeyRef.current = syncKey;
+
+    const timer = setTimeout(() => {
+      waiterInitiatesSettlement(tableNum, splitSeatNumber ?? undefined, grandTotal, method, isUpiVerified);
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [tableNum, splitSeatNumber, grandTotal, method, isUpiVerified, settled]);
 
   const handleExplicitBack = () => {
     waiterClearsSettlementSession(tableNum, splitSeatNumber ?? undefined);
@@ -494,7 +500,7 @@ export function ScreenM6Settlement({
   const handleFinish = () => {
     if (splitSeatNumber !== null) {
       waiterClearsChairAfterPayment(tableNum, splitSeatNumber);
-    } else if (vacateAfter) {
+    } else {
       waiterVacatesTable(tableNum);
     }
     onDone();
@@ -1298,19 +1304,13 @@ export function ScreenM6Settlement({
               ⚠️ All dishes must be served before finalizing payment.
             </div>
           )}
-          {!vacateAfter && !hasUnservedDishes && grandTotal > 0 && (
-            <div className="p-3 bg-stone-50 border border-stone-200 rounded-xl text-center text-stone-600 text-xs font-mono font-bold">
-              ☝️ {splitSeatNumber ? `Confirm freeing Chair ${splitSeatNumber}` : 'Confirm vacate'} above to enable settlement
-            </div>
-          )}
           <motion.button
-            whileTap={!hasUnservedDishes && vacateAfter ? { scale: 0.98 } : undefined}
+            whileTap={!hasUnservedDishes ? { scale: 0.98 } : undefined}
             type="button"
             onClick={handleSettle}
             disabled={
               grandTotal === 0 ||
               hasUnservedDishes ||
-              !vacateAfter ||
               (method === 'UPI' && !isUpiVerified) ||
               (method === 'CASH' &&
                 typeof cashTendered === 'number' &&
@@ -1318,7 +1318,7 @@ export function ScreenM6Settlement({
                 cashTendered < grandTotal)
             }
             className={`w-full py-4 text-white rounded-2xl font-mono text-sm font-black flex items-center justify-center gap-2 shadow-md transition ${
-              hasUnservedDishes || grandTotal === 0 || !vacateAfter || (method === 'UPI' && !isUpiVerified)
+              hasUnservedDishes || grandTotal === 0 || (method === 'UPI' && !isUpiVerified)
                 ? 'bg-stone-300 text-stone-500 cursor-not-allowed border border-stone-300'
                 : 'bg-emerald-600 hover:bg-emerald-700 active:scale-95 cursor-pointer'
             }`}
@@ -1327,8 +1327,6 @@ export function ScreenM6Settlement({
             <span>
               {hasUnservedDishes
                 ? 'Serve All Dishes to Settle'
-                : !vacateAfter
-                ? 'Confirm above to enable'
                 : method === 'UPI' && !isUpiVerified
                 ? 'Confirm QR Pay above to enable'
                 : `Confirm & Settle ₹${grandTotal.toFixed(2)} via ${method}`}

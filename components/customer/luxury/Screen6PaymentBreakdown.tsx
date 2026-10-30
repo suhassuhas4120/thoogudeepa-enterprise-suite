@@ -90,42 +90,43 @@ export const Screen6PaymentBreakdown: React.FC = () => {
     }
   }, [effectiveTable, effectiveSeat]);
 
-  // Authentic items from cart, bridge tickets, or settled items (no fake/random data)
+  // Authentic items from bridge tickets, table items, or cart across all batches
   const activeCart = useMemo(() => {
-    const chairCart = (cart || []).filter((ci) => ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1));
-    if (chairCart.length > 0) return chairCart;
-
-    // Fallback: Combine items from bridge tickets and table.activeItems for this chair
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
     const seenIds = new Set<string>();
     const unifiedList: any[] = [];
 
+    // 1. Authoritative items from bridge tickets for this chair
     const myTickets = kdsTickets.filter(
       (tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) &&
-              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat)) &&
+              tk.status !== 'COMPLETED'
     );
     myTickets.forEach((tk) => {
       tk.items
         .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
         .forEach((it) => {
           const id = it.id || `tk-${it.name}-${effectiveSeat}`;
-          seenIds.add(id);
-          const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
-          const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
-          unifiedList.push({
-            cartItemId: id,
-            menuItem: { id: it.id, name: it.name, price: verifiedPrice } as any,
-            selectedOption: it.options || '',
-            selectedAddOns: it.addOns || [],
-            quantity: it.quantity,
-            totalPrice: verifiedPrice * it.quantity,
-            prepMode: it.prepMode || '',
-            isOrdered: true,
-            seatNumber: effectiveSeat,
-          });
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
+            const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
+            unifiedList.push({
+              cartItemId: id,
+              menuItem: { id: it.id, name: it.name, price: verifiedPrice } as any,
+              selectedOption: it.options || '',
+              selectedAddOns: it.addOns || [],
+              quantity: it.quantity,
+              totalPrice: verifiedPrice * it.quantity,
+              prepMode: it.prepMode || '',
+              isOrdered: true,
+              seatNumber: effectiveSeat,
+            });
+          }
         });
     });
 
+    // 2. Supplement with items from table.activeItems for this chair not yet included
     const currentTbl = tables.find((t) => cleanNum(t.number) === cleanNum(effectiveTable));
     if (currentTbl?.activeItems && currentTbl.activeItems.length > 0) {
       const chairTableItems = currentTbl.activeItems.filter(
@@ -149,6 +150,14 @@ export const Screen6PaymentBreakdown: React.FC = () => {
             seatNumber: effectiveSeat,
           });
         }
+      });
+    }
+
+    // 3. Fallback only if no tickets or active items exist yet
+    if (unifiedList.length === 0) {
+      const chairCart = (cart || []).filter((ci) => ci.seatNumber === effectiveSeat || (!ci.seatNumber && effectiveSeat === 1));
+      chairCart.forEach((ci) => {
+        unifiedList.push(ci);
       });
     }
 
@@ -404,7 +413,19 @@ export const Screen6PaymentBreakdown: React.FC = () => {
       <StickyBottomBar>
         <motion.button
           whileTap={{ scale: 0.98 }}
-          onClick={() => setCurrentScreen(7)}
+          onClick={() => {
+            useCustomerStore.setState((s) => ({
+              payment: {
+                ...s.payment,
+                subtotal,
+                tax,
+                discount,
+                tipAmount: s.payment.tipAmount,
+                totalAmount: grandTotal,
+              },
+              currentScreen: 7,
+            }));
+          }}
           className="flex w-full items-center justify-between rounded-[22px] px-6 py-4 shadow-[0_12px_32px_rgba(217,119,6,0.45)] transition hover:brightness-105 border border-amber-300/60 font-serif-luxury text-base font-bold tracking-wide text-amber-950"
           style={{
             background: 'linear-gradient(135deg, #FDE68A 0%, #F59E0B 40%, #D97706 75%, #B45309 100%)',

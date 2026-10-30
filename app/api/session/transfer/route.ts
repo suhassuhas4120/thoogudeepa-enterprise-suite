@@ -136,13 +136,14 @@ export async function POST(req: NextRequest) {
           .eq('number', normFromTable);
       } else {
         // Source table still has other occupied seats: recalculate running bill from remaining unpaid orders
+        // SCN-11: Select and sum untaxed subtotal to prevent double taxation
         const { data: srcOrders } = await supabase
           .from('orders')
-          .select('total_amount, total')
+          .select('subtotal, total_amount, total')
           .eq('table_number', normFromTable)
           .eq('status', 'UNPAID');
         const remainingSrcBill = (srcOrders || []).reduce(
-          (sum, o) => sum + Number(o.total_amount || o.total || 0),
+          (sum, o) => sum + Number(o.subtotal !== undefined && o.subtotal !== null ? o.subtotal : (o.total ? Math.round(Number(o.total) / 1.05) : 0)),
           0
         );
         await supabase
@@ -158,16 +159,17 @@ export async function POST(req: NextRequest) {
 
     // G. Reconcile destination table
     // Calculate total unpaid bill on destination table including this transferred order
+    // SCN-11: Select and sum untaxed subtotal to prevent double taxation
     const { data: destOrders } = await supabase
       .from('orders')
-      .select('total_amount, total')
+      .select('subtotal, total_amount, total')
       .eq('table_number', normToTable)
       .eq('status', 'UNPAID');
 
     const totalDestBill = (destOrders || []).reduce(
-      (sum, o) => sum + Number(o.total_amount || o.total || 0),
+      (sum, o) => sum + Number(o.subtotal !== undefined && o.subtotal !== null ? o.subtotal : (o.total ? Math.round(Number(o.total) / 1.05) : 0)),
       0
-    ) || orderTotal;
+    ) || (orderRecord.subtotal || Math.round(orderTotal / 1.05));
 
     const { data: destSeats } = await supabase
       .from('table_seats')

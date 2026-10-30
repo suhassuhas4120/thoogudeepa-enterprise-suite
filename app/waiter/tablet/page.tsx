@@ -133,7 +133,7 @@ function SeatGuestsModal({
 }
 
 export default function WaiterTabletPage() {
-  const { tables, pings, kdsTickets, shiftStats, waiterSeatsGuests } =
+  const { tables, pings, kdsTickets, settledBills, shiftStats, waiterSeatsGuests } =
     useSharedBridge();
   const { activeCaptain, setActiveCaptain } = useWaiterStore();
 
@@ -366,23 +366,57 @@ export default function WaiterTabletPage() {
     (t) => cleanTableNum(t.number) === cleanTableNum(selectedTableNum)
   );
   const isCurrentTableVacant = currentTableObj?.status === "VACANT";
+
+  const normTableStr = `T-${String(parseInt(cleanTableNum(selectedTableNum), 10) || 1).padStart(2, "0")}`;
+  const isSelectedChairSettled =
+    typeof selectedChair === "number" &&
+    (Boolean(
+      settledBills?.[`${normTableStr}-CHAIR-${selectedChair}`] ||
+      settledBills?.[`${selectedTableNum}-CHAIR-${selectedChair}`]
+    ) ||
+      Boolean(settledBills?.[normTableStr] || settledBills?.[selectedTableNum]) ||
+      currentTableObj?.status === "BILLING" ||
+      currentTableObj?.currentBill === 0 ||
+      (!(currentTableObj?.activeItems || []).some((i) => (i.seatNumber ? Number(i.seatNumber) : 1) === selectedChair) &&
+       !kdsTickets.some((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(selectedTableNum) && tk.status !== "COMPLETED" && ((tk.seatNumber ? Number(tk.seatNumber) : 1) === selectedChair || tk.items?.some((it) => (it.seatNumber ? Number(it.seatNumber) : (tk.seatNumber ? Number(tk.seatNumber) : 1)) === selectedChair)))));
+
   const isPaymentCompletedForSelectedTable =
     !isCurrentTableVacant &&
-    Boolean(
-      currentTableObj &&
-        (currentTableObj.status === "BILLING" ||
-          ((!currentTableObj.activeItems || currentTableObj.activeItems.length === 0) &&
-            currentTableObj.currentBill === 0))
-    );
+    (typeof selectedChair === "number"
+      ? isSelectedChairSettled
+      : Boolean(
+          Boolean(settledBills?.[normTableStr] || settledBills?.[selectedTableNum]) ||
+          (currentTableObj &&
+            (currentTableObj.status === "BILLING" ||
+              currentTableObj.currentBill === 0 ||
+              (!currentTableObj.activeItems || currentTableObj.activeItems.length === 0)))
+        ));
 
   const handleVacate = () => {
     if (!isPaymentCompletedForSelectedTable) {
-      showToast("Cannot vacate table: Payment must be completed first.");
+      showToast(
+        typeof selectedChair === "number"
+          ? `Cannot vacate Chair ${selectedChair}: Payment must be completed first.`
+          : "Cannot vacate table: Payment must be completed first."
+      );
       setConfirmVacate(false);
       return;
     }
     if (!confirmVacate) {
       setConfirmVacate(true);
+      return;
+    }
+    if (typeof selectedChair === "number") {
+      useSharedBridge.getState().waiterClearsChairAfterPayment(selectedTableNum, selectedChair);
+      setConfirmVacate(false);
+      setSelectedChair("ALL");
+      showToast(`Chair ${selectedChair} on ${selectedTableNum} cleared and vacated`);
+      const updatedTbl = useSharedBridge.getState().tables.find(
+        (t) => cleanTableNum(t.number) === cleanTableNum(selectedTableNum)
+      );
+      if (!updatedTbl || updatedTbl.status === "VACANT" || updatedTbl.guestCount === 0) {
+        setView("floor");
+      }
       return;
     }
     useSharedBridge.getState().waiterVacatesTable(selectedTableNum);
@@ -1034,15 +1068,20 @@ export default function WaiterTabletPage() {
                           className="bg-white rounded-3xl shadow-2xl p-6 w-72 space-y-4 text-center font-mono"
                         >
                           <p className="font-black text-stone-900 text-base">
-                            Vacate {selectedTableNum}?
+                            {typeof selectedChair === "number"
+                              ? `Vacate Chair ${selectedChair} on ${selectedTableNum}?`
+                              : `Vacate ${selectedTableNum}?`}
                           </p>
                           <p className="text-xs text-stone-500">
-                            This clears active orders and resets the table
-                            status to vacant.
+                            {typeof selectedChair === "number"
+                              ? `This clears active orders and vacates Chair ${selectedChair}.`
+                              : `This clears active orders and resets the table status to vacant.`}
                           </p>
                           {!isPaymentCompletedForSelectedTable && (
                             <p className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-2">
-                              Payment pending: Complete payment settlement before vacating.
+                              {typeof selectedChair === "number"
+                                ? `Payment pending for Chair ${selectedChair}: Complete payment settlement before vacating.`
+                                : `Payment pending: Complete payment settlement before vacating.`}
                             </p>
                           )}
                           <div className="flex gap-2">

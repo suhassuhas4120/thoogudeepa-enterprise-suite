@@ -37,6 +37,7 @@ export function TableChairsSheet({
     kdsTickets,
     waiterVacatesTable,
     waiterClearsChairAfterPayment,
+    waiterMarkKitchenItemServed,
     settledBills,
   } = useSharedBridge();
   const { setSelectedTableNumber, setSelectedSeatNumber, setCurrentScreen } = useManagerStore();
@@ -74,9 +75,7 @@ export function TableChairsSheet({
   const tickets = isVacant
     ? []
     : kdsTickets.filter(
-        (tk) =>
-          groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber)) &&
-          tk.status !== 'COMPLETED'
+        (tk) => groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber)) && tk.status !== 'COMPLETED'
       );
 
   // Unified items list
@@ -94,10 +93,12 @@ export function TableChairsSheet({
   }
 
   const allTableOrderedItems: ChairItem[] = [];
+  const seenIds = new Set<string>();
 
   if (!isVacant) {
     tickets.forEach((tk) => {
       (tk.items || []).forEach((it) => {
+        seenIds.add(it.id);
         const activeMatch = table.activeItems?.find((ai) => ai.id === it.id);
         const isServed = it.stage === 'SERVED' || (it.stage as string) === 'Served' || activeMatch?.status === 'Served';
         const rawStage = isServed ? 'SERVED' : String(it.stage || tk.status || '').toUpperCase();
@@ -132,37 +133,41 @@ export function TableChairsSheet({
       });
     });
 
-    // Fallback to table activeItems if tickets are empty
-    if (allTableOrderedItems.length === 0 && table.activeItems && table.activeItems.length > 0) {
+    // Merge any remaining activeItems from table not already in active tickets
+    if (table.activeItems && table.activeItems.length > 0) {
       table.activeItems.forEach((ai, idx) => {
-        const rawStage = String(ai.status || '').toUpperCase();
-        const stage: ChairItem['stage'] =
-          rawStage === 'SERVED'
-            ? 'SERVED'
-            : rawStage === 'READY' || rawStage === 'PLATED'
-            ? 'READY'
-            : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
-            ? 'PREPARING'
-            : rawStage === 'RECEIVED'
-            ? 'RECEIVED'
-            : 'PLACED';
+        const id = ai.id || `ai-${idx}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
+          const rawStage = String(ai.status || '').toUpperCase();
+          const stage: ChairItem['stage'] =
+            rawStage === 'SERVED'
+              ? 'SERVED'
+              : rawStage === 'READY' || rawStage === 'PLATED'
+              ? 'READY'
+              : rawStage === 'PREPARING' || rawStage === 'PREP' || rawStage === 'COOKING'
+              ? 'PREPARING'
+              : rawStage === 'RECEIVED'
+              ? 'RECEIVED'
+              : 'PLACED';
 
-        const seat = ai.seatNumber || 1;
-        const aiName = (ai.name || '').trim().toLowerCase();
-        const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id));
-        const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
+          const seat = ai.seatNumber || 1;
+          const aiName = (ai.name || '').trim().toLowerCase();
+          const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id));
+          const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
 
-        allTableOrderedItems.push({
-          id: ai.id || `ai-${idx}`,
-          name: ai.name || menuItem?.name || 'Dish',
-          quantity: ai.quantity,
-          price: unitPrice,
-          totalPrice: unitPrice * ai.quantity,
-          options: ai.options,
-          stage,
-          seatNumber: seat,
-          ticketId: 'tbl-direct',
-        });
+          allTableOrderedItems.push({
+            id,
+            name: ai.name || menuItem?.name || 'Dish',
+            quantity: ai.quantity,
+            price: unitPrice,
+            totalPrice: unitPrice * ai.quantity,
+            options: ai.options,
+            stage,
+            seatNumber: seat,
+            ticketId: 'tbl-direct',
+          });
+        }
       });
     }
   }
@@ -239,6 +244,8 @@ export function TableChairsSheet({
   const isTablePaid =
     !hasTableOrders ||
     isBilling ||
+    Boolean(settledBills?.[normTable] || settledBills?.[table.number]) ||
+    (table.currentBill === 0 && !isVacant) ||
     (allActiveChairsSettled && !isVacant && chairsWithOrdersList.length > 0);
 
   // Single chair payment:
@@ -249,6 +256,7 @@ export function TableChairsSheet({
   const isCurrentChairSettled =
     typeof selectedSeat === 'number' &&
     (!hasSeatOrders ||
+      isTablePaid ||
       (Boolean(
         settledBills?.[`${normTable}-CHAIR-${selectedSeat}`] ||
         settledBills?.[`${table.number}-CHAIR-${selectedSeat}`]
@@ -260,7 +268,7 @@ export function TableChairsSheet({
   // Vacate is enabled if:
   // 1. Table/chair is not already vacant AND
   // 2. There are NO orders to pay (empty table/chair can always be vacated), OR payment is settled!
-  const isVacateEnabled = !isVacant && (!hasSeatOrders || isSelectionPaid);
+  const isVacateEnabled = !isVacant && (!hasSeatOrders || isSelectionPaid || isTablePaid || table.currentBill === 0);
 
   // Print KOT is enabled when there are active/paid items and not vacant
   const isPrintKOTEnabled = !isVacant && hasSeatOrders && isSelectionPaid;
@@ -288,13 +296,11 @@ export function TableChairsSheet({
   const handleVacateTable = () => {
     if (!isVacateEnabled) return;
 
-    if (selectedSeat !== 'ALL' && hasSeatOrders && !isTablePaid && isCurrentChairSettled) {
-      if (confirm(`Vacate Chair ${selectedSeat} on Table ${table.number}?`)) {
-        waiterClearsChairAfterPayment(table.number, selectedSeat as number);
-        setSelectedSeat('ALL');
-      }
-    } else if (selectedSeat !== 'ALL' && !hasSeatOrders) {
-      if (confirm(`Clear Chair ${selectedSeat} on Table ${table.number}?`)) {
+    if (selectedSeat !== 'ALL') {
+      const confirmMsg = hasSeatOrders
+        ? `Vacate Chair ${selectedSeat} on Table ${table.number}?`
+        : `Clear Chair ${selectedSeat} on Table ${table.number}?`;
+      if (confirm(confirmMsg)) {
         waiterClearsChairAfterPayment(table.number, selectedSeat as number);
         setSelectedSeat('ALL');
       }
@@ -556,12 +562,27 @@ export function TableChairsSheet({
                   )}
                 </div>
 
-                <div className="flex items-center gap-3 shrink-0">
-                  <span
-                    className={`text-[10px] font-black px-2 py-0.5 rounded border ${badge.cls}`}
-                  >
-                    {badge.text}
-                  </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  {item.stage !== 'SERVED' ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        waiterMarkKitchenItemServed(item.ticketId || 'tbl-direct', item.id);
+                      }}
+                      className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[10px] font-mono font-bold transition flex items-center gap-1 shadow-xs cursor-pointer active:scale-95"
+                      title="Mark dish as Served"
+                    >
+                      <CheckCircle2 className="h-3 w-3" />
+                      <span>Serve</span>
+                    </button>
+                  ) : (
+                    <span
+                      className={`text-[10px] font-black px-2 py-0.5 rounded border ${badge.cls}`}
+                    >
+                      {badge.text}
+                    </span>
+                  )}
                   <span className="font-mono text-xs font-black text-slate-900 min-w-[55px] text-right">
                     ₹ {item.totalPrice}
                   </span>
@@ -658,7 +679,7 @@ export function TableChairsSheet({
               isVacant
                 ? 'Table is already vacant'
                 : isVacateEnabled
-                ? selectedSeat !== 'ALL' && !isTablePaid
+                ? selectedSeat !== 'ALL'
                   ? `Vacate Chair ${selectedSeat}`
                   : `Vacate Table ${table.number}`
                 : 'Payment pending — Vacate is enabled only after payment is completed on Waiter Mobile, Tablet, Customer, or Manager side'
@@ -670,7 +691,7 @@ export function TableChairsSheet({
             }`}
           >
             <Trash2 className="h-4 w-4" />
-            <span>{selectedSeat !== 'ALL' && (!hasSeatOrders || isCurrentChairSettled) ? `Vacate C${selectedSeat}` : 'Vacate'}</span>
+            <span>{selectedSeat !== 'ALL' ? `Vacate C${selectedSeat}` : 'Vacate'}</span>
           </button>
         </div>
 

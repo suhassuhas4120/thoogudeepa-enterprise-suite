@@ -63,14 +63,17 @@ export async function POST(req: NextRequest) {
 
       const { data: otherUnpaidOrders } = await supabase
         .from('orders')
-        .select('id, total, seat_number')
+        .select('id, subtotal, total, seat_number')
         .eq('table_number', tableNumber)
         .eq('status', 'UNPAID')
         .neq('seat_number', seatNumber);
 
       const hasOtherOccupiedSeats = Boolean(otherOccupiedSeats && otherOccupiedSeats.length > 0);
       const hasOtherUnpaidOrders = Boolean(otherUnpaidOrders && otherUnpaidOrders.length > 0);
-      const otherUnpaidTotal = (otherUnpaidOrders || []).reduce((s, o) => s + Number(o.total || 0), 0);
+      const otherUnpaidSubtotal = (otherUnpaidOrders || []).reduce(
+        (s, o) => s + Number(o.subtotal !== undefined && o.subtotal !== null ? o.subtotal : (o.total ? Math.round(Number(o.total) / 1.05) : 0)),
+        0
+      );
 
       // 2. Fetch and filter active KDS tickets
       const { data: activeTickets } = await supabase
@@ -134,8 +137,9 @@ export async function POST(req: NextRequest) {
       // 3. Update table bill and status
       const isTableStillActive = hasOtherOccupiedSeats || hasOtherUnpaidOrders || hasOtherSeatItems;
       const newStatus = isTableStillActive ? 'OCCUPIED' : 'VACANT';
+      // SCN-04: Store untaxed subtotal in current_bill so UI 1.05 multiplier produces exact tax-inclusive total
       const newBill = isTableStillActive
-        ? (otherUnpaidTotal > 0 ? otherUnpaidTotal : Math.round(remainingItemsTotal * 1.05))
+        ? (otherUnpaidSubtotal > 0 ? otherUnpaidSubtotal : remainingItemsTotal)
         : 0;
       const newGuestCount = isTableStillActive
         ? Math.max(1, (otherOccupiedSeats?.length || 0), (table.guest_count || 2) - 1)
@@ -191,7 +195,25 @@ export async function POST(req: NextRequest) {
     }
 
     // ── FULL TABLE VACATE ──
-    // 2. Reset table state
+    // SCN-05: Cascade vacate across all peer tables in the merge group
+    const targetTables = [tableNumber];
+    if (table.merged_with) {
+      targetTables.push(table.merged_with);
+    }
+    const { data: peerTables } = await supabase
+      .from('tables')
+      .select('number')
+      .or(`merged_with.eq.${tableNumber}${table.merged_with ? `,merged_with.eq.${table.merged_with}` : ''}`);
+
+    if (peerTables && peerTables.length > 0) {
+      peerTables.forEach((pt) => {
+        if (!targetTables.includes(pt.number)) targetTables.push(pt.number);
+      });
+    }
+
+    const tableFilter = targetTables.map((t) => `number.eq.${t}`).join(',');
+
+    // 2. Reset table state for all merged peer tables
     const { error: tableUpdateErr } = await supabase
       .from('tables')
       .update({
@@ -202,53 +224,52 @@ export async function POST(req: NextRequest) {
         merged_with: null,
         updated_at: now,
       })
-      .eq('number', tableNumber);
+      .or(tableFilter);
 
     if (tableUpdateErr) {
       return NextResponse.json({ error: `Failed to vacate table: ${tableUpdateErr.message}` }, { status: 500 });
     }
 
-    // 3. Clear all seats for this table
-    await supabase
-      .from('table_seats')
-      .update({
-        status: 'VACANT',
-        active_order_id: null,
-        device_token: null,
-        updated_at: now,
-      })
-      .eq('table_number', tableNumber);
-
-    // 3b. Mark any active unpaid orders for this table as PAID so subsequent scans treat all chairs as fresh new users
-    await supabase
-      .from('orders')
-      .update({ status: 'PAID', updated_at: now })
-      .eq('table_number', tableNumber)
-      .eq('status', 'UNPAID');
-
-    // 4. Archive all tickets for this table as COMPLETED
-    await supabase
-      .from('kds_tickets')
-      .update({
-        status: 'COMPLETED',
-        updated_at: now,
-      })
-      .eq('table_number', tableNumber);
-
-    // 5. Clear settled bills for this table
-    try {
-      clearSettledBillInMemory(tableNumber);
-      const cleanT = (tableNumber || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-      const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+    // 3. Clear all seats, orders, tickets, and settled bills for all tables in the group
+    for (const tNum of targetTables) {
       await supabase
-        .from('pings')
-        .delete()
-        .or(`id.ilike.SETTLE-SESSION-${nTable}%,id.ilike.SETTLED-BILL-${nTable}%`);
-    } catch {}
+        .from('table_seats')
+        .update({
+          status: 'VACANT',
+          active_order_id: null,
+          device_token: null,
+          updated_at: now,
+        })
+        .eq('table_number', tNum);
 
-    broadcastStateChange('tableVacated', {
-      tableNumber,
-    });
+      await supabase
+        .from('orders')
+        .update({ status: 'PAID', updated_at: now })
+        .eq('table_number', tNum)
+        .eq('status', 'UNPAID');
+
+      await supabase
+        .from('kds_tickets')
+        .update({
+          status: 'COMPLETED',
+          updated_at: now,
+        })
+        .eq('table_number', tNum);
+
+      try {
+        clearSettledBillInMemory(tNum);
+        const cleanT = (tNum || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+        const nTable = `T-${String(parseInt(cleanT, 10) || 1).padStart(2, '0')}`;
+        await supabase
+          .from('pings')
+          .delete()
+          .or(`id.ilike.SETTLE-SESSION-${nTable}%,id.ilike.SETTLED-BILL-${nTable}%`);
+      } catch {}
+
+      broadcastStateChange('tableVacated', {
+        tableNumber: tNum,
+      });
+    }
 
     return NextResponse.json({
       success: true,

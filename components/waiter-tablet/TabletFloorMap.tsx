@@ -314,13 +314,13 @@ export function TabletFloorMap({
         .filter(Boolean) as SharedTable[];
 
       const groupTickets = kdsTickets.filter((tk) =>
-        peers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber))
+        peers.some((p) => cleanTableNum(p) === cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED'
       );
       const totalCapacity = allMembers.reduce((sum, m) => sum + (m.capacity || 2), 0);
       const groupCurrentBill = allMembers.reduce((sum, m) => sum + (m.currentBill || 0), 0);
       const totalBill = Math.round(groupCurrentBill * 1.05);
       const kotCount = allMembers.reduce(
-        (sum, m) => sum + kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(m.number)).length,
+        (sum, m) => sum + kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(m.number) && tk.status !== 'COMPLETED').length,
         0
       );
       const readyCount = allMembers.reduce(
@@ -363,7 +363,7 @@ export function TabletFloorMap({
       if (seenGroupIds.has(tbl.number)) continue;
       seenGroupIds.add(tbl.number);
 
-      const tblKOTs = kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tbl.number));
+      const tblKOTs = kdsTickets.filter((tk) => cleanTableNum(tk.tableNumber) === cleanTableNum(tbl.number) && tk.status !== 'COMPLETED');
       const readyCount = tblKOTs.filter((tk) => tk.status === 'READY').length;
 
       // Order placed check: tickets exist, KOTs fired, active items exist, or bill > 0

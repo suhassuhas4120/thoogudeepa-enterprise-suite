@@ -352,15 +352,18 @@ function bridgePost(
 ): void {
   if (typeof window === 'undefined') return;
 
-  fetch(url, {
+  const targetUrl = url.startsWith('/') ? `${window.location.origin}${url}` : url;
+
+  fetch(targetUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
+    keepalive: true,
   })
     .then((res) => {
       if (!res.ok) {
         res.json().catch(() => null).then((err) => {
-          console.error(`[Bridge] API ${url} failed (${res.status}):`, err);
+          console.warn(`[Bridge] API ${url} notice (${res.status}):`, err);
           onRollback?.(err);
         });
         return;
@@ -373,7 +376,7 @@ function bridgePost(
       });
     })
     .catch((err) => {
-      console.error(`[Bridge] API ${url} network error:`, err);
+      console.warn(`[Bridge] API ${url} network notice:`, err?.message || err);
       onRollback?.(err);
     });
 }
@@ -462,6 +465,8 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
     set((state) => {
       const nextBills = { ...state.settledBills };
+      const hadSettledChairBill = Boolean(nextBills[`${normTable}-CHAIR-${assignedSeat}`]);
+      const hadSettledTableBill = Boolean(nextBills[normTable]);
       delete nextBills[`${normTable}-CHAIR-${assignedSeat}`];
       if (nextBills[normTable] && (!nextBills[normTable].seatNumber || nextBills[normTable].seatNumber === assignedSeat)) {
         delete nextBills[normTable];
@@ -479,37 +484,53 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kdsTickets: [...state.kdsTickets, ticket],
         kitchenNotifications: [...state.kitchenNotifications, notif],
         settledBills: nextBills,
-        tables: state.tables.map((t) =>
-          t.number === tableNumber
-            ? {
-                ...t,
-                status: 'OCCUPIED',
-                guestCount: (() => {
-                  const existingSeats = new Set<number>();
-                  (t.activeItems || []).forEach((it) => {
-                    if (it.seatNumber) existingSeats.add(it.seatNumber);
-                  });
-                  existingSeats.add(assignedSeat);
-                  return Math.min(t.capacity, Math.max(1, existingSeats.size));
-                })(),
-                seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
-                currentBill: t.currentBill + orderTotal,
-                kotCount: t.kotCount + 1,
-                activeItems: [
-                  ...(t.activeItems || []),
-                  ...ticket.items.map((it) => ({
-                    id: it.id,
-                    name: it.name,
-                    quantity: it.quantity,
-                    status: 'Placed',
-                    seatNumber: assignedSeat,
-                    price: it.price,
-                    options: it.options,
-                  })),
-                ],
-              }
-            : t
-        ),
+        tables: state.tables.map((t) => {
+          const isTarget = cleanNum(t.number) === targetNum || t.number === normTable || t.number === tableNumber;
+          if (!isTarget) return t;
+
+          const isChairPostPayment = hadSettledChairBill;
+          const isTablePostPayment = hadSettledTableBill || t.status === 'BILLING';
+          const baseActiveItems = isChairPostPayment
+            ? (t.activeItems || []).filter((ai) => {
+                const aiSeat = ai.seatNumber !== undefined && ai.seatNumber !== null ? Number(ai.seatNumber) : 1;
+                return aiSeat !== assignedSeat;
+              })
+            : isTablePostPayment
+            ? []
+            : (t.activeItems || []);
+
+          const baseBill = (isChairPostPayment || isTablePostPayment)
+            ? baseActiveItems.reduce((sum, ai) => sum + (ai.price || 0) * (ai.quantity || 1), 0)
+            : t.currentBill;
+
+          return {
+            ...t,
+            status: 'OCCUPIED',
+            guestCount: (() => {
+              const existingSeats = new Set<number>();
+              baseActiveItems.forEach((it) => {
+                if (it.seatNumber) existingSeats.add(it.seatNumber);
+              });
+              existingSeats.add(assignedSeat);
+              return Math.min(t.capacity, Math.max(1, existingSeats.size));
+            })(),
+            seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
+            currentBill: baseBill + orderTotal,
+            kotCount: t.kotCount + 1,
+            activeItems: [
+              ...baseActiveItems,
+              ...ticket.items.map((it) => ({
+                id: it.id,
+                name: it.name,
+                quantity: it.quantity,
+                status: 'Placed',
+                seatNumber: assignedSeat,
+                price: it.price,
+                options: it.options,
+              })),
+            ],
+          };
+        }),
       };
     });
 
@@ -719,6 +740,25 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       }
       pingQuery.then(() => {}, () => {});
 
+      // Persist order status to PAID in Supabase to prevent CDC polling from resurrecting unpaid orders
+      let ordQuery = supabase
+        .from('orders')
+        .update({ status: 'PAID' })
+        .or(`table_number.eq.${normTable},table_number.eq.${tNum},table_number.eq.Table ${tNum},table_number.eq.TABLE ${tNum}`)
+        .eq('status', 'UNPAID');
+      if (typeof snapshot.seatNumber === 'number') {
+        ordQuery = ordQuery.eq('seat_number', snapshot.seatNumber);
+      }
+      ordQuery.then(() => {}, () => {});
+
+      if (typeof snapshot.seatNumber !== 'number') {
+        supabase
+          .from('kds_tickets')
+          .update({ status: 'COMPLETED' })
+          .or(`table_number.eq.${normTable},table_number.eq.${tNum},table_number.eq.Table ${tNum},table_number.eq.TABLE ${tNum}`)
+          .then(() => {}, () => {});
+      }
+
       const billId = `SETTLED-BILL-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       const sessId = `SETTLE-SESSION-${normTable}${typeof snapshot.seatNumber === 'number' ? `-S${snapshot.seatNumber}` : ''}`;
       supabase
@@ -778,42 +818,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         }
       }
 
-      // Also clean up activeItems on the table for this chair/table so syncWithActiveSession starts clean
-      const newTables = state.tables.map((t) => {
-        if (cleanTableNum(t.number) !== targetNum) return t;
-        const remainingActiveItems = (t.activeItems || []).filter((ai) => {
-          if (!isChair) return false;
-          const aiSeat = ai.seatNumber !== undefined && ai.seatNumber !== null ? Number(ai.seatNumber) : 1;
-          return aiSeat !== seatNumber;
-        });
-        const remainingSubtotal = remainingActiveItems.reduce((s, ai) => s + (ai.price || 0) * (ai.quantity || 1), 0);
-        return {
-          ...t,
-          activeItems: remainingActiveItems,
-          currentBill: remainingSubtotal,
-          status: remainingActiveItems.length > 0 ? ('OCCUPIED' as const) : ('VACANT' as const),
-        };
-      });
-
-      // Mark matching KDS tickets completed or remove items for this chair
-      const newTickets = state.kdsTickets.map((tk) => {
-        if (cleanTableNum(tk.tableNumber) !== targetNum) return tk;
-        if (!isChair) {
-          return { ...tk, status: 'COMPLETED' as const };
-        }
-        const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
-        const otherItems = (tk.items || []).filter((it) => (it.seatNumber ?? tkSeat) !== seatNumber);
-        if (otherItems.length === 0) {
-          return { ...tk, status: 'COMPLETED' as const };
-        }
-        return { ...tk, items: otherItems };
-      });
-
       return {
         settledBills: nextBills,
         activeSettlementSessions: nextSessions,
-        tables: newTables,
-        kdsTickets: newTickets,
       };
     });
 
@@ -1281,24 +1288,44 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         kdsTickets: [...state.kdsTickets, ticket],
         kitchenNotifications: [...state.kitchenNotifications, notif],
         settledBills: nextBills,
-        tables: state.tables.map((t) =>
-        cleanNum(t.number) === targetNum || t.number === normTable || t.number === tableNumber
-          ? {
+        tables: state.tables.map((t) => {
+          const isTarget = cleanNum(t.number) === targetNum || t.number === normTable || t.number === tableNumber;
+          if (!isTarget) return t;
+
+          const hadSettledChairBill = typeof seatNumber === 'number' && Boolean(nextBills[`${normTable}-CHAIR-${seatNumber}`]);
+          const hadSettledTableBill = Boolean(nextBills[normTable]);
+          const sNum = seatNumber || 1;
+          const isChairPostPayment = hadSettledChairBill;
+          const isTablePostPayment = hadSettledTableBill || t.status === 'BILLING';
+          const baseActiveItems = isChairPostPayment
+            ? (t.activeItems || []).filter((ai) => {
+                const aiSeat = ai.seatNumber !== undefined && ai.seatNumber !== null ? Number(ai.seatNumber) : 1;
+                return aiSeat !== sNum;
+              })
+            : isTablePostPayment
+            ? []
+            : (t.activeItems || []);
+
+          const baseBill = (isChairPostPayment || isTablePostPayment)
+            ? baseActiveItems.reduce((sum, ai) => sum + (ai.price || 0) * (ai.quantity || 1), 0)
+            : t.currentBill;
+
+          return {
               ...t,
               status: 'OCCUPIED',
               guestCount: (() => {
                 const existingSeats = new Set<number>();
-                (t.activeItems || []).forEach((it) => {
+                baseActiveItems.forEach((it) => {
                   if (it.seatNumber) existingSeats.add(it.seatNumber);
                 });
                 if (seatNumber) existingSeats.add(seatNumber);
                 return Math.min(t.capacity, Math.max(1, existingSeats.size));
               })(),
               seatedTime: t.seatedTime === '--' ? nowTime() : t.seatedTime,
-              currentBill: t.currentBill + kotTotal,
-              kotCount: t.kotCount + 1,
+              currentBill: baseBill + kotTotal,
+              kotCount: (t.kotCount || 0) + 1,
               activeItems: [
-                ...(t.activeItems || []),
+                ...baseActiveItems,
                 ...ticket.items.map((it) => ({
                   id: it.id,
                   name: it.name,
@@ -1310,11 +1337,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                   addOns: it.addOns,
                 })),
               ],
-            }
-          : t
-      ),
-      };
-    });
+            };
+          }),
+        };
+      });
 
     broadcastStateChange('seatOccupied', {
       tableNumber: normTable,
@@ -1660,11 +1686,13 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             status: restoredStatus,
             currentBill: restoredBill,
             guestCount: restoredGuests,
+            capacity: t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity,
             activeItems: [],
             mergedWith: undefined,
             mergeGroupPeers: undefined,
             isMergeConfirmed: undefined,
             removedChairs: undefined,
+            preMergeCapacity: undefined,
             preMergeBill: undefined,
             preMergeGuests: undefined,
             preMergeStatus: undefined,
@@ -1691,6 +1719,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             return {
               ...t,
               status: removedRestoredStatus,
+              capacity: t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity,
               mergedWith: undefined,
               mergeGroupPeers: undefined,
               isMergeConfirmed: undefined,
@@ -1783,18 +1812,33 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
 
       // For single-chair settle: keep table OCCUPIED, reduce its bill by that chair's share.
       // For full-table settle: mark entire group as BILLING (pre-vacate status).
+      const sNum = isChairSettle ? Number(seatNumber) : undefined;
       const newTickets = isChairSettle
         ? state.kdsTickets.map((tk) => {
             if (cleanTableNum(tk.tableNumber) !== targetNum) return tk;
-            const seatItems = tk.items.filter((it) => it.seatNumber === seatNumber);
-            const otherItems = tk.items.filter((it) => it.seatNumber !== seatNumber);
+            const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+            const seatItems = tk.items.filter((it) => {
+              const itSeat = it.seatNumber !== undefined && it.seatNumber !== null ? Number(it.seatNumber) : tkSeat;
+              return itSeat === sNum;
+            });
+            const otherItems = tk.items.filter((it) => {
+              const itSeat = it.seatNumber !== undefined && it.seatNumber !== null ? Number(it.seatNumber) : tkSeat;
+              return itSeat !== sNum;
+            });
             if (seatItems.length === 0) return tk;
             if (otherItems.length === 0) {
               return { ...tk, status: 'COMPLETED' as const };
             }
             return { ...tk, items: otherItems };
           })
-        : state.kdsTickets;
+        : state.kdsTickets.map((tk) => {
+            if (cleanTableNum(tk.tableNumber) !== targetNum && !groupNums.has(tk.tableNumber)) return tk;
+            return {
+              ...tk,
+              status: 'COMPLETED' as const,
+              items: tk.items.map((it) => ({ ...it, stage: 'SERVED' as const })),
+            };
+          });
 
       return {
         tables: state.tables.map((t) => {
@@ -1802,7 +1846,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           if (isChairSettle) {
             // Recompute currentBill as GST-inclusive total of remaining activeItems
             const remainingActiveItems = (t.activeItems || []).filter(
-              (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
+              (ai: { seatNumber?: number }) => {
+                const aiSeat = ai.seatNumber !== undefined && ai.seatNumber !== null ? Number(ai.seatNumber) : 1;
+                return aiSeat !== sNum;
+              }
             );
             const remainingSubtotal = remainingActiveItems.reduce(
               (s, ai) => s + (ai.price || 0) * (ai.quantity || 1),
@@ -1819,6 +1866,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
             ...t,
             currentBill: remainingBill,
             status: 'BILLING',
+            activeItems: remainingBill === 0 ? (t.activeItems || []).map((ai) => ({ ...ai, status: 'Served', stage: 'SERVED' })) : t.activeItems,
           };
         }),
         kdsTickets: newTickets,
@@ -1852,6 +1900,31 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         pQuery = pQuery.or(`seat_number.eq.${seatNumber},seat_number.is.null`);
       }
       pQuery.then(() => {}, () => {});
+
+      // Persist order status to PAID so CDC polling does not resurrect unpaid orders
+      let ordQuery = supabase
+        .from('orders')
+        .update({ status: 'PAID' })
+        .or(`table_number.eq.${normTbl},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
+        .eq('status', 'UNPAID');
+      if (typeof seatNumber === 'number') {
+        ordQuery = ordQuery.eq('seat_number', seatNumber);
+      }
+      ordQuery.then(() => {}, () => {});
+
+      if (!isChairSettle) {
+        supabase
+          .from('kds_tickets')
+          .update({ status: 'COMPLETED' })
+          .or(`table_number.eq.${normTbl},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
+          .then(() => {}, () => {});
+
+        supabase
+          .from('tables')
+          .update({ status: 'BILLING', current_bill: 0 })
+          .or(`number.eq.${normTbl},number.eq.${targetNum},number.eq.Table ${targetNum},number.eq.TABLE ${targetNum}`)
+          .then(() => {}, () => {});
+      }
     }
 
     // Automatically sync cash collection into Manager Staff Roster (M9 Waiter Cash Handover)
@@ -1921,10 +1994,12 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
                 currentBill: 0,
                 guestCount: 0,
                 kotCount: 0,
+                capacity: t.preMergeCapacity !== undefined ? t.preMergeCapacity : t.capacity,
                 seatedTime: '--',
                 activeItems: [],
                 mergedWith: undefined,
                 mergeGroupPeers: undefined,
+                preMergeCapacity: undefined,
                 preMergeBill: undefined,
                 preMergeGuests: undefined,
                 preMergeStatus: undefined,
@@ -1963,7 +2038,32 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
       supabase
         .from('pings')
         .delete()
-        .or(`id.ilike.SETTLE-SESSION-${normTable}%`)
+        .or(`id.ilike.SETTLE-SESSION-${normTable}%,id.ilike.SETTLED-BILL-${normTable}%`)
+        .then(() => {}, () => {});
+
+      supabase
+        .from('tables')
+        .update({ status: 'VACANT', current_bill: 0, guest_count: 0, kot_count: 0, merged_with: null })
+        .or(`number.eq.${normTable},number.eq.${targetNum},number.eq.Table ${targetNum},number.eq.TABLE ${targetNum}`)
+        .then(() => {}, () => {});
+
+      supabase
+        .from('orders')
+        .update({ status: 'PAID' })
+        .or(`table_number.eq.${normTable},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
+        .eq('status', 'UNPAID')
+        .then(() => {}, () => {});
+
+      supabase
+        .from('kds_tickets')
+        .update({ status: 'COMPLETED' })
+        .or(`table_number.eq.${normTable},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
+        .then(() => {}, () => {});
+
+      supabase
+        .from('table_seats')
+        .update({ status: 'VACANT', active_order_id: null, device_token: null })
+        .or(`table_number.eq.${normTable},table_number.eq.${targetNum},table_number.eq.Table ${targetNum},table_number.eq.TABLE ${targetNum}`)
         .then(() => {}, () => {});
     }
 
@@ -1971,9 +2071,9 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     bridgePost(
       '/api/tables/vacate',
       { tableNumber },
-      () => {
-        console.error('[Bridge] waiterVacatesTable rollback');
-        useSharedBridge.setState({ tables: prevTables, kdsTickets: prevTickets });
+      (err) => {
+        console.warn('[Bridge] waiterVacatesTable sync notice:', err?.message || err);
+        // Do not rollback optimistic vacation to avoid UI glitching on transient server latency
       }
     );
   },
@@ -1981,6 +2081,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
   waiterClearsChairAfterPayment: (tableNumber, seatNumber) => {
     const targetNum = cleanTableNum(tableNumber);
     const normTable = `T-${String(parseInt(targetNum, 10) || 1).padStart(2, '0')}`;
+    const sNum = Number(seatNumber);
 
     set((state) => {
       // 1. Separate items on tickets: settled seat's items are removed from active ticket
@@ -1992,11 +2093,17 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           continue;
         }
 
-        const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : undefined;
-        const seatItems = tk.items.filter((it) => (it.seatNumber ?? tkSeat) === seatNumber);
-        const otherItems = tk.items.filter((it) => (it.seatNumber ?? tkSeat) !== seatNumber);
+        const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
+        const seatItems = tk.items.filter((it) => {
+          const itSeat = it.seatNumber !== undefined && it.seatNumber !== null ? Number(it.seatNumber) : tkSeat;
+          return itSeat === sNum;
+        });
+        const otherItems = tk.items.filter((it) => {
+          const itSeat = it.seatNumber !== undefined && it.seatNumber !== null ? Number(it.seatNumber) : tkSeat;
+          return itSeat !== sNum;
+        });
 
-        if (seatItems.length === 0 && tkSeat !== seatNumber) {
+        if (seatItems.length === 0 && tkSeat !== sNum) {
           // Ticket doesn't contain items for this seat
           newTickets.push(tk);
           continue;
@@ -2014,7 +2121,7 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
           // Add an archived ticket for the paid seat items
           newTickets.push({
             ...tk,
-            id: `${tk.id}-paid-s${seatNumber}`,
+            id: `${tk.id}-paid-s${sNum}`,
             status: 'COMPLETED' as const,
             items: seatItems.map((it) => ({ ...it, stage: 'SERVED' as OrderStage })),
           });
@@ -2026,7 +2133,10 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         if (cleanTableNum(t.number) !== targetNum) return t;
 
         const remainingActiveItems = (t.activeItems || []).filter(
-          (ai: { seatNumber?: number }) => ai.seatNumber !== seatNumber
+          (ai: { seatNumber?: number }) => {
+            const aiSeat = ai.seatNumber !== undefined && ai.seatNumber !== null ? Number(ai.seatNumber) : 1;
+            return aiSeat !== sNum;
+          }
         );
 
         // Sum remaining items from active tickets and activeItems
@@ -2042,16 +2152,27 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         const hasRemainingOrders = remainingTicketItems.length > 0 || remainingActiveItems.length > 0;
         const activeKotCount = newTickets.filter((tk) => cleanTableNum(tk.tableNumber) === targetNum && tk.status !== 'COMPLETED').length;
 
-        const hasOtherGuests = (t.guestCount || 1) > 1 || hasRemainingOrders;
+        // Calculate remaining guests strictly from chairs that still have active items/orders
+        const remainingOccupiedSeats = new Set<number>();
+        remainingTicketItems.forEach((it) => {
+          if (it.seatNumber) remainingOccupiedSeats.add(Number(it.seatNumber));
+        });
+        remainingActiveItems.forEach((ai) => {
+          if (ai.seatNumber) remainingOccupiedSeats.add(Number(ai.seatNumber));
+        });
+
+        const hasOtherGuests = remainingOccupiedSeats.size > 0 || hasRemainingOrders || (newBill > 0);
+        const nextGuestCount = hasOtherGuests ? Math.max(remainingOccupiedSeats.size, Math.max(0, (t.guestCount || 1) - 1)) : 0;
         const nextStatus = hasOtherGuests ? ('OCCUPIED' as const) : ('VACANT' as const);
 
         return {
           ...t,
           activeItems: remainingActiveItems,
           currentBill: newBill,
-          guestCount: hasOtherGuests ? Math.max(1, (t.guestCount || 2) - 1) : 0,
+          guestCount: nextGuestCount,
           kotCount: hasRemainingOrders ? activeKotCount : 0,
           status: nextStatus,
+          seatedTime: nextStatus === 'VACANT' ? '--' : t.seatedTime,
         };
       });
 
@@ -2130,14 +2251,29 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         .delete()
         .eq('id', `SETTLE-SESSION-${normTable}-S${seatNumber}`)
         .then(() => {}, () => {});
+
+      supabase
+        .from('orders')
+        .update({ status: 'PAID' })
+        .or(`table_number.eq.${normTable},table_number.eq.${targetNum}`)
+        .eq('seat_number', seatNumber)
+        .eq('status', 'UNPAID')
+        .then(() => {}, () => {});
+
+      supabase
+        .from('table_seats')
+        .update({ status: 'VACANT', active_order_id: null, device_token: null })
+        .or(`table_number.eq.${normTable},table_number.eq.${targetNum}`)
+        .eq('seat_number', seatNumber)
+        .then(() => {}, () => {});
     }
 
     // Persist to Supabase
     bridgePost(
       '/api/tables/vacate',
       { tableNumber, seatNumber },
-      () => {
-        console.error('[Bridge] waiterClearsChairAfterPayment rollback');
+      (err) => {
+        console.warn('[Bridge] waiterClearsChairAfterPayment sync notice:', err?.message || err);
       }
     );
   },
@@ -2147,9 +2283,14 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const prevTables = get().tables;
 
     // Resolve matching ticket, table, and item details before updating state
-    let matchedTicket = prevTickets.find(
-      (tk) => tk.id === ticketId || tk.items?.some((i) => i.id === itemId)
-    );
+    let matchedTicket = (ticketId && ticketId !== 'tbl-direct')
+      ? prevTickets.find((tk) => tk.id === ticketId)
+      : undefined;
+
+    if (!matchedTicket) {
+      matchedTicket = prevTickets.find((tk) => tk.items?.some((i) => i.id === itemId));
+    }
+
     let matchedItem = matchedTicket?.items?.find((i) => i.id === itemId);
     const matchedTable = prevTables.find(
       (tbl) =>
@@ -2159,16 +2300,33 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
     const matchedAi = matchedTable?.activeItems?.find((ai) => ai.id === itemId);
 
     // If ticketId is 'tbl-direct' or no ticket matched directly by item ID, match by table number and item name
+    // CRITICAL: Prefer active (non-completed) tickets with unserved items first, so subsequent order batches are properly served!
     if (!matchedTicket && matchedTable) {
-      matchedTicket = prevTickets.find(
-        (tk) =>
-          cleanTableNum(tk.tableNumber) === cleanTableNum(matchedTable.number) &&
-          tk.items?.some((i) => (matchedAi?.name && i.name === matchedAi.name) || i.id === itemId)
-      );
-      if (matchedTicket && !matchedItem) {
-        matchedItem = matchedTicket.items?.find(
-          (i) => (matchedAi?.name && i.name === matchedAi.name) || i.id === itemId
+      matchedTicket =
+        prevTickets.find(
+          (tk) =>
+            cleanTableNum(tk.tableNumber) === cleanTableNum(matchedTable.number) &&
+            tk.status !== 'COMPLETED' &&
+            tk.items?.some((i) => i.stage !== 'SERVED' && ((matchedAi?.name && i.name === matchedAi.name) || i.id === itemId))
+        ) ||
+        prevTickets.find(
+          (tk) =>
+            cleanTableNum(tk.tableNumber) === cleanTableNum(matchedTable.number) &&
+            tk.status !== 'COMPLETED'
+        ) ||
+        prevTickets.find(
+          (tk) =>
+            cleanTableNum(tk.tableNumber) === cleanTableNum(matchedTable.number) &&
+            tk.items?.some((i) => (matchedAi?.name && i.name === matchedAi.name) || i.id === itemId)
         );
+      if (matchedTicket && !matchedItem) {
+        matchedItem =
+          matchedTicket.items?.find(
+            (i) => i.stage !== 'SERVED' && ((matchedAi?.name && i.name === matchedAi.name) || i.id === itemId)
+          ) ||
+          matchedTicket.items?.find(
+            (i) => (matchedAi?.name && i.name === matchedAi.name) || i.id === itemId
+          );
       }
     }
 
@@ -2226,38 +2384,46 @@ export const useSharedBridge = create<SharedBridgeState>((set, get) => ({
         targetTableNumber ||
         state.tables.find((tbl) => tbl.activeItems?.some((ai) => ai.id === itemId))?.number;
 
-      const updatedTables = resolvedTableNum
-        ? state.tables.map((tbl) => {
-            if (cleanTableNum(tbl.number) !== cleanTableNum(resolvedTableNum)) return tbl;
-            let aiServedOnce = false;
-            const updatedActive = (tbl.activeItems || []).map((ai) => {
-              if (ai.id === itemId) {
-                aiServedOnce = true;
-                return { ...ai, status: 'Served', stage: 'SERVED' };
-              }
-              return ai;
-            });
-            const finalActive = aiServedOnce
-              ? updatedActive
-              : (tbl.activeItems || []).map((ai) => {
-                  if (
-                    !aiServedOnce &&
-                    targetItemName &&
-                    ai.name === targetItemName &&
-                    ai.status !== 'Served' &&
-                    (targetSeatNumber === undefined || ai.seatNumber === undefined || ai.seatNumber === targetSeatNumber)
-                  ) {
-                    aiServedOnce = true;
-                    return { ...ai, status: 'Served', stage: 'SERVED' };
-                  }
-                  return ai;
-                });
-            return {
-              ...tbl,
-              activeItems: finalActive,
-            };
-          })
-        : state.tables;
+        const updatedTables = resolvedTableNum
+          ? state.tables.map((tbl) => {
+              if (cleanTableNum(tbl.number) !== cleanTableNum(resolvedTableNum)) return tbl;
+              let aiServedOnce = false;
+              const updatedActive = (tbl.activeItems || []).map((ai) => {
+                if (ai.id === itemId) {
+                  aiServedOnce = true;
+                  return { ...ai, status: 'Served', stage: 'SERVED' };
+                }
+                return ai;
+              });
+              const finalActive = aiServedOnce
+                ? updatedActive
+                : (tbl.activeItems || []).map((ai) => {
+                    if (
+                      !aiServedOnce &&
+                      targetItemName &&
+                      ai.name === targetItemName &&
+                      ai.status !== 'Served' &&
+                      (targetSeatNumber === undefined || ai.seatNumber === undefined || ai.seatNumber === targetSeatNumber)
+                    ) {
+                      aiServedOnce = true;
+                      return { ...ai, status: 'Served', stage: 'SERVED' };
+                    }
+                    return ai;
+                  });
+              // Ensure bill includes all served/active items
+              const billTotal = (finalActive || []).reduce((sum, ai) => {
+                const qty = ai.quantity || 1;
+                const price = ai.price || 0;
+                return sum + (price * qty);
+              }, 0);
+              // Only update bill if we actually updated items; otherwise keep existing bill
+              return {
+                ...tbl,
+                activeItems: finalActive,
+                currentBill: aiServedOnce || billTotal > (tbl.currentBill || 0) ? billTotal : (tbl.currentBill || 0),
+              };
+            })
+          : state.tables;
 
       return { kdsTickets: newTickets, tables: updatedTables };
     });
@@ -2687,7 +2853,7 @@ if (typeof window !== 'undefined') {
           return {
             ...t,
             activeItems: mergedActiveItems,
-            status: hasItems ? 'OCCUPIED' : t.status,
+            status: t.status === 'BILLING' ? 'BILLING' : (hasItems ? 'OCCUPIED' : t.status),
           };
         });
 

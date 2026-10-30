@@ -59,12 +59,13 @@ export function useRealtimeTickets(tableId: string) {
   const fetchTickets = useCallback(async () => {
     if (!tableId) return;
 
-    // 1. Fetch tickets for this table
+    const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    // 1. Fetch tickets for this table (include all batches from current dining session)
     const { data: ticketsData, error: tErr } = await supabase
       .from('kds_tickets')
       .select('*')
       .eq('table_number', tableId)
-      .neq('status', 'COMPLETED')
+      .gte('created_at', dayAgoIso)
       .order('created_at', { ascending: true });
 
     if (tErr) {
@@ -94,7 +95,9 @@ export function useRealtimeTickets(tableId: string) {
     }
 
     // 3. Map into TrackedTickets
-    const mapped: TrackedTicket[] = ticketsData.map((t) => {
+    const mapped: TrackedTicket[] = (ticketsData || [])
+      .filter((t) => (t.status || 'NEW') !== 'COMPLETED')
+      .map((t) => {
       const relatedItems = itemsData.filter((i) => i.order_id === t.order_id);
       const items: TrackedItem[] = relatedItems.map((i) => ({
         id: i.id,
@@ -206,7 +209,9 @@ export function useRealtimeAllTickets() {
       }
     }
 
-    const mapped: TrackedTicket[] = ticketsData.map((t) => {
+    const mapped: TrackedTicket[] = (ticketsData || [])
+      .filter((t) => (t.status || 'NEW') !== 'COMPLETED')
+      .map((t) => {
       const relatedItems = itemsData.filter((i) => i.order_id === t.order_id);
       const items: TrackedItem[] = relatedItems.map((i) => ({
         id: i.id,

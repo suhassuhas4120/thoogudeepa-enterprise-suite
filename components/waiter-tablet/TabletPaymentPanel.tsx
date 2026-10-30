@@ -59,7 +59,7 @@ export function TabletPaymentPanel({
   const [method, setMethod] = useState<PayMethod>('UPI');
   const [cashTendered, setCashTendered] = useState<number | ''>('');
   const [isUpiVerified, setIsUpiVerified] = useState(false);
-  const [vacateAfter, setVacateAfter] = useState(!splitAmount);
+  const [vacateAfter, setVacateAfter] = useState(true);
   const [settled, setSettled] = useState(false);
   const [settledAmount, setSettledAmount] = useState<number | null>(null);
   const [printed, setPrinted] = useState(false);
@@ -107,7 +107,7 @@ export function TabletPaymentPanel({
   // ── Group peers & unified orders computation ──
   const groupPeers = table?.mergeGroupPeers || (table?.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
   const peerNums = new Set(groupPeers.map(cleanTableNum));
-  const tickets = kdsTickets.filter((tk) => peerNums.has(cleanTableNum(tk.tableNumber)));
+  const tickets = kdsTickets.filter((tk) => peerNums.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
   const firedFromTickets = tickets.flatMap((tk) =>
     tk.items.map((it) => {
       const seat = it.seatNumber !== undefined && it.seatNumber !== null
@@ -249,28 +249,36 @@ export function TabletPaymentPanel({
   }, [settledBills, tableNum, selectedChair, splitLabel, settled, onDone]);
 
   // Synchronize settlement session so customer devices see captain arrival & QR status
+  const lastSessionKeyRef = useRef<string>('');
   useEffect(() => {
     if (settled || bill <= 0) return;
     const splitSeatNum = typeof selectedChair === 'number'
       ? selectedChair
       : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
+    const sessionKey = `${tableNum}_${splitSeatNum ?? 'all'}_${bill}_${method}_${isUpiVerified}`;
+    if (lastSessionKeyRef.current === sessionKey) return;
+    lastSessionKeyRef.current = sessionKey;
+
     const timer = setTimeout(() => {
       waiterInitiatesSettlement(tableNum, splitSeatNum, bill, method === 'CARD' ? 'UPI' : method, isUpiVerified);
-    }, 100);
+    }, 150);
     return () => {
       clearTimeout(timer);
     };
-  }, [tableNum, selectedChair, splitLabel, bill, method, isUpiVerified, waiterInitiatesSettlement, settled]);
+  }, [tableNum, selectedChair, splitLabel, bill, method, isUpiVerified, settled]);
 
-  // Clean up settlement session only when unmounting the payment panel
+  // Clean up settlement session only when unmounting the payment panel without having settled
+  const settledRef = useRef(false);
   useEffect(() => {
     const splitSeatNum = typeof selectedChair === 'number'
       ? selectedChair
       : (splitLabel?.match(/(?:Chair|Seat)\s*(\d+)/i) ? Number(splitLabel.match(/(?:Chair|Seat)\s*(\d+)/i)![1]) : undefined);
     return () => {
-      waiterClearsSettlementSession(tableNum, splitSeatNum);
+      if (!settledRef.current) {
+        waiterClearsSettlementSession(tableNum, splitSeatNum);
+      }
     };
-  }, [tableNum, selectedChair, splitLabel, waiterClearsSettlementSession]);
+  }, [tableNum, selectedChair, splitLabel]);
 
   if (!table) return null;
 
@@ -364,6 +372,7 @@ export function TabletPaymentPanel({
     });
 
     const finalBill = bill;
+    settledRef.current = true;
     setSettledAmount(finalBill);
     setSettled(true);
 
@@ -374,7 +383,9 @@ export function TabletPaymentPanel({
       } else if (vacateAfter || !splitAmount) {
         waiterVacatesTable(tableNum);
       }
-      onDone();
+      setTimeout(() => {
+        onDone();
+      }, 100);
     }, 1200);
   };
 

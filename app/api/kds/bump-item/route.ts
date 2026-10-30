@@ -183,32 +183,41 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      // If the item belongs to a valid floor table, upsert it into order_items so it persists
+      // SCN-10: If the item belongs to a valid floor table, find active order to prevent foreign key violation
       if (!item && !targetTicket && normTable) {
-        const nameToSave = body.itemName || (body.name ? String(body.name) : `Item ${itemId}`);
-        const priceToSave = Number(body.price || body.unitPrice || 0);
-        const qtyToSave = Number(body.quantity || 1);
-        const seatToSave = Number(body.seatNumber || body.seat_number) || 1;
-        const { data: insertedItem } = await supabase
-          .from('order_items')
-          .upsert({
-            id: itemId,
-            order_id: `ORD-${normTable.replace(/[^a-zA-Z0-9]/g, '')}-${nowIso.slice(-6)}`,
-            table_number: normTable,
-            seat_number: seatToSave,
-            name: nameToSave,
-            quantity: qtyToSave,
-            price: priceToSave,
-            unit_price: priceToSave,
-            total_price: priceToSave * qtyToSave,
-            stage: targetStage || 'SERVED',
-            created_at: nowIso,
-            updated_at: nowIso,
-          })
-          .select('*')
+        const { data: activeOrder } = await supabase
+          .from('orders')
+          .select('id')
+          .eq('table_number', normTable)
+          .eq('status', 'UNPAID')
           .maybeSingle();
-        if (insertedItem) {
-          item = insertedItem;
+
+        if (activeOrder) {
+          const nameToSave = body.itemName || (body.name ? String(body.name) : `Item ${itemId}`);
+          const priceToSave = Number(body.price || body.unitPrice || 0);
+          const qtyToSave = Number(body.quantity || 1);
+          const seatToSave = Number(body.seatNumber || body.seat_number) || 1;
+          const { data: insertedItem } = await supabase
+            .from('order_items')
+            .upsert({
+              id: itemId,
+              order_id: activeOrder.id,
+              table_number: normTable,
+              seat_number: seatToSave,
+              name: nameToSave,
+              quantity: qtyToSave,
+              price: priceToSave,
+              unit_price: priceToSave,
+              total_price: priceToSave * qtyToSave,
+              stage: targetStage || 'SERVED',
+              created_at: nowIso,
+              updated_at: nowIso,
+            })
+            .select('*')
+            .maybeSingle();
+          if (insertedItem) {
+            item = insertedItem;
+          }
         }
       }
 
@@ -319,6 +328,41 @@ export async function POST(req: NextRequest) {
             updated_at: nowIso,
           })
           .eq('id', targetTicket.id);
+
+        // 5. Update orders.items so that CDC polling / orders queries reflect the updated stage across all devices
+        try {
+          const orderIdToUpdate = item?.order_id || targetTicket?.order_id;
+          if (orderIdToUpdate) {
+            const { data: ordRecord } = await supabase
+              .from('orders')
+              .select('id, items')
+              .eq('id', orderIdToUpdate)
+              .maybeSingle();
+
+            if (ordRecord && Array.isArray(ordRecord.items)) {
+              let orderItemMatched = false;
+              const updatedOrdItems = ordRecord.items.map((it: any) => {
+                const itName = (it.name || '').trim().toLowerCase();
+                const isIdMatch = it.id === itemId || (item && it.id === item.id) || (ticketItem && it.id === ticketItem.id);
+                const isNameMatch = !orderItemMatched && itemName && (itName === itemName || itName.includes(itemName) || itemName.includes(itName));
+                const isSeatMatch = !body.seatNumber || !it.seatNumber || Number(body.seatNumber) === Number(it.seatNumber);
+                if (isIdMatch || (isNameMatch && isSeatMatch)) {
+                  orderItemMatched = true;
+                  return { ...it, stage: nextStage };
+                }
+                return it;
+              });
+              if (orderItemMatched) {
+                await supabase
+                  .from('orders')
+                  .update({ items: updatedOrdItems, updated_at: nowIso })
+                  .eq('id', ordRecord.id);
+              }
+            }
+          }
+        } catch (ordUpdateErr) {
+          console.warn('Notice: bump-item orders sync:', ordUpdateErr);
+        }
 
         // Broadcast update so all connected screens update in <50ms
         try {

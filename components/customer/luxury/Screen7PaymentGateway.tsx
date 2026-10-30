@@ -125,66 +125,88 @@ export const Screen7PaymentGateway: React.FC = () => {
   const currentTbl = tables.find((t) => cleanNum(t.number) === cleanNum(effectiveTable));
 
   const chairResolvedItems = useMemo(() => {
-    if (chairCart.length > 0) {
-      return chairCart.map((ci) => ({
-        id: ci.cartItemId,
-        name: ci.menuItem.name,
-        quantity: ci.quantity,
-        price: ci.totalPrice / (ci.quantity || 1),
-        totalPrice: ci.totalPrice,
-        seatNumber: ci.seatNumber || effectiveSeat,
-      }));
-    }
+    const seenIds = new Set<string>();
+    const unified: Array<{
+      id: string;
+      name: string;
+      quantity: number;
+      price: number;
+      totalPrice: number;
+      seatNumber: number;
+    }> = [];
+
+    // 1. Authoritative items from all tickets for this chair across all batches
     const myTickets = (kdsTickets || []).filter(
       (tk) => cleanNum(tk.tableNumber) === cleanNum(effectiveTable) &&
-              tk.status !== 'COMPLETED' &&
-              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat))
+              (tk.seatNumber === effectiveSeat || tk.items.some((i) => i.seatNumber === effectiveSeat)) &&
+              tk.status !== 'COMPLETED'
     );
-    if (myTickets.length > 0) {
-      const items = myTickets.flatMap((tk) =>
-        tk.items
-          .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
-          .map((it) => {
+    myTickets.forEach((tk) => {
+      tk.items
+        .filter((it) => it.seatNumber === effectiveSeat || (!it.seatNumber && tk.seatNumber === effectiveSeat))
+        .forEach((it) => {
+          const id = it.id || `tk-${it.name}-${effectiveSeat}`;
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
             const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
             const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
-            return {
-              id: it.id,
+            unified.push({
+              id,
               name: it.name,
               quantity: it.quantity,
               price: verifiedPrice,
               totalPrice: verifiedPrice * it.quantity,
               seatNumber: effectiveSeat,
-            };
-          })
-      );
-      if (items.length > 0) return items;
-    }
+            });
+          }
+        });
+    });
+
+    // 2. Combine with table activeItems for this chair not yet included
     if (currentTbl?.activeItems && currentTbl.activeItems.length > 0) {
       const chairTableItems = currentTbl.activeItems.filter(
         (it: any) => it.seatNumber === effectiveSeat || (!it.seatNumber && effectiveSeat === 1)
       );
-      if (chairTableItems.length > 0) {
-        return chairTableItems.map((it: any) => {
+      chairTableItems.forEach((it: any, idx: number) => {
+        const id = it.id || `active-${it.name}-${idx}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
           const catalogItem = INITIAL_MENU_ITEMS.find((m: any) => m.id === it.id || m.name?.toLowerCase() === it.name?.toLowerCase());
           const verifiedPrice = it.price || (it as any).unitPrice || catalogItem?.price || 0;
-          return {
-            id: it.id || `active-${it.name}`,
+          unified.push({
+            id,
             name: it.name,
             quantity: it.quantity || 1,
             price: verifiedPrice,
             totalPrice: verifiedPrice * (it.quantity || 1),
             seatNumber: effectiveSeat,
-          };
-        });
-      }
+          });
+        }
+      });
     }
-    return [];
+
+    // 3. Fallback only if no tickets or active items exist yet
+    if (unified.length === 0) {
+      chairCart.forEach((ci) => {
+        const id = ci.cartItemId;
+        const verifiedPrice = ci.totalPrice / (ci.quantity || 1);
+        unified.push({
+          id,
+          name: ci.menuItem.name,
+          quantity: ci.quantity,
+          price: verifiedPrice,
+          totalPrice: ci.totalPrice,
+          seatNumber: ci.seatNumber || effectiveSeat,
+        });
+      });
+    }
+
+    return unified;
   }, [chairCart, kdsTickets, currentTbl, effectiveTable, effectiveSeat]);
 
-  // Money Calculations
-  const subtotal = chairResolvedItems.length > 0
-    ? chairResolvedItems.reduce((s, i) => s + i.totalPrice, 0)
-    : (payment.subtotal > 0 ? payment.subtotal : 0);
+  // Money Calculations across all combined batches
+  const calculatedItemsSubtotal = chairResolvedItems.reduce((s, i) => s + i.totalPrice, 0);
+  const subtotal = calculatedItemsSubtotal > 0 ? calculatedItemsSubtotal : (payment.subtotal || 0);
   const tax = Math.round(subtotal * 0.05); // 5% GST (2.5% CGST + 2.5% SGST)
   const discount = payment.discount || (payment.redeemPoints ? Math.min(50, subtotal + tax) : 0);
   const grandTotal = Math.max(0, subtotal + tax + payment.tipAmount - discount);
@@ -357,7 +379,7 @@ export const Screen7PaymentGateway: React.FC = () => {
     try {
       waiterRecordsPayment(effectiveTable, finalMethod, grandTotal, effectiveSeat);
       recordSettledBill(snapshot);
-      waiterClearsChairAfterPayment(effectiveTable, effectiveSeat);
+      // Table and chair remain OCCUPIED when payment is done through customer interface until waiter/manager vacates
       waiterClearsSettlementSession(effectiveTable, effectiveSeat);
     } catch (e) {
       console.warn('payment bridge error', e);

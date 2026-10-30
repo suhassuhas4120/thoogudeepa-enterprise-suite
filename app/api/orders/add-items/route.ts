@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabase } from '../../../../lib/supabase';
+import { INITIAL_MENU_ITEMS } from '../../../../data/menuItems';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,13 +30,42 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Order ${orderId} not found` }, { status: 404 });
     }
 
+    // SCN-03: Prevent appending items to closed / paid orders
+    if (order.status !== 'UNPAID') {
+      return NextResponse.json(
+        { error: `Cannot append items to order with status ${order.status || 'UNKNOWN'}. Please initiate a new order.` },
+        { status: 400 }
+      );
+    }
+
     const tableNumber = order.table_number;
     const seatNumber = order.seat_number;
 
-    // 2. Calculate incremental totals
+    // SCN-02: Validate items against canonical menu database and calculate authoritative prices
+    for (const it of items) {
+      const canonical = INITIAL_MENU_ITEMS.find((m) => m.id === it.id || m.name.toLowerCase() === (it.name || '').toLowerCase());
+      if (!canonical) {
+        return NextResponse.json({ error: `Invalid menu item: ${it.name || it.id}` }, { status: 400 });
+      }
+      const rawQty = it.quantity;
+      const numQty = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty), 10);
+      if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty) || numQty > 25) {
+        return NextResponse.json({ error: `Quantity for item "${it.name || it.id}" must be between 1 and 25` }, { status: 400 });
+      }
+    }
+
+    // 2. Calculate incremental totals using canonical catalog prices
     const addedSubtotal = items.reduce((acc: number, it: any) => {
-      const price = Number(it.unitPrice || it.price || 0);
-      const qty = Number(it.quantity || 1);
+      const canonical = INITIAL_MENU_ITEMS.find((m) => m.id === it.id || m.name.toLowerCase() === (it.name || '').toLowerCase())!;
+      let addOnCost = 0;
+      if (Array.isArray(it.addOns) && canonical?.optionsGroup2?.addOns) {
+        for (const ao of it.addOns) {
+          const aoRecord = canonical.optionsGroup2.addOns.find((a) => a.name === ao);
+          if (aoRecord) addOnCost += aoRecord.extraPrice;
+        }
+      }
+      const price = canonical.price + addOnCost;
+      const qty = Math.max(1, Math.min(25, Number(it.quantity || 1)));
       return acc + price * qty;
     }, 0);
 
@@ -54,17 +84,25 @@ export async function POST(req: NextRequest) {
 
     const startIdx = existingCount || 0;
 
-    // 4. Insert new line items
+    // 4. Insert new line items with canonical prices
     const lineItems = items.map((it: any, index: number) => {
-      const unitPrice = Number(it.unitPrice || it.price || 0);
-      const qty = Number(it.quantity || 1);
+      const canonical = INITIAL_MENU_ITEMS.find((m) => m.id === it.id || m.name.toLowerCase() === (it.name || '').toLowerCase())!;
+      let addOnCost = 0;
+      if (Array.isArray(it.addOns) && canonical?.optionsGroup2?.addOns) {
+        for (const ao of it.addOns) {
+          const aoRecord = canonical.optionsGroup2.addOns.find((a) => a.name === ao);
+          if (aoRecord) addOnCost += aoRecord.extraPrice;
+        }
+      }
+      const unitPrice = canonical.price + addOnCost;
+      const qty = Math.max(1, Math.min(25, Number(it.quantity || 1)));
 
       return {
         id: `${orderId}-it-${startIdx + index + 1}`,
         order_id: orderId,
         table_number: tableNumber,
         seat_number: seatNumber,
-        name: it.name,
+        name: canonical.name || it.name,
         quantity: qty,
         unit_price: unitPrice,
         price: unitPrice,
@@ -115,6 +153,7 @@ export async function POST(req: NextRequest) {
       .eq('id', orderId);
 
     // 7. Update table running bill and KOT count
+    // SCN-01: Update current_bill with addedSubtotal (untaxed) to prevent 10.25% compounding in UI
     const { data: tableRecord } = await supabase
       .from('tables')
       .select('current_bill, kot_count')
@@ -125,7 +164,7 @@ export async function POST(req: NextRequest) {
       await supabase
         .from('tables')
         .update({
-          current_bill: Number(tableRecord.current_bill || 0) + addedTotal,
+          current_bill: Number(tableRecord.current_bill || 0) + addedSubtotal,
           kot_count: Number(tableRecord.kot_count || 0) + 1,
           updated_at: new Date().toISOString(),
         })

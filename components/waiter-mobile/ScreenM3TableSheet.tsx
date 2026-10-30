@@ -18,6 +18,7 @@ import {
   Split,
   Bell,
   UserX,
+  Check,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSharedBridge, cleanTableNum } from '../../store/useSharedBridge';
@@ -60,6 +61,7 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
           e.stopPropagation();
           onServe?.();
         }}
+        title="Tap to mark dish as Served"
         className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95 border border-emerald-700"
       >
         <span className="text-white">●</span>
@@ -69,22 +71,52 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
   }
   if (s === 'COOKING' || s === 'PREP' || s === 'PREPARING') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-        Preparing
-      </span>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onServe?.();
+        }}
+        title="Tap to mark dish as Served"
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 inline-flex items-center gap-1 cursor-pointer transition active:scale-95 animate-pulse"
+      >
+        <span>●</span>
+        <span>Preparing (Serve)</span>
+      </motion.button>
     );
   }
   if (s === 'RECEIVED') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
-        Received
-      </span>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onServe?.();
+        }}
+        title="Tap to mark dish as Served"
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 inline-flex items-center gap-1 cursor-pointer transition active:scale-95"
+      >
+        <span>●</span>
+        <span>Received (Serve)</span>
+      </motion.button>
     );
   }
   return (
-    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600 border border-stone-200">
-      Placed
-    </span>
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.92 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onServe?.();
+      }}
+      title="Tap to mark dish as Served"
+      className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200 inline-flex items-center gap-1 cursor-pointer transition active:scale-95"
+    >
+      <span>●</span>
+      <span>Placed (Serve)</span>
+    </motion.button>
   );
 }
 
@@ -101,8 +133,10 @@ export function ScreenM3TableSheet({
     tables,
     pings,
     kdsTickets,
+    settledBills,
     activeSettlementSessions,
     waiterVacatesTable,
+    waiterClearsChairAfterPayment,
     waiterMergeTables,
     waiterUnmergeTable,
     waiterMarkKitchenItemServed,
@@ -160,9 +194,7 @@ export function ScreenM3TableSheet({
   const groupTables = groupPeers.map((n) => tables.find((t) => t.number === n)).filter(Boolean) as typeof tables;
 
   const cleanPeersSet = new Set(groupPeers.map(cleanTableNum));
-  const tickets = kdsTickets.filter((tk) =>
-    cleanPeersSet.has(cleanTableNum(tk.tableNumber))
-  );
+  const tickets = kdsTickets.filter((tk) => cleanPeersSet.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
 
   const inMergeGroup = groupPeers.length > 1;
   const mergePeerLabel = groupPeers.filter((n) => n !== tableNum).join(', ');
@@ -408,7 +440,12 @@ export function ScreenM3TableSheet({
     };
   };
 
-  // Check if any items are ready to serve scoped strictly to current selection
+  // Check if any items are ready or unserved scoped strictly to current selection
+  const isUnservedStatus = (st: string) => {
+    const s = String(st || '').trim().toUpperCase();
+    return s !== 'SERVED';
+  };
+
   const readyOrderedItems = useMemo(() => {
     if (typeof selectedSeat === 'number') {
       const chairReady = allTableOrderedItems.filter((i) => i.stage === 'Ready' && i.seatNumber === selectedSeat);
@@ -422,6 +459,21 @@ export function ScreenM3TableSheet({
       return allTableOrderedItems.filter((i) => i.stage === 'Ready' && !i.seatNumber);
     }
     return allTableOrderedItems.filter((i) => i.stage === 'Ready');
+  }, [allTableOrderedItems, selectedSeat, mergedSeatGroups]);
+
+  const unservedOrderedItems = useMemo(() => {
+    if (typeof selectedSeat === 'number') {
+      const chairUnserved = allTableOrderedItems.filter((i) => isUnservedStatus(i.stage) && i.seatNumber === selectedSeat);
+      if (chairUnserved.length > 0) return chairUnserved;
+      return allTableOrderedItems.filter((i) => isUnservedStatus(i.stage) && !i.seatNumber);
+    }
+    if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+      const groupSeats = mergedSeatGroups[selectedSeat];
+      const groupUnserved = allTableOrderedItems.filter((i) => isUnservedStatus(i.stage) && i.seatNumber && groupSeats.includes(i.seatNumber));
+      if (groupUnserved.length > 0) return groupUnserved;
+      return allTableOrderedItems.filter((i) => isUnservedStatus(i.stage) && !i.seatNumber);
+    }
+    return allTableOrderedItems.filter((i) => isUnservedStatus(i.stage));
   }, [allTableOrderedItems, selectedSeat, mergedSeatGroups]);
 
   const readyDirectTableItems = useMemo(() => {
@@ -440,13 +492,38 @@ export function ScreenM3TableSheet({
     return active.filter((it) => it.status === 'Ready');
   }, [table.activeItems, selectedSeat, mergedSeatGroups]);
 
+  const unservedDirectTableItems = useMemo(() => {
+    const active = table.activeItems || [];
+    if (typeof selectedSeat === 'number') {
+      const chairUnserved = active.filter((it) => isUnservedStatus(it.status) && it.seatNumber === selectedSeat);
+      if (chairUnserved.length > 0) return chairUnserved;
+      return active.filter((it) => isUnservedStatus(it.status) && !it.seatNumber);
+    }
+    if (typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]) {
+      const groupSeats = mergedSeatGroups[selectedSeat];
+      const groupUnserved = active.filter((it) => isUnservedStatus(it.status) && it.seatNumber && groupSeats.includes(it.seatNumber));
+      if (groupUnserved.length > 0) return groupUnserved;
+      return active.filter((it) => isUnservedStatus(it.status) && !it.seatNumber);
+    }
+    return active.filter((it) => isUnservedStatus(it.status));
+  }, [table.activeItems, selectedSeat, mergedSeatGroups]);
+
   const hasReadyFood = readyOrderedItems.length > 0 || readyDirectTableItems.length > 0;
+  const hasUnservedFood = unservedOrderedItems.length > 0 || unservedDirectTableItems.length > 0;
+  const hasSelectionItems = typeof selectedSeat === 'number'
+    ? allTableOrderedItems.some((i) => i.seatNumber === selectedSeat || !i.seatNumber)
+    : allTableOrderedItems.length > 0;
+  const allFoodServedForSelection = hasSelectionItems && !hasUnservedFood;
 
   const handleServeReadyFood = () => {
-    readyOrderedItems.forEach((it) => {
+    // Prioritize ready items first; if none explicitly marked ready, serve all unserved items for this selection
+    const targetOrdered = readyOrderedItems.length > 0 ? readyOrderedItems : unservedOrderedItems;
+    const targetDirect = readyDirectTableItems.length > 0 ? readyDirectTableItems : unservedDirectTableItems;
+
+    targetOrdered.forEach((it) => {
       waiterMarkKitchenItemServed(it.ticketId, it.id);
     });
-    readyDirectTableItems.forEach((ai) => {
+    targetDirect.forEach((ai) => {
       if (ai.id) {
         waiterMarkKitchenItemServed('tbl-direct', ai.id);
       }
@@ -456,7 +533,7 @@ export function ScreenM3TableSheet({
       : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
       ? 'Selected Group'
       : 'Table';
-    setNotice(`✓ Ready dishes marked as served for ${scopeLabel}`);
+    setNotice(`✓ Dishes marked as served for ${scopeLabel}`);
     setTimeout(() => setNotice(null), 2000);
   };
 
@@ -554,12 +631,49 @@ export function ScreenM3TableSheet({
       : '';
   }
 
+  const normTableStr = `T-${String(parseInt(cleanTableNum(tableNum), 10) || 1).padStart(2, '0')}`;
+  const isTablePaid =
+    Boolean(
+      settledBills?.[normTableStr] ||
+      settledBills?.[tableNum]
+    ) ||
+    table.status === 'BILLING' ||
+    (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)) ||
+    grandTotal === 0;
+
+  const isSelectedChairSettled =
+    typeof selectedSeat === 'number' &&
+    (Boolean(
+      settledBills?.[`${normTableStr}-CHAIR-${selectedSeat}`] ||
+      settledBills?.[`${tableNum}-CHAIR-${selectedSeat}`]
+    ) ||
+      isTablePaid ||
+      !allTableOrderedItems.some((i) => i.seatNumber === selectedSeat));
+
   const isPaymentCompleted =
     !isVacant &&
-    (table.status === 'BILLING' ||
-      (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)));
+    (typeof selectedSeat === 'number'
+      ? isSelectedChairSettled
+      : isTablePaid);
 
   const handleVacate = () => {
+    if (typeof selectedSeat === 'number') {
+      if (!isPaymentCompleted) {
+        setNotice(`Cannot vacate Chair ${selectedSeat}: Payment must be completed first.`);
+        setTimeout(() => setNotice(null), 3000);
+        setConfirmVacate(false);
+        return;
+      }
+      waiterClearsChairAfterPayment(tableNum, selectedSeat);
+      setConfirmVacate(false);
+      setSelectedSeat('ALL');
+      const updatedTbl = tables.find((t) => t.number === tableNum);
+      if (!updatedTbl || updatedTbl.status === 'VACANT' || updatedTbl.guestCount === 0) {
+        onVacated();
+      }
+      return;
+    }
+
     if (!isPaymentCompleted) {
       setNotice('Cannot vacate table: Payment must be completed first.');
       setTimeout(() => setNotice(null), 3000);
@@ -1418,7 +1532,7 @@ export function ScreenM3TableSheet({
                         <span className="font-black text-stone-900">Seat {thisSeatNum} Guest</span>
                       </div>
                       <div className="flex justify-between text-stone-700">
-                        <span>Dishes Subtotal ({thisSeatItems.length} items):</span>
+                        <span>Dishes Subtotal ({thisSeatItems.reduce((s, i) => s + i.quantity, 0)} items):</span>
                         <span className="font-bold text-stone-900">₹{thisSeatSubtotal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between text-stone-600 text-[11px]">
@@ -1519,28 +1633,43 @@ export function ScreenM3TableSheet({
             )}
             */}
 
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleServeReadyFood();
-              }}
-              disabled={!hasReadyFood}
-              className={`w-full min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 transition active:scale-95 ${
-                hasReadyFood
-                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-xs'
-                  : 'bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60'
-              }`}
-            >
-              <Utensils className="h-4 w-4" />
-              <span>
-                {typeof selectedSeat === 'number'
-                  ? `Serve Chair ${selectedSeat}`
-                  : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
-                  ? 'Serve Group'
-                  : 'Serve Food'}
-              </span>
-            </button>
+            {allFoodServedForSelection ? (
+              <div className="w-full min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-800 border border-emerald-300">
+                <Check className="h-4 w-4 text-emerald-600 stroke-[2.5]" />
+                <span>
+                  {typeof selectedSeat === 'number'
+                    ? `✓ All Dishes Served (Chair ${selectedSeat})`
+                    : typeof selectedSeat === 'string' && mergedSeatGroups[selectedSeat]
+                    ? '✓ All Dishes Served (Group)'
+                    : '✓ All Dishes Served'}
+                </span>
+              </div>
+            ) : hasUnservedFood ? (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleServeReadyFood();
+                }}
+                className="w-full min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-xs flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer transition active:scale-95"
+              >
+                <Utensils className="h-4 w-4" />
+                <span>
+                  {hasReadyFood
+                    ? (typeof selectedSeat === 'number' ? `Serve Ready Food (Chair ${selectedSeat})` : 'Serve Ready Food')
+                    : (typeof selectedSeat === 'number' ? `Serve All Dishes (Chair ${selectedSeat})` : 'Serve All Dishes')}
+                </span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="w-full min-h-[44px] py-2.5 px-3 rounded-xl font-mono text-xs font-black shadow-2xs flex items-center justify-center gap-1.5 bg-stone-100 text-stone-400 border border-stone-200 cursor-not-allowed opacity-60"
+              >
+                <Utensils className="h-4 w-4" />
+                <span>No Dishes to Serve</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -1568,10 +1697,18 @@ export function ScreenM3TableSheet({
                   </div>
                   <div>
                     <h3 className="font-mono text-sm font-black text-stone-900">
-                      Vacate {table.number}?
+                      {typeof selectedSeat === 'number'
+                        ? `Vacate Chair ${selectedSeat} on ${table.number}?`
+                        : `Vacate ${table.number}?`}
                     </h3>
                     <p className="font-mono text-xs text-stone-500">
-                      {isPaymentCompleted ? 'All guests have paid.' : 'Payment pending: Table cannot be vacated before payment.'}
+                      {isPaymentCompleted
+                        ? typeof selectedSeat === 'number'
+                          ? `Chair ${selectedSeat} is cleared / paid.`
+                          : 'All guests have paid.'
+                        : typeof selectedSeat === 'number'
+                        ? `Payment pending for Chair ${selectedSeat}: Settle bill before vacating.`
+                        : 'Payment pending: Table cannot be vacated before payment.'}
                     </p>
                   </div>
                 </div>
@@ -1707,7 +1844,9 @@ export function ScreenM3TableSheet({
                 setConfirmVacate(true);
               } else {
                 setNotice(
-                  grandTotal > 0
+                  typeof selectedSeat === 'number'
+                    ? `Payment pending for Chair ${selectedSeat}. Settle bill before vacating.`
+                    : grandTotal > 0
                     ? `Payment pending (₹${grandTotal.toFixed(2)}). Settle bill before vacating.`
                     : 'Payment must be completed before vacating table.'
                 );
@@ -1717,9 +1856,13 @@ export function ScreenM3TableSheet({
             disabled={!isPaymentCompleted}
             title={
               !isPaymentCompleted
-                ? grandTotal > 0
+                ? typeof selectedSeat === 'number'
+                  ? `Payment pending for Chair ${selectedSeat}. Settle bill before vacating.`
+                  : grandTotal > 0
                   ? `Payment pending (₹${grandTotal.toFixed(2)}). Settle bill before vacating.`
                   : 'Payment must be completed before vacating table'
+                : typeof selectedSeat === 'number'
+                ? `Vacate and reset Chair ${selectedSeat}`
                 : 'Vacate and reset table'
             }
             className={`w-full py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
@@ -1729,7 +1872,7 @@ export function ScreenM3TableSheet({
             }`}
           >
             <UserX className="h-3.5 w-3.5" />
-            <span>Vacate Table</span>
+            <span>{typeof selectedSeat === 'number' ? `Vacate Chair ${selectedSeat}` : 'Vacate Table'}</span>
           </button>
         </div>
       </footer>

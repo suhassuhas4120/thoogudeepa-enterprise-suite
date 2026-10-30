@@ -98,60 +98,100 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      if (resolvedOrderId) {
-        // 2. Mark order as PAID
+      const nowIso = new Date().toISOString();
+
+      // 2. Mark all unpaid orders for this table/seat as PAID
+      if (tableNumber && seatNumber) {
         await supabase
           .from('orders')
           .update({
             status: 'PAID',
-            updated_at: new Date().toISOString(),
+            updated_at: nowIso,
+          })
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber)
+          .eq('status', 'UNPAID');
+
+        await supabase
+          .from('order_items')
+          .update({ stage: 'SERVED', updated_at: nowIso })
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber);
+
+        await supabase
+          .from('kds_tickets')
+          .update({ status: 'COMPLETED', updated_at: nowIso })
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber);
+      }
+
+      if (resolvedOrderId) {
+        await supabase
+          .from('orders')
+          .update({
+            status: 'PAID',
+            updated_at: nowIso,
           })
           .eq('id', resolvedOrderId);
 
-        // 3. Mark items as SERVED
         await supabase
           .from('order_items')
-          .update({ stage: 'SERVED' })
+          .update({ stage: 'SERVED', updated_at: nowIso })
           .eq('order_id', resolvedOrderId);
 
-        // 4. Mark KDS tickets as COMPLETED
         await supabase
           .from('kds_tickets')
-          .update({ status: 'COMPLETED' })
+          .update({ status: 'COMPLETED', updated_at: nowIso })
           .eq('order_id', resolvedOrderId);
+      }
 
-        // 5. Release table seat to VACANT
-        if (tableNumber && seatNumber) {
+      // 3. Release table seat to VACANT
+      if (tableNumber && seatNumber) {
+        await supabase
+          .from('table_seats')
+          .update({
+            status: 'VACANT',
+            active_order_id: null,
+            device_token: null,
+            updated_at: nowIso,
+          })
+          .eq('table_number', tableNumber)
+          .eq('seat_number', seatNumber);
+
+        // Check if any seats remain occupied at this table
+        const { data: remainingSeats } = await supabase
+          .from('table_seats')
+          .select('id')
+          .eq('table_number', tableNumber)
+          .eq('status', 'OCCUPIED');
+
+        if (!remainingSeats || remainingSeats.length === 0) {
           await supabase
-            .from('table_seats')
+            .from('tables')
             .update({
               status: 'VACANT',
-              active_order_id: null,
-              device_token: null,
-              updated_at: new Date().toISOString(),
+              current_bill: 0,
+              guest_count: 0,
+              kot_count: 0,
+              updated_at: nowIso,
             })
+            .eq('number', tableNumber);
+        } else {
+          const { data: remOrders } = await supabase
+            .from('orders')
+            .select('subtotal')
             .eq('table_number', tableNumber)
-            .eq('seat_number', seatNumber);
-
-          // Check if any seats remain occupied at this table
-          const { data: remainingSeats } = await supabase
-            .from('table_seats')
-            .select('id')
-            .eq('table_number', tableNumber)
-            .eq('status', 'OCCUPIED');
-
-          if (!remainingSeats || remainingSeats.length === 0) {
-            await supabase
-              .from('tables')
-              .update({
-                status: 'VACANT',
-                current_bill: 0,
-                guest_count: 0,
-                kot_count: 0,
-              })
-              .eq('number', tableNumber);
-          }
+            .eq('status', 'UNPAID');
+          const remBill = (remOrders || []).reduce((acc: number, o: any) => acc + Number(o.subtotal || 0), 0);
+          await supabase
+            .from('tables')
+            .update({
+              current_bill: remBill,
+              updated_at: nowIso,
+            })
+            .eq('number', tableNumber);
         }
+      }
 
         // 6. Auto-resolve lingering PAYMENT and BILL pings for this table/seat
         if (tableNumber) {
@@ -180,7 +220,6 @@ export async function POST(req: NextRequest) {
           seatNumber,
         });
       }
-    }
 
     return NextResponse.json({ status: 'ok', received: true });
   } catch (err: any) {

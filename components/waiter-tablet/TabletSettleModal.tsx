@@ -111,9 +111,7 @@ export function TabletSettleModal({ tableNum, open, onClose, onDone, splitAmount
     const formattedTime = now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
-    const matchingTickets = (kdsTickets || []).filter(
-      (tk) => cleanNum(tk.tableNumber) === cleanNum(tableNum)
-    );
+    const matchingTickets = (kdsTickets || []).filter((tk) => cleanNum(tk.tableNumber) === cleanNum(tableNum));
     const allItems = matchingTickets.flatMap((tk) =>
       (tk.items || []).map((it) => ({
         ...it,

@@ -52,7 +52,7 @@ export function TabletTableCockpit({
   onOpenMergeModal,
   onVacated,
 }: Props) {
-  const { tables, pings, activeSettlementSessions, kdsTickets, waiterVacatesTable, waiterUnmergeTable, waiterMarkKitchenItemServed } = useSharedBridge();
+  const { tables, pings, activeSettlementSessions, kdsTickets, settledBills, waiterVacatesTable, waiterClearsChairAfterPayment, waiterUnmergeTable, waiterMarkKitchenItemServed } = useSharedBridge();
   const [selectedChair, setSelectedChair] = useState<'ALL' | number>('ALL');
 
   const table = tables.find((t) => cleanTableNum(t.number) === cleanTableNum(selectedTableNum)) || tables.find((t) => t.number === selectedTableNum);
@@ -174,13 +174,35 @@ export function TabletTableCockpit({
   };
 
   const hasNoItems = (!table.activeItems || table.activeItems.length === 0) && allOrderedItems.length === 0;
+  const normTableStr = `T-${String(parseInt(cleanTableNum(selectedTableNum), 10) || 1).padStart(2, '0')}`;
+  const isSelectedChairSettled =
+    typeof selectedChair === 'number' &&
+    (Boolean(
+      settledBills?.[`${normTableStr}-CHAIR-${selectedChair}`] ||
+      settledBills?.[`${selectedTableNum}-CHAIR-${selectedChair}`]
+    ) ||
+      table.status === 'BILLING' ||
+      !allOrderedItems.some((i) => i.seatNumber === selectedChair));
+
   const isPaymentCompleted =
     !isVacant &&
-    (table.status === 'BILLING' ||
-      (hasNoItems && table.currentBill === 0));
+    (typeof selectedChair === 'number'
+      ? isSelectedChairSettled
+      : (table.status === 'BILLING' ||
+        (hasNoItems && table.currentBill === 0)));
 
   const handleVacate = () => {
     if (!isPaymentCompleted) return;
+    if (typeof selectedChair === 'number') {
+      waiterClearsChairAfterPayment(selectedTableNum, selectedChair);
+      onSetConfirmVacate(false);
+      setSelectedChair('ALL');
+      const updatedTbl = tables.find((t) => t.number === selectedTableNum);
+      if (!updatedTbl || updatedTbl.status === 'VACANT' || updatedTbl.guestCount === 0) {
+        onVacated();
+      }
+      return;
+    }
     waiterVacatesTable(selectedTableNum);
     onSetConfirmVacate(false);
     onVacated();
@@ -503,12 +525,12 @@ export function TabletTableCockpit({
             }`}
           >
             <Trash2 className="h-3.5 w-3.5" />
-            <span>Vacate &amp; Clean Table {table.number}</span>
+            <span>{typeof selectedChair === 'number' ? `Vacate & Clean Chair ${selectedChair}` : `Vacate & Clean Table ${table.number}`}</span>
           </button>
         ) : (
           <div className="p-3 bg-rose-50 border-2 border-rose-300 rounded-xl space-y-2">
             <p className="text-center text-xs font-bold text-rose-800">
-              Confirm vacate and clean {table.number}?
+              {typeof selectedChair === 'number' ? `Confirm vacate and clean Chair ${selectedChair}?` : `Confirm vacate and clean ${table.number}?`}
             </p>
             <div className="grid grid-cols-2 gap-2">
               <button

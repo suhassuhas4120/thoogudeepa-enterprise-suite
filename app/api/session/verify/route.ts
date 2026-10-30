@@ -67,45 +67,53 @@ async function handleVerifySession(
   }
 
   try {
-    // 0. Global Hardware Session Engine: check if this device has an active unpaid order in the venue
-    let existingActiveOrder: any = null;
+    // 0. Global Hardware Session Engine: check if this device has active unpaid orders in the venue
+    let existingActiveOrders: any[] = [];
     if (deviceToken) {
       const { data: activeOrders } = await supabase
         .from('orders')
         .select('*')
         .eq('device_token', deviceToken)
         .eq('status', 'UNPAID')
-        .order('created_at', { ascending: false })
-        .limit(1);
+        .order('created_at', { ascending: true });
 
       if (activeOrders && activeOrders.length > 0) {
-        const candidate = activeOrders[0];
+        const primaryCandidate = activeOrders[activeOrders.length - 1];
         // Validate whether the candidate's table and seat are actually still occupied in the dining room
         const { data: seatCheck } = await supabase
           .from('table_seats')
           .select('status, active_order_id, device_token')
-          .eq('table_number', candidate.table_number)
-          .eq('seat_number', candidate.seat_number)
+          .eq('table_number', primaryCandidate.table_number)
+          .eq('seat_number', primaryCandidate.seat_number)
           .maybeSingle();
 
         const { data: tblCheck } = await supabase
           .from('tables')
           .select('status, current_bill')
-          .eq('number', candidate.table_number)
+          .eq('number', primaryCandidate.table_number)
           .maybeSingle();
 
         // Validate whether the candidate's table and seat are actually still occupied in the dining room
-        const isSeatOccupied = Boolean(seatCheck && seatCheck.status === 'OCCUPIED' && seatCheck.active_order_id === candidate.id);
+        const isSeatOccupied = Boolean(
+          seatCheck &&
+          seatCheck.status === 'OCCUPIED' &&
+          (activeOrders.some((o: any) => o.id === seatCheck.active_order_id) || seatCheck.device_token === deviceToken)
+        );
         const isTableActive = Boolean(tblCheck && tblCheck.status !== 'VACANT');
 
         if (!isSeatOccupied || !isTableActive) {
-          // Auto-reconcile stale order so customer starts fresh without being prompted for dead session
+          // Auto-reconcile stale orders so customer starts fresh without being prompted for dead session
+          const orderIds = activeOrders.map((o: any) => o.id);
           await supabase
             .from('orders')
             .update({ status: 'PAID', updated_at: new Date().toISOString() })
-            .eq('id', candidate.id);
+            .in('id', orderIds);
         } else {
-          existingActiveOrder = candidate;
+          existingActiveOrders = activeOrders.filter(
+            (o: any) =>
+              o.table_number.toUpperCase() === primaryCandidate.table_number.toUpperCase() &&
+              Number(o.seat_number) === Number(primaryCandidate.seat_number)
+          );
         }
       }
     }
@@ -138,27 +146,34 @@ async function handleVerifySession(
       });
     }
 
-    if (existingActiveOrder) {
-      const isSameTable = existingActiveOrder.table_number.toUpperCase() === tableNumber.toUpperCase();
-      const isSameSeat = Number(existingActiveOrder.seat_number) === Number(seatNumber);
+    if (existingActiveOrders.length > 0) {
+      const primaryCandidate = existingActiveOrders[existingActiveOrders.length - 1];
+      const isSameTable = primaryCandidate.table_number.toUpperCase() === tableNumber.toUpperCase();
+      const isSameSeat = Number(primaryCandidate.seat_number) === Number(seatNumber);
 
       if (isSameTable && isSameSeat) {
-        // Legitimate diner on their own chair: silent instant resume
+        // Legitimate diner on their own chair: silent instant resume with all accumulated orders
+        const orderIds = existingActiveOrders.map((o: any) => o.id);
         const { data: items } = await supabase
           .from('order_items')
           .select('*')
-          .eq('order_id', existingActiveOrder.id)
+          .in('order_id', orderIds)
           .order('created_at', { ascending: true });
 
+        const totalSubtotal = existingActiveOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0), 0);
+        const totalTax = existingActiveOrders.reduce((sum: number, o: any) => sum + Number(o.tax || 0), 0);
+        const totalAmount = existingActiveOrders.reduce((sum: number, o: any) => sum + Number(o.total || o.total_amount || 0), 0);
+
         const orderObj = {
-          id: existingActiveOrder.id,
-          guestName: existingActiveOrder.guest_name,
-          subtotal: Number(existingActiveOrder.subtotal),
-          tax: Number(existingActiveOrder.tax),
-          total: Number(existingActiveOrder.total || existingActiveOrder.total_amount),
-          status: existingActiveOrder.status,
+          id: primaryCandidate.id,
+          orderIds,
+          guestName: primaryCandidate.guest_name,
+          subtotal: totalSubtotal,
+          tax: totalTax,
+          total: totalAmount,
+          status: 'UNPAID',
           items: items || [],
-          createdAt: existingActiveOrder.created_at,
+          createdAt: existingActiveOrders[0].created_at,
         };
 
         return NextResponse.json({
@@ -173,6 +188,7 @@ async function handleVerifySession(
         });
       } else if (!isSameTable) {
         // Diner has an active unpaid order on a different table (cross-table abandonment)
+        const totalAmount = existingActiveOrders.reduce((sum: number, o: any) => sum + Number(o.total || o.total_amount || 0), 0);
         return NextResponse.json({
           active: false,
           tableNumber,
@@ -180,19 +196,18 @@ async function handleVerifySession(
           isOccupiedByOtherDevice: false,
           hasActiveOrderElsewhere: true,
           existingOrder: {
-            id: existingActiveOrder.id,
-            tableNumber: existingActiveOrder.table_number,
-            seatNumber: existingActiveOrder.seat_number,
-            total: Number(existingActiveOrder.total || existingActiveOrder.total_amount),
-            guestName: existingActiveOrder.guest_name,
-            createdAt: existingActiveOrder.created_at,
+            id: primaryCandidate.id,
+            tableNumber: primaryCandidate.table_number,
+            seatNumber: primaryCandidate.seat_number,
+            total: totalAmount,
+            guestName: primaryCandidate.guest_name,
+            createdAt: existingActiveOrders[0].created_at,
           },
           order: null,
-          message: `You have an active dining session at Table ${existingActiveOrder.table_number} Chair ${existingActiveOrder.seat_number}`,
+          message: `You have an active dining session at Table ${primaryCandidate.table_number} Chair ${primaryCandidate.seat_number}`,
         });
       }
     }
-
 
     const isOccupiedByOther = Boolean(
       seatData &&
@@ -212,49 +227,43 @@ async function handleVerifySession(
       vacantSeats = (tableSeats || []).filter((s: any) => s.status === 'VACANT').map((s: any) => s.seat_number);
     }
 
-    // 2. If seat is not vacant or has an active order, find the unpaid order
+    // 2. If seat is not vacant or has an active order, find all unpaid orders for this chair
     if (seatData.status !== 'VACANT' || seatData.active_order_id) {
-      let orderQuery = supabase
+      const { data: seatOrders, error: oErr } = await supabase
         .from('orders')
         .select('*')
         .eq('table_number', tableNumber)
         .eq('seat_number', seatNumber)
         .eq('status', 'UNPAID')
-        .order('created_at', { ascending: false })
-        .limit(1);
-
-      if (seatData.active_order_id) {
-        orderQuery = supabase
-          .from('orders')
-          .select('*')
-          .eq('id', seatData.active_order_id)
-          .eq('seat_number', seatNumber)
-          .eq('status', 'UNPAID')
-          .limit(1);
-      }
-
-      const { data: orderData, error: oErr } = await orderQuery.maybeSingle();
+        .order('created_at', { ascending: true });
 
       if (oErr) {
         return NextResponse.json({ error: oErr.message }, { status: 500 });
       }
 
-      if (orderData) {
-        // Fetch active items
+      if (seatOrders && seatOrders.length > 0) {
+        const orderIds = seatOrders.map((o: any) => o.id);
         const { data: items } = await supabase
           .from('order_items')
           .select('*')
-          .eq('order_id', orderData.id)
+          .in('order_id', orderIds)
           .order('created_at', { ascending: true });
+
+        const totalSubtotal = seatOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0), 0);
+        const totalTax = seatOrders.reduce((sum: number, o: any) => sum + Number(o.tax || 0), 0);
+        const totalAmount = seatOrders.reduce((sum: number, o: any) => sum + Number(o.total || o.total_amount || 0), 0);
+        const primaryOrder = seatOrders[seatOrders.length - 1];
+
         const orderObj = {
-          id: orderData.id,
-          guestName: orderData.guest_name,
-          subtotal: Number(orderData.subtotal),
-          tax: Number(orderData.tax),
-          total: Number(orderData.total || orderData.total_amount),
-          status: orderData.status,
+          id: primaryOrder.id,
+          orderIds,
+          guestName: primaryOrder.guest_name,
+          subtotal: totalSubtotal,
+          tax: totalTax,
+          total: totalAmount,
+          status: 'UNPAID',
           items: items || [],
-          createdAt: orderData.created_at,
+          createdAt: seatOrders[0].created_at,
         };
 
         return NextResponse.json({
@@ -271,38 +280,44 @@ async function handleVerifySession(
 
     // 3. Fallback: check deviceToken match across table orders
     if (deviceToken) {
-      const { data: tokenOrder } = await supabase
+      const { data: tokenOrders } = await supabase
         .from('orders')
         .select('*')
         .eq('table_number', tableNumber)
         .eq('seat_number', seatNumber)
         .eq('device_token', deviceToken)
         .eq('status', 'UNPAID')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .order('created_at', { ascending: true });
 
-      if (tokenOrder) {
+      if (tokenOrders && tokenOrders.length > 0) {
+        const orderIds = tokenOrders.map((o: any) => o.id);
         const { data: items } = await supabase
           .from('order_items')
           .select('*')
-          .eq('order_id', tokenOrder.id);
+          .in('order_id', orderIds)
+          .order('created_at', { ascending: true });
+
+        const totalSubtotal = tokenOrders.reduce((sum: number, o: any) => sum + Number(o.subtotal || 0), 0);
+        const totalTax = tokenOrders.reduce((sum: number, o: any) => sum + Number(o.tax || 0), 0);
+        const totalAmount = tokenOrders.reduce((sum: number, o: any) => sum + Number(o.total || o.total_amount || 0), 0);
+        const primaryOrder = tokenOrders[tokenOrders.length - 1];
 
         const tokenOrderObj = {
-          id: tokenOrder.id,
-          guestName: tokenOrder.guest_name,
-          subtotal: Number(tokenOrder.subtotal),
-          tax: Number(tokenOrder.tax),
-          total: Number(tokenOrder.total || tokenOrder.total_amount),
-          status: tokenOrder.status,
+          id: primaryOrder.id,
+          orderIds,
+          guestName: primaryOrder.guest_name,
+          subtotal: totalSubtotal,
+          tax: totalTax,
+          total: totalAmount,
+          status: 'UNPAID',
           items: items || [],
-          createdAt: tokenOrder.created_at,
+          createdAt: tokenOrders[0].created_at,
         };
 
         return NextResponse.json({
           active: true,
           tableNumber,
-          seatNumber: tokenOrder.seat_number,
+          seatNumber: tokenOrders[0].seat_number,
           isOccupiedByOtherDevice: false,
           vacantSeats: [],
           order: tokenOrderObj,

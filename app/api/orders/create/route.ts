@@ -51,10 +51,10 @@ export async function POST(req: NextRequest) {
       }
       const rawQty = it.quantity;
       const numQty = typeof rawQty === 'number' ? rawQty : parseInt(String(rawQty), 10);
-      if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty) || numQty > 50) {
+      if (isNaN(numQty) || numQty <= 0 || !Number.isInteger(numQty) || numQty > 25) {
         return NextResponse.json({
           error: 'INVALID_QUANTITY',
-          message: `Quantity for item "${it.name || it.id || 'Dish'}" must be a positive integer between 1 and 50`,
+          message: `Quantity for item "${it.name || it.id || 'Dish'}" must be a positive integer between 1 and 25`,
         }, { status: 400 });
       }
     }

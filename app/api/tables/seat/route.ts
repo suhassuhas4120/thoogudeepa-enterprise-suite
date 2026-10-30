@@ -25,6 +25,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Table ${tableNumber} not found` }, { status: 404 });
     }
 
+    // SCN-12: Enforce status check unless explicit override flag is passed
+    if (table.status === 'OCCUPIED' && !body.force) {
+      return NextResponse.json(
+        { error: `Table ${tableNumber} is already occupied. Use transfer or merge to add guests.` },
+        { status: 409 }
+      );
+    }
+
     // 2. Update table state to OCCUPIED
     const now = new Date().toISOString();
     const { error: updateErr } = await supabase

@@ -242,6 +242,7 @@ export const Screen5LiveTracking: React.FC = () => {
   const trackedDishes = useMemo(() => {
     const myBridgeTickets = bridgeTickets.filter((tk) => {
       if (!isTableMatch(tk.tableNumber, effectiveTable)) return false;
+      if (tk.status === 'COMPLETED') return false;
       const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
       return (
         tkSeat === effectiveSeat ||
@@ -284,6 +285,7 @@ export const Screen5LiveTracking: React.FC = () => {
 
     const mySupabaseTickets = supabaseTickets.filter((tk) => {
       if (!isTableMatch(tk.tableId, effectiveTable)) return false;
+      if (tk.status === 'COMPLETED') return false;
       const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
       return (
         tkSeat === effectiveSeat ||
@@ -628,48 +630,62 @@ export const Screen5LiveTracking: React.FC = () => {
     };
   }, [effectiveTable]);
 
-  // Total payable amount strictly scoped to this chair
+  const payment = useCustomerStore((s) => s.payment);
+
+  // Total payable amount strictly scoped to this chair across ALL batches
   const currentBillAmount = useMemo(() => {
     const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
-    let chairItemsTotal = 0;
 
-    // 1. Primary: table activeItems strictly for this chair with authentic prices
-    if (currentTableObj?.activeItems && currentTableObj.activeItems.length > 0) {
-      const myChairItems = currentTableObj.activeItems.filter((ai) => ai.seatNumber === effectiveSeat);
-      if (myChairItems.length > 0) {
-        const chairSub = myChairItems.reduce((sum, it) => {
-          const p = it.price && it.price > 0
-            ? it.price
-            : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(it.name))?.price || 0;
-          return sum + p * (it.quantity || 1);
-        }, 0);
-        if (chairSub > 0) {
-          chairItemsTotal = Math.round(chairSub * 1.05);
-        }
-      }
+    let calculatedSubtotal = 0;
+
+    // 1. Authoritative placed dishes for this chair (spans tickets, bridge, supabase, and past served activeItems)
+    if (trackedDishes && trackedDishes.length > 0) {
+      calculatedSubtotal = trackedDishes.reduce(
+        (sum, it) => sum + (it.price || 0) * (it.quantity || 1),
+        0
+      );
+    } else {
+      // 2. Fallback only if trackedDishes hasn't populated yet
+      const unifiedChairItemsMap = new Map<string, { id: string; name: string; quantity: number; price: number }>();
+      (currentTableObj?.activeItems || [])
+        .filter((ai) => (ai.seatNumber ? Number(ai.seatNumber) === effectiveSeat : effectiveSeat === 1))
+        .forEach((ai) => {
+          const key = ai.id || `${getCanonicalKey(ai.name)}_S${effectiveSeat}`;
+          const p = ai.price && ai.price > 0
+            ? ai.price
+            : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(ai.name))?.price || 0;
+          unifiedChairItemsMap.set(key, {
+            id: ai.id || key,
+            name: ai.name,
+            quantity: ai.quantity || 1,
+            price: p,
+          });
+        });
+
+      (cart || [])
+        .filter((ci) => ci.isOrdered && (ci.seatNumber ? Number(ci.seatNumber) === effectiveSeat : effectiveSeat === 1))
+        .forEach((ci) => {
+          const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
+          const key = ci.cartItemId || `${getCanonicalKey(dishName)}_S${effectiveSeat}`;
+          if (!unifiedChairItemsMap.has(key)) {
+            const p = ci.menuItem?.price || (ci.totalPrice ? Math.round(ci.totalPrice / (ci.quantity || 1)) : 0);
+            unifiedChairItemsMap.set(key, {
+              id: ci.cartItemId || key,
+              name: dishName,
+              quantity: ci.quantity || 1,
+              price: p,
+            });
+          }
+        });
+
+      calculatedSubtotal = Array.from(unifiedChairItemsMap.values()).reduce(
+        (sum, it) => sum + it.price * it.quantity,
+        0
+      );
     }
 
-    // 2. Secondary: tracked dishes strictly for this chair
-    if (chairItemsTotal === 0 && trackedDishes.length > 0) {
-      const dishSub = trackedDishes.reduce((sum, d) => {
-        const p = (d as any).price && (d as any).price > 0
-          ? (d as any).price
-          : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(d.name))?.price || 0;
-        return sum + p * (d.quantity || 1);
-      }, 0);
-      if (dishSub > 0) {
-        chairItemsTotal = Math.round(dishSub * 1.05);
-      }
-    }
-
-    // 3. Tertiary: local ordered cart strictly for this chair
-    if (chairItemsTotal === 0 && cart && cart.length > 0) {
-      const chairCart = cart.filter((ci) => ci.seatNumber === effectiveSeat);
-      const cartSub = chairCart.reduce((sum, it) => sum + (it.totalPrice || 0), 0);
-      if (cartSub > 0) {
-        chairItemsTotal = Math.round(cartSub * 1.05);
-      }
-    }
+    const effectiveSubtotal = calculatedSubtotal;
+    let chairItemsTotal = effectiveSubtotal > 0 ? Math.round(effectiveSubtotal * 1.05) : 0;
 
     // Explicit chair session takes highest precedence
     if (activeSession?.grandTotal && activeSession.grandTotal > 0) {
@@ -694,41 +710,66 @@ export const Screen5LiveTracking: React.FC = () => {
   // Detailed bill breakdown for placed orders with proper calculation
   const ordersSummary = useMemo(() => {
     const currentTableObj = tables.find((t) => isTableMatch(t.number, effectiveTable));
-    const tableChairItems = currentTableObj?.activeItems?.filter(
-      (ai) => ai.seatNumber === effectiveSeat
-    ) || [];
 
-    const chairOrderedCart = (cart || []).filter(
-      (ci) => ci.isOrdered && ci.seatNumber === effectiveSeat
-    );
+    let calculatedSubtotal = 0;
+    let totalItemCount = 0;
 
-    let subtotal = 0;
-    let itemCount = 0;
+    // 1. Authoritative placed dishes for this chair
+    if (trackedDishes && trackedDishes.length > 0) {
+      calculatedSubtotal = trackedDishes.reduce(
+        (sum, it) => sum + (it.price || 0) * (it.quantity || 1),
+        0
+      );
+      totalItemCount = trackedDishes.reduce(
+        (sum, it) => sum + (it.quantity || 1),
+        0
+      );
+    } else {
+      // 2. Fallback only if trackedDishes hasn't populated yet
+      const unifiedChairItemsMap = new Map<string, { id: string; name: string; quantity: number; price: number }>();
+      (currentTableObj?.activeItems || [])
+        .filter((ai) => (ai.seatNumber ? Number(ai.seatNumber) === effectiveSeat : effectiveSeat === 1))
+        .forEach((ai) => {
+          const key = ai.id || `${getCanonicalKey(ai.name)}_S${effectiveSeat}`;
+          const p = ai.price && ai.price > 0
+            ? ai.price
+            : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(ai.name))?.price || 0;
+          unifiedChairItemsMap.set(key, {
+            id: ai.id || key,
+            name: ai.name,
+            quantity: ai.quantity || 1,
+            price: p,
+          });
+        });
 
-    if (tableChairItems.length > 0) {
-      subtotal = tableChairItems.reduce((sum, ai) => {
-        const p = ai.price && ai.price > 0
-          ? ai.price
-          : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(ai.name))?.price || 0;
-        return sum + p * (ai.quantity || 1);
-      }, 0);
-      itemCount = tableChairItems.reduce((sum, ai) => sum + (ai.quantity || 1), 0);
-    } else if (trackedDishes.length > 0) {
-      subtotal = trackedDishes.reduce((sum, d) => {
-        const p = (d as any).price && (d as any).price > 0
-          ? (d as any).price
-          : INITIAL_MENU_ITEMS.find((m) => getCanonicalKey(m.name) === getCanonicalKey(d.name))?.price || 0;
-        return sum + p * (d.quantity || 1);
-      }, 0);
-      itemCount = trackedDishes.reduce((sum, d) => sum + (d.quantity || 1), 0);
-    } else if (chairOrderedCart.length > 0) {
-      subtotal = chairOrderedCart.reduce((sum, ci) => sum + (ci.totalPrice || 0), 0);
-      itemCount = chairOrderedCart.reduce((sum, ci) => sum + (ci.quantity || 1), 0);
-    } else if (currentBillAmount > 0) {
-      subtotal = Math.round(currentBillAmount / 1.05);
-      itemCount = 1;
+      (cart || [])
+        .filter((ci) => ci.isOrdered && (ci.seatNumber ? Number(ci.seatNumber) === effectiveSeat : effectiveSeat === 1))
+        .forEach((ci) => {
+          const dishName = ci.menuItem?.name || (ci as any)?.name || 'Special Dish';
+          const key = ci.cartItemId || `${getCanonicalKey(dishName)}_S${effectiveSeat}`;
+          if (!unifiedChairItemsMap.has(key)) {
+            const p = ci.menuItem?.price || (ci.totalPrice ? Math.round(ci.totalPrice / (ci.quantity || 1)) : 0);
+            unifiedChairItemsMap.set(key, {
+              id: ci.cartItemId || key,
+              name: dishName,
+              quantity: ci.quantity || 1,
+              price: p,
+            });
+          }
+        });
+
+      calculatedSubtotal = Array.from(unifiedChairItemsMap.values()).reduce(
+        (sum, it) => sum + it.price * it.quantity,
+        0
+      );
+      totalItemCount = Array.from(unifiedChairItemsMap.values()).reduce(
+        (sum, it) => sum + it.quantity,
+        0
+      );
     }
 
+    const subtotal = calculatedSubtotal;
+    const itemCount = totalItemCount || trackedDishes.length || 0;
     const gst = Math.round(subtotal * 0.05);
     const calculatedGrand = subtotal + gst;
     const grandTotal = (activeSession?.grandTotal && Number(activeSession.seatNumber) === effectiveSeat)
@@ -739,7 +780,7 @@ export const Screen5LiveTracking: React.FC = () => {
       subtotal,
       gst,
       grandTotal,
-      itemCount: itemCount || trackedDishes.length || 0,
+      itemCount,
     };
   }, [tables, effectiveTable, effectiveSeat, cart, currentBillAmount, trackedDishes, activeSession]);
 
@@ -1510,7 +1551,7 @@ export const Screen5LiveTracking: React.FC = () => {
                   // Real-time synchronization to waiter interface
                   recordSettledBill(finalSnapshot);
                   waiterRecordsPayment(normTbl, 'UPI', finalSnapshot.grandTotal, effectiveSeat);
-                  waiterClearsChairAfterPayment(normTbl, effectiveSeat);
+                  // Table and chair remain OCCUPIED when payment is done through customer interface until waiter/manager vacates
                   waiterClearsSettlementSession(normTbl, effectiveSeat);
 
                   setIsScannerOpen(false);

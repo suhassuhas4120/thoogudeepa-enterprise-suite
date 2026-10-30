@@ -212,6 +212,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
               JSON.stringify([...ci.selectedAddOns].sort()) ===
                 JSON.stringify([...targetItem.selectedAddOns].sort())
           );
+  
 
           let newCart: CartItem[];
           if (unplacedIndex > -1) {
@@ -333,10 +334,30 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       const tblTag = tableId.replace('-', '');
       const ticketId = `KDS-${tblTag}-${ts}-001`;
 
+      const bridge = useSharedBridge.getState();
+      const cleanTable = tableId.replace(/^(TABLE\s*|T-?)/i, '').trim();
+      const normT = `T-${String(parseInt(cleanTable, 10) || 1).padStart(2, '0')}`;
+      const hasSettledBill = Boolean(
+        bridge.settledBills?.[normT] ||
+        bridge.settledBills?.[`${normT}-CHAIR-${seatNumber}`] ||
+        bridge.settledBills?.[tableId] ||
+        bridge.settledBills?.[`${tableId}-CHAIR-${seatNumber}`]
+      );
+
       // Push order once through the shared bridge (optimistic update + /api/orders/create + broadcast)
       try {
-        const bridge = useSharedBridge.getState();
-        bridge.clearSettledBill(tableId, seatNumber);
+
+
+
+
+
+
+
+
+
+        if (hasSettledBill) {
+          bridge.clearSettledBill(tableId, seatNumber);
+        }
         bridge.customerPlacesOrder(
           tableId,
           state.guestName || `Guest (Chair ${seatNumber})`,
@@ -347,6 +368,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
             addOns: c.selectedAddOns,
             quantity: c.quantity,
           }))
+
         );
       } catch (err) {
         console.error('[placeAllOrders] bridge order error:', err);
@@ -361,22 +383,37 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         stage: 'PREP' as OrderStage,
       }));
 
+      const isPostPaymentOrder = Boolean(
+        state.isSettled ||
+        state.currentScreen === 8 ||
+        (state.payment?.transactionId && state.payment.totalAmount > 0 && state.isSettled) ||
+        hasSettledBill
+      );
+
       const updatedCart = state.cart.map((c) => ({
         ...c,
-        isOrdered: (c.seatNumber === seatNumber || (!c.seatNumber && seatNumber === 1)) ? true : c.isOrdered,
+        isOrdered: true,
         seatNumber: c.seatNumber || seatNumber,
       }));
 
+      const finalCart = isPostPaymentOrder
+        ? itemsToFire.map((c) => ({
+            ...c,
+            isOrdered: true,
+            seatNumber,
+          }))
+        : updatedCart;
+
       return {
-        cart: updatedCart,
+        cart: finalCart,
         tableNumber: tableId,
         seatNumber,
-        itemTracking: [...state.itemTracking, ...newTracking],
+        itemTracking: isPostPaymentOrder ? newTracking : [...state.itemTracking, ...newTracking],
         orderStage: 'PLACED',
         previousScreen: state.currentScreen,
         currentScreen: 5,
         isSettled: false,
-        payment: initialEmptyPayment,
+        payment: calculatePaymentTotals(updatedCart, isPostPaymentOrder ? initialEmptyPayment : state.payment, seatNumber),
         waiterNotification: null,
         orderPlacedAt: nowTs,
       };
@@ -461,7 +498,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
             price: Math.round(c.totalPrice / (c.quantity || 1)),
             totalPrice: c.totalPrice,
             seatNumber: seat,
-          }));
+          }))
 
       const snapshot: SettledBillSnapshot = {
         invoiceNumber: inv,
@@ -487,7 +524,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
 
       bridge.recordSettledBill(snapshot);
       bridge.waiterRecordsPayment(state.tableNumber, state.payment.paymentMethod, state.payment.totalAmount, state.seatNumber);
-      bridge.waiterClearsChairAfterPayment(state.tableNumber, state.seatNumber);
+      // Table and chair remain OCCUPIED when payment is done through customer interface until waiter/manager vacates
       bridge.waiterClearsSettlementSession(state.tableNumber, state.seatNumber);
 
       return {
@@ -646,7 +683,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     const bridge = useSharedBridge.getState();
     const currentTbl = bridge.tables.find((t) => cleanNum(t.number) === targetTableNum);
 
-    // Tickets strictly for THIS chair (exclude only settled/COMPLETED tickets)
+    // Tickets strictly for THIS chair — exclude COMPLETED (settled) batches so a re-order never merges into a finished batch
     const myTickets = bridge.kdsTickets.filter(
       (tk) => cleanNum(tk.tableNumber) === targetTableNum && tk.status !== 'COMPLETED'
     );
@@ -661,6 +698,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
       }
     );
     const seatTickets = myTickets.filter((tk) => {
+      if (tk.status === 'COMPLETED') return false;
       const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
       return tkSeat === seatNumber || tk.items.some((i) => {
         const iSeat = i.seatNumber !== undefined && i.seatNumber !== null
@@ -704,7 +742,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
     }
 
     // Chair has active unpaid orders!
-    // Extract real dishes from KDS tickets or table activeItems strictly for THIS chair
+    // Extract real dishes from KDS tickets or table activeItems strictly for THIS chair (combine all batches)
     const ticketItems = seatTickets.flatMap((tk) => {
       const tkSeat = tk.seatNumber !== undefined && tk.seatNumber !== null ? Number(tk.seatNumber) : 1;
       return (tk.items || [])
@@ -722,7 +760,40 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         }));
     });
 
-    const activeList = ticketItems.length > 0 ? ticketItems : seatActiveItems;
+    // Merge all items from tickets and activeItems to capture multi-batch orders
+    const mergedMap = new Map<string, any>();
+    // Add all ticket items first
+    ticketItems.forEach((it: any, idx: number) => {
+      const key = it.id || `${it.name}-${it.ticketId}-${idx}`;
+      mergedMap.set(key, it);
+    });
+    // Add any items from activeItems not already present
+    seatActiveItems.forEach((ai: any, idx: number) => {
+      const key = ai.id || `${ai.name}-ai-${idx}`;
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, { ...ai, id: ai.id || key });
+      }
+    });
+    // Also include any local ordered items already in state.cart for this chair
+    const currentLocalOrdered = (useCustomerStore.getState().cart || []).filter(
+      (c) => c.isOrdered && (c.seatNumber === seatNumber || (!c.seatNumber && seatNumber === 1))
+    );
+    currentLocalOrdered.forEach((c) => {
+      const key = c.cartItemId || c.menuItem.id;
+      if (!mergedMap.has(key)) {
+        mergedMap.set(key, {
+          id: c.cartItemId,
+          name: c.menuItem.name,
+          quantity: c.quantity,
+          price: c.totalPrice / (c.quantity || 1),
+          stage: 'PLACED',
+          options: c.selectedOption,
+          addOns: c.selectedAddOns,
+          seatNumber,
+        });
+      }
+    });
+    const activeList = Array.from(mergedMap.values());
 
     if (activeList.length > 0) {
       const restoredCart: CartItem[] = activeList.map((it: any, idx: number) => {
@@ -827,6 +898,7 @@ export const useCustomerStore = create<CustomerStoreState>((set) => ({
         const inConfirmed = confirmedTickets.some((tk) =>
           tk.items?.some((it) => it.name === c.menuItem.name)
         );
+
         return {
           ...c,
           isOrdered: inConfirmed,
@@ -900,14 +972,17 @@ if (typeof window !== 'undefined') {
           payment: state.payment,
         });
         localStorage.setItem(
-          `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`,
+          `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`
+        ,
           payload
         );
+
       } else if (isConfirmationScreen && hasTable && hasSeat) {
         // Payment confirmed — wipe the scoped session so next scan starts fresh
         localStorage.removeItem(
           `thoogudeepa_customer_session_${state.tableNumber}_s${state.seatNumber}`
         );
+
         localStorage.removeItem('thoogudeepa_customer_session_v1');
       }
     } catch {}

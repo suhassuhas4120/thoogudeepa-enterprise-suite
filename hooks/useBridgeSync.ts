@@ -150,6 +150,7 @@ async function reconcileAllState(): Promise<void> {
       } catch {}
     }
 
+    const dayAgoIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     // Fetch all tables in parallel (single network roundtrip)
     const [
       { data: tickets },
@@ -158,7 +159,7 @@ async function reconcileAllState(): Promise<void> {
       { data: pings },
       { data: unpaidOrders },
     ] = await Promise.all([
-      supabase.from('kds_tickets').select('*').neq('status', 'COMPLETED').order('created_at', { ascending: true }),
+      supabase.from('kds_tickets').select('*').or(`status.neq.COMPLETED,created_at.gte.${dayAgoIso}`).order('created_at', { ascending: true }),
       supabase.from('tables').select('*').order('number', { ascending: true }),
       supabase.from('menu_86').select('*').order('name', { ascending: true }),
       supabase.from('pings').select('*').order('created_at', { ascending: true }),
@@ -249,6 +250,23 @@ async function reconcileAllState(): Promise<void> {
     // 1. Unpaid orders represent the complete persistent dining session items for active tables
     (unpaidOrders || []).forEach((ord: any) => {
       const tKey = cleanTableNum(ord.table_number);
+      const normTable = `T-${String(parseInt(tKey, 10) || 1).padStart(2, '0')}`;
+      const localTbl = bridge.tables.find((t) => cleanTableNum(t.number) === tKey);
+
+      // Check if table or chair is already settled or vacant locally
+      const isTableSettled = Boolean(bridge.settledBills?.[normTable] || bridge.settledBills?.[tKey]);
+      const sNum = ord.seat_number ? Number(ord.seat_number) : undefined;
+      const isChairSettled = typeof sNum === 'number' && Boolean(
+        bridge.settledBills?.[`${normTable}-CHAIR-${sNum}`] ||
+        bridge.settledBills?.[`${tKey}-CHAIR-${sNum}`]
+      );
+      if (isTableSettled || (localTbl?.status === 'VACANT' && (localTbl?.currentBill || 0) === 0)) {
+        return;
+      }
+      if (isChairSettled) {
+        return;
+      }
+
       const list = itemsByTable.get(tKey) || [];
       const seen = seenItemIdsByTable.get(tKey) || new Set<string>();
 
@@ -266,18 +284,23 @@ async function reconcileAllState(): Promise<void> {
             ? Number(it.seat_number)
             : ord.seat_number ? Number(ord.seat_number) : 1;
 
+          const localAi = localTbl?.activeItems?.find((ai) => ai.id === id);
+          const localIsServed = Boolean(localAi && (localAi.status === 'Served' || (localAi as any).stage === 'SERVED'));
+
           list.push({
             id,
             name: it.name || 'Dish',
             quantity: Number(it.quantity || 1),
             status:
-              rawStage === 'SERVED'
+              localIsServed || rawStage === 'SERVED'
                 ? 'Served'
                 : (rawStage === 'PLATED' || rawStage === 'READY')
                 ? 'Ready'
                 : (rawStage === 'PREP' || rawStage === 'PREPARING' || rawStage === 'COOKING')
                 ? 'Cooking'
-                : 'Placed',
+                : (rawStage === 'RECEIVED')
+                ? 'Received'
+                : (localAi?.status || 'Placed'),
             options: it.options || it.selectedOption || undefined,
             addOns: it.addOns || it.add_ons || [],
             seatNumber: sNum,
@@ -289,14 +312,21 @@ async function reconcileAllState(): Promise<void> {
       seenItemIdsByTable.set(tKey, seen);
     });
 
-    // 2. Overlay live status from active KDS tickets or supplement newly created tickets
+    // 2. Overlay live status from KDS tickets or supplement newly created tickets
     mappedTickets.forEach((tk) => {
       const tKey = cleanTableNum(tk.tableNumber);
+      const normTable = `T-${String(parseInt(tKey, 10) || 1).padStart(2, '0')}`;
+      const localTbl = bridge.tables.find((t) => cleanTableNum(t.number) === tKey);
+      if (bridge.settledBills?.[normTable] || bridge.settledBills?.[tKey] || (localTbl?.status === 'VACANT' && (localTbl?.currentBill || 0) === 0)) {
+        return;
+      }
+
       const list = itemsByTable.get(tKey) || [];
       const seen = seenItemIdsByTable.get(tKey) || new Set<string>();
+      const matchedIdsInTicket = new Set<string>();
 
       tk.items.forEach((it) => {
-        const sUpper = String(it.stage || '').toUpperCase();
+        const sUpper = String(it.stage || (tk.status === 'COMPLETED' ? 'SERVED' : '')).toUpperCase();
         const stageStatus =
           sUpper === 'SERVED'
             ? 'Served'
@@ -308,10 +338,25 @@ async function reconcileAllState(): Promise<void> {
             ? 'Received'
             : 'Placed';
 
-        const existingItem = list.find((li) => li.id === it.id);
+        const existingItem =
+          list.find((li) => li.id === it.id) ||
+          (tk.status !== 'COMPLETED'
+            ? list.find(
+                (li) =>
+                  !matchedIdsInTicket.has(li.id) &&
+                  li.name === it.name &&
+                  (li.seatNumber === undefined || it.seatNumber === undefined || li.seatNumber === it.seatNumber)
+              )
+            : undefined);
+
         if (existingItem) {
-          existingItem.status = stageStatus;
-        } else if (!seen.has(it.id)) {
+          matchedIdsInTicket.add(existingItem.id);
+          if (sUpper === 'SERVED') {
+            existingItem.status = 'Served';
+          } else if (existingItem.status !== 'Served') {
+            existingItem.status = stageStatus;
+          }
+        } else if (tk.status !== 'COMPLETED' && !seen.has(it.id)) {
           seen.add(it.id);
           list.push({
             id: it.id,
@@ -331,7 +376,11 @@ async function reconcileAllState(): Promise<void> {
 
     // 3. Keep local in-memory activeItems not already seen
     bridge.tables.forEach((localTbl) => {
+      if (localTbl.status === 'VACANT') return; // Do not resurrect items for vacant tables
       const tKey = cleanTableNum(localTbl.number);
+      const normTable = `T-${String(parseInt(tKey, 10) || 1).padStart(2, '0')}`;
+      if (bridge.settledBills?.[normTable] || bridge.settledBills?.[tKey]) return;
+
       const list = itemsByTable.get(tKey) || [];
       const seen = seenItemIdsByTable.get(tKey) || new Set<string>();
 
@@ -352,8 +401,49 @@ async function reconcileAllState(): Promise<void> {
     let mappedTables = bridge.tables;
     if (tables && tables.length > 0) {
       mappedTables = tables.map((row: DbTableRow) => {
-        const localTbl = bridge.tables.find((t) => cleanTableNum(t.number) === cleanTableNum(row.number));
-        const tableActiveItems = itemsByTable.get(cleanTableNum(row.number)) || [];
+        const tKey = cleanTableNum(row.number);
+        const normT = `T-${String(parseInt(tKey, 10) || 1).padStart(2, '0')}`;
+        const localTbl = bridge.tables.find((t) => cleanTableNum(t.number) === tKey);
+        const isTableSettled = Boolean(bridge.settledBills?.[normT] || bridge.settledBills?.[tKey]);
+        const isLocallyVacant = localTbl?.status === 'VACANT' && (localTbl?.currentBill || 0) === 0;
+
+        // If table is locally vacant and was cleared or in DB vacant, maintain VACANT
+        if (isLocallyVacant && (row.status === 'VACANT' || Number(row.current_bill || 0) === 0)) {
+          return {
+            id: row.number,
+            number: row.number,
+            section: row.section || localTbl?.section || 'Express / Couple Hall',
+            capacity: row.capacity || localTbl?.capacity || 2,
+            status: 'VACANT' as const,
+            guestCount: 0,
+            seatedTime: '--',
+            currentBill: 0,
+            serverName: row.server_name || localTbl?.serverName || 'Floor Captain',
+            kotCount: 0,
+            mergedWith: undefined,
+            activeItems: [],
+          };
+        }
+
+        if (isTableSettled) {
+          const finalStatus: SharedTable['status'] = isLocallyVacant ? 'VACANT' : 'BILLING';
+          return {
+            id: row.number,
+            number: row.number,
+            section: row.section || localTbl?.section || 'Express / Couple Hall',
+            capacity: row.capacity || localTbl?.capacity || 2,
+            status: finalStatus,
+            guestCount: finalStatus === 'VACANT' ? 0 : Math.max(1, row.guest_count ?? localTbl?.guestCount ?? 1),
+            seatedTime: finalStatus === 'VACANT' ? '--' : (localTbl?.seatedTime && localTbl.seatedTime !== '--' ? localTbl.seatedTime : 'Just now'),
+            currentBill: 0,
+            serverName: row.server_name || localTbl?.serverName || 'Floor Captain',
+            kotCount: 0,
+            mergedWith: row.merged_with ?? localTbl?.mergedWith ?? undefined,
+            activeItems: finalStatus === 'VACANT' ? [] : (localTbl?.activeItems || []),
+          };
+        }
+
+        const tableActiveItems = itemsByTable.get(tKey) || [];
         const activeItemsSum = tableActiveItems.reduce((acc, it) => acc + (Number(it.price || 0) * (it.quantity || 1)), 0);
         const computedBill = activeItemsSum;
         const dbBill = Number(row.current_bill || 0);

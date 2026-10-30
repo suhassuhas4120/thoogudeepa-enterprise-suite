@@ -70,6 +70,7 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
           e.stopPropagation();
           onServe?.();
         }}
+        title="Tap to mark dish as Served"
         className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95 border border-emerald-700"
       >
         <span className="text-white">●</span>
@@ -79,22 +80,52 @@ function StagePill({ stage, onServe }: { stage: string; onServe?: () => void }) 
   }
   if (s === 'COOKING' || s === 'PREP' || s === 'PREPARING') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-        Preparing
-      </span>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onServe?.();
+        }}
+        title="Tap to mark dish as Served"
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 inline-flex items-center gap-1 cursor-pointer transition active:scale-95 animate-pulse"
+      >
+        <span>●</span>
+        <span>Preparing (Serve)</span>
+      </motion.button>
     );
   }
   if (s === 'RECEIVED') {
     return (
-      <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 text-sky-800 border border-sky-300">
-        Received
-      </span>
+      <motion.button
+        type="button"
+        whileTap={{ scale: 0.92 }}
+        onClick={(e) => {
+          e.stopPropagation();
+          onServe?.();
+        }}
+        title="Tap to mark dish as Served"
+        className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-sky-100 hover:bg-sky-200 text-sky-900 border border-sky-300 inline-flex items-center gap-1 cursor-pointer transition active:scale-95"
+      >
+        <span>●</span>
+        <span>Received (Serve)</span>
+      </motion.button>
     );
   }
   return (
-    <span className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-stone-100 text-stone-600 border border-stone-200">
-      Placed
-    </span>
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.92 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onServe?.();
+      }}
+      title="Tap to mark dish as Served"
+      className="px-2.5 py-0.5 rounded-full font-black uppercase text-[9px] bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs inline-flex items-center gap-1 cursor-pointer transition active:scale-95 border border-emerald-700"
+    >
+      <span className="text-white">●</span>
+      <span>Placed (Serve)</span>
+    </motion.button>
   );
 }
 
@@ -132,6 +163,7 @@ export function TabletTableDetail({
   const {
     tables,
     kdsTickets,
+    settledBills,
     pings,
     activeSettlementSessions,
     waiterMergeChairs,
@@ -160,10 +192,6 @@ export function TabletTableDetail({
   }
 
   const isVacant = table.status === 'VACANT';
-  const isPaymentCompleted =
-    !isVacant &&
-    (table.status === 'BILLING' ||
-      (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0)));
   const elapsed = getElapsed(table.seatedTime);
   const groupPeers =
     table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
@@ -174,7 +202,28 @@ export function TabletTableDetail({
   );
   const tickets = isVacant
     ? []
-    : kdsTickets.filter((tk) => cleanPeersSet.has(cleanTableNum(tk.tableNumber)));
+    : kdsTickets.filter((tk) => cleanPeersSet.has(cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
+
+  const normTableStr = `T-${String(parseInt(cleanTableNum(tableNum), 10) || 1).padStart(2, '0')}`;
+  const isSelectedChairSettled =
+    typeof selectedChair === 'number' &&
+    (Boolean(
+      settledBills?.[`${normTableStr}-CHAIR-${selectedChair}`] ||
+      settledBills?.[`${tableNum}-CHAIR-${selectedChair}`]
+    ) ||
+      Boolean(settledBills?.[normTableStr] || settledBills?.[tableNum]) ||
+      table.status === 'BILLING' ||
+      table.currentBill === 0 ||
+      (!(table.activeItems || []).some((i) => (i.seatNumber ? Number(i.seatNumber) : 1) === selectedChair) &&
+       !tickets.some((tk) => (tk.seatNumber ? Number(tk.seatNumber) : 1) === selectedChair || tk.items?.some((it) => (it.seatNumber ? Number(it.seatNumber) : (tk.seatNumber ? Number(tk.seatNumber) : 1)) === selectedChair))));
+
+  const isPaymentCompleted =
+    !isVacant &&
+    (typeof selectedChair === 'number'
+      ? isSelectedChairSettled
+      : (Boolean(settledBills?.[normTableStr] || settledBills?.[tableNum]) ||
+        table.status === 'BILLING' ||
+        (table.currentBill === 0 && (!table.activeItems || table.activeItems.length === 0))));
 
   const firedFromTickets = tickets.flatMap((tk) =>
     tk.items.map((item) => ({
@@ -208,7 +257,18 @@ export function TabletTableDetail({
       tableNum: tableNum,
     };
   });
-  const allItems = firedFromTickets.length > 0 ? firedFromTickets : firedFromActive;
+  const seenFiredIds = new Set<string>();
+  const allItems: any[] = [];
+  firedFromTickets.forEach((it) => {
+    if (it.id) seenFiredIds.add(it.id);
+    allItems.push(it);
+  });
+  firedFromActive.forEach((it) => {
+    if (!it.id || !seenFiredIds.has(it.id)) {
+      if (it.id) seenFiredIds.add(it.id);
+      allItems.push(it);
+    }
+  });
 
   const allFiredItems = allItems;
   const hasFiredItems = allFiredItems.length > 0;
@@ -923,7 +983,7 @@ export function TabletTableDetail({
                   (i) =>
                     i.stage === 'SERVED' ||
                     (i.stage as string) === 'Served' ||
-                    table.activeItems?.some((ai) => (ai.id === i.id || ai.name === i.name) && ai.status === 'Served')
+                    table.activeItems?.some((ai) => ai.id === i.id && (ai.status === 'Served' || (ai as any).stage === 'SERVED'))
                 );
 
               return (
@@ -952,7 +1012,7 @@ export function TabletTableDetail({
                     const isServed =
                       item.stage === 'SERVED' ||
                       (item.stage as string) === 'Served' ||
-                      table.activeItems?.some((ai) => (ai.id === item.id || ai.name === item.name) && ai.status === 'Served');
+                      table.activeItems?.some((ai) => ai.id === item.id && (ai.status === 'Served' || (ai as any).stage === 'SERVED'));
                     return (
                       <div
                         key={item.id}
@@ -1188,9 +1248,13 @@ export function TabletTableDetail({
               disabled={!isPaymentCompleted}
               title={
                 !isPaymentCompleted
-                  ? totalTableBill > 0
+                  ? typeof selectedChair === 'number'
+                    ? `Payment pending for Chair ${selectedChair}. Settle bill before vacating.`
+                    : totalTableBill > 0
                     ? `Payment pending (₹${totalTableBill.toFixed(2)}). Settle bill before vacating.`
                     : 'Payment must be completed before vacating table'
+                  : typeof selectedChair === 'number'
+                  ? `Vacate and reset Chair ${selectedChair}`
                   : 'Vacate and reset table'
               }
               className={`w-full py-2.5 rounded-xl border-2 font-bold transition flex items-center justify-center gap-1.5 ${
@@ -1200,7 +1264,7 @@ export function TabletTableDetail({
               }`}
             >
               <UserX className="h-3.5 w-3.5" />
-              <span>Vacate Table</span>
+              <span>{typeof selectedChair === 'number' ? `Vacate Chair ${selectedChair}` : 'Vacate Table'}</span>
             </button>
           </div>
         </div>

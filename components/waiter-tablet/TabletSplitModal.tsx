@@ -27,7 +27,7 @@ export function TabletSplitModal({ open, onClose, tableNum, onSelectSplit }: Pro
   const groupPeers = table.mergeGroupPeers || (table.mergedWith ? [tableNum, table.mergedWith] : [tableNum]);
   const tickets = isVacant
     ? []
-    : kdsTickets.filter((tk) => groupPeers.some((gp) => cleanTableNum(gp) === cleanTableNum(tk.tableNumber)));
+    : kdsTickets.filter((tk) => groupPeers.some((gp) => cleanTableNum(gp) === cleanTableNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
 
   // Gather all ordered items
   const allOrderedItems: {

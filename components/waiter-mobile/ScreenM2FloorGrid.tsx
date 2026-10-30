@@ -77,7 +77,7 @@ function getOccupiedSeatsForTable(
   const hasActiveTickets = matchingTickets.length > 0;
   const hasActiveItems = Boolean(table.activeItems && table.activeItems.length > 0);
   if (occupied.size === 0 && isTableActive) {
-    if (table.guestCount && table.guestCount > 0) {
+    if (table.guestCount && table.guestCount > 0 && (hasActiveTickets || hasActiveItems || (table.currentBill || 0) > 0)) {
       const count = Math.min(capacity, table.guestCount);
       for (let c = 1; c <= count; c++) occupied.add(c);
     } else if (hasActiveTickets || hasActiveItems || (table.currentBill || 0) > 0) {

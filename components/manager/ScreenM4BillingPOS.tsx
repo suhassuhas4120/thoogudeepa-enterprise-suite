@@ -53,7 +53,11 @@ export function ScreenM4BillingPOS() {
     activeManager,
   } = useManagerStore();
 
-  const cleanNum = (s: string) => (s || '').replace(/^(TABLE\s*|T-?)/i, '').trim();
+  const cleanNum = (s: string) => {
+    const raw = (s || '').toUpperCase().replace(/\s+/g, '').replace(/^TABLE/, '').replace(/^T-?/, '').trim();
+    const parsed = parseInt(raw, 10);
+    return !isNaN(parsed) && parsed > 0 ? String(parsed) : raw;
+  };
   const targetNum = cleanNum(selectedTableNumber);
 
   const selectedTable =
@@ -75,19 +79,20 @@ export function ScreenM4BillingPOS() {
 
   const isTableVacant = selectedTable.status === 'VACANT';
 
-  // Gather existing KOT items for this table from kdsTickets (vacant tables have no active items)
+  // Gather existing KOT items for this table from kdsTickets and table.activeItems
   const groupPeers: string[] = selectedTable?.mergeGroupPeers ?? [selectedTable?.number || 'T-01'];
+  const cleanPeersSet = new Set(groupPeers.map(cleanNum));
   const tableTickets = isTableVacant
     ? []
-    : kdsTickets.filter(
-        (tk) =>
-          groupPeers.some((peer) => cleanNum(peer) === cleanNum(tk.tableNumber))
-      );
+    : kdsTickets.filter((tk) => cleanPeersSet.has(cleanNum(tk.tableNumber)) && tk.status !== 'COMPLETED');
 
   const existingItems: BillItem[] = [];
+  const seenIds = new Set<string>();
+
   if (!isTableVacant) {
     tableTickets.forEach((tk) => {
       (tk.items || []).forEach((it) => {
+        seenIds.add(it.id);
         const activeMatch = selectedTable.activeItems?.find((ai) => ai.id === it.id);
         const isServed = it.stage === 'SERVED' || (it.stage as string) === 'Served' || activeMatch?.status === 'Served';
         const rawStage = isServed ? 'SERVED' : String(it.stage || tk.status || '').toUpperCase();
@@ -102,7 +107,11 @@ export function ScreenM4BillingPOS() {
             ? 'RECEIVED'
             : 'PLACED';
 
-        const seat = it.seatNumber || tk.seatNumber || 1;
+        const seat = it.seatNumber !== undefined && it.seatNumber !== null
+          ? Number(it.seatNumber)
+          : (it as any).seat_number !== undefined && (it as any).seat_number !== null
+          ? Number((it as any).seat_number)
+          : (tk.seatNumber ? Number(tk.seatNumber) : 1);
         const itName = (it.name || '').trim().toLowerCase();
         const menuItem = INITIAL_MENU_ITEMS.find((m) => (itName && m.name.trim().toLowerCase() === itName) || (it.id && m.id === it.id));
         const unitPrice = it.price && it.price > 0 ? it.price : menuItem ? menuItem.price : 220;
@@ -123,14 +132,16 @@ export function ScreenM4BillingPOS() {
       });
     });
 
-    const groupTables = tables.filter((t) => groupPeers.some((peer) => cleanNum(peer) === cleanNum(t.number)));
+    const groupTables = tables.filter((t) => cleanPeersSet.has(cleanNum(t.number)));
     const groupCurrentBill = groupTables.reduce((s, t) => s + (t.currentBill || 0), 0);
     const effectiveBill = groupCurrentBill > 0 ? groupCurrentBill : (selectedTable.currentBill || 0);
 
-    // Fallback to table activeItems across all group member tables if tickets are empty
-    if (existingItems.length === 0) {
-      groupTables.forEach((gt) => {
-        (gt.activeItems || []).forEach((ai, idx) => {
+    // Supplement with any activeItems from group member tables not already present in tickets
+    groupTables.forEach((gt) => {
+      (gt.activeItems || []).forEach((ai, idx) => {
+        const id = ai.id || `ai-${gt.number}-${idx}`;
+        if (!seenIds.has(id)) {
+          seenIds.add(id);
           const rawStage = String(ai.status || '').toUpperCase();
           const stage: BillItem['stage'] =
             rawStage === 'SERVED'
@@ -143,16 +154,20 @@ export function ScreenM4BillingPOS() {
               ? 'RECEIVED'
               : 'PLACED';
 
-          const seat = ai.seatNumber || 1;
+          const seat = ai.seatNumber !== undefined && ai.seatNumber !== null
+            ? Number(ai.seatNumber)
+            : (ai as any).seat_number !== undefined && (ai as any).seat_number !== null
+            ? Number((ai as any).seat_number)
+            : 1;
           const aiName = (ai.name || '').trim().toLowerCase();
           const menuItem = INITIAL_MENU_ITEMS.find((m) => (aiName && m.name.trim().toLowerCase() === aiName) || (ai.id && m.id === ai.id) || m.name === ai.name);
           const unitPrice = ai.price && ai.price > 0 ? ai.price : menuItem ? menuItem.price : 220;
 
           existingItems.push({
-            id: ai.id || `ai-${gt.number}-${idx}`,
+            id,
             name: ai.name || menuItem?.name || 'Dish',
             price: unitPrice,
-            qty: ai.quantity,
+            qty: ai.quantity || 1,
             isFree: false,
             seatNumber: seat,
             stage,
@@ -160,9 +175,9 @@ export function ScreenM4BillingPOS() {
             ticketId: 'tbl-direct',
             options: ai.options,
           });
-        });
+        }
       });
-    }
+    });
 
     // Fallback to running table bill if tickets and activeItems are empty but table has currentBill
     if (existingItems.length === 0 && effectiveBill > 0) {
